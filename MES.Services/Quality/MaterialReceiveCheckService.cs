@@ -57,6 +57,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
     private readonly IQualityProcessTrackingService _qualityProcessTracking;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly IProductionRecordService _productionRecordService;
+    private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
     private readonly IMemoryCache _cache;
 
     public MaterialReceiveCheckService(
@@ -65,7 +66,8 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         IWorkOrderExecutionService workOrderExecutionService,
         IProductionRecordService productionRecordService,
         ILogger<MaterialReceiveCheckService> logger,
-        IMemoryCache cache)
+        IMemoryCache cache,
+        IWorkOrderListSummaryRefreshService? listSummaryService = null)
     {
         _context = context;
         _qualityProcessTracking = qualityProcessTracking;
@@ -73,6 +75,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         _productionRecordService = productionRecordService;
         _logger = logger;
         _cache = cache;
+        _listSummaryService = listSummaryService;
     }
 
     /// <summary>
@@ -113,6 +116,23 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "工单执行状况刷新失败（不影响主流程）: WorkOrderNo={WorkOrderNo}", workOrderNo);
+        }
+    }
+
+    /// <summary>
+    /// 刷新用料计划总览（WorkOrderListSummary）：成检到料增删改会经 RefreshBatchTrackingFieldsAsync
+    /// 改变批次 Status（到料+入库=Completed → 删除后回退），进而影响产能工量 completedOutput，须联动刷新
+    /// </summary>
+    private async Task TryRefreshListSummaryAsync(string? salesOrderNo)
+    {
+        if (_listSummaryService == null || string.IsNullOrWhiteSpace(salesOrderNo)) return;
+        try
+        {
+            await _listSummaryService.RefreshBySalesOrderAsync(salesOrderNo);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "用料计划总览刷新失败（不影响主流程）: SalesOrderNo={SalesOrderNo}", salesOrderNo);
         }
     }
 
@@ -273,6 +293,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         await _productionRecordService.RefreshBatchTrackingFieldsAsync(batch.Id);
         await TryRefreshQualityProcessTrackingAsync(entity.Id);
         await TryRefreshExecutionSummaryAsync(batch.WorkOrderNo);
+        await TryRefreshListSummaryAsync(batch.SalesOrderNo);
 
         return MapToDto(entity, batch, isLastProcessGroup: isLast);
     }
@@ -400,6 +421,12 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                                  .Distinct(StringComparer.OrdinalIgnoreCase))
             await TryRefreshExecutionSummaryAsync(woNo);
 
+        // 去重刷新用料计划总览（成检到料创建会经批次状态变化影响产能工量）
+        foreach (var soNo in modifiedBatches.Where(b => !string.IsNullOrWhiteSpace(b.SalesOrderNo))
+                                 .Select(b => b.SalesOrderNo)
+                                 .Distinct(StringComparer.OrdinalIgnoreCase))
+            await TryRefreshListSummaryAsync(soNo);
+
         // 预查所有检验工序组，判定各记录是否为 Inspection 值最高的
         var lastPgBatchIds = modifiedBatches.Select(b => b.Id).Distinct().ToList();
         var allPgs = await _context.Set<ProcessGroup>()
@@ -480,6 +507,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         // 需与 Delete 对齐重算批次跟踪字段 + 工单执行状况读模型
         await _productionRecordService.RefreshBatchTrackingFieldsAsync(entity.ProductionBatchId);
         await TryRefreshExecutionSummaryAsync(entity.ProductionBatch?.WorkOrderNo);
+        await TryRefreshListSummaryAsync(entity.ProductionBatch?.SalesOrderNo);
 
         return MapToDto(entity, isLastProcessGroup: isLast);
     }
@@ -511,6 +539,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
         var batch = await _context.ProductionBatches.FindAsync(batchId);
         await TryRefreshExecutionSummaryAsync(batch?.WorkOrderNo);
+        await TryRefreshListSummaryAsync(batch?.SalesOrderNo);
     }
 
     private async Task TryRefreshQualityProcessTrackingByBatchAsync(int productionBatchId)

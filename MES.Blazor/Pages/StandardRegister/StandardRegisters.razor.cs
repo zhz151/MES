@@ -54,24 +54,6 @@ public partial class StandardRegisters
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }
 
-    private async Task PrintAll()
-    {
-        try
-        {
-            var request = new StandardRegisterPrintAllRequest
-            {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                Columns = GetPrintColumnDefs()
-            };
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.StandardRegister}/print-all-file";
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-        }
-        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
-    }
-
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();

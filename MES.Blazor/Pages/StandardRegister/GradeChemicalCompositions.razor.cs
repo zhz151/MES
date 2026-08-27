@@ -54,24 +54,6 @@ public partial class GradeChemicalCompositions
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }
 
-    private async Task PrintAll()
-    {
-        try
-        {
-            var request = new GradeChemicalCompositionPrintAllRequest
-            {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                Columns = GetPrintColumnDefs()
-            };
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.GradeChemicalComposition}/print-all-file";
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-        }
-        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
-    }
-
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -339,30 +321,6 @@ public partial class GradeChemicalCompositions
                 _isArrowNavSetup = false;
         }
     }
-
-    // ========== 单元格渲染 ==========
-
-    private string? GetCellRawValue(GradeChemicalCompositionDto item, string key) => key switch
-    {
-        "StandardGrade" => item.StandardGrade,
-        "StandardGradeCategory" => item.StandardGradeCategory,
-        "Carbon" => item.Carbon,
-        "Silicon" => item.Silicon,
-        "Manganese" => item.Manganese,
-        "Phosphorus" => item.Phosphorus,
-        "Sulfur" => item.Sulfur,
-        "Nickel" => item.Nickel,
-        "Chromium" => item.Chromium,
-        "Molybdenum" => item.Molybdenum,
-        "Copper" => item.Copper,
-        "Nitrogen" => item.Nitrogen,
-        "Niobium" => item.Niobium,
-        "Titanium" => item.Titanium,
-        "Iron" => item.Iron,
-        "Aluminum" => item.Aluminum,
-        "Tungsten" => item.Tungsten,
-        _ => null
-    };
 
     private void NavigateToCreate() => Navigation.NavigateTo("/grade-chemical-compositions/create");
 

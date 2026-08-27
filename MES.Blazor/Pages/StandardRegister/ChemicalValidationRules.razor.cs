@@ -21,14 +21,11 @@ public partial class ChemicalValidationRules
     private int _totalCount;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -529,44 +526,6 @@ public partial class ChemicalValidationRules
 
     private void NavigateToCreate() => Navigation.NavigateTo("/chemical-validate/create");
 
-    private string? GetCellRawValue(ChemicalValidationRuleDto item, string key) => key switch
-    {
-        "PlantGrade" => item.PlantGrade,
-        "CMin" => item.CMin,
-        "CMax" => item.CMax,
-        "SiMin" => item.SiMin,
-        "SiMax" => item.SiMax,
-        "MnMin" => item.MnMin,
-        "MnMax" => item.MnMax,
-        "PMin" => item.PMin,
-        "PMax" => item.PMax,
-        "SMin" => item.SMin,
-        "SMax" => item.SMax,
-        "NiMin" => item.NiMin,
-        "NiMax" => item.NiMax,
-        "CrMin" => item.CrMin,
-        "CrMax" => item.CrMax,
-        "MoMin" => item.MoMin,
-        "MoMax" => item.MoMax,
-        "CuMin" => item.CuMin,
-        "CuMax" => item.CuMax,
-        "NMin" => item.NMin,
-        "NMax" => item.NMax,
-        "NbMin" => item.NbMin,
-        "NbMax" => item.NbMax,
-        "TiMin" => item.TiMin,
-        "TiMax" => item.TiMax,
-        "FeMin" => item.FeMin,
-        "FeMax" => item.FeMax,
-        "AlMin" => item.AlMin,
-        "AlMax" => item.AlMax,
-        "WMin" => item.WMin,
-        "WMax" => item.WMax,
-        "PRENMin" => item.PRENMin,
-        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
-        _ => null
-    };
-
     private RenderFragment RenderCell(ChemicalValidationRuleDto item, ColumnDef col) => builder =>
     {
         var isEditing = _editingIds.Contains(item.Id);
@@ -750,20 +709,6 @@ public partial class ChemicalValidationRules
         var request = new ChemicalValidationRulePrintBatchRequest
         {
             Ids = selectedIds.ToArray(),
-            Columns = GetPrintColumnDefs()
-        };
-        var json = JsonSerializer.Serialize(request);
-        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-    }
-
-    private async Task PrintAll()
-    {
-        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.ChemicalValidationRule}/print-all-file";
-        var request = new ChemicalValidationRulePrintAllRequest
-        {
-            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "plantgrade",
-            IsDescending = sortDescending,
             Columns = GetPrintColumnDefs()
         };
         var json = JsonSerializer.Serialize(request);

@@ -33,6 +33,9 @@ public partial class InboundHistory
     // ========== 工单号不匹配 ==========
     private List<BatchWorkOrderMismatchDto> _mismatchBatches = new();
 
+    // ========== 来源单工单号变更（实时扫描） ==========
+    private List<SourceOrderChangedBatchDto> _sourceOrderChangedBatches = new();
+
     // ========== 数据与筛选 ==========
     private List<InventoryBatchDto> _pageItems = new();
     private int _totalCount;
@@ -135,14 +138,11 @@ public partial class InboundHistory
 
     // ========== 多选 ==========
     private HashSet<InventoryBatchDto> _selectedItems = new();
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => _selectedItems.Contains(i));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -966,32 +966,35 @@ public partial class InboundHistory
                 break;
 
             case "bool":
-                // 成品仓/原料仓的「关联工单」仅允许"是→否"，"否"时只读显示
-                if ((_lastResolvedWarehouseCode == "FG" || _lastResolvedWarehouseCode == "RAW") && !item.IsLinkedToWorkOrder)
+                // 所有仓库均允许「是⇄否」；点击「是」时按来源即时匹配回填工单号+订单号+主号
+                builder.OpenComponent<MudSwitch<bool>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Color", Color.Primary);
+                builder.AddAttribute(3, "Value", item.IsLinkedToWorkOrder);
+                builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, async v =>
                 {
-                    RenderCellContent(builder, item, col);
-                }
-                else
-                {
-                    builder.OpenComponent<MudSwitch<bool>>(0);
-                    builder.AddAttribute(1, "Dense", true);
-                    builder.AddAttribute(2, "Color", Color.Primary);
-                    builder.AddAttribute(3, "Value", item.IsLinkedToWorkOrder);
-                    builder.AddAttribute(4, "ValueChanged", EventCallback.Factory.Create<bool>(this, v =>
+                    if (v == item.IsLinkedToWorkOrder) return;
+                    if (v)
                     {
-                        // 不允许"否→是"
-                        if ((_lastResolvedWarehouseCode == "FG" || _lastResolvedWarehouseCode == "RAW") && v) return;
-                        item.IsLinkedToWorkOrder = v;
-                        if (!v)
+                        // 否→是：按来源匹配回填；匹配不到则回弹保持「否」
+                        var ok = await TryResolveLinkedWorkOrderAsync(item);
+                        if (!ok)
                         {
-                            item.WorkOrderNo = null;
-                            item.SalesOrderNo = null;
-                            item.ProductionMainNo = null;
-                            item.OrderItemIds = null;
+                            item.IsLinkedToWorkOrder = false;
+                            StateHasChanged();
                         }
-                    }));
-                    builder.CloseComponent();
-                }
+                    }
+                    else
+                    {
+                        // 是→否：清空工单关联字段
+                        item.IsLinkedToWorkOrder = false;
+                        item.WorkOrderNo = null;
+                        item.SalesOrderNo = null;
+                        item.ProductionMainNo = null;
+                        item.OrderItemIds = null;
+                    }
+                }));
+                builder.CloseComponent();
                 break;
 
             case "int":
@@ -1537,6 +1540,18 @@ public partial class InboundHistory
                     // 原料库不触发物料名称变更
                 }
             }
+            else if (!originalLinked && item.IsLinkedToWorkOrder)
+            {
+                // 否→是：发送按来源匹配回填的工单号+订单号+主号（非空才发送，避免覆盖其它显式值）
+                request.IsLinkedToWorkOrder = true;
+                if (!string.IsNullOrEmpty(item.WorkOrderNo)) request.WorkOrderNo = item.WorkOrderNo;
+                if (!string.IsNullOrEmpty(item.SalesOrderNo)) request.SalesOrderNo = item.SalesOrderNo;
+                if (!string.IsNullOrEmpty(item.ProductionMainNo)) request.ProductionMainNo = item.ProductionMainNo;
+                if (!string.IsNullOrEmpty(item.OrderItemIds)) request.OrderItemIds = item.OrderItemIds;
+                // FG 关联工单时联动物料为「成品」
+                if (_lastResolvedWarehouseCode == "FG")
+                    request.MaterialType = MaterialType.Finished;
+            }
 
             var result = await InventoryService.UpdateInventoryBatchAsync(item.Id, request);
             if (result.Success)
@@ -1622,31 +1637,7 @@ public partial class InboundHistory
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }
 
-    private async Task PrintAll()
-    {
-        try
-        {
-            var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
-            var request = new InventoryPrintAllRequest
-            {
-                Keyword = string.IsNullOrEmpty(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                WarehouseId = _warehouseId ?? 0,
-                OnlyWithStock = false,
-                InboundDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
-                InboundDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
-                Columns = columns
-            };
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Inventory}/print-inbound-all-file";
-            var json = JsonSerializer.Serialize(request);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
-    }
-
-    // ========== 工单号不匹配检查（实时扫描） ==========
+    // ========== 工单号不匹配 / 来源单工单号变更检查（实时扫描） ==========
 
     private async Task CheckWorkOrderMismatches()
     {
@@ -1664,6 +1655,51 @@ public partial class InboundHistory
         {
             _mismatchBatches.Clear();
         }
+
+        // 来源单号关联工单号变更：比对批次冗余工单号与来源单当前工单号
+        try
+        {
+            var result2 = await InventoryService.GetSourceOrderChangedBatchesAsync(_warehouseId);
+            if (result2.Success && result2.Data != null)
+            {
+                _sourceOrderChangedBatches = result2.Data;
+            }
+            else
+                _sourceOrderChangedBatches.Clear();
+        }
+        catch
+        {
+            _sourceOrderChangedBatches.Clear();
+        }
+    }
+
+    /// <summary>
+    /// 点击「关联工单=是」：按批次来源（采购单号/委外单号+序号/生产批号）即时解析并回填
+    /// 工单号+订单号+主号；来源单未关联工单或匹配失败时提示并返回 false（开关回弹保持「否」）
+    /// </summary>
+    private async Task<bool> TryResolveLinkedWorkOrderAsync(InventoryBatchDto item)
+    {
+        var result = await InventoryService.ResolveLinkedWorkOrderAsync(item.Id);
+        if (result.Success && result.Data != null && !string.IsNullOrEmpty(result.Data.ExpectedWorkOrderNo))
+        {
+            item.WorkOrderNo = result.Data.ExpectedWorkOrderNo;
+            item.SalesOrderNo = result.Data.SalesOrderNo;
+            item.ProductionMainNo = result.Data.ProductionMainNo;
+            item.OrderItemIds = result.Data.OrderItemIds;
+            item.IsLinkedToWorkOrder = true;
+            // FG 关联工单时联动物料为「成品」（与入库/是→否反向口径一致）
+            if (_lastResolvedWarehouseCode == "FG")
+                item.MaterialType = MaterialType.Finished;
+            return true;
+        }
+
+        var msg = result.Success
+            ? (result.Data != null && result.Data.Warnings.Count > 0
+                ? string.Join("；", result.Data.Warnings)
+                : "该来源单未关联工单，无法匹配")
+            : (result.Message ?? "解析关联工单失败");
+        Snackbar.Add(msg, Severity.Warning);
+        return false;
     }
 
     private void GoBack() => Navigation.NavigateTo(!string.IsNullOrEmpty(Code) ? $"/warehouse/{Code.ToLowerInvariant()}" : "/warehouse");

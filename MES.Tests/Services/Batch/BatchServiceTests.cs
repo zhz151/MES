@@ -150,8 +150,7 @@ public class BatchServiceTests : TestBase
         var items = await ctx.OrderItems.Where(oi => oi.SalesOrderId == order.Id).ToListAsync();
         var itemIds = items.Select(i => i.Sequence).ToList();
 
-        var configMock = new Mock<IConfigParameterService>();
-        var woSvc = new WorkOrderService(ctx, new Mock<ILogger<WorkOrderService>>().Object, configMock.Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
+        var woSvc = new WorkOrderService(ctx, new Mock<ILogger<WorkOrderService>>().Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
         var generated = await woSvc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
         {
             SalesOrderNo = order.OrderNumber,
@@ -1923,5 +1922,132 @@ public class BatchServiceTests : TestBase
 
         // 批次已「完成」，不再属于成检阶段 → 通知消失（批次详情页强制完成后的目标状态）
         result.Should().BeEmpty();
+    }
+
+    // ========== 合并投料明细快照（不再实时 JOIN 仓库） ==========
+
+    private async Task<InventoryBatch> SeedSnapshotInventoryBatchAsync(AppDbContext ctx, string batchNo = "CK-SNAP-1")
+    {
+        var wh = await SeedWarehouseAsync(ctx);
+        var ib = new InventoryBatch
+        {
+            BatchNo = batchNo,
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.OrderFinished.ToString(),
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.Purchase.ToString(),
+            SourceName = "供应商A",
+            HeatNo = "HN-001",
+            InboundDate = DateTime.Today,
+            InitialQuantity = 10,
+            InitialWeight = 1000m,
+            RemainingQuantity = 10,
+            RemainingWeight = 1000m
+        };
+        ctx.InventoryBatches.Add(ib);
+        await ctx.SaveChangesAsync();
+        return ib;
+    }
+
+    private CreateProductionBatchRequest CreateBatchRequestWithSource(int inventoryBatchId)
+    {
+        return new CreateProductionBatchRequest
+        {
+            WorkOrderNo = "非工单",
+            TagNo = "TAG-SNAP",
+            ProductionType = ProductionType.RoughTube,
+            ManufacturingItem = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
+            MaterialName = PipeManufacturingType.SeamlessPipe,
+            LengthStatus = LengthStatus.NonFixed,
+            TotalWeight = 1000m,
+            ProductionRatio = 1,
+            SourcePlantGrade = "Q345B",
+            SourceSpecification = "219*8",
+            SourceLengthStatus = LengthStatus.NonFixed,
+            SourceItems = new List<SourceBatchItemRequest>
+            {
+                new() { InventoryBatchId = inventoryBatchId, OutboundRecordId = null, InputQuantity = 10, InputWeight = 1000m }
+            }
+        };
+    }
+
+    [Fact]
+    public async Task CreateAsync_合并投料来源_快照字段从库存批次复制()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var ib = await SeedSnapshotInventoryBatchAsync(ctx);
+
+        var result = await svc.CreateAsync(CreateBatchRequestWithSource(ib.Id));
+
+        var detail = await svc.GetByIdAsync(result.Id);
+        var item = detail.SourceItems.Should().ContainSingle().Subject;
+        item.InventoryBatchId.Should().Be(ib.Id);
+        item.BatchNo.Should().Be("CK-SNAP-1");
+        item.HeatNo.Should().Be("HN-001");
+        item.PlantGrade.Should().Be("Q345B");
+        item.Specification.Should().Be("219*8");
+        item.SourceName.Should().Be("供应商A");
+        item.WarehouseName.Should().Be("原料仓库");
+        item.MaterialType.Should().Be(MaterialType.OrderFinished);
+        item.InputQuantity.Should().Be(10);
+        item.InputWeight.Should().Be(1000m);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_合并投料明细_快照优先_仓库修改不影响展示()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var ib = await SeedSnapshotInventoryBatchAsync(ctx);
+        var result = await svc.CreateAsync(CreateBatchRequestWithSource(ib.Id));
+
+        // 创建后修改库存批次字段（模拟仓库侧后续变更）
+        ib.PlantGrade = "CHANGED-GRADE";
+        ib.BatchNo = "CK-SNAP-CHANGED";
+        ib.Specification = "999*9";
+        await ctx.SaveChangesAsync();
+
+        // 合并投料明细应展示创建时的快照值，而非实时 JOIN 后的当前仓库值
+        var detail = await svc.GetByIdAsync(result.Id);
+        var item = detail.SourceItems.Should().ContainSingle().Subject;
+        item.BatchNo.Should().Be("CK-SNAP-1");
+        item.PlantGrade.Should().Be("Q345B");
+        item.Specification.Should().Be("219*8");
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_合并投料明细_历史数据快照为空_兜底回退实时JOIN()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var ib = await SeedSnapshotInventoryBatchAsync(ctx, batchNo: "CK-SNAP-HIST");
+        var batch = await SeedBatchViaDirectAsync(ctx, batchNo: "B-SNAP-HIST");
+
+        // 手动插入关联（快照字段为空 = 模拟迁移前历史数据）
+        ctx.ProductionBatchInventories.Add(new ProductionBatchInventory
+        {
+            ProductionBatchId = batch.Id,
+            InventoryBatchId = ib.Id,
+            OutboundRecordId = null,
+            InputQuantity = 5,
+            InputWeight = 500m
+        });
+        await ctx.SaveChangesAsync();
+
+        var detail = await svc.GetByIdAsync(batch.Id);
+        var item = detail.SourceItems.Should().ContainSingle().Subject;
+        item.BatchNo.Should().Be("CK-SNAP-HIST");
+        item.PlantGrade.Should().Be("Q345B");
+        item.WarehouseName.Should().Be("原料仓库");
+        item.InputQuantity.Should().Be(5);
     }
 }

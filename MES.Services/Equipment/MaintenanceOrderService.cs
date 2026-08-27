@@ -342,10 +342,25 @@ public class MaintenanceOrderService : IMaintenanceOrderService
             .FirstOrDefaultAsync(m => m.Id == id);
         if (entity == null) throw new BusinessException("保养工单不存在");
 
+        var equipmentId = entity.EquipmentId;
         _context.MaintenanceOrders.Remove(entity);
         await _context.SaveChangesAsync();
+
+        // 回退设备最近保养日期快照：删除后按剩余保养单 ActualDate 最大值重算，不再残留已删记录的日期
+        var equipment = await _context.Equipment.FirstOrDefaultAsync(e => e.Id == equipmentId);
+        if (equipment != null)
+        {
+            var lastMaintDate = (await _context.MaintenanceOrders
+                .AsNoTracking()
+                .Where(m => m.EquipmentId == equipmentId && m.ActualDate != null)
+                .Select(m => (DateTime?)m.ActualDate)
+                .ToListAsync()).Max();
+            equipment.LastMaintDate = lastMaintDate;
+            await _context.SaveChangesAsync();
+        }
+
         // 同步更新设备保养状况
-        await EquipmentStatusCalculator.RecalculateMaintStatusAsync(_context, entity.EquipmentId);
+        await EquipmentStatusCalculator.RecalculateMaintStatusAsync(_context, equipmentId);
     }
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()

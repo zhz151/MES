@@ -13,6 +13,7 @@ using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Rendering;
 
@@ -27,16 +28,13 @@ public partial class SubcontractOrders : IAsyncDisposable
     private bool _isFirstLoad = true;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
-    private bool _allSelectedField;
     private bool _isAdmin;
 
     private bool allSelected
     {
-        get => _allSelectedField;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelectedField == value) return;
-            _allSelectedField = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -512,6 +510,36 @@ public partial class SubcontractOrders : IAsyncDisposable
         }
     };
 
+    /// <summary>当前可见列 → 打印列定义（Key/Label 对应当前列显隐与顺序）</summary>
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
+    /// <summary>按列取表格显示文本（复用 RenderCell 各分支口径，保证打印列表与页面单元格一致）</summary>
+    private string? GetCellDisplayText(SubcontractOrderDto item, string key) => key switch
+    {
+        "OrderNo" => item.OrderNo,
+        "OrderDate" => item.OrderDate.ToString("yyyy-MM-dd"),
+        "ProcessType" => "穿孔",
+        "OutMaterialCategory" => DisplayHelper.GetMaterialTypeText(item.OutMaterialCategory),
+        "OutPlantGrade" => item.OutPlantGrade,
+        "OutSpecification" => item.OutSpecification,
+        "OutQuantity" => item.OutQuantity.ToString(),
+        "OutWeight" => ((int)item.OutWeight).ToString(),
+        "ReturnDeadline" => item.ReturnDeadline?.ToString("yyyy-MM-dd"),
+        "SupplierName" => item.SupplierName,
+        "Status" => GetStatusText(item.Status),
+        "ActualOutboundWeight" => item.ActualOutboundQuantity.HasValue
+            ? $"{item.ActualOutboundQuantity.Value}支/{((int)(item.ActualOutboundWeight ?? 0)).ToString()}kg"
+            : "-",
+        "Returned" => $"{item.InQuantity?.ToString() ?? "0"}支/{((int)(item.InWeight ?? 0)).ToString()}kg",
+        "ReturnQuantity" => $"{item.ReturnQuantity}支/{((int)item.ReturnWeight).ToString()}kg",
+        "CreatedBy" => string.IsNullOrEmpty(item.CreatedBy) ? "-" : item.CreatedBy,
+        "CreatedTime" => item.CreatedTime == default ? "-" : item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "UpdatedBy" => string.IsNullOrEmpty(item.UpdatedBy) ? "-" : item.UpdatedBy,
+        "UpdatedTime" => item.UpdatedTime == default ? "-" : item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        _ => null
+    };
+
     // ========== 初始化 ==========
 
     protected override async Task OnInitializedAsync()
@@ -654,22 +682,43 @@ public partial class SubcontractOrders : IAsyncDisposable
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }
 
-    private async Task PrintAll()
+    /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
+    private async Task PrintSelectedList()
     {
+        if (!selectedIds.Any())
+        {
+            Snackbar.Add("请先选择要打印的委外单", Severity.Warning);
+            return;
+        }
         try
         {
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            DateTime? dateFrom = DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null;
-            DateTime? dateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo : null;
-            var request = new OrderPrintAllRequest
+            // 列过多时各列被压缩到单字符放不下的宽度 → QuestPDF 布局冲突；A4 可显示列数上限 35 列（与后端 TablePrintHelper.MaxPrintColumns 同步），超限提前拦截并页面内警示
+            const int MaxPrintColumns = 35;
+            var visible = _visibleColumns;
+            if (visible.Count > MaxPrintColumns)
             {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                DateFrom = dateFrom,
-                DateTo = dateTo
+                Snackbar.Add($"当前可见列过多（{visible.Count} 列，打印上限 {MaxPrintColumns} 列），请通过列显隐精简后再打印", Severity.Warning);
+                return;
+            }
+
+            var selectedItems = _pageItems
+                .Where(o => selectedIds.Contains(o.Id))
+                .Select(item =>
+                {
+                    var dict = new Dictionary<string, object>();
+                    foreach (var col in visible)
+                        dict[col.Key] = GetCellDisplayText(item, col.Key) ?? "-";
+                    return dict;
+                }).ToList();
+
+            var request = new SubcontractOrderPrintListRequest
+            {
+                Title = "圆棒穿孔列表",
+                Items = selectedItems,
+                Columns = GetPrintColumnDefs()
             };
-            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Subcontract}/print-all-file";
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Subcontract}/print-list-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

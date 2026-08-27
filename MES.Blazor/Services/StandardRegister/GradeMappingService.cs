@@ -77,15 +77,6 @@ public class GradeMappingService
     }
 
     /// <summary>
-    /// 根据标准牌号获取牌号对照
-    /// </summary>
-    public async Task<StandardGradeMappingDto?> GetByStandardGradeAsync(string standardGrade)
-    {
-        var all = await GetAllAsync();
-        return all.FirstOrDefault(x => x.StandardGrade == standardGrade);
-    }
-
-    /// <summary>
     /// 创建牌号对照
     /// </summary>
     public async Task<ApiResponse<StandardGradeMappingDto>> CreateAsync(CreateGradeMappingRequest request)

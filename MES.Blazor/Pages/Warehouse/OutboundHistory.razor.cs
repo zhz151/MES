@@ -58,14 +58,11 @@ public partial class OutboundHistory
         "OutboundQuantity", "OutboundWeight", "OutboundMeters"
     };
     private string _lastResolvedWarehouseCode = string.Empty;
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => _selectedItems.Contains(i));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -746,12 +743,6 @@ public partial class OutboundHistory
         _ => null
     };
 
-    private string? GetCellDisplayText(OutboundRecordDto item, string key) => key switch
-    {
-        "OutboundType" => GetOutboundTypeText(item.OutboundType),
-        _ => GetCellRawValue(item, key) ?? ""
-    };
-
     // ========== 行保存 ==========
 
     private async Task SaveRow(OutboundRecordDto item)
@@ -876,29 +867,6 @@ public partial class OutboundHistory
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
             var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Inventory}/print-outbound-selected-file";
-            var json = JsonSerializer.Serialize(request);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
-    }
-
-    private async Task PrintAll()
-    {
-        try
-        {
-            var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
-            var request = new OutboundPrintAllRequest
-            {
-                Keyword = string.IsNullOrEmpty(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                WarehouseId = _filterWarehouseId,
-                StartDate = DateTime.TryParse(_dateFrom, out var df) ? df : null,
-                EndDate = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
-                Columns = columns
-            };
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Inventory}/print-outbound-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

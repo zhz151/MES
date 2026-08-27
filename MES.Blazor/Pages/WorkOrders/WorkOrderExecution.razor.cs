@@ -192,10 +192,10 @@ public partial class WorkOrderExecution
             new() { Key = "ScheduleStage",           Label = "主号-关注",      SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetScheduleStageOptions(), GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
             new() { Key = "UrgencyLevel",            Label = "主号-计划性",    SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
             new() { Key = "EstimatedProcessCompletionDate",Label = "主号-预计完成日",SortKey = "EstimatedProcessCompletionDate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
-            new() { Key = "DaysDiffFromDelivery",    Label = "主号-交期相差天数",  SortKey = "DaysDiffFromDelivery",  FilterType = "number", Width = "80", GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
-            new() { Key = "TotalRemainingWorkDays",  Label = "主号-剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  FilterType = "number", Width = "80", GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
-            new() { Key = "CapacityWorkDays",         Label = "主号-产能工量(天)",  SortKey = "CapacityWorkDays",     FilterType = "number", Width = "80", GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
-            new() { Key = "RawMaterialLockRemark",   Label = "主号-原锁备注", SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                             GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "DaysDiffFromDelivery",    Label = "主号-交期相差天数",  SortKey = "DaysDiffFromDelivery",  FilterType = "number", Width = "80", Visible = false, GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "TotalRemainingWorkDays",  Label = "主号-剩余总工量(天)",SortKey = "TotalRemainingWorkDays",  FilterType = "number", Width = "80", Visible = false, GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "CapacityWorkDays",         Label = "主号-产能工量(天)",  SortKey = "CapacityWorkDays",     FilterType = "number", Width = "80", Visible = false, GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "RawMaterialLockRemark",   Label = "主号-原锁备注", SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                              GroupKey = 3, GroupName = "实时关注", Level = ColumnLevel.MainNo },
         };
 
         // G2: 工单需求调整
@@ -306,6 +306,14 @@ public partial class WorkOrderExecution
         all.AddRange(g22);  // 16 次品总量
         all.AddRange(g11);  // 17 成品入库
         all.AddRange(g14);  // 18 在产节点待量
+
+        // 默认列显隐：仅「基础数据(G1)」「实时关注(G3)」按现状显示，其余组全部默认隐藏（可经列显隐面板手动开启）
+        foreach (var col in all)
+        {
+            if (col.GroupKey != 1 && col.GroupKey != 3)
+                col.Visible = false;
+        }
+
         return all;
     }
 
@@ -691,40 +699,6 @@ public partial class WorkOrderExecution
     {
         _deliveryDateTo = value ?? string.Empty;
         await SavePageStateAsync();
-        if (table != null) await table.ReloadServerData();
-    }
-
-    // ========== 数据加载操作 ==========
-
-    private async Task LoadAllDataAsync()
-    {
-        try
-        {
-            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "LastRefreshTime";
-            var query = new QueryParams
-            {
-                PageIndex = 1,
-                PageSize = 100000,
-                SortBy = sortBy,
-                IsDescending = sortDescending,
-                Keyword = _searchKeyword
-            };
-
-            var result = await WorkOrderExecutionService.GetPagedAsync(query,
-                signDateFrom: DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null,
-                signDateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null,
-                deliveryDateStart: DateTime.TryParse(_deliveryDateFrom, out var ddf) ? ddf : null,
-                deliveryDateEnd: DateTime.TryParse(_deliveryDateTo, out var ddt) ? ddt : null);
-            if (result.Success && result.Data != null)
-            {
-                _totalCount = result.Data.TotalCount;
-                lastRefreshTime = result.Data.Items.Select(i => i.LastRefreshTime).DefaultIfEmpty().Max();
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
-        }
         if (table != null) await table.ReloadServerData();
     }
 
@@ -1602,43 +1576,19 @@ public partial class WorkOrderExecution
 
     // ========== 打印 ==========
 
-    private async Task PrintAll()
-    {
-        try
-        {
-            var printColumns = _visibleColumns
-                .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
-                .ToList();
-
-            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "LastRefreshTime";
-            var request = new
-            {
-                keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                sortBy,
-                isDescending = sortDescending,
-                signDateFrom = DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom.ToString("yyyy-MM-dd") : null,
-                signDateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo.ToString("yyyy-MM-dd") : null,
-                deliveryDateStart = DateTime.TryParse(_deliveryDateFrom, out var ddf) ? ddf.ToString("yyyy-MM-dd") : null,
-                deliveryDateEnd = DateTime.TryParse(_deliveryDateTo, out var ddt) ? ddt.ToString("yyyy-MM-dd") : null,
-                columns = printColumns
-            };
-
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.WorkOrderExecution}/print-all-file";
-            var json = JsonSerializer.Serialize(request);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
     private async Task PrintSelected()
     {
         if (_selectedIds.Count == 0)
         {
             Snackbar.Add("请先选择要打印的行", Severity.Warning);
+            return;
+        }
+
+        // 列过多时各列被压缩到单字符放不下的宽度 → QuestPDF 布局冲突；A4 可显示列数上限 35 列（与后端 TablePrintHelper.MaxPrintColumns 同步），超限提前拦截并页面内警示
+        const int MaxPrintColumns = 35;
+        if (_visibleColumns.Count > MaxPrintColumns)
+        {
+            Snackbar.Add($"当前可见列过多（{_visibleColumns.Count} 列，打印上限 {MaxPrintColumns} 列），请通过列显隐精简后再打印", Severity.Warning);
             return;
         }
 
@@ -1678,21 +1628,24 @@ public partial class WorkOrderExecution
         }
     }
 
-    private static object ResolvePrintValue(WorkOrderExecutionSummaryDto item, string key) => (key switch
+    private static string ResolvePrintValue(WorkOrderExecutionSummaryDto item, string key) => GetCellDisplayText(item, key);
+
+    /// <summary>按列取显示文本（与页面 RenderCell 同口径：日期去时间、数值取整、空值"-"），打印与表格所见一致</summary>
+    private static string GetCellDisplayText(WorkOrderExecutionSummaryDto item, string key) => key switch
     {
-        // 枚举→中文
+        // ========== 枚举→中文 ==========
         "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod) ?? "",
         "MaterialName" => DisplayHelper.GetPipeManufacturingTypeText(item.MaterialName) ?? "",
         "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState) ?? "",
-        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus) ?? "",
-        // Bool→中文
+        "LengthStatus" => DisplayHelper.GetWorkOrderLengthStatusText(item.LengthStatus, item.MinLength, item.MaxLength) ?? "",
+        // ========== Bool→中文 ==========
         "DelayPenalty" => item.DelayPenaltyText,
         "IsUrging" => item.IsUrging ? "是" : "否",
         "IsBatchDelivery" => item.IsBatchDelivery ? "是" : "否",
         "IsPaused" => item.IsPaused ? "是" : "否",
         "IsForceCompleted" => item.IsForceCompleted ? "是" : "否",
         "DeformedProcessCompleted" => item.DeformedProcessCompleted switch { true => "是", false => "否", null => "略" },
-        // 状态 int→中文
+        // ========== 状态 int→中文 ==========
         "MaterialPlanStatus" => item.MaterialPlanStatusText,
         "MainNoMaterialPlanStatus" => item.MainNoMaterialPlanStatusText,
         "InputStatus" => item.InputStatusText,
@@ -1703,7 +1656,11 @@ public partial class WorkOrderExecution
         "MainNoWarehousingStatus" => item.MainNoWarehousingStatusText,
         "OrderWarehousingStatus" => item.OrderWarehousingStatusText,
         "ScheduleStage" => item.ScheduleStageText,
-        // G4~G10 状态字段
+        "ActualMainNoInputStatus" => item.ActualMainNoInputStatusText ?? "-",
+        "MainNoPlanExecutionStatus" => item.MainNoPlanExecutionStatusText ?? "-",
+        "PlanInputConsistency" => item.PlanInputConsistencyText ?? "-",
+        "ReworkMainNoStatus" => item.ReworkMainNoStatusText,
+        "ReworkInputConsistency" => item.ReworkInputConsistencyText ?? "-",
         "PiercingSubStatus" => item.PiercingSubStatusText,
         "PiercingReturnStatus" => item.PiercingReturnStatusText,
         "SemiOrderStatus" => item.SemiOrderStatusText,
@@ -1714,136 +1671,138 @@ public partial class WorkOrderExecution
         "ReworkPlanInputStatus" => item.ReworkPlanInputStatusText,
         "InProcessReworkInputStatus" => item.InProcessReworkInputStatusText,
         "InMainInputStatus" => item.InMainInputStatusText,
-        "MainNoPlanExecutionStatus" => item.MainNoPlanExecutionStatusText,
-        "ReworkInputConsistency" => item.ReworkInputConsistencyText,
-        _ => GetRawPropertyValue(item, key)
-    }) ?? "";
-
-    private static object GetRawPropertyValue(WorkOrderExecutionSummaryDto item, string key) => (key switch
-    {
+        // ========== 日期 ==========
+        "SignDate" => item.SignDate.ToString("yyyy-MM-dd"),
+        "DeliveryDate" => item.DeliveryDate.ToString("yyyy-MM-dd"),
+        "TheoreticalCutoffDate" => item.TheoreticalCutoffDate?.ToString("yyyy-MM-dd") ?? "-",
+        "CutoffArrivalDate" => item.CutoffArrivalDate?.ToString("yyyy-MM-dd") ?? "-",
+        "MainNoCutoffArrivalDate" => item.MainNoCutoffArrivalDate?.ToString("yyyy-MM-dd") ?? "-",
+        "InputStartDate" => item.InputStartDate?.ToString("yyyy-MM-dd") ?? "-",
+        "InputEndDate" => item.InputEndDate?.ToString("yyyy-MM-dd") ?? "-",
+        "WarehousingStartDate" => item.WarehousingStartDate?.ToString("yyyy-MM-dd") ?? "-",
+        "WarehousingEndDate" => item.WarehousingEndDate?.ToString("yyyy-MM-dd") ?? "-",
+        "ReworkInputEndDate" => item.ReworkInputEndDate?.ToString("yyyy-MM-dd") ?? "-",
+        "EstimatedProcessCompletionDate" => item.EstimatedProcessCompletionDate?.ToString("yyyy-MM-dd") ?? "-",
+        // ========== 长度 / 比率 ==========
+        "MinLength" => item.MinLength?.ToString("G29") ?? "-",
+        "MaxLength" => item.MaxLength?.ToString("G29") ?? "-",
+        "MainNoMaterialPlanRate" => item.MainNoMaterialPlanRate > 0 ? $"{item.MainNoMaterialPlanRate:F1}%" : "-",
+        "FlowOutputRatio" => item.FlowOutputRatio > 0 ? $"{item.FlowOutputRatio:F1}%" : "-",
+        "MainNoFlowRatio" => item.MainNoFlowOutputRatio > 0 ? $"{item.MainNoFlowOutputRatio:F1}%" : "-",
+        "InputOutputRatio" => item.InputOutputRatio > 0 ? $"{item.InputOutputRatio:F1}%" : "-",
+        "MainNoInputRatio" => item.MainNoInputOutputRatio > 0 ? $"{item.MainNoInputOutputRatio:F1}%" : "-",
+        // ========== 整数取整（§10.7 列表页整数） ==========
+        "TotalMeters" => ((int)item.TotalMeters).ToString(),
+        "TotalWeight" => ((int)item.TotalWeight).ToString(),
+        "ReworkInputWeight" => ((int)item.ReworkInputWeight).ToString(),
+        "ReworkTheoreticalOutputQty" => ((int)item.ReworkTheoreticalOutputQty).ToString(),
+        "ReworkTheoreticalOutputWeight" => ((int)item.ReworkTheoreticalOutputWeight).ToString(),
+        "InputWeight" => ((int)item.InputWeight).ToString(),
+        "TheoreticalOutputQty" => ((int)item.TheoreticalOutputQty).ToString(),
+        "TheoreticalOutputWeight" => ((int)item.TheoreticalOutputWeight).ToString(),
+        "ValidInputWeight" => ((int)item.ValidInputWeight).ToString(),
+        "ValidOutputQty" => ((int)item.ValidOutputQty).ToString(),
+        "ValidOutputWeight" => ((int)item.ValidOutputWeight).ToString(),
+        // ========== 重量（>0 取整，否则 "-"） ==========
+        "TotalPlanWeight" => item.TotalPlanWeight > 0 ? ((int)item.TotalPlanWeight).ToString() : "-",
+        "TotalAvailableWeight" => item.TotalAvailableWeight > 0 ? ((int)item.TotalAvailableWeight).ToString() : "-",
+        "TotalMissingWeight" => item.TotalMissingWeight > 0 ? ((int)item.TotalMissingWeight).ToString() : "-",
+        "ActualInputWeight" => item.ActualInputWeight > 0 ? ((int)item.ActualInputWeight).ToString() : "-",
+        "PiercingPlanWeight" => item.PiercingPlanWeight > 0 ? ((int)item.PiercingPlanWeight).ToString() : "-",
+        "PiercingSubOutWeight" => item.PiercingSubOutWeight > 0 ? ((int)item.PiercingSubOutWeight).ToString() : "-",
+        "PiercingSubInWeight" => item.PiercingSubInWeight > 0 ? ((int)item.PiercingSubInWeight).ToString() : "-",
+        "PiercingSubPendingWeight" => item.PiercingSubPendingWeight > 0 ? ((int)item.PiercingSubPendingWeight).ToString() : "-",
+        "SemiPlanWeight" => item.SemiPlanWeight > 0 ? ((int)item.SemiPlanWeight).ToString() : "-",
+        "SemiOrderWeight" => item.SemiOrderWeight > 0 ? ((int)item.SemiOrderWeight).ToString() : "-",
+        "SemiInWeight" => item.SemiInWeight > 0 ? ((int)item.SemiInWeight).ToString() : "-",
+        "SemiPendingWeight" => item.SemiPendingWeight > 0 ? ((int)item.SemiPendingWeight).ToString() : "-",
+        "FinishPlanWeight" => item.FinishPlanWeight > 0 ? ((int)item.FinishPlanWeight).ToString() : "-",
+        "FinishOrderWeight" => item.FinishOrderWeight > 0 ? ((int)item.FinishOrderWeight).ToString() : "-",
+        "FinishInWeight" => item.FinishInWeight > 0 ? ((int)item.FinishInWeight).ToString() : "-",
+        "FinishPendingWeight" => item.FinishPendingWeight > 0 ? ((int)item.FinishPendingWeight).ToString() : "-",
+        "InventoryPlanWeight" => item.InventoryPlanWeight > 0 ? ((int)item.InventoryPlanWeight).ToString() : "-",
+        "InventoryOutWeight" => item.InventoryOutWeight > 0 ? ((int)item.InventoryOutWeight).ToString() : "-",
+        "ReworkPlanWeight" => item.ReworkPlanWeight > 0 ? ((int)item.ReworkPlanWeight).ToString() : "-",
+        "ReworkPlanInputWeight" => item.ReworkPlanInputWeight > 0 ? ((int)item.ReworkPlanInputWeight).ToString() : "-",
+        "InProcessReworkPlanWeight" => item.InProcessReworkPlanWeight > 0 ? ((int)item.InProcessReworkPlanWeight).ToString() : "-",
+        "InProcessReworkInputWeight" => item.InProcessReworkInputWeight > 0 ? ((int)item.InProcessReworkInputWeight).ToString() : "-",
+        "InMainPlanWeight" => item.InMainPlanWeight > 0 ? ((int)item.InMainPlanWeight).ToString() : "-",
+        "InMainInputWeight" => item.InMainInputWeight > 0 ? ((int)item.InMainInputWeight).ToString() : "-",
+        "WarehousingTotalWeight" => item.WarehousingTotalWeight > 0 ? ((int)item.WarehousingTotalWeight).ToString() : "-",
+        // ========== 可空数值 → "-" ==========
+        "ProcessInspectionDefectWeight" => item.ProcessInspectionDefectWeight?.ToString() ?? "-",
+        "ProcessInspectionReworkWeight" => item.ProcessInspectionReworkWeight?.ToString() ?? "-",
+        "ProcessInspectionWarehouseWeight" => item.ProcessInspectionWarehouseWeight?.ToString() ?? "-",
+        "ProcessInspectionScrapWeight" => item.ProcessInspectionScrapWeight?.ToString() ?? "-",
+        "FinalInspectionDefectQty" => item.FinalInspectionDefectQty?.ToString() ?? "-",
+        "FinalInspectionDefectWeight" => item.FinalInspectionDefectWeight?.ToString() ?? "-",
+        "FinalInspectionReworkWeight" => item.FinalInspectionReworkWeight?.ToString() ?? "-",
+        "FinalInspectionWarehouseWeight" => item.FinalInspectionWarehouseWeight?.ToString() ?? "-",
+        "FinalInspectionScrapWeight" => item.FinalInspectionScrapWeight?.ToString() ?? "-",
+        "ReworkTheoreticalProduceQty" => item.ReworkTheoreticalProduceQty?.ToString() ?? "-",
+        "ReworkTheoreticalProduceWeight" => item.ReworkTheoreticalProduceWeight?.ToString("G29") ?? "-",
+        "PendingReworkOutputQty" => item.PendingReworkOutputQty?.ToString("G29") ?? "-",
+        "PendingReworkOutputWeight" => item.PendingReworkOutputWeight?.ToString("G29") ?? "-",
+        // ========== int 整数 ==========
+        "TotalItemCount" => item.TotalItemCount.ToString(),
+        "TotalQuantity" => item.TotalQuantity.ToString(),
+        "MaterialPlanCoveredCount" => item.MaterialPlanCoveredCount.ToString(),
+        "ReworkBatchCount" => item.ReworkBatchCount.ToString(),
+        "ReworkInputQuantity" => item.ReworkInputQuantity.ToString(),
+        "TotalBatchCount" => item.TotalBatchCount.ToString(),
+        "InputQuantity" => item.InputQuantity.ToString(),
+        "ValidBatchCount" => item.ValidBatchCount.ToString(),
+        "ValidInputQuantity" => item.ValidInputQuantity.ToString(),
+        "FlowTotalBatchCount" => item.FlowTotalBatchCount.ToString(),
+        "FlowIncompleteBatchCount" => item.FlowIncompleteBatchCount.ToString(),
+        "WarehousingTotalQty" => item.WarehousingTotalQty > 0 ? item.WarehousingTotalQty.ToString() : "-",
+        // ========== 天数 ==========
+        "FlowMaxRemainingWorkDays" => item.FlowMaxRemainingWorkDays > 0 ? $"{item.FlowMaxRemainingWorkDays}天" : "-",
+        "TotalRemainingWorkDays" => item.TotalRemainingWorkDays.HasValue ? $"{item.TotalRemainingWorkDays}天" : "-",
+        "CapacityWorkDays" => item.CapacityWorkDays.HasValue ? $"{item.CapacityWorkDays}天" : "-",
+        "DaysDiffFromDelivery" => item.DaysDiffFromDelivery.HasValue ? $"{item.DaysDiffFromDelivery}天" : "-",
+        "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays.HasValue ? $"{item.MaxBatchRemainingWorkDays}天" : "-",
+        // ========== 在产节点待量 ==========
+        "PendingSectionRoughTube" => item.PendingSectionRoughTube.HasValue ? ((int)item.PendingSectionRoughTube.Value).ToString() : "-",
+        "PendingSectionWarehouseFix" => item.PendingSectionWarehouseFix.HasValue ? ((int)item.PendingSectionWarehouseFix.Value).ToString() : "-",
+        "PendingSection60Roll" => item.PendingSection60Roll.HasValue ? ((int)item.PendingSection60Roll.Value).ToString() : "-",
+        "PendingSection50Roll" => item.PendingSection50Roll.HasValue ? ((int)item.PendingSection50Roll.Value).ToString() : "-",
+        "PendingSection30Roll" => item.PendingSection30Roll.HasValue ? ((int)item.PendingSection30Roll.Value).ToString() : "-",
+        "PendingSection20Roll" => item.PendingSection20Roll.HasValue ? ((int)item.PendingSection20Roll.Value).ToString() : "-",
+        "PendingSectionThreeRoll" => item.PendingSectionThreeRoll.HasValue ? ((int)item.PendingSectionThreeRoll.Value).ToString() : "-",
+        "PendingSectionDrawBench" => item.PendingSectionDrawBench.HasValue ? ((int)item.PendingSectionDrawBench.Value).ToString() : "-",
+        // ========== 字典 / 工序 ==========
+        "UrgencyLevel" => string.IsNullOrEmpty(item.UrgencyLevel) ? "-" : (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel) ?? "-"),
+        "RawMaterialLockRemark" => DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, item.RawMaterialLockRemark) ?? "-",
+        "ProductionAttentionProcess" => ProcessDisplayHelper.GetProcessNameText(item.ProductionAttentionProcess ?? "-") ?? "",
+        "MainNoAttentionProcess" => ProcessDisplayHelper.GetProcessNameText(item.MainNoAttentionProcess ?? "-") ?? "",
+        "ProductionFlowProperty" => string.IsNullOrEmpty(item.ProductionFlowProperty) ? "" : (DictValueDisplayHelper.GetText(DictValueDefaults.ProductionFlowKey, item.ProductionFlowProperty) ?? ""),
+        // ========== 文本 ==========
         "WorkOrderNo" => item.WorkOrderNo ?? "",
         "Salesman" => item.Salesman ?? "",
         "CustomerName" => item.CustomerName ?? "",
-        "SignDate" => item.SignDate,
-        "DeliveryDate" => item.DeliveryDate,
         "SalesOrderNo" => item.SalesOrderNo ?? "",
         "ProductionMainNo" => item.ProductionMainNo ?? "",
-        "ProductionSubNo" => item.ProductionSubNo ?? "",
         "PlantGrade" => item.PlantGrade ?? "",
         "Specification" => item.Specification ?? "",
-        "MinLength" => item.MinLength,
-        "MaxLength" => item.MaxLength,
-        "TotalItemCount" => item.TotalItemCount,
-        "TotalQuantity" => item.TotalQuantity,
-        "TotalMeters" => item.TotalMeters,
-        "TotalWeight" => item.TotalWeight,
-        "MainNoMaterialPlanRate" => item.MainNoMaterialPlanRate,
-        "MaterialPlanCoveredCount" => item.MaterialPlanCoveredCount,
-        "MaterialPlanProportion" => item.MaterialPlanProportion ?? "",
-        "TotalPlanWeight" => item.TotalPlanWeight,
-        "TotalAvailableWeight" => item.TotalAvailableWeight,
-        "TotalMissingWeight" => item.TotalMissingWeight,
-        "ActualInputWeight" => item.ActualInputWeight,
-        "MainNoPlanExecutionStatus" => item.MainNoPlanExecutionStatus,
-        "ActualMainNoInputStatus" => item.ActualMainNoInputStatusText ?? "",
-        "PlanInputConsistency" => item.PlanInputConsistencyText ?? "",
-        "ProcessInspectionDefectWeight" => item.ProcessInspectionDefectWeight,
-        "ProcessInspectionReworkWeight" => item.ProcessInspectionReworkWeight,
-        "ProcessInspectionWarehouseWeight" => item.ProcessInspectionWarehouseWeight,
-        "ProcessInspectionScrapWeight" => item.ProcessInspectionScrapWeight,
-        "FinalInspectionDefectQty" => item.FinalInspectionDefectQty,
-        "FinalInspectionDefectWeight" => item.FinalInspectionDefectWeight,
-        "FinalInspectionReworkWeight" => item.FinalInspectionReworkWeight,
-        "FinalInspectionWarehouseWeight" => item.FinalInspectionWarehouseWeight,
-        "FinalInspectionScrapWeight" => item.FinalInspectionScrapWeight,
-        "ReworkTheoreticalProduceQty" => item.ReworkTheoreticalProduceQty,
-        "ReworkTheoreticalProduceWeight" => item.ReworkTheoreticalProduceWeight,
-        "PendingReworkOutputQty" => item.PendingReworkOutputQty,
-        "PendingReworkOutputWeight" => item.PendingReworkOutputWeight,
-        "ReworkMainNoStatus" => item.ReworkMainNoStatusText,
-        "ReworkInputConsistency" => item.ReworkInputConsistency ?? "",
-        "ReworkInputEndDate" => item.ReworkInputEndDate,
-        "ReworkBatchCount" => item.ReworkBatchCount,
-        "ReworkInputQuantity" => item.ReworkInputQuantity,
-        "ReworkInputWeight" => item.ReworkInputWeight,
-        "ReworkTheoreticalOutputQty" => item.ReworkTheoreticalOutputQty,
-        "ReworkTheoreticalOutputWeight" => item.ReworkTheoreticalOutputWeight,
-        "FlowOutputRatio" => item.FlowOutputRatio,
-        "MainNoFlowOutputRatio" => item.MainNoFlowOutputRatio,
-        "FlowTotalBatchCount" => item.FlowTotalBatchCount,
-        "FlowIncompleteBatchCount" => item.FlowIncompleteBatchCount,
-        "FlowMaxRemainingWorkDays" => item.FlowMaxRemainingWorkDays,
-        "InputStartDate" => item.InputStartDate,
-        "InputEndDate" => item.InputEndDate,
-        "TotalBatchCount" => item.TotalBatchCount,
-        "InputQuantity" => item.InputQuantity,
-        "InputWeight" => item.InputWeight,
-        "TheoreticalOutputQty" => item.TheoreticalOutputQty,
-        "TheoreticalOutputWeight" => item.TheoreticalOutputWeight,
-        "InputOutputRatio" => item.InputOutputRatio,
-        "MainNoInputRatio" => item.MainNoInputOutputRatio,
-        "ValidBatchCount" => item.ValidBatchCount,
-        "ValidInputQuantity" => item.ValidInputQuantity,
-        "ValidInputWeight" => item.ValidInputWeight,
-        "ValidOutputQty" => item.ValidOutputQty,
-        "ValidOutputWeight" => item.ValidOutputWeight,
-        "WarehousingStartDate" => item.WarehousingStartDate,
-        "WarehousingEndDate" => item.WarehousingEndDate,
-        "WarehousingTotalQty" => item.WarehousingTotalQty,
-        "WarehousingTotalWeight" => item.WarehousingTotalWeight,
-        "TotalRemainingWorkDays" => item.TotalRemainingWorkDays,
-        "CapacityWorkDays" => item.CapacityWorkDays,
-        "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, item.UrgencyLevel) ?? "",
-        "EstimatedProcessCompletionDate" => item.EstimatedProcessCompletionDate,
-        "DaysDiffFromDelivery" => item.DaysDiffFromDelivery,
-        "RawMaterialLockRemark" => DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, item.RawMaterialLockRemark) ?? "",
-        "AdjustmentRemark" => item.AdjustmentRemark ?? "",
-        "PendingSectionRoughTube" => item.PendingSectionRoughTube,
-        "PendingSectionWarehouseFix" => item.PendingSectionWarehouseFix,
-        "PendingSection60Roll" => item.PendingSection60Roll,
-        "PendingSection50Roll" => item.PendingSection50Roll,
-        "PendingSection30Roll" => item.PendingSection30Roll,
-        "PendingSection20Roll" => item.PendingSection20Roll,
-        "PendingSectionThreeRoll" => item.PendingSectionThreeRoll,
-        "PendingSectionDrawBench" => item.PendingSectionDrawBench,
-        "ProductionAttentionProcess" => ProcessDisplayHelper.GetProcessNameText(item.ProductionAttentionProcess),
-        "ProductionFlowProperty" => DictValueDisplayHelper.GetText(DictValueDefaults.ProductionFlowKey,item.ProductionFlowProperty) ?? "",
-        "MaxBatchRemainingWorkDays" => item.MaxBatchRemainingWorkDays,
-        "MainNoAttentionProcess" => ProcessDisplayHelper.GetProcessNameText(item.MainNoAttentionProcess),
-        "MainNoFlowRatio" => item.MainNoFlowOutputRatio,
-        // G4~G10: 7 种用料计划执行状况
-        "PiercingPlanWeight" => item.PiercingPlanWeight,
-        "PiercingSubOutWeight" => item.PiercingSubOutWeight,
-        "PiercingSubStatus" => item.PiercingSubStatus,
-        "PiercingSubInWeight" => item.PiercingSubInWeight,
-        "PiercingSubPendingWeight" => item.PiercingSubPendingWeight,
-        "PiercingReturnStatus" => item.PiercingReturnStatus,
-        "SemiPlanWeight" => item.SemiPlanWeight,
-        "SemiOrderWeight" => item.SemiOrderWeight,
-        "SemiOrderStatus" => item.SemiOrderStatus,
-        "SemiInWeight" => item.SemiInWeight,
-        "SemiPendingWeight" => item.SemiPendingWeight,
-        "SemiInStatus" => item.SemiInStatus,
-        "FinishPlanWeight" => item.FinishPlanWeight,
-        "FinishOrderWeight" => item.FinishOrderWeight,
-        "FinishOrderStatus" => item.FinishOrderStatus,
-        "FinishInWeight" => item.FinishInWeight,
-        "FinishPendingWeight" => item.FinishPendingWeight,
-        "FinishInStatus" => item.FinishInStatus,
-        "InventoryPlanWeight" => item.InventoryPlanWeight,
-        "InventoryOutWeight" => item.InventoryOutWeight,
-        "InventoryOutStatus" => item.InventoryOutStatus,
-        "ReworkPlanWeight" => item.ReworkPlanWeight,
-        "ReworkPlanInputWeight" => item.ReworkPlanInputWeight,
-        "ReworkPlanInputStatus" => item.ReworkPlanInputStatus,
-        "InProcessReworkPlanWeight" => item.InProcessReworkPlanWeight,
-        "InProcessReworkInputWeight" => item.InProcessReworkInputWeight,
-        "InProcessReworkInputStatus" => item.InProcessReworkInputStatus,
-        "InMainPlanWeight" => item.InMainPlanWeight,
-        "InMainInputWeight" => item.InMainInputWeight,
-        "InMainInputStatus" => item.InMainInputStatus,
-        _ => ""
-    })!;
+        "EndCustomer" => item.EndCustomer ?? "-",
+        "ProductionSubNo" => item.ProductionSubNo ?? "-",
+        "MaterialPlanProportion" => item.MaterialPlanProportion ?? "-",
+        "AdjustmentRemark" => item.AdjustmentRemark ?? "-",
+        // 兜底：反射通用格式化（处理遗漏列，如 MainNoFlowOutputRatio）
+        _ => FormatPrintValue(typeof(WorkOrderExecutionSummaryDto).GetProperty(key)?.GetValue(item))
+    };
+
+    /// <summary>反射值通用格式化（兜底）：null→"-"，日期去时间，bool→是/否，小数去尾零</summary>
+    private static string FormatPrintValue(object? value) => value switch
+    {
+        null => "-",
+        DateTime dt => dt.ToString("yyyy-MM-dd"),
+        bool b => b ? "是" : "否",
+        decimal m => m.ToString("G29"),
+        double d => d.ToString("G29"),
+        _ => value.ToString() ?? "-"
+    };
 
 private async Task HandleRefreshAll()
 {

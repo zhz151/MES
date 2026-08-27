@@ -71,6 +71,7 @@
                                     <HeaderContent>
                                         <MudTh Style="width: 120px;">工单号</MudTh>
                                         <MudTh Style="width: 90px;">物料分类</MudTh>
+                                        <MudTh Style="width: 110px;">工厂牌号</MudTh>
                                         <MudTh Style="width: 100px;" Class="text-right">计划总量(kg)</MudTh>
                                         <MudTh Style="width: 100px;" Class="text-right">已委外(kg)</MudTh>
                                         <MudTh Style="width: 100px;" Class="text-right">缺少量(kg)</MudTh>
@@ -86,6 +87,7 @@
                                             </MudText>
                                         </MudTd>
                                         <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
+                                        <MudTd>@context.PlantGrade</MudTd>
                                         <MudTd Class="text-right">@context.PlanWeight.ToString("G29")</MudTd>
                                         <MudTd Class="text-right">@context.SubcontractWeight.ToString("G29")</MudTd>
                                         <MudTd Class="text-right">@context.MissingWeight.ToString("G29")</MudTd>

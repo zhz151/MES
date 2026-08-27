@@ -26,16 +26,6 @@ public class ChemicalCompositionService
         catch (Exception ex) { return ApiResponse<PagedResult<ChemicalCompositionDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<List<ChemicalCompositionDto>>> GetAllListAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<ChemicalCompositionDto>>>($"{BaseUrl}/all-list")
-                   ?? ApiResponse<List<ChemicalCompositionDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<ChemicalCompositionDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<List<ChemicalCompositionDto>>> BatchCreateAsync(List<CreateChemicalCompositionRequest> requests)
     {
         try
@@ -70,18 +60,6 @@ public class ChemicalCompositionService
     {
         var url = $"{BaseUrl}/template";
         return await _http.GetByteArrayAsync(url);
-    }
-
-    public async Task<ApiResponse<MES.Core.Models.ImportPreviewResult>> PreviewImportAsync(byte[] fileData, string fileName)
-    {
-        try
-        {
-            using var content = new MultipartFormDataContent();
-            content.Add(new ByteArrayContent(fileData), "file", fileName);
-            var response = await _http.PostMultipartAsync<ApiResponse<MES.Core.Models.ImportPreviewResult>>($"{BaseUrl}/preview", content);
-            return response ?? ApiResponse<MES.Core.Models.ImportPreviewResult>.Fail("预览失败");
-        }
-        catch (Exception ex) { return ApiResponse<MES.Core.Models.ImportPreviewResult>.Fail($"网络错误: {ex.Message}"); }
     }
 
     public async Task<ApiResponse<MES.Core.Models.ImportResult>> ImportAsync(byte[] fileData, string fileName)

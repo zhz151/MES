@@ -85,24 +85,6 @@ public partial class Workstations
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }
 
-    private async Task PrintAll()
-    {
-        try
-        {
-            var request = new WorkstationPrintAllRequest
-            {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                Columns = GetPrintColumnDefs()
-            };
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Workstation}/print-all-file";
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-        }
-        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
-    }
-
     // ========== 二维码打印 ==========
 
     private async Task PrintQrCodes()

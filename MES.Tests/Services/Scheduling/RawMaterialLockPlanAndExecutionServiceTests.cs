@@ -148,6 +148,7 @@ public class RawMaterialLockPlanAndExecutionServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // Total=1000, 成购缺口=200-100=100, base=(1000-100)*1.1=990, pending=990-100(已投)=890
+        // 注：PiercingPlanWeight>0 使其非「单一成品采购」工单（方案 B 待投料排除口径），否则不计入标量
         SeedComputedSummary(ctx, "WO001", e =>
         {
             e.ScheduleStage = 2;
@@ -155,6 +156,7 @@ public class RawMaterialLockPlanAndExecutionServiceTests : TestBase
             e.FinishPlanWeight = 200m;
             e.FinishInWeight = 100m;
             e.InputWeight = 100m;
+            e.PiercingPlanWeight = 300m;
             e.RawMaterialLockRemark = RawMaterialLockRemarkKeys.ImprovePlan;
         });
         await ctx.SaveChangesAsync();
@@ -222,6 +224,7 @@ public class RawMaterialLockPlanAndExecutionServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 完善计划 + 截止=today → 桶0「投料截止-今日」
+        // 注：PiercingPlanWeight>0 使其非「单一成品采购」工单（方案 B 待投料排除口径），否则完善计划行不计 pending
         SeedComputedSummary(ctx, "WO001", e =>
         {
             e.ScheduleStage = 2;
@@ -229,6 +232,7 @@ public class RawMaterialLockPlanAndExecutionServiceTests : TestBase
             e.FinishPlanWeight = 200m;
             e.FinishInWeight = 100m;
             e.InputWeight = 0m;
+            e.PiercingPlanWeight = 300m;
             e.RawMaterialLockRemark = RawMaterialLockRemarkKeys.ImprovePlan;
             e.TheoreticalCutoffDate = DateTime.Today;
         });

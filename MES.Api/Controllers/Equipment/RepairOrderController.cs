@@ -14,12 +14,10 @@ namespace MES.Api.Controllers.Equipment;
 public class RepairOrderController : ControllerBase
 {
     private readonly IRepairOrderService _service;
-    private readonly ILogger<RepairOrderController> _logger;
 
-    public RepairOrderController(IRepairOrderService service, ILogger<RepairOrderController> logger)
+    public RepairOrderController(IRepairOrderService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     [HttpGet("list")]
@@ -115,46 +113,8 @@ public class RepairOrderController : ControllerBase
     }
 
     /// <summary>
-    /// 批量打印维修工单
+    /// 批量打印维修工单（直接返回 PDF 文件）
     /// </summary>
-    [HttpPost("print-batch")]
-    [Authorize(Roles = Roles.Policies.EquipmentView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintBatch([FromBody] RepairOrderPrintBatchRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    /// <summary>
-    /// 按筛选条件打印全部维修工单
-    /// </summary>
-    [HttpPost("print-all")]
-    [Authorize(Roles = Roles.Policies.EquipmentView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintAll([FromBody] RepairOrderPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var query = new RepairOrderQueryParams
-        {
-            Keyword = request.Keyword,
-            SortBy = string.IsNullOrEmpty(request.SortBy) ? "ReportTime" : request.SortBy,
-            IsDescending = request.IsDescending,
-            EquipmentId = request.EquipmentId,
-            RepairStatus = request.RepairStatus,
-            Priority = request.Priority,
-            ReportTimeFrom = request.ReportTimeFrom,
-            ReportTimeTo = request.ReportTimeTo
-        };
-        var pdfBytes = await _service.PrintAllAsync(query, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
     [HttpPost("print-batch-file")]
     [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] RepairOrderPrintBatchRequest request)

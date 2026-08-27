@@ -92,16 +92,6 @@ public class SectionOutsourceService
 
     // ========== 委外回收 ==========
 
-    public async Task<ApiResponse<List<OutsourceRecoveryDto>>> GetRecoveriesAsync(int outsourceId)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<OutsourceRecoveryDto>>>($"{BaseUrl}/{outsourceId}/recoveries")
-                   ?? ApiResponse<List<OutsourceRecoveryDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<OutsourceRecoveryDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<PagedResult<OutsourceRecoveryDto>>> GetRecoveriesPagedAsync(
         int pageIndex = 1, int pageSize = 20, string? keyword = null,
         string? sortBy = null, bool isDescending = true,
@@ -140,16 +130,6 @@ public class SectionOutsourceService
                    ?? ApiResponse<List<OutsourceRecoveryDto>>.Fail("批量创建回收失败");
         }
         catch (Exception ex) { return ApiResponse<List<OutsourceRecoveryDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<OutsourceRecoveryDto>> UpdateRecoveryAsync(int id, UpdateOutsourceRecoveryRequest request)
-    {
-        try
-        {
-            return await _http.PutAsJsonAsync<UpdateOutsourceRecoveryRequest, ApiResponse<OutsourceRecoveryDto>>($"{BaseUrl}/recovery/{id}", request)
-                   ?? ApiResponse<OutsourceRecoveryDto>.Fail("更新回收失败");
-        }
-        catch (Exception ex) { return ApiResponse<OutsourceRecoveryDto>.Fail($"网络错误: {ex.Message}"); }
     }
 
     public async Task<ApiResponse<object>> DeleteRecoveryAsync(int id)

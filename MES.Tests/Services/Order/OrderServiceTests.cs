@@ -11,6 +11,7 @@ using MES.Data.Entities;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Warehouse;
 using MES.Core.DTOs.Order;
+using MES.Core.DTOs.Shared;
 using MES.Core.Constants;
 using WorkOrderEntity = MES.Data.Entities.WorkOrder.WorkOrder;
 using WorkOrderExecutionSummaryEntity = MES.Data.Entities.WorkOrder.WorkOrderExecutionSummary;
@@ -22,6 +23,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OrderListSummaryEntity = MES.Data.Entities.Order.OrderListSummary;
 using Moq;
 using Microsoft.Extensions.Caching.Memory;
+using QuestPDF.Infrastructure;
 
 namespace MES.Tests.Services;
 
@@ -30,6 +32,11 @@ namespace MES.Tests.Services;
 /// </summary>
 public class OrderServiceTests : TestBase
 {
+    static OrderServiceTests()
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+    }
+
     private OrderService CreateService(AppDbContext ctx, INotificationService? notificationMock = null,
         Mock<IWorkOrderExecutionService>? woExecMock = null,
         Mock<IWorkOrderListSummaryRefreshService>? listSummaryMock = null,
@@ -1149,5 +1156,133 @@ public class OrderServiceTests : TestBase
         result.Tables.Should().HaveCount(2);
         result.Tables[0].Buckets.Sum(b => b.Count).Should().Be(0);
         result.Tables[1].Buckets.Sum(b => b.Count).Should().Be(0);
+    }
+
+    // ========== 小表点击联动筛选（GetPagedAsync + estimateFilter，2026-08-26） ==========
+
+    [Fact]
+    public async Task GetPagedAsync_表2联动_筛出延期订单按交期截止()
+    {
+        var ctx = CreateDbContext();
+        var today = DateTime.Today;
+        ctx.Set<OrderListSummaryEntity>().AddRange(
+            // 延期，交期 today+3（桶1 +1~+7）
+            SeedDeliverySummary(1, "SO-01", 1000, 3, today.AddDays(3), today.AddDays(10)),
+            // 非延期：表2 不计
+            SeedDeliverySummary(2, "SO-02", 2000, 3, today.AddDays(10), today.AddDays(3)),
+            // 延期，交期 today-1（桶0 ≤今日）
+            SeedDeliverySummary(3, "SO-03", 3000, 2, today.AddDays(-1), today.AddDays(5)),
+            // 排除：未排产 / 无交期 / 已取消
+            SeedDeliverySummary(4, "SO-04", 999, null, today.AddDays(3), today.AddDays(10)),
+            SeedDeliverySummary(5, "SO-05", 999, 3, null, today.AddDays(10)));
+        ctx.Set<OrderListSummaryEntity>().Add(new OrderListSummaryEntity
+        {
+            OrderId = 6, OrderNumber = "SO-06", SignDate = today.AddDays(-30), CustomerName = "客户A", Salesman = "张三",
+            Status = SalesOrderStatus.Cancelled, TotalContractWeight = 999, ScheduleStage = 3,
+            DeliveryEnd = today.AddDays(-1), EstimatedCompletionDate = today.AddDays(5),
+            CreatedTime = DateTimeOffset.Now, UpdatedTime = DateTimeOffset.Now
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        // 桶0（≤今日）：交期截止 ≤ today 的延期订单 → 仅 SO-03
+        var bucket0 = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 10 },
+            estimateFilter: new OrderDeliveryEstimateFilterDto { Table = "delay", DateTo = today });
+        bucket0.TotalCount.Should().Be(1);
+        bucket0.Items.Should().ContainSingle().Which.OrderNumber.Should().Be("SO-03");
+
+        // 桶1（+1~+7）：交期截止 today+1..today+7 的延期订单 → 仅 SO-01
+        var bucket1 = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 10 },
+            estimateFilter: new OrderDeliveryEstimateFilterDto { Table = "delay", DateFrom = today.AddDays(1), DateTo = today.AddDays(7) });
+        bucket1.TotalCount.Should().Be(1);
+        bucket1.Items.Should().ContainSingle().Which.OrderNumber.Should().Be("SO-01");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_表1联动_延期按预计完成或非延期按交期双口径()
+    {
+        var ctx = CreateDbContext();
+        var today = DateTime.Today;
+        ctx.Set<OrderListSummaryEntity>().AddRange(
+            // 延期（预计 today+3 > 交期 today-5）：按预计完成归桶 → 桶1
+            SeedDeliverySummary(1, "SO-01", 1000, 3, today.AddDays(-5), today.AddDays(3)),
+            // 非延期（预计 today+1 <= 交期 today+2）：按交期归桶 → 桶1
+            SeedDeliverySummary(2, "SO-02", 2000, 3, today.AddDays(2), today.AddDays(1)),
+            // 非延期（预计=交期 today+10）：按交期归桶 → 桶2
+            SeedDeliverySummary(3, "SO-03", 3000, 3, today.AddDays(10), today.AddDays(10)),
+            // 延期（预计 today-1 > 交期 today-10）：按预计完成归桶 → 桶0
+            SeedDeliverySummary(4, "SO-04", 4000, 2, today.AddDays(-10), today.AddDays(-1)));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        // 桶0（≤今日）：延期按预计完成 ≤ today → 仅 SO-04（非延期无交期 ≤ today 的）
+        var bucket0 = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 10 },
+            estimateFilter: new OrderDeliveryEstimateFilterDto { Table = "complete", DateTo = today });
+        bucket0.TotalCount.Should().Be(1);
+        bucket0.Items.Should().ContainSingle().Which.OrderNumber.Should().Be("SO-04");
+
+        // 桶1（+1~+7）：延期按预计完成（SO-01）+ 非延期按交期（SO-02）→ 2 单
+        var bucket1 = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 10 },
+            estimateFilter: new OrderDeliveryEstimateFilterDto { Table = "complete", DateFrom = today.AddDays(1), DateTo = today.AddDays(7) });
+        bucket1.TotalCount.Should().Be(2);
+        bucket1.Items.Select(i => i.OrderNumber).Should().BeEquivalentTo(new[] { "SO-01", "SO-02" });
+    }
+
+    [Fact]
+    public async Task GetDeliveryEstimateAsync_桶边界结构化与标签一致()
+    {
+        var ctx = CreateDbContext();
+        var today = DateTime.Today;
+        ctx.Set<OrderListSummaryEntity>().AddRange(
+            SeedDeliverySummary(1, "SO-01", 1000, 3, today.AddDays(3), today.AddDays(10)));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetDeliveryEstimateAsync();
+
+        // 桶0：无下界、上界=今日；桶1：+1~+7（默认配置 bucket1=7）；桶6：+61 起、无上界
+        result.Tables[0].Id.Should().Be("complete");
+        result.Tables[1].Id.Should().Be("delay");
+        result.Tables[0].Buckets[0].DateFrom.Should().BeNull();
+        result.Tables[0].Buckets[0].DateTo.Should().Be(today);
+        result.Tables[0].Buckets[1].DateFrom.Should().Be(today.AddDays(1));
+        result.Tables[0].Buckets[1].DateTo.Should().Be(today.AddDays(7));
+        result.Tables[0].Buckets[2].DateFrom.Should().Be(today.AddDays(8));
+        result.Tables[0].Buckets[2].DateTo.Should().Be(today.AddDays(15));
+        result.Tables[0].Buckets[6].DateFrom.Should().Be(today.AddDays(61));
+        result.Tables[0].Buckets[6].DateTo.Should().BeNull();
+        // 两表桶边界一致
+        for (var i = 0; i < 7; i++)
+        {
+            result.Tables[1].Buckets[i].DateFrom.Should().Be(result.Tables[0].Buckets[i].DateFrom);
+            result.Tables[1].Buckets[i].DateTo.Should().Be(result.Tables[0].Buckets[i].DateTo);
+        }
+    }
+
+    [Fact]
+    public async Task PrintOrderListAsync_生成列表PDF()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var items = new List<Dictionary<string, object>>
+        {
+            new() { ["ordernumber"] = "SO001", ["customername"] = "客户A", ["TotalContractWeight"] = 123.45m },
+            new() { ["ordernumber"] = "SO002", ["customername"] = "客户B", ["TotalContractWeight"] = 200m }
+        };
+        var columns = new List<PrintColumnDef>
+        {
+            new() { Key = "ordernumber", Label = "订单号" },
+            new() { Key = "customername", Label = "客户名称" },
+            new() { Key = "TotalContractWeight", Label = "订单总重量" }
+        };
+
+        var bytes = await svc.PrintOrderListAsync("订单列表", items, columns);
+
+        bytes.Should().NotBeNullOrEmpty();
+        // PDF 魔数 %PDF
+        System.Text.Encoding.ASCII.GetString(bytes.Take(4).ToArray()).Should().Be("%PDF");
     }
 }

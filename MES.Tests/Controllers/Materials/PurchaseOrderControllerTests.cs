@@ -14,14 +14,12 @@ namespace MES.Tests.Controllers;
 public class PurchaseOrderControllerTests : ControllerTestBase
 {
     private readonly Mock<IPurchaseOrderService> _serviceMock;
-    private readonly Mock<ILogger<PurchaseOrderController>> _loggerMock;
     private readonly PurchaseOrderController _controller;
 
     public PurchaseOrderControllerTests()
     {
         _serviceMock = new Mock<IPurchaseOrderService>();
-        _loggerMock = CreateLoggerMock<PurchaseOrderController>();
-        _controller = new PurchaseOrderController(_serviceMock.Object, _loggerMock.Object);
+        _controller = new PurchaseOrderController(_serviceMock.Object);
         // 设置非管理员的 HttpContext，避免 User.IsInRole("Admin") 引发 NullReferenceException
         _controller.ControllerContext = new ControllerContext
         {

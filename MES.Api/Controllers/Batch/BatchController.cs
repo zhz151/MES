@@ -19,14 +19,12 @@ public class BatchController : ControllerBase
     private readonly IBatchService _service;
     private readonly IProductionRecordService _productionRecordService;
     private readonly IOperationLogService _operationLogService;
-    private readonly ILogger<BatchController> _logger;
 
-    public BatchController(IBatchService service, IProductionRecordService productionRecordService, IOperationLogService operationLogService, ILogger<BatchController> logger)
+    public BatchController(IBatchService service, IProductionRecordService productionRecordService, IOperationLogService operationLogService)
     {
         _service = service;
         _productionRecordService = productionRecordService;
         _operationLogService = operationLogService;
-        _logger = logger;
     }
 
     // ========== 批次 CRUD ==========
@@ -318,48 +316,6 @@ public class BatchController : ControllerBase
     }
 
     // ========== 打印 ==========
-
-    [HttpGet("{id}/print")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintBatch(int id)
-    {
-        var pdfBytes = await _service.PrintBatchAsync(id);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    [HttpPost("print-all")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintBatchAll([FromBody] BatchPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintBatchAllAsync(request);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    [HttpPost("print-selected")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintBatchSelected([FromBody] BatchPrintSelectedRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintBatchSelectedAsync(request.Ids, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    [HttpPost("print-process-card")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintProcessCard([FromBody] ProcessCardPrintRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintProcessCardAsync(request);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
 
     [HttpPost("print-batch-file")]
     [Authorize(Roles = Roles.Policies.BatchView)]

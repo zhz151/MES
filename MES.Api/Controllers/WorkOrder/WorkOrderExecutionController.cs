@@ -75,6 +75,17 @@ public class WorkOrderExecutionController : ControllerBase
     }
 
     /// <summary>
+    /// 获取「错误疑问投料」明细（到料实投一致性 ∈ {2,3,4,5} 的全量工单行）
+    /// </summary>
+    [HttpGet("error-doubt-inputs")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
+    public async Task<ActionResult<ApiResponse<List<ErrorDoubtInputItemDto>>>> GetErrorDoubtInputItems()
+    {
+        var result = await _service.GetErrorDoubtInputItemsAsync();
+        return Ok(ApiResponse<List<ErrorDoubtInputItemDto>>.Ok(result));
+    }
+
+    /// <summary>
     /// 获取筛选上下文（各列的筛选项列表）
     /// </summary>
     [HttpGet("filter-contexts")]

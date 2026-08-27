@@ -12,14 +12,12 @@ namespace MES.Tests.Controllers;
 public class FinalInspectionsControllerTests : ControllerTestBase
 {
     private readonly Mock<IFinalInspectionService> _serviceMock;
-    private readonly Mock<ILogger<FinalInspectionsController>> _loggerMock;
     private readonly FinalInspectionsController _controller;
 
     public FinalInspectionsControllerTests()
     {
         _serviceMock = new Mock<IFinalInspectionService>();
-        _loggerMock = CreateLoggerMock<FinalInspectionsController>();
-        _controller = new FinalInspectionsController(_serviceMock.Object, _loggerMock.Object);
+        _controller = new FinalInspectionsController(_serviceMock.Object);
     }
 
     [Fact]

@@ -6,6 +6,7 @@ using MES.Core.Models;
 using MES.Core.Enums;
 using MES.Core.DTOs.Order;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.DTOs.Shared;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Interfaces.Infrastructure;
 
@@ -387,5 +388,36 @@ public class WorkOrderControllerTests : ControllerTestBase
         var filtersJson = "[{\"Field\":\"Status\",\"Operator\":\"equals\",\"Value\":\"Confirmed\"}]";
         await _controller.GetOrderWorkOrderStatus(filters: filtersJson);
         _serviceMock.Verify(x => x.GetOrderWorkOrderStatusPageAsync(It.Is<WorkOrderQueryParams>(q => q.Filters != null && q.Filters.Count > 0)), Times.Once);
+    }
+
+    [Fact]
+    public async Task PrintWorkOrderListFile_ReturnsPdfFile()
+    {
+        // Arrange
+        var request = new WorkOrderPrintListRequest
+        {
+            Title = "工单列表",
+            Items = new List<Dictionary<string, object>>
+            {
+                new() { ["WorkOrderNo"] = "WO001", ["SalesOrderNo"] = "SO001" }
+            },
+            Columns = new List<PrintColumnDef>
+            {
+                new() { Key = "WorkOrderNo", Label = "工单号" },
+                new() { Key = "SalesOrderNo", Label = "订单号" }
+            }
+        };
+        var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 };
+        _serviceMock.Setup(x => x.PrintWorkOrderListAsync(request.Title, request.Items, request.Columns))
+            .ReturnsAsync(pdfBytes);
+
+        // Act
+        var result = await _controller.PrintWorkOrderListFile(request);
+
+        // Assert
+        var fileResult = Assert.IsType<FileContentResult>(result);
+        Assert.Equal("application/pdf", fileResult.ContentType);
+        Assert.Equal(pdfBytes, fileResult.FileContents);
+        _serviceMock.Verify(x => x.PrintWorkOrderListAsync(request.Title, request.Items, request.Columns), Times.Once);
     }
 }

@@ -14,6 +14,7 @@ using MES.Data.Entities.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Helpers;
 using MES.Core.Exceptions;
+using MES.Core.DTOs.Shared;
 using WoEntity = MES.Data.Entities.WorkOrder.WorkOrder;
 
 namespace MES.Services.Printing;
@@ -94,60 +95,38 @@ public static class MaterialPlanPrintHelper
     public static Document CreateBatchInProcessReworkPlanDocument(List<(InProcessReworkPlan plan, WoEntity workOrder)> items)
     {
         if (!items.Any()) throw new BusinessException("打印数据不能为空");
-        return Document.Create(container =>
+        var rows = items.Select(i =>
         {
-            container.Page(page =>
+            var (plan, workOrder) = i;
+            return new Dictionary<string, object>
             {
-                page.Size(PageSizes.A4.Landscape());
-                page.Margin(40);
-                page.DefaultTextStyle(x => x.FontSize(10).FontFamily("SimSun"));
-                page.Header().Element(h => ComposeDocHeader(h, "在 产 改 制 计 划（批量）"));
-                page.Content().Element(c => ComposeBatchInProcessReworkContent(c, items));
-                page.Footer().Element(ComposeDocFooter);
-            });
-        });
-    }
+                ["WorkOrderNo"] = workOrder.WorkOrderNo,
+                ["PlanDate"] = plan.PlanDate.ToString("yyyy-MM-dd"),
+                ["BatchNo"] = plan.BatchNo,
+                ["BatchTagNo"] = plan.BatchTagNo ?? "-",
+                ["PlantGrade"] = plan.PlantGrade,
+                ["Specification"] = plan.Specification,
+                ["LengthStatus"] = Enum.TryParse<LengthStatus>(plan.LengthStatus, out var ls) ? EnumHelper.GetDisplayName(ls) : (plan.LengthStatus ?? "-"),
+                ["InputMultiple"] = plan.InputMultiple.ToString(),
+                ["UsedQuantity"] = plan.UsedQuantity?.ToString() is string q ? $"{q} 支" : "-",
+                ["UsedWeight"] = $"{plan.UsedWeight:G29} kg",
+                ["Remark"] = plan.Remark ?? "-"
+            };
+        }).ToList();
 
-    private static void ComposeBatchInProcessReworkContent(IContainer container, List<(InProcessReworkPlan plan, WoEntity workOrder)> items)
-    {
-        container.Table(table =>
+        return TablePrintHelper.CreateDocument("在产改制计划", rows, new List<PrintColumnDef>
         {
-            table.ColumnsDefinition(columns =>
-            {
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-            });
-
-            table.Header(header =>
-            {
-                string[] headers = { "工单号", "计划日期", "生产编号", "挂牌号", "工厂牌号", "规格", "长度状态", "投料制成倍", "使用支数", "使用重量(kg)", "备注" };
-                foreach (var h in headers)
-                    header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
-            });
-
-            foreach (var (plan, workOrder) in items)
-            {
-                table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.BatchNo).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.BatchTagNo ?? "-").FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.PlantGrade).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.Specification).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(Enum.TryParse<LengthStatus>(plan.LengthStatus, out var ls) ? EnumHelper.GetDisplayName(ls) : (plan.LengthStatus ?? "-")).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.InputMultiple.ToString()).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.UsedQuantity?.ToString() is string q ? $"{q} 支" : "-").FontSize(8);
-                table.Cell().Element(CellStyle).Text($"{plan.UsedWeight:G29} kg").FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
-            }
+            new() { Key = "WorkOrderNo", Label = "工单号" },
+            new() { Key = "PlanDate", Label = "计划日期" },
+            new() { Key = "BatchNo", Label = "生产编号" },
+            new() { Key = "BatchTagNo", Label = "挂牌号" },
+            new() { Key = "PlantGrade", Label = "工厂牌号" },
+            new() { Key = "Specification", Label = "规格" },
+            new() { Key = "LengthStatus", Label = "长度状态" },
+            new() { Key = "InputMultiple", Label = "投料制成倍" },
+            new() { Key = "UsedQuantity", Label = "使用支数" },
+            new() { Key = "UsedWeight", Label = "使用重量(kg)" },
+            new() { Key = "Remark", Label = "备注" }
         });
     }
 
@@ -170,96 +149,34 @@ public static class MaterialPlanPrintHelper
     public static Document CreateBatchInMainWorkOrderPlanDocument(List<(InMainWorkOrderPlan plan, WoEntity workOrder)> items)
     {
         if (!items.Any()) throw new BusinessException("打印数据不能为空");
-        return Document.Create(container =>
+        var rows = items.Select(i =>
         {
-            container.Page(page =>
+            var (plan, workOrder) = i;
+            return new Dictionary<string, object>
             {
-                page.Size(PageSizes.A4.Landscape());
-                page.Margin(40);
-                page.DefaultTextStyle(x => x.FontSize(10).FontFamily("SimSun"));
-                page.Header().Element(h => ComposeDocHeader(h, "在 产 主 工 单 计 划（批量）"));
-                page.Content().Element(c => ComposeBatchInMainWorkOrderContent(c, items));
-                page.Footer().Element(ComposeDocFooter);
-            });
-        });
-    }
+                ["WorkOrderNo"] = workOrder.WorkOrderNo,
+                ["PlanDate"] = plan.PlanDate.ToString("yyyy-MM-dd"),
+                ["BatchNo"] = plan.BatchNo,
+                ["MainWorkOrderNo"] = plan.MainWorkOrderNo,
+                ["AllocatedQuantity"] = plan.AllocatedQuantity?.ToString() is string q ? $"{q} 支" : "-",
+                ["AllocatedWeight"] = $"{plan.AllocatedWeight:G29} kg",
+                ["RequiredDate"] = plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "-",
+                ["PlanStatus"] = EnumHelper.GetDisplayName(plan.PlanStatus),
+                ["Remark"] = plan.Remark ?? "-"
+            };
+        }).ToList();
 
-    private static void ComposeBatchInMainWorkOrderContent(IContainer container, List<(InMainWorkOrderPlan plan, WoEntity workOrder)> items)
-    {
-        container.Table(table =>
+        return TablePrintHelper.CreateDocument("在产主工单计划", rows, new List<PrintColumnDef>
         {
-            table.ColumnsDefinition(columns =>
-            {
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-            });
-
-            table.Header(header =>
-            {
-                string[] headers = { "工单号", "计划日期", "生产编号", "源主工单号", "分配支数", "分配重量(kg)", "要求到位日", "状态", "备注" };
-                foreach (var h in headers)
-                    header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
-            });
-
-            foreach (var (plan, workOrder) in items)
-            {
-                var statusText = EnumHelper.GetDisplayName(plan.PlanStatus);
-
-                table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.BatchNo).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.MainWorkOrderNo).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.AllocatedQuantity?.ToString() is string q ? $"{q} 支" : "-").FontSize(8);
-                table.Cell().Element(CellStyle).Text($"{plan.AllocatedWeight:G29} kg").FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "-").FontSize(8);
-                table.Cell().Element(CellStyle).Text(statusText).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
-            }
-        });
-    }
-
-    // ========== 公共组件 ==========
-
-    private static void ComposeDocHeader(IContainer container, string title)
-    {
-        container.Column(col =>
-        {
-            col.Item().PaddingBottom(5).AlignCenter().Text(title)
-                .FontSize(18).Bold();
-
-            col.Item().PaddingVertical(4)
-                .LineHorizontal(1).LineColor(Colors.Black);
-        });
-    }
-
-    private static void ComposeDocFooter(IContainer container)
-    {
-        container.Column(col =>
-        {
-            col.Item().PaddingVertical(4)
-                .LineHorizontal(1).LineColor(Colors.Black);
-
-            col.Item().PaddingTop(8).Row(row =>
-            {
-                row.RelativeItem().Text("制单人：").FontSize(10);
-                row.RelativeItem().Text("审核人：").FontSize(10);
-                row.RelativeItem().Text($"打印日期：{DateTime.Now:yyyy-MM-dd}").FontSize(10);
-                row.RelativeItem().AlignRight().Text(t =>
-                {
-                    t.Span("第 ").FontSize(9);
-                    t.CurrentPageNumber().FontSize(9);
-                    t.Span(" 页 / 共 ").FontSize(9);
-                    t.TotalPages().FontSize(9);
-                    t.Span(" 页").FontSize(9);
-                });
-            });
+            new() { Key = "WorkOrderNo", Label = "工单号" },
+            new() { Key = "PlanDate", Label = "计划日期" },
+            new() { Key = "BatchNo", Label = "生产编号" },
+            new() { Key = "MainWorkOrderNo", Label = "源主工单号" },
+            new() { Key = "AllocatedQuantity", Label = "分配支数" },
+            new() { Key = "AllocatedWeight", Label = "分配重量(kg)" },
+            new() { Key = "RequiredDate", Label = "要求到位日" },
+            new() { Key = "PlanStatus", Label = "状态" },
+            new() { Key = "Remark", Label = "备注" }
         });
     }
 
@@ -269,70 +186,38 @@ public static class MaterialPlanPrintHelper
     public static Document CreateBatchSemiPlanDocument(List<(PurchaseSemiPlan plan, WoEntity workOrder)> items)
     {
         if (!items.Any()) throw new BusinessException("打印数据不能为空");
-        return Document.Create(container =>
+        var rows = items.Select(i =>
         {
-            container.Page(page =>
+            var (plan, workOrder) = i;
+            return new Dictionary<string, object>
             {
-                page.Size(PageSizes.A4.Landscape());
-                page.Margin(40);
-                page.DefaultTextStyle(x => x.FontSize(10).FontFamily("SimSun"));
-                page.Header().Element(h => ComposeDocHeader(h, "原 料 采 购 计 划（批量）"));
-                page.Content().Element(c => ComposeBatchSemiContent(c, items));
-                page.Footer().Element(ComposeDocFooter);
-            });
-        });
-    }
+                ["WorkOrderNo"] = workOrder.WorkOrderNo,
+                ["PlanDate"] = plan.PlanDate.ToString("yyyy-MM-dd"),
+                ["RawMaterialType"] = EnumHelper.GetDisplayName(plan.RawMaterialType),
+                ["PlantGrade"] = plan.PlantGrade,
+                ["RawMaterialSpec"] = plan.RawMaterialSpec,
+                ["RequiredUnitWeight"] = plan.RequiredUnitWeight?.ToString("G29") is string uw ? $"{uw} kg/支" : "-",
+                ["RequiredPieces"] = plan.RequiredPieces?.ToString() is string rp ? $"{rp} 支" : "-",
+                ["RequiredWeight"] = $"{plan.RequiredWeight:G29} kg",
+                ["InputMultiple"] = $"{plan.InputMultiple}",
+                ["RequiredDate"] = plan.RequiredDate.ToString("yyyy-MM-dd"),
+                ["Remark"] = plan.Remark ?? "-"
+            };
+        }).ToList();
 
-    private static void ComposeBatchSemiContent(IContainer container, List<(PurchaseSemiPlan plan, WoEntity workOrder)> items)
-    {
-        container.Table(table =>
+        return TablePrintHelper.CreateDocument("原料采购计划", rows, new List<PrintColumnDef>
         {
-            table.ColumnsDefinition(columns =>
-            {
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-            });
-
-            table.Header(header =>
-            {
-                header.Cell().Element(CellHeaderStyle).Text("工单号").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("计划日期").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("原料类型").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("工厂牌号").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("原料规格").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("需求单重").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("需求支数").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("需求重量").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("投料制成倍").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("要求到货日").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("备注").FontSize(8).AlignCenter();
-            });
-
-            foreach (var (plan, workOrder) in items)
-            {
-                var rawMatType = EnumHelper.GetDisplayName(plan.RawMaterialType);
-
-                table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
-                table.Cell().Element(CellStyle).Text(rawMatType).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.PlantGrade).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.RawMaterialSpec).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.RequiredUnitWeight?.ToString("G29") is string uw ? $"{uw} kg/支" : "-").FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.RequiredPieces?.ToString() is string rp ? $"{rp} 支" : "-").FontSize(8);
-                table.Cell().Element(CellStyle).Text($"{plan.RequiredWeight:G29} kg").FontSize(8);
-                table.Cell().Element(CellStyle).Text($"{plan.InputMultiple}").FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.RequiredDate.ToString("yyyy-MM-dd")).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
-            }
+            new() { Key = "WorkOrderNo", Label = "工单号" },
+            new() { Key = "PlanDate", Label = "计划日期" },
+            new() { Key = "RawMaterialType", Label = "原料类型" },
+            new() { Key = "PlantGrade", Label = "工厂牌号" },
+            new() { Key = "RawMaterialSpec", Label = "原料规格" },
+            new() { Key = "RequiredUnitWeight", Label = "需求单重" },
+            new() { Key = "RequiredPieces", Label = "需求支数" },
+            new() { Key = "RequiredWeight", Label = "需求重量" },
+            new() { Key = "InputMultiple", Label = "投料制成倍" },
+            new() { Key = "RequiredDate", Label = "要求到货日" },
+            new() { Key = "Remark", Label = "备注" }
         });
     }
 
@@ -342,83 +227,54 @@ public static class MaterialPlanPrintHelper
     public static Document CreateBatchFinishPlanDocument(List<(PurchaseFinishedPlan plan, WoEntity workOrder)> items)
     {
         if (!items.Any()) throw new BusinessException("打印数据不能为空");
-        return Document.Create(container =>
+        var rows = items.Select(i =>
         {
-            container.Page(page =>
+            var (plan, workOrder) = i;
+            var lengthStatusText = EnumHelper.GetDisplayName(plan.LengthStatus);
+            var lengthStr = (plan.MinLength, plan.MaxLength) switch
             {
-                page.Size(PageSizes.A4.Landscape());
-                page.Margin(40);
-                page.DefaultTextStyle(x => x.FontSize(10).FontFamily("SimSun"));
-                page.Header().Element(h => ComposeDocHeader(h, "成 品 采 购 计 划（批量）"));
-                page.Content().Element(c => ComposeBatchFinishContent(c, items));
-                page.Footer().Element(ComposeDocFooter);
-            });
-        });
-    }
+                (null, null) => lengthStatusText,
+                (null, var max) => $"{lengthStatusText} ≤{max:G29}",
+                (var min, null) => $"{lengthStatusText} ≥{min:G29}",
+                (var min, var max) => $"{lengthStatusText} {min:G29}~{max:G29}"
+            };
+            return new Dictionary<string, object>
+            {
+                ["WorkOrderNo"] = workOrder.WorkOrderNo,
+                ["PlanDate"] = plan.PlanDate.ToString("yyyy-MM-dd"),
+                ["ProductType"] = EnumHelper.GetDisplayName(plan.ProductType),
+                ["PlantGrade"] = plan.PlantGrade,
+                ["Specification"] = plan.Specification,
+                ["OdTol"] = $"-{plan.OuterDiameterNegative:G29}/+{plan.OuterDiameterPositive:G29}",
+                ["WtTol"] = $"-{plan.WallThicknessNegative:G29}/+{plan.WallThicknessPositive:G29}",
+                ["LengthStatus"] = lengthStatusText,
+                ["LengthStr"] = lengthStr,
+                ["DeliveryState"] = EnumHelper.GetDisplayName(plan.DeliveryState),
+                ["RequiredPiece"] = plan.RequiredPiece?.ToString() is string rp ? $"{rp} 支" : "-",
+                ["RequiredWeight"] = $"{plan.RequiredWeight:G29} kg",
+                ["InputMultiple"] = plan.InputMultiple?.ToString() ?? "-",
+                ["RequiredDate"] = plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "-",
+                ["Remark"] = plan.Remark ?? "-"
+            };
+        }).ToList();
 
-    private static void ComposeBatchFinishContent(IContainer container, List<(PurchaseFinishedPlan plan, WoEntity workOrder)> items)
-    {
-        container.Table(table =>
+        return TablePrintHelper.CreateDocument("成品采购计划", rows, new List<PrintColumnDef>
         {
-            table.ColumnsDefinition(columns =>
-            {
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-            });
-
-            table.Header(header =>
-            {
-                string[] headers = { "工单号", "计划日期", "成品类型", "工厂牌号", "规格", "外径公差", "壁厚公差", "长度状态", "长度(mm)", "交货状态", "需用支数", "需用重量", "投料制成倍", "要求到货日", "备注" };
-                foreach (var h in headers)
-                    header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
-            });
-
-            foreach (var (plan, workOrder) in items)
-            {
-                var productType = EnumHelper.GetDisplayName(plan.ProductType);
-                var odTol = $"-{plan.OuterDiameterNegative:G29}/+{plan.OuterDiameterPositive:G29}";
-                var wtTol = $"-{plan.WallThicknessNegative:G29}/+{plan.WallThicknessPositive:G29}";
-
-                var lengthStatusText = EnumHelper.GetDisplayName(plan.LengthStatus);
-                var lengthStr = (plan.MinLength, plan.MaxLength) switch
-                {
-                    (null, null) => lengthStatusText,
-                    (null, var max) => $"{lengthStatusText} ≤{max:G29}",
-                    (var min, null) => $"{lengthStatusText} ≥{min:G29}",
-                    (var min, var max) => $"{lengthStatusText} {min:G29}~{max:G29}"
-                };
-
-                var deliveryStateText = EnumHelper.GetDisplayName(plan.DeliveryState);
-
-                table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
-                table.Cell().Element(CellStyle).Text(productType).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.PlantGrade).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.Specification).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(odTol).FontSize(8);
-                table.Cell().Element(CellStyle).Text(wtTol).FontSize(8);
-                table.Cell().Element(CellStyle).Text(lengthStatusText).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(lengthStr).FontSize(8);
-                table.Cell().Element(CellStyle).Text(deliveryStateText).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.RequiredPiece?.ToString() is string rp ? $"{rp} 支" : "-").FontSize(8);
-                table.Cell().Element(CellStyle).Text($"{plan.RequiredWeight:G29} kg").FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.InputMultiple?.ToString() ?? "-").FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "-").FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
-            }
+            new() { Key = "WorkOrderNo", Label = "工单号" },
+            new() { Key = "PlanDate", Label = "计划日期" },
+            new() { Key = "ProductType", Label = "成品类型" },
+            new() { Key = "PlantGrade", Label = "工厂牌号" },
+            new() { Key = "Specification", Label = "规格" },
+            new() { Key = "OdTol", Label = "外径公差" },
+            new() { Key = "WtTol", Label = "壁厚公差" },
+            new() { Key = "LengthStatus", Label = "长度状态" },
+            new() { Key = "LengthStr", Label = "长度(mm)" },
+            new() { Key = "DeliveryState", Label = "交货状态" },
+            new() { Key = "RequiredPiece", Label = "需用支数" },
+            new() { Key = "RequiredWeight", Label = "需用重量" },
+            new() { Key = "InputMultiple", Label = "投料制成倍" },
+            new() { Key = "RequiredDate", Label = "要求到货日" },
+            new() { Key = "Remark", Label = "备注" }
         });
     }
 
@@ -428,70 +284,47 @@ public static class MaterialPlanPrintHelper
     public static Document CreateBatchInventoryPlanDocument(List<(InventoryPlan plan, WoEntity workOrder)> items)
     {
         if (!items.Any()) throw new BusinessException("打印数据不能为空");
-        return Document.Create(container =>
+        var rows = items.Select(i =>
         {
-            container.Page(page =>
+            var (plan, workOrder) = i;
+            var usageMode = plan.UsageMode == "All" ? "全部" : "部分";
+            var qtyText = plan.UsageMode == "All"
+                ? $"全部({plan.UsedQuantity?.ToString() ?? "0"} 支)"
+                : $"{plan.UsedQuantity?.ToString() ?? "-"} 支";
+            var location = string.IsNullOrEmpty(plan.LocationArea) && string.IsNullOrEmpty(plan.LocationRack)
+                ? "-"
+                : string.IsNullOrEmpty(plan.LocationArea) ? plan.LocationRack
+                : string.IsNullOrEmpty(plan.LocationRack) ? plan.LocationArea
+                : $"{plan.LocationArea}/{plan.LocationRack}";
+            return new Dictionary<string, object>
             {
-                page.Size(PageSizes.A4.Landscape());
-                page.Margin(40);
-                page.DefaultTextStyle(x => x.FontSize(10).FontFamily("SimSun"));
-                page.Header().Element(h => ComposeDocHeader(h, "库 存 使 用 计 划（批量）"));
-                page.Content().Element(c => ComposeBatchInventoryContent(c, items));
-                page.Footer().Element(ComposeDocFooter);
-            });
-        });
-    }
+                ["WorkOrderNo"] = workOrder.WorkOrderNo,
+                ["PlanDate"] = plan.PlanDate.ToString("yyyy-MM-dd"),
+                ["BatchNo"] = plan.BatchNo,
+                ["MaterialType"] = EnumHelper.GetDisplayName<MaterialType>(plan.MaterialType) ?? plan.MaterialType,
+                ["PlantGrade"] = plan.PlantGrade,
+                ["Specification"] = plan.Specification,
+                ["UsageMode"] = usageMode,
+                ["UsedQuantity"] = qtyText,
+                ["UsedWeight"] = $"{plan.UsedWeight:G29} kg",
+                ["Location"] = location ?? "-",
+                ["Remark"] = plan.Remark ?? "-"
+            };
+        }).ToList();
 
-    private static void ComposeBatchInventoryContent(IContainer container, List<(InventoryPlan plan, WoEntity workOrder)> items)
-    {
-        container.Table(table =>
+        return TablePrintHelper.CreateDocument("库存使用计划", rows, new List<PrintColumnDef>
         {
-            table.ColumnsDefinition(columns =>
-            {
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-            });
-
-            table.Header(header =>
-            {
-                string[] headers = { "工单号", "计划日期", "批次号", "物料名称", "工厂牌号", "规格", "使用模式", "出库支数", "出库重量(kg)", "放置框架", "备注" };
-                foreach (var h in headers)
-                    header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
-            });
-
-            foreach (var (plan, workOrder) in items)
-            {
-                var usageMode = plan.UsageMode == "All" ? "全部" : "部分";
-                var qtyText = plan.UsageMode == "All"
-                    ? $"全部({plan.UsedQuantity?.ToString() ?? "0"} 支)"
-                    : $"{plan.UsedQuantity?.ToString() ?? "-"} 支";
-                var location = string.IsNullOrEmpty(plan.LocationArea) && string.IsNullOrEmpty(plan.LocationRack)
-                    ? "-"
-                    : string.IsNullOrEmpty(plan.LocationArea) ? plan.LocationRack
-                    : string.IsNullOrEmpty(plan.LocationRack) ? plan.LocationArea
-                    : $"{plan.LocationArea}/{plan.LocationRack}";
-
-                table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.BatchNo).FontSize(8);
-                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName<MaterialType>(plan.MaterialType) ?? plan.MaterialType).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.PlantGrade).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.Specification).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(usageMode).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(qtyText).FontSize(8);
-                table.Cell().Element(CellStyle).Text($"{plan.UsedWeight:G29} kg").FontSize(8);
-                table.Cell().Element(CellStyle).Text(location).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
-            }
+            new() { Key = "WorkOrderNo", Label = "工单号" },
+            new() { Key = "PlanDate", Label = "计划日期" },
+            new() { Key = "BatchNo", Label = "批次号" },
+            new() { Key = "MaterialType", Label = "物料名称" },
+            new() { Key = "PlantGrade", Label = "工厂牌号" },
+            new() { Key = "Specification", Label = "规格" },
+            new() { Key = "UsageMode", Label = "使用模式" },
+            new() { Key = "UsedQuantity", Label = "出库支数" },
+            new() { Key = "UsedWeight", Label = "出库重量(kg)" },
+            new() { Key = "Location", Label = "放置框架" },
+            new() { Key = "Remark", Label = "备注" }
         });
     }
 
@@ -514,73 +347,40 @@ public static class MaterialPlanPrintHelper
     public static Document CreateBatchPiercingPlanDocument(List<(RoundBarPiercingPlan plan, WoEntity workOrder)> items)
     {
         if (!items.Any()) throw new BusinessException("打印数据不能为空");
-        return Document.Create(container =>
+        var rows = items.Select(i =>
         {
-            container.Page(page =>
+            var (plan, workOrder) = i;
+            return new Dictionary<string, object>
             {
-                page.Size(PageSizes.A4.Landscape());
-                page.Margin(40);
-                page.DefaultTextStyle(x => x.FontSize(10).FontFamily("SimSun"));
-                page.Header().Element(h => ComposeDocHeader(h, "圆 棒 穿 孔 计 划（批量）"));
-                page.Content().Element(c => ComposeBatchPiercingContent(c, items));
-                page.Footer().Element(ComposeDocFooter);
-            });
-        });
-    }
+                ["WorkOrderNo"] = workOrder.WorkOrderNo,
+                ["PlanDate"] = plan.PlanDate.ToString("yyyy-MM-dd"),
+                ["RawMaterialType"] = EnumHelper.GetDisplayName(plan.RawMaterialType),
+                ["PlantGrade"] = plan.PlantGrade,
+                ["RoundBarSpec"] = plan.RoundBarSpec,
+                ["PiercingSpec"] = plan.PiercingSpec,
+                ["RequiredUnitWeight"] = plan.RequiredUnitWeight?.ToString("G29") is string uw ? $"{uw} kg/支" : "-",
+                ["RequiredPieces"] = plan.RequiredPieces?.ToString() is string rp ? $"{rp} 支" : "-",
+                ["RequiredWeight"] = $"{plan.RequiredWeight:G29} kg",
+                ["InputMultiple"] = $"{plan.InputMultiple}",
+                ["RequiredDate"] = plan.RequiredDate.ToString("yyyy-MM-dd"),
+                ["Remark"] = plan.Remark ?? "-"
+            };
+        }).ToList();
 
-    private static void ComposeBatchPiercingContent(IContainer container, List<(RoundBarPiercingPlan plan, WoEntity workOrder)> items)
-    {
-        container.Table(table =>
+        return TablePrintHelper.CreateDocument("圆棒穿孔计划", rows, new List<PrintColumnDef>
         {
-            table.ColumnsDefinition(columns =>
-            {
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-            });
-
-            table.Header(header =>
-            {
-                header.Cell().Element(CellHeaderStyle).Text("工单号").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("计划日期").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("原料类型").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("工厂牌号").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("圆棒规格").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("穿孔规格").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("需求单重").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("需求支数").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("需求重量").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("投料制成倍").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("要求到货日").FontSize(8).AlignCenter();
-                header.Cell().Element(CellHeaderStyle).Text("备注").FontSize(8).AlignCenter();
-            });
-
-            foreach (var (plan, workOrder) in items)
-            {
-                var rawMatType = EnumHelper.GetDisplayName(plan.RawMaterialType);
-
-                table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
-                table.Cell().Element(CellStyle).Text(rawMatType).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.PlantGrade).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.RoundBarSpec).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.PiercingSpec).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.RequiredUnitWeight?.ToString("G29") is string uw ? $"{uw} kg/支" : "-").FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.RequiredPieces?.ToString() is string rp ? $"{rp} 支" : "-").FontSize(8);
-                table.Cell().Element(CellStyle).Text($"{plan.RequiredWeight:G29} kg").FontSize(8);
-                table.Cell().Element(CellStyle).Text($"{plan.InputMultiple}").FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.RequiredDate.ToString("yyyy-MM-dd")).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
-            }
+            new() { Key = "WorkOrderNo", Label = "工单号" },
+            new() { Key = "PlanDate", Label = "计划日期" },
+            new() { Key = "RawMaterialType", Label = "原料类型" },
+            new() { Key = "PlantGrade", Label = "工厂牌号" },
+            new() { Key = "RoundBarSpec", Label = "圆棒规格" },
+            new() { Key = "PiercingSpec", Label = "穿孔规格" },
+            new() { Key = "RequiredUnitWeight", Label = "需求单重" },
+            new() { Key = "RequiredPieces", Label = "需求支数" },
+            new() { Key = "RequiredWeight", Label = "需求重量" },
+            new() { Key = "InputMultiple", Label = "投料制成倍" },
+            new() { Key = "RequiredDate", Label = "要求到货日" },
+            new() { Key = "Remark", Label = "备注" }
         });
     }
 
@@ -590,92 +390,50 @@ public static class MaterialPlanPrintHelper
     public static Document CreateBatchReworkPlanDocument(List<(InventoryPlan plan, WoEntity workOrder)> items)
     {
         if (!items.Any()) throw new BusinessException("打印数据不能为空");
-        return Document.Create(container =>
+        var rows = items.Select(i =>
         {
-            container.Page(page =>
+            var (plan, workOrder) = i;
+            var usageMode = plan.UsageMode == "All" ? "全部" : "部分";
+            var qtyText = plan.UsageMode == "All"
+                ? $"全部({plan.UsedQuantity?.ToString() ?? "0"} 支)"
+                : $"{plan.UsedQuantity?.ToString() ?? "-"} 支";
+            var location = string.IsNullOrEmpty(plan.LocationArea) && string.IsNullOrEmpty(plan.LocationRack)
+                ? "-"
+                : string.IsNullOrEmpty(plan.LocationArea) ? plan.LocationRack
+                : string.IsNullOrEmpty(plan.LocationRack) ? plan.LocationArea
+                : $"{plan.LocationArea}/{plan.LocationRack}";
+            return new Dictionary<string, object>
             {
-                page.Size(PageSizes.A4.Landscape());
-                page.Margin(40);
-                page.DefaultTextStyle(x => x.FontSize(10).FontFamily("SimSun"));
-                page.Header().Element(h => ComposeDocHeader(h, "库 料 改 制 计 划（批量）"));
-                page.Content().Element(c => ComposeBatchReworkContent(c, items));
-                page.Footer().Element(ComposeDocFooter);
-            });
-        });
-    }
+                ["WorkOrderNo"] = workOrder.WorkOrderNo,
+                ["PlanDate"] = plan.PlanDate.ToString("yyyy-MM-dd"),
+                ["BatchNo"] = plan.BatchNo,
+                ["MaterialType"] = EnumHelper.GetDisplayName<MaterialType>(plan.MaterialType) ?? plan.MaterialType,
+                ["PlantGrade"] = plan.PlantGrade,
+                ["Specification"] = plan.Specification,
+                ["UsageMode"] = usageMode,
+                ["UsedQuantity"] = qtyText,
+                ["UsedWeight"] = $"{plan.UsedWeight:G29} kg",
+                ["Location"] = location ?? "-",
+                ["ReworkType"] = plan.ReworkType.HasValue ? EnumHelper.GetDisplayName(plan.ReworkType.Value) : "-",
+                ["Remark"] = plan.Remark ?? "-"
+            };
+        }).ToList();
 
-    private static void ComposeBatchReworkContent(IContainer container, List<(InventoryPlan plan, WoEntity workOrder)> items)
-    {
-        container.Table(table =>
+        return TablePrintHelper.CreateDocument("库料改制计划", rows, new List<PrintColumnDef>
         {
-            table.ColumnsDefinition(columns =>
-            {
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-                columns.RelativeColumn();
-            });
-
-            table.Header(header =>
-            {
-                string[] headers = { "工单号", "计划日期", "批次号", "物料名称", "工厂牌号", "规格", "使用模式", "出库支数", "出库重量(kg)", "放置框架", "改制类型", "备注" };
-                foreach (var h in headers)
-                    header.Cell().Element(CellHeaderStyle).Text(h).FontSize(8).AlignCenter();
-            });
-
-            foreach (var (plan, workOrder) in items)
-            {
-                var usageMode = plan.UsageMode == "All" ? "全部" : "部分";
-                var qtyText = plan.UsageMode == "All"
-                    ? $"全部({plan.UsedQuantity?.ToString() ?? "0"} 支)"
-                    : $"{plan.UsedQuantity?.ToString() ?? "-"} 支";
-                var location = string.IsNullOrEmpty(plan.LocationArea) && string.IsNullOrEmpty(plan.LocationRack)
-                    ? "-"
-                    : string.IsNullOrEmpty(plan.LocationArea) ? plan.LocationRack
-                    : string.IsNullOrEmpty(plan.LocationRack) ? plan.LocationArea
-                    : $"{plan.LocationArea}/{plan.LocationRack}";
-
-                var reworkTypeText = plan.ReworkType.HasValue ? EnumHelper.GetDisplayName(plan.ReworkType.Value) : "-";
-
-                table.Cell().Element(CellStyle).Text(workOrder.WorkOrderNo).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.PlanDate.ToString("yyyy-MM-dd")).FontSize(8);
-                table.Cell().Element(CellStyle).Text(plan.BatchNo).FontSize(8);
-                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName<MaterialType>(plan.MaterialType) ?? plan.MaterialType).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.PlantGrade).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.Specification).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(usageMode).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(qtyText).FontSize(8);
-                table.Cell().Element(CellStyle).Text($"{plan.UsedWeight:G29} kg").FontSize(8);
-                table.Cell().Element(CellStyle).Text(location).FontSize(8);
-                table.Cell().Element(CellStyle).Text(reworkTypeText).FontSize(8).AlignCenter();
-                table.Cell().Element(CellStyle).Text(plan.Remark ?? "-").FontSize(8);
-            }
+            new() { Key = "WorkOrderNo", Label = "工单号" },
+            new() { Key = "PlanDate", Label = "计划日期" },
+            new() { Key = "BatchNo", Label = "批次号" },
+            new() { Key = "MaterialType", Label = "物料名称" },
+            new() { Key = "PlantGrade", Label = "工厂牌号" },
+            new() { Key = "Specification", Label = "规格" },
+            new() { Key = "UsageMode", Label = "使用模式" },
+            new() { Key = "UsedQuantity", Label = "出库支数" },
+            new() { Key = "UsedWeight", Label = "出库重量(kg)" },
+            new() { Key = "Location", Label = "放置框架" },
+            new() { Key = "ReworkType", Label = "改制类型" },
+            new() { Key = "Remark", Label = "备注" }
         });
-    }
-
-    // ========== 表格样式 ==========
-
-    private static IContainer CellHeaderStyle(IContainer container)
-    {
-        return container.Border(0.5f).BorderColor(Colors.Black)
-            .Background(Colors.Grey.Lighten3)
-            .PaddingVertical(3).PaddingHorizontal(2)
-            .AlignMiddle();
-    }
-
-    private static IContainer CellStyle(IContainer container)
-    {
-        return container.Border(0.5f).BorderColor(Colors.Grey.Medium)
-            .PaddingVertical(2).PaddingHorizontal(2)
-            .AlignMiddle();
     }
 
 }

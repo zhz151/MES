@@ -5,16 +5,16 @@ namespace MES.Core.DTOs.Scheduling;
 /// </summary>
 public class RawMaterialLockPendingSummaryDto
 {
-    /// <summary>参与汇总的工单数（ScheduleStage=2 原料锁定）</summary>
+    /// <summary>参与汇总的工单数（ScheduleStage=2 原料锁定；待投料口径排除「单一成品采购」工单）</summary>
     public int TotalOrderCount { get; set; }
 
-    /// <summary>计划投料总重（kg）</summary>
+    /// <summary>计划投料总重（kg，同上排除「单一成品采购」工单）</summary>
     public decimal TotalWeight { get; set; }
 
-    /// <summary>待投料量（kg，Σ PendingCalc）</summary>
+    /// <summary>待投料量（kg，Σ PendingCalc；排除「单一成品采购」工单）</summary>
     public decimal PendingWeight { get; set; }
 
-    /// <summary>待购工单行数（FinishPlanWeight > FinishInWeight）</summary>
+    /// <summary>待购工单行数（「包含」口径 FinishPlanWeight &gt; 0，含单一成品采购）</summary>
     public int PurchaseCount { get; set; }
 
     /// <summary>待购总重（kg，Σ PurchaseCalc）</summary>

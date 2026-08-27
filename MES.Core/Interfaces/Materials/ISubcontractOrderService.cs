@@ -37,5 +37,6 @@ public interface ISubcontractOrderService
     Task<byte[]> PrintReturnItemSelectedAsync(int[] ids, List<PrintColumnDef>? columns);
     Task<byte[]> PrintOrderAsync(int id);
     Task<byte[]> PrintOrderBatchAsync(int[] ids);
+    Task<byte[]> PrintSubcontractOrderListAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns);
     Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, DateTime? dateFrom = null, DateTime? dateTo = null);
 }

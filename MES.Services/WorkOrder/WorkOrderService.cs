@@ -64,7 +64,6 @@ public class WorkOrderService : IWorkOrderService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<WorkOrderService> _logger;
-    private readonly IConfigParameterService _configService;
     private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly IOperationLogService _operationLogService;
@@ -72,7 +71,6 @@ public class WorkOrderService : IWorkOrderService
     private static readonly SemaphoreSlim _workOrderNoSemaphore = new SemaphoreSlim(1, 1);
 
     public WorkOrderService(AppDbContext context, ILogger<WorkOrderService> logger,
-        IConfigParameterService configService,
         IOperationLogService operationLogService,
         IMemoryCache cache,
         IWorkOrderListSummaryRefreshService? listSummaryService = null,
@@ -80,7 +78,6 @@ public class WorkOrderService : IWorkOrderService
     {
         _context = context;
         _logger = logger;
-        _configService = configService;
         _listSummaryService = listSummaryService;
         _workOrderExecutionService = workOrderExecutionService!;
         _operationLogService = operationLogService;
@@ -172,17 +169,6 @@ public class WorkOrderService : IWorkOrderService
         {
             _logger.LogWarning(ex, "工单变更通知写入失败（不影响主流程）");
         }
-    }
-
-    private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
-    {
-        var cacheKey = $"WorkOrderService:ConfigMap:{category}";
-        var map = await _cache.GetOrCreateAsync(cacheKey, async entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
-            return await _configService.GetConfigMapAsync(category);
-        });
-        return map?.GetValueOrDefault(key, defaultValue) ?? defaultValue;
     }
 
     #region 工单首页（订单状态监控）
@@ -1703,9 +1689,9 @@ public class WorkOrderService : IWorkOrderService
         return await GetPagedBasicAsync(query);
     }
 
-    public async Task<PagedResult<WorkOrderListDto>> GetPagedWithPlansAsync(WorkOrderQueryParams query)
+    public async Task<PagedResult<WorkOrderListDto>> GetPagedWithPlansAsync(WorkOrderQueryParams query, MaterialPlanLinkFilterDto? linkFilter = null)
     {
-        return await GetPagedEnrichedAsync(query);
+        return await GetPagedEnrichedAsync(query, linkFilter);
     }
 
 
@@ -1788,7 +1774,7 @@ public class WorkOrderService : IWorkOrderService
     /// <summary>
     /// 含用料计划聚合的分页查询（从 WorkOrderListSummary 读模型查询）
     /// </summary>
-    private async Task<PagedResult<WorkOrderListDto>> GetPagedEnrichedAsync(WorkOrderQueryParams query)
+    private async Task<PagedResult<WorkOrderListDto>> GetPagedEnrichedAsync(WorkOrderQueryParams query, MaterialPlanLinkFilterDto? linkFilter = null)
     {
         var summaryQuery = _context.Set<WorkOrderListSummary>().AsNoTracking().AsQueryable();
 
@@ -1869,13 +1855,13 @@ public class WorkOrderService : IWorkOrderService
         }
 
         // ===== 应用 ExcelFilter 筛选条件 =====
-        // 三字段（主号-关注/主号-原锁备注/主号-计划性）来自 WorkOrderExecutionSummary，需关联子查询筛选
+        // 跨表字段（主号-关注/主号-原锁备注/主号-计划性/工单投料状态等）来自 WorkOrderExecutionSummary，需关联子查询筛选
         var execSummary = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
         var execFilters = query.Filters?
-            .Where(f => f.Field is "ScheduleStage" or "RawMaterialLockRemark" or "UrgencyLevel")
+            .Where(f => f.Field is "ScheduleStage" or "RawMaterialLockRemark" or "UrgencyLevel" or "InputStatus")
             .ToList();
         var remainingFilters = query.Filters?
-            .Where(f => f.Field is not ("ScheduleStage" or "RawMaterialLockRemark" or "UrgencyLevel"))
+            .Where(f => f.Field is not ("ScheduleStage" or "RawMaterialLockRemark" or "UrgencyLevel" or "InputStatus"))
             .ToList();
         if (execFilters != null)
         {
@@ -1898,17 +1884,43 @@ public class WorkOrderService : IWorkOrderService
                         summaryQuery = summaryQuery.Where(s =>
                             execSummary.Where(e => e.WorkOrderId == s.WorkOrderId && f.Values.Contains(e.UrgencyLevel ?? "")).Any());
                         break;
+                    case "InputStatus":
+                        var inputStatusVals = f.Values.Where(v => int.TryParse(v, out _)).Select(int.Parse).ToList();
+                        if (inputStatusVals.Count > 0)
+                            summaryQuery = summaryQuery.Where(s =>
+                                execSummary.Where(e => e.WorkOrderId == s.WorkOrderId && inputStatusVals.Contains(e.InputStatus)).Any());
+                        break;
                 }
             }
+        }
+        // ===== 应用「待投料量汇总」卡片点击联动筛选（备注/计划性，严格限定 ScheduleStage=2 原料锁定） =====
+        // 成购矩阵联动（PurchaseOnly=true）按「包含」口径限定：成品采购计划量 > 0（FinishPlanWeight > 0，含单一成品采购）
+        // 待投料矩阵联动（ExcludeSingleFinishPurchase=true）排除「单一成品采购」工单（成品采购计划量 > 0 且其余 6 类计划量全部 ≤ 0），与卡片待投料口径同步
+        if (linkFilter != null && (!string.IsNullOrEmpty(linkFilter.Remark) || !string.IsNullOrEmpty(linkFilter.Urgency)))
+        {
+            summaryQuery = summaryQuery.Where(s =>
+                execSummary.Where(e => e.WorkOrderId == s.WorkOrderId
+                    && e.ScheduleStage == 2
+                    && (string.IsNullOrEmpty(linkFilter.Remark) || e.RawMaterialLockRemark == linkFilter.Remark)
+                    && (string.IsNullOrEmpty(linkFilter.Urgency) || e.UrgencyLevel == linkFilter.Urgency)
+                    && (!linkFilter.PurchaseOnly || e.FinishPlanWeight > 0)
+                    && (!linkFilter.ExcludeSingleFinishPurchase || !(
+                        e.FinishPlanWeight > 0
+                        && e.PiercingPlanWeight <= 0
+                        && e.SemiPlanWeight <= 0
+                        && e.InventoryPlanWeight <= 0
+                        && e.ReworkPlanWeight <= 0
+                        && e.InProcessReworkPlanWeight <= 0
+                        && e.InMainPlanWeight <= 0))).Any());
         }
         summaryQuery = summaryQuery.ApplyFilters(remainingFilters);
 
         var totalCount = await summaryQuery.CountAsync();
 
         // ===== 排序 =====
-        // 三字段排序需关联 WorkOrderExecutionSummary 子查询（ApplySort 反射实体属性，无法处理跨表字段）
+        // 跨表字段（WorkOrderExecutionSummary）排序需关联子查询（ApplySort 反射实体属性，无法处理跨表字段）
         var sortBy = query.SortBy ?? "CreatedTime";
-        if (sortBy is "ScheduleStage" or "RawMaterialLockRemark" or "UrgencyLevel")
+        if (sortBy is "ScheduleStage" or "RawMaterialLockRemark" or "UrgencyLevel" or "InputWeight" or "InputOutputRatio" or "InputStatus" or "PendingInputWeight" or "TotalMissingWeight")
         {
             switch (sortBy)
             {
@@ -1926,6 +1938,78 @@ public class WorkOrderService : IWorkOrderService
                     summaryQuery = query.IsDescending
                         ? summaryQuery.OrderByDescending(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => e.UrgencyLevel).FirstOrDefault())
                         : summaryQuery.OrderBy(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => e.UrgencyLevel).FirstOrDefault());
+                    break;
+                case "InputWeight":
+                    summaryQuery = query.IsDescending
+                        ? summaryQuery.OrderByDescending(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (decimal?)e.InputWeight).FirstOrDefault())
+                        : summaryQuery.OrderBy(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (decimal?)e.InputWeight).FirstOrDefault());
+                    break;
+                case "InputOutputRatio":
+                    summaryQuery = query.IsDescending
+                        ? summaryQuery.OrderByDescending(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (decimal?)e.InputOutputRatio).FirstOrDefault())
+                        : summaryQuery.OrderBy(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (decimal?)e.InputOutputRatio).FirstOrDefault());
+                    break;
+                case "InputStatus":
+                    summaryQuery = query.IsDescending
+                        ? summaryQuery.OrderByDescending(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (int?)e.InputStatus).FirstOrDefault())
+                        : summaryQuery.OrderBy(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (int?)e.InputStatus).FirstOrDefault());
+                    break;
+                case "PendingInputWeight":
+                    summaryQuery = query.IsDescending
+                        ? summaryQuery.OrderByDescending(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId)
+                            .Select(e => (decimal?)(
+                                e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                                + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                                + e.InProcessReworkInputWeight + e.InMainInputWeight - e.InputWeight > 0m
+                                    ? e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                                        + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                                        + e.InProcessReworkInputWeight + e.InMainInputWeight - e.InputWeight
+                                    : 0m)).FirstOrDefault())
+                        : summaryQuery.OrderBy(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId)
+                            .Select(e => (decimal?)(
+                                e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                                + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                                + e.InProcessReworkInputWeight + e.InMainInputWeight - e.InputWeight > 0m
+                                    ? e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                                        + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                                        + e.InProcessReworkInputWeight + e.InMainInputWeight - e.InputWeight
+                                    : 0m)).FirstOrDefault());
+                    break;
+                case "TotalMissingWeight":
+                    // 理论缺失总料重 = Max(0, 计划投料总重 − 现可投料总重)，与 WorkOrderExecutionSummaryDto.TotalMissingWeight 同口径（SQL 可翻译内联三元）
+                    summaryQuery = query.IsDescending
+                        ? summaryQuery.OrderByDescending(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId)
+                            .Select(e => (decimal?)(
+                                e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
+                                    + e.InventoryPlanWeight + e.ReworkPlanWeight
+                                    + e.InProcessReworkPlanWeight + e.InMainPlanWeight
+                                    - (e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                                        + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                                        + e.InProcessReworkInputWeight + e.InMainInputWeight)
+                                    > 0m
+                                ? e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
+                                    + e.InventoryPlanWeight + e.ReworkPlanWeight
+                                    + e.InProcessReworkPlanWeight + e.InMainPlanWeight
+                                    - (e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                                        + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                                        + e.InProcessReworkInputWeight + e.InMainInputWeight)
+                                : 0m)).FirstOrDefault())
+                        : summaryQuery.OrderBy(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId)
+                            .Select(e => (decimal?)(
+                                e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
+                                    + e.InventoryPlanWeight + e.ReworkPlanWeight
+                                    + e.InProcessReworkPlanWeight + e.InMainPlanWeight
+                                    - (e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                                        + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                                        + e.InProcessReworkInputWeight + e.InMainInputWeight)
+                                    > 0m
+                                ? e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
+                                    + e.InventoryPlanWeight + e.ReworkPlanWeight
+                                    + e.InProcessReworkPlanWeight + e.InMainPlanWeight
+                                    - (e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                                        + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                                        + e.InProcessReworkInputWeight + e.InMainInputWeight)
+                                : 0m)).FirstOrDefault());
                     break;
             }
         }
@@ -1992,7 +2076,35 @@ public class WorkOrderService : IWorkOrderService
                 LatestRequiredDate = s.LatestRequiredDate,
                 ScheduleStage = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (int?)e.ScheduleStage).FirstOrDefault(),
                 RawMaterialLockRemark = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => e.RawMaterialLockRemark).FirstOrDefault(),
-                UrgencyLevel = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => e.UrgencyLevel).FirstOrDefault()
+                UrgencyLevel = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => e.UrgencyLevel).FirstOrDefault(),
+                InputWeight = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (decimal?)e.InputWeight).FirstOrDefault(),
+                InputOutputRatio = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (decimal?)e.InputOutputRatio).FirstOrDefault(),
+                InputStatus = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (int?)e.InputStatus).FirstOrDefault(),
+                PendingInputWeight = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId)
+                    .Select(e => (decimal?)(
+                        e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                        + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                        + e.InProcessReworkInputWeight + e.InMainInputWeight - e.InputWeight > 0m
+                            ? e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                                + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                                + e.InProcessReworkInputWeight + e.InMainInputWeight - e.InputWeight
+                            : 0m)).FirstOrDefault(),
+                TotalMissingWeight = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId)
+                    .Select(e => (decimal?)(
+                        e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
+                            + e.InventoryPlanWeight + e.ReworkPlanWeight
+                            + e.InProcessReworkPlanWeight + e.InMainPlanWeight
+                            - (e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                                + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                                + e.InProcessReworkInputWeight + e.InMainInputWeight)
+                            > 0m
+                        ? e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
+                            + e.InventoryPlanWeight + e.ReworkPlanWeight
+                            + e.InProcessReworkPlanWeight + e.InMainPlanWeight
+                            - (e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                                + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                                + e.InProcessReworkInputWeight + e.InMainInputWeight)
+                        : 0m)).FirstOrDefault()
             })
             .ToListAsync();
         return new PagedResult<WorkOrderListDto>
@@ -2540,6 +2652,15 @@ public class WorkOrderService : IWorkOrderService
             throw new BusinessException("没有可打印的工单");
 
         return WorkOrderPrintHelper.GenerateMultiBatchPdf(resultWorkOrders);
+    }
+
+    /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
+    public Task<byte[]> PrintWorkOrderListAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)
+    {
+        // 打印选中列表：列表显示模式（内容自适应列宽 + 整页宽度铺满 + 数据居中 + 表头行数不限）
+        var pdfBytes = TablePrintHelper.GeneratePdf(title, items, columns,
+            autoWidth: true, alignCenter: true, headerMaxLines: 0);
+        return Task.FromResult(pdfBytes);
     }
 
     #endregion

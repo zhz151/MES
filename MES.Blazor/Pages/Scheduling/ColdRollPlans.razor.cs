@@ -337,16 +337,6 @@ public partial class ColdRollPlans
             ? $"[在制 {SuggestionTierText(group.InProdTier)}；成品 {SuggestionTierText(group.FinishedTier)}]"
             : group.SuggestedTier;
 
-    /// <summary>建议明细表档位显示：None/空 → "-"，Subsequent → 全量，其余走档位中文（同列表列口径）</summary>
-    private static string TierCellText(string? v)
-        => string.IsNullOrEmpty(v) || v == "None" ? "-"
-           : v == "Subsequent" ? "全量"
-           : DisplayHelper.GetCompletionTypeText(v);
-
-    /// <summary>建议明细行状态中文：锁定/新增，OK 留空</summary>
-    private static string SuggestionRowStatusText(string status)
-        => status switch { "锁定" => "锁定", "新增" => "新增", _ => "" };
-
     /// <summary>重量(kg) → 吨显示（G29 去零）</summary>
     private static string TonsText(decimal kg) => (kg / 1000m).ToString("G29");
 

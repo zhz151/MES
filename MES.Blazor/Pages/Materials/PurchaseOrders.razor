@@ -463,6 +463,7 @@
                                 <HeaderContent>
                                     <MudTh Style="width: 120px;">工单号</MudTh>
                                     <MudTh Style="width: 90px;">物料分类</MudTh>
+                                    <MudTh Style="width: 110px;">工厂牌号</MudTh>
                                     <MudTh Style="width: 100px;" Class="text-right">计划总量(kg)</MudTh>
                                     <MudTh Style="width: 100px;" Class="text-right">已采购(kg)</MudTh>
                                     <MudTh Style="width: 100px;" Class="text-right">缺少量(kg)</MudTh>
@@ -474,6 +475,7 @@
                                 <RowTemplate>
                                     <MudTd>@context.WorkOrderNo</MudTd>
                                     <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
+                                    <MudTd>@context.PlantGrade</MudTd>
                                     <MudTd Class="text-right">@(((int)context.PlanWeight).ToString())</MudTd>
                                     <MudTd Class="text-right">@(((int)context.PurchaseWeight).ToString())</MudTd>
                                     <MudTd Class="text-right">@(((int)context.MissingWeight).ToString())</MudTd>
@@ -514,9 +516,6 @@
                 <div class="d-flex align-center" style="margin-left:auto;">
                     <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info" StartIcon="@Icons.Material.Filled.Print" Disabled="@(!selectedIds.Any())" OnClick="PrintSelected">
                         打印选中 (@selectedIds.Count)
-                    </MudButton>
-                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info" StartIcon="@Icons.Material.Filled.Print" OnClick="PrintAll">
-                        打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-2">共 @_totalCount 条记录</MudText>
                 </div>

@@ -31,14 +31,11 @@ public partial class HardnessTests
 
     // ========== 打印选中 ==========
     private HashSet<int> selectedIds = new();
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value) { foreach (var item in _pageItems) selectedIds.Add(item.Id); }
             else { selectedIds.Clear(); }
             StateHasChanged();
@@ -272,14 +269,6 @@ public partial class HardnessTests
     }
 
     // ========== 单元格渲染 ==========
-    private bool IsCellEditable(string key) => key switch
-    {
-        "InspectionDate" or "Inspector" or "FurnaceNo" or "Grade" or "Specification"
-            or "SampleNo" or "SampleSize" or "InspectionStandard"
-            or "HardnessMode" or "HardnessValue" or "Judgment" => true,
-        _ => false
-    };
-
     private RenderFragment RenderCell(HardnessTestDto item, ColumnDef col) => builder =>
     {
         var isEditing = _editingIds.Contains(item.Id);
@@ -392,19 +381,4 @@ public partial class HardnessTests
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
-    private async Task PrintAll()
-    {
-        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.HardnessTest}/print-all-file";
-        var request = new HardnessTestPrintAllRequest
-        {
-            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "inspectiondate",
-            IsDescending = sortDescending,
-            InspectionDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
-            InspectionDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
-            Columns = GetPrintColumnDefs()
-        };
-        var json = JsonSerializer.Serialize(request);
-        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-    }
 }

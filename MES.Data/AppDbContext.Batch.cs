@@ -166,6 +166,15 @@ public partial class AppDbContext
             entity.Property(e => e.InputQuantity).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.InputWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
 
+            // 来源批次快照（创建/编辑时从关联库存批次复制，用于合并投料明细追溯展示）
+            entity.Property(e => e.SnapshotBatchNo).IsRequired(false).HasMaxLength(50);
+            entity.Property(e => e.SnapshotHeatNo).IsRequired(false).HasMaxLength(50);
+            entity.Property(e => e.SnapshotPlantGrade).IsRequired(false).HasMaxLength(100);
+            entity.Property(e => e.SnapshotSpecification).IsRequired(false).HasMaxLength(100);
+            entity.Property(e => e.SnapshotMaterialType).IsRequired(false).HasMaxLength(50);
+            entity.Property(e => e.SnapshotSourceName).IsRequired(false).HasMaxLength(200);
+            entity.Property(e => e.SnapshotWarehouseName).IsRequired(false).HasMaxLength(100);
+
             entity.HasOne(e => e.ProductionBatch)
                 .WithMany(p => p.ProductionBatchInventories)
                 .HasForeignKey(e => e.ProductionBatchId)

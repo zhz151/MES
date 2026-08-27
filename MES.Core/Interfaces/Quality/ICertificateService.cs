@@ -37,4 +37,7 @@ public interface ICertificateService
 
     /// <summary>打印 PDF：按 Id 集合查质保书（含子项）渲染质量证明书模板，返回 PDF 字节</summary>
     Task<byte[]> PrintFileAsync(CertificatePrintRequest request);
+
+    /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
+    Task<byte[]> PrintCertificateListAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns);
 }

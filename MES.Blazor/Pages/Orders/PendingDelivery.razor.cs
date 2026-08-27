@@ -559,35 +559,6 @@ public partial class PendingDelivery
         _ => null
     };
 
-    private async Task PrintAll()
-    {
-        try
-        {
-            var allItems = _pageItems.Select(item =>
-            {
-                var dict = new Dictionary<string, object>();
-                foreach (var col in _visibleColumns)
-                    dict[col.Key] = GetPrintValue(item, col);
-                return dict;
-            }).ToList();
-
-            var request = new
-            {
-                title = "订单成品(实时库存)",
-                items = allItems,
-                columns = GetPrintColumnDefs()
-            };
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.PendingDelivery}/print-all-file";
-            var json = JsonSerializer.Serialize(request);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
     private async Task PrintSelected()
     {
         if (!_selectedIds.Any())

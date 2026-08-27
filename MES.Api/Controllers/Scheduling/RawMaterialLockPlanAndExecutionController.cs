@@ -48,14 +48,6 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
         return Ok(ApiResponse<SetPreExecuteFlagsResult>.Ok(result, result.Message));
     }
 
-    [HttpPost("print")]
-    [Authorize(Roles = Roles.Policies.SchedulingView)]
-    public async Task<ActionResult<ApiResponse<string>>> Print([FromBody] RawMaterialLockPlanPrintRequest request)
-    {
-        var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
-        return Ok(ApiResponse<string>.Ok(data: Convert.ToBase64String(pdfBytes)));
-    }
-
     [HttpPost("print-file")]
     [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<IActionResult> PrintFile([FromBody] RawMaterialLockPlanPrintRequest request)
@@ -65,7 +57,8 @@ public class RawMaterialLockPlanAndExecutionController : ControllerBase
     }
 
     [HttpGet("pending-summary")]
-    [Authorize(Roles = Roles.Policies.SchedulingView)]
+    // 用料计划总览页（WorkOrderView）复用该待投料量汇总卡片，放宽为 排程/工单 双域 OR 策略
+    [Authorize(Roles = $"{Roles.Policies.SchedulingView},{Roles.Policies.WorkOrderView}")]
     public async Task<ActionResult<ApiResponse<RawMaterialLockPendingSummaryDto>>> GetPendingSummary()
     {
         var result = await _service.GetPendingSummaryAsync();

@@ -503,9 +503,6 @@ public static class EnumHelper
         return result;
     }
 
-    /// <summary>指定枚举是否已注册静态映射</summary>
-    public static bool IsRegistered(Type enumType) => _enumToDisplay.ContainsKey(enumType);
-
     /// <summary>取枚举定义说明（枚举显示配置表 Remark 为空时兜底显示；未定义返回 null）</summary>
     public static string? GetEnumRemark(string enumKey)
         => _enumRemarks.TryGetValue(enumKey, out var remark) ? remark : null;

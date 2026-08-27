@@ -33,6 +33,43 @@ public class ProductionBatchInventory : BaseEntity
     /// </summary>
     public decimal InputWeight { get; set; }
 
+    // ========== 来源批次快照（创建/编辑时从关联库存批次复制，用于合并投料明细追溯展示，不实时 JOIN 仓库） ==========
+
+    /// <summary>
+    /// 来源批次号快照
+    /// </summary>
+    public string? SnapshotBatchNo { get; set; }
+
+    /// <summary>
+    /// 炉号快照
+    /// </summary>
+    public string? SnapshotHeatNo { get; set; }
+
+    /// <summary>
+    /// 工厂牌号快照
+    /// </summary>
+    public string? SnapshotPlantGrade { get; set; }
+
+    /// <summary>
+    /// 规格快照
+    /// </summary>
+    public string? SnapshotSpecification { get; set; }
+
+    /// <summary>
+    /// 原料类型快照（枚举字符串）
+    /// </summary>
+    public string? SnapshotMaterialType { get; set; }
+
+    /// <summary>
+    /// 来料单位快照
+    /// </summary>
+    public string? SnapshotSourceName { get; set; }
+
+    /// <summary>
+    /// 仓库名称快照
+    /// </summary>
+    public string? SnapshotWarehouseName { get; set; }
+
     // ========== 导航属性 ==========
 
     public ProductionBatch ProductionBatch { get; set; } = null!;

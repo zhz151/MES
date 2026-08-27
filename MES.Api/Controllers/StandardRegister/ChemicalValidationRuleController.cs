@@ -17,12 +17,10 @@ namespace MES.Api.Controllers.StandardRegister;
 public class ChemicalValidationRuleController : ControllerBase
 {
     private readonly IChemicalValidationRuleService _service;
-    private readonly ILogger<ChemicalValidationRuleController> _logger;
 
-    public ChemicalValidationRuleController(IChemicalValidationRuleService service, ILogger<ChemicalValidationRuleController> logger)
+    public ChemicalValidationRuleController(IChemicalValidationRuleService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     /// <summary>

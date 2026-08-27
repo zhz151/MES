@@ -11,14 +11,12 @@ namespace MES.Tests.Controllers;
 public class ProcessInspectionControllerTests : ControllerTestBase
 {
     private readonly Mock<IProcessInspectionService> _serviceMock;
-    private readonly Mock<ILogger<ProcessInspectionController>> _loggerMock;
     private readonly ProcessInspectionController _controller;
 
     public ProcessInspectionControllerTests()
     {
         _serviceMock = new Mock<IProcessInspectionService>();
-        _loggerMock = CreateLoggerMock<ProcessInspectionController>();
-        _controller = new ProcessInspectionController(_serviceMock.Object, _loggerMock.Object);
+        _controller = new ProcessInspectionController(_serviceMock.Object);
     }
 
     [Fact]

@@ -23,52 +23,6 @@ public class WorkOrderService
     #region 工单首页（订单状态监控）
 
     /// <summary>
-    /// 获取工单首页订单列表（含工单状态）
-    /// </summary>
-    public async Task<ApiResponse<PagedResult<OrderWorkOrderStatusDto>>> GetOrderWorkOrderStatusPageAsync(WorkOrderQueryParams query)
-    {
-        try
-        {
-            var url = $"{BaseUrl}/order-status?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={Uri.EscapeDataString(query.SortBy)}&isDescending={query.IsDescending}";
-            if (!string.IsNullOrEmpty(query.Keyword))
-                url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
-            if (!string.IsNullOrEmpty(query.SalesOrderNo))
-                url += $"&salesOrderNo={Uri.EscapeDataString(query.SalesOrderNo)}";
-            if (!string.IsNullOrEmpty(query.Salesman))
-                url += $"&salesman={Uri.EscapeDataString(query.Salesman)}";
-            if (!string.IsNullOrEmpty(query.EndCustomer))
-                url += $"&endCustomer={Uri.EscapeDataString(query.EndCustomer)}";
-            if (!string.IsNullOrEmpty(query.WorkOrderStatus))
-                url += $"&workOrderStatus={Uri.EscapeDataString(query.WorkOrderStatus)}";
-
-            if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
-
-            var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<OrderWorkOrderStatusDto>>>(url);
-            return response ?? ApiResponse<PagedResult<OrderWorkOrderStatusDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<PagedResult<OrderWorkOrderStatusDto>>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 获取所有工单首页订单状态数据（无分页，供客户端筛选排序）
-    /// </summary>
-    public async Task<ApiResponse<List<OrderWorkOrderStatusDto>>> GetAllOrderStatusAsync()
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<OrderWorkOrderStatusDto>>>($"{BaseUrl}/order-status-all");
-            return response ?? ApiResponse<List<OrderWorkOrderStatusDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<List<OrderWorkOrderStatusDto>>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// 获取已确认但无工单的订单列表（待生成工单）
     /// </summary>
     public async Task<ApiResponse<List<WorkOrderListItemDto>>> GetPendingOrdersAsync()
@@ -209,22 +163,6 @@ public class WorkOrderService
     }
 
     /// <summary>
-    /// 获取工单包含的原始订单项次列表
-    /// </summary>
-    public async Task<ApiResponse<List<OrderItemForWorkOrderDto>>> GetWorkOrderItemsAsync(int workOrderId)
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<OrderItemForWorkOrderDto>>>($"{BaseUrl}/{workOrderId}/order-items");
-            return response ?? ApiResponse<List<OrderItemForWorkOrderDto>>.Fail("获取项次明细失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<List<OrderItemForWorkOrderDto>>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// 更新工单状态
     /// </summary>
     public async Task<ApiResponse<UpdateWorkOrderStatusResponseDto>> UpdateStatusAsync(int id, UpdateWorkOrderStatusRequest request)
@@ -249,22 +187,6 @@ public class WorkOrderService
         {
             var response = await _http.DeleteFromJsonAsync<ApiResponse<object>>($"{BaseUrl}/{id}");
             return response ?? ApiResponse<object>.Fail("删除工单失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 即时检测所有订单变更，更新工单状态
-    /// </summary>
-    public async Task<ApiResponse<object>> CheckAllOrderChangeAsync()
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<object, ApiResponse<object>>($"{BaseUrl}/check-all-order-change", new { });
-            return response ?? ApiResponse<object>.Fail("操作失败");
         }
         catch (Exception ex)
         {
@@ -305,22 +227,6 @@ public class WorkOrderService
     }
 
     /// <summary>
-    /// 全量刷新用料计划读模型
-    /// </summary>
-    public async Task<ApiResponse> RefreshMaterialPlanReadModelAsync()
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<object, ApiResponse>($"{BaseUrl}/refresh-material-plan-readmodel", new { });
-            return response ?? ApiResponse.Fail("刷新失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// 分页查询工单列表（简化参数版本，用于 ServerData 模式，不含用料计划数据）
     /// </summary>
     public async Task<ApiResponse<PagedResult<WorkOrderListItemDto>>> GetPagedAsync(
@@ -356,7 +262,8 @@ public class WorkOrderService
         string? sortBy = null, bool isDescending = true, string? filters = null,
         string? planTypeFilter = null,
         DateTime? signDateFrom = null, DateTime? signDateTo = null,
-        DateTime? deliveryDateStart = null, DateTime? deliveryDateEnd = null)
+        DateTime? deliveryDateStart = null, DateTime? deliveryDateEnd = null,
+        MaterialPlanLinkFilterDto? linkFilter = null)
     {
         try
         {
@@ -369,6 +276,7 @@ public class WorkOrderService
             if (signDateTo.HasValue) url += $"&signDateTo={signDateTo.Value:yyyy-MM-dd}";
             if (deliveryDateStart.HasValue) url += $"&deliveryDateStart={deliveryDateStart.Value:yyyy-MM-dd}";
             if (deliveryDateEnd.HasValue) url += $"&deliveryDateEnd={deliveryDateEnd.Value:yyyy-MM-dd}";
+            if (linkFilter != null) url += $"&linkFilter={Uri.EscapeDataString(JsonSerializer.Serialize(linkFilter))}";
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<WorkOrderListDto>>>(url);
             return response ?? ApiResponse<PagedResult<WorkOrderListDto>>.Fail("获取数据失败");
         }
@@ -391,6 +299,22 @@ public class WorkOrderService
         catch (Exception ex)
         {
             return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 获取「错误疑问投料」明细（到料实投一致性 ∈ {2,3,4,5} 的全量工单行，走工单执行状况读模型端点）
+    /// </summary>
+    public async Task<ApiResponse<List<ErrorDoubtInputItemDto>>> GetErrorDoubtInputItemsAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<ErrorDoubtInputItemDto>>>($"{ApiEndpoints.WorkOrderExecution}/error-doubt-inputs");
+            return response ?? ApiResponse<List<ErrorDoubtInputItemDto>>.Fail("获取错误疑问投料失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<ErrorDoubtInputItemDto>>.Fail($"网络错误: {ex.Message}");
         }
     }
 

@@ -110,14 +110,3 @@ public class ExceptionMiddleware
         await context.Response.WriteAsync(result);
     }
 }
-
-/// <summary>
-/// 全局异常处理中间件扩展方法
-/// </summary>
-public static class ExceptionMiddlewareExtensions
-{
-    public static IApplicationBuilder UseGlobalExceptionHandler(this IApplicationBuilder builder)
-    {
-        return builder.UseMiddleware<ExceptionMiddleware>();
-    }
-}

@@ -44,22 +44,6 @@ public class CustomerService
     }
 
     /// <summary>
-    /// 获取所有客户列表（无分页，供客户端筛选排序）
-    /// </summary>
-    public async Task<ApiResponse<List<CustomerProfileDto>>> GetAllListAsync()
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<CustomerProfileDto>>>($"{BaseUrl}/list-all");
-            return response ?? ApiResponse<List<CustomerProfileDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<List<CustomerProfileDto>>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// 分页查询客户列表（直接参数风格，支持筛选过滤）
     /// </summary>
     public async Task<ApiResponse<PagedResult<CustomerProfileDto>>> GetAllAsync(
@@ -109,24 +93,6 @@ public class CustomerService
             return result.Data.Items;
         }
         return new List<CustomerProfileDto>();
-    }
-
-    /// <summary>
-    /// 获取客户下拉列表（仅含级联选择所需字段，不分页）
-    /// </summary>
-    public async Task<List<CustomerSelectDto>> GetSelectListAsync()
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<CustomerSelectDto>>>($"{BaseUrl}/select-list");
-            if (response?.Success == true && response.Data != null)
-                return response.Data;
-            return new List<CustomerSelectDto>();
-        }
-        catch
-        {
-            return new List<CustomerSelectDto>();
-        }
     }
 
     /// <summary>

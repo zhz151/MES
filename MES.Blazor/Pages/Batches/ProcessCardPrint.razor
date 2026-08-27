@@ -199,11 +199,6 @@
                                OnClick="PrintSelected">
                         打印选中 (@selectedIds.Count)
                     </MudButton>
-                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info"
-                               StartIcon="@Icons.Material.Filled.Print"
-                               OnClick="PrintAll">
-                        打印全部
-                    </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-2">
                         共 @_totalCount 条记录
                     </MudText>
@@ -306,14 +301,11 @@
     private int _loadVersion;
     private bool _resetToFirstPage;
     private HashSet<int> selectedIds = new();
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -952,32 +944,6 @@
         if (table != null) await table.ReloadServerData();
     }
 
-    // ========== 单元格原始值/显示值 ==========
-
-    private string? GetCellRawValue(ProductionBatchListDto item, string key) => key switch
-    {
-        "BatchNo" => item.BatchNo,
-        "TagNo" => item.TagNo,
-        "CreatedTime" => item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
-        "WorkOrderNo" => item.WorkOrderNo,
-        "SalesOrderNo" => item.SalesOrderNo,
-        "ProductionMainNo" => item.ProductionMainNo,
-        "ProductionSubNo" => item.ProductionSubNo,
-        "ProductionType" => item.ProductionType?.ToString(),
-        "ManufacturingItem" => DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
-        "ManufacturingStatus" => item.ManufacturingStatusDisplay,
-        "Status" => DisplayHelper.GetBatchStatusText(item.Status),
-        "CurrentExecDate" => item.CurrentExecDate?.ToString("yyyy-MM-dd"),
-        "CurrentGroupName" => ProcessDisplayHelper.GetProcessNameText(item.CurrentGroupName),
-        "CurrentSectionName" => SectionDisplayHelper.GetSectionNameText(item.CurrentSectionName),
-        "CurrentEquipmentName" => item.CurrentEquipmentName,
-        "CurrentOutsource" => item.CurrentOutsource,
-        "CurrentSpec" => item.CurrentSpec,
-        "NextSectionName" => SectionDisplayHelper.GetSectionNameText(item.NextSectionName),
-        "CorrespondingSpec" => item.CorrespondingSpec,
-        _ => null
-    };
-
     // ========== 单元格渲染 ==========
 
     private RenderFragment RenderCell(ProductionBatchListDto item, ColumnDef col) => builder =>
@@ -1054,32 +1020,6 @@
             var request = new ProcessCardPrintRequest
             {
                 Ids = selectedIds.ToArray(),
-                Columns = allColumns.ToList()
-            };
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Batch}/print-process-card-file";
-            var json = JsonSerializer.Serialize(request);
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task PrintAll()
-    {
-        if (!allColumns.Any(c => c.Visible))
-        {
-            Snackbar.Add("请先在格式设置中选择至少一个字段", Severity.Warning);
-            return;
-        }
-
-        try
-        {
-            var request = new ProcessCardPrintRequest
-            {
-                Ids = Array.Empty<int>(),
                 Columns = allColumns.ToList()
             };
             var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Batch}/print-process-card-file";

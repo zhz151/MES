@@ -13,14 +13,12 @@ namespace MES.Tests.Controllers;
 public class ChemicalCompositionControllerTests : ControllerTestBase
 {
     private readonly Mock<IChemicalCompositionService> _serviceMock;
-    private readonly Mock<ILogger<ChemicalCompositionController>> _loggerMock;
     private readonly ChemicalCompositionController _controller;
 
     public ChemicalCompositionControllerTests()
     {
         _serviceMock = new Mock<IChemicalCompositionService>();
-        _loggerMock = CreateLoggerMock<ChemicalCompositionController>();
-        _controller = new ChemicalCompositionController(_serviceMock.Object, _loggerMock.Object);
+        _controller = new ChemicalCompositionController(_serviceMock.Object);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext

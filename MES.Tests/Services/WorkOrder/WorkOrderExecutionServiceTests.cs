@@ -3438,4 +3438,62 @@ public class WorkOrderExecutionServiceTests : TestBase
             }
         };
     }
+
+    // ==================== GetErrorDoubtInputItemsAsync（错误疑问投料卡片） ====================
+
+    [Fact]
+    public async Task GetErrorDoubtInputItemsAsync_仅返回原料锁定且到料实投一致性错误疑问行()
+    {
+        using var ctx = CreateDbContext();
+        // 重置容差快照（防其它测试污染静态状态）
+        MaterialPlanToleranceProvider.Apply(0.03m);
+        // 以下夹具均 ScheduleStage=2（原料锁定）
+        // WO001：计划=100、现可=0、已投=50 → 错误-无料已投(4)，缺料=Max(0,100-0)=100
+        SeedComputedSummary(ctx, "WO001", e => { e.ScheduleStage = 2; e.SemiPlanWeight = 100m; e.InputWeight = 50m; });
+        // WO002：现可(到货量)=100、已投=120 → 疑问-到料超投(3)
+        SeedComputedSummary(ctx, "WO002", e => { e.ScheduleStage = 2; e.SemiInWeight = 100m; e.InputWeight = 120m; e.TotalWeight = 800m; });
+        // WO003：现可(到货量)=100、已投=50、截止到料日=昨天 → 疑问-到料少投(2)
+        SeedComputedSummary(ctx, "WO003", e => { e.ScheduleStage = 2; e.SemiInWeight = 100m; e.InputWeight = 50m; e.CutoffArrivalDate = DateTime.Today.AddDays(-1); });
+        // WO004：现可=100、已投=100 → 一致(0)，不返回
+        SeedComputedSummary(ctx, "WO004", e => { e.ScheduleStage = 2; e.SemiInWeight = 100m; e.InputWeight = 100m; });
+        // WO005：现可=100、已投=50、截止到料日=今天 → 待投(1)，不返回
+        SeedComputedSummary(ctx, "WO005", e => { e.ScheduleStage = 2; e.SemiInWeight = 100m; e.InputWeight = 50m; e.CutoffArrivalDate = DateTime.Today; });
+        // WO006：ScheduleStage=0（非原料锁定）、已投=50 → 错误-无料已投(4)，但非锁定不返回
+        SeedComputedSummary(ctx, "WO006", e => { e.InputWeight = 50m; });
+        // WO007：ScheduleStage=3（生产执行）、已投=50 → 阶段门控走 6 略，且非锁定不返回
+        SeedComputedSummary(ctx, "WO007", e => { e.ScheduleStage = 3; e.InputWeight = 50m; });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var items = await svc.GetErrorDoubtInputItemsAsync();
+
+        items.Should().HaveCount(3);
+        items.Select(i => i.WorkOrderNo).Should().ContainInOrder("WO001", "WO002", "WO003");
+
+        var w001 = items.Single(i => i.WorkOrderNo == "WO001");
+        w001.PlanInputConsistency.Should().Be(4);
+        w001.SalesOrderNo.Should().Be("SOWO001");
+        w001.ProductionMainNo.Should().Be("D01");
+        w001.PlantGrade.Should().Be("304");
+        w001.Specification.Should().Be("219*8");
+        w001.TotalPlanWeight.Should().Be(100m);
+        w001.TotalAvailableWeight.Should().Be(0m);
+        w001.TotalMissingWeight.Should().Be(100m);
+        w001.ActualInputWeight.Should().Be(50m);
+
+        var w002 = items.Single(i => i.WorkOrderNo == "WO002");
+        w002.PlanInputConsistency.Should().Be(3);
+        w002.SalesOrderNo.Should().Be("SOWO002");
+        w002.TotalPlanWeight.Should().Be(0m);
+        w002.TotalAvailableWeight.Should().Be(100m);
+        w002.TotalMissingWeight.Should().Be(0m);
+        w002.ActualInputWeight.Should().Be(120m);
+        w002.TotalWeight.Should().Be(800m);
+
+        var w003 = items.Single(i => i.WorkOrderNo == "WO003");
+        w003.PlanInputConsistency.Should().Be(2);
+        w003.TotalAvailableWeight.Should().Be(100m);
+        w003.ActualInputWeight.Should().Be(50m);
+        w003.CutoffArrivalDate.Should().Be(DateTime.Today.AddDays(-1));
+    }
 }

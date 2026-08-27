@@ -15,12 +15,10 @@ namespace MES.Api.Controllers.Materials;
 public class PurchaseOrderController : ControllerBase
 {
     private readonly IPurchaseOrderService _service;
-    private readonly ILogger<PurchaseOrderController> _logger;
 
-    public PurchaseOrderController(IPurchaseOrderService service, ILogger<PurchaseOrderController> logger)
+    public PurchaseOrderController(IPurchaseOrderService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     [HttpGet("list")]
@@ -197,18 +195,6 @@ public class PurchaseOrderController : ControllerBase
 
     // ========== 打印 ==========
 
-    [HttpPost("print-batch")]
-    [Authorize(Roles = Roles.Policies.MaterialView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintOrderBatch([FromBody] OrderPrintBatchRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintOrderBatchAsync(request.Ids, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
     [HttpPost("print-batch-file")]
     [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<IActionResult> PrintOrderBatchFile([FromBody] OrderPrintBatchRequest request)
@@ -218,18 +204,6 @@ public class PurchaseOrderController : ControllerBase
 
         var pdfBytes = await _service.PrintOrderBatchAsync(request.Ids, request.Columns);
         return File(pdfBytes, "application/pdf", $"采购单批量.pdf");
-    }
-
-    [HttpPost("print-all")]
-    [Authorize(Roles = Roles.Policies.MaterialView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintOrderAll([FromBody] OrderPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.DateFrom, request.DateTo, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
 
     [HttpPost("print-all-file")]

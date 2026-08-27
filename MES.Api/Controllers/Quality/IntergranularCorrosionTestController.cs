@@ -53,15 +53,6 @@ public class IntergranularCorrosionTestController : ControllerBase
         return Ok(ApiResponse<PagedResult<IntergranularCorrosionTestDto>>.Ok(result));
     }
 
-    [HttpPost]
-    [Authorize(Roles = Roles.Policies.QualityEdit)]
-    public async Task<ActionResult<ApiResponse<IntergranularCorrosionTestDto>>> Create([FromBody] CreateIntergranularCorrosionTestRequest request)
-    {
-        if (!ModelState.IsValid) return BadRequest(ApiResponse<IntergranularCorrosionTestDto>.Fail("请求参数无效"));
-        var result = await _service.CreateAsync(request);
-        return Ok(ApiResponse<IntergranularCorrosionTestDto>.Ok(result, "创建成功"));
-    }
-
     [HttpPut("{id}")]
     [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<IntergranularCorrosionTestDto>>> Update(int id, [FromBody] UpdateIntergranularCorrosionTestRequest request)

@@ -17,12 +17,10 @@ namespace MES.Api.Controllers.StandardRegister;
 public class ChemicalCompositionController : ControllerBase
 {
     private readonly IChemicalCompositionService _service;
-    private readonly ILogger<ChemicalCompositionController> _logger;
 
-    public ChemicalCompositionController(IChemicalCompositionService service, ILogger<ChemicalCompositionController> logger)
+    public ChemicalCompositionController(IChemicalCompositionService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     /// <summary>

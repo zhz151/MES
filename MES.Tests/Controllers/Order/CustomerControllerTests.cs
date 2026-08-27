@@ -11,14 +11,12 @@ namespace MES.Tests.Controllers;
 public class CustomerControllerTests : ControllerTestBase
 {
     private readonly Mock<ICustomerService> _serviceMock;
-    private readonly Mock<ILogger<CustomerController>> _loggerMock;
     private readonly CustomerController _controller;
 
     public CustomerControllerTests()
     {
         _serviceMock = new Mock<ICustomerService>();
-        _loggerMock = CreateLoggerMock<CustomerController>();
-        _controller = new CustomerController(_serviceMock.Object, _loggerMock.Object);
+        _controller = new CustomerController(_serviceMock.Object);
     }
 
     [Fact]
@@ -147,66 +145,6 @@ public class CustomerControllerTests : ControllerTestBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<ApiResponse>(okResult.Value);
         Assert.True(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintCustomerBatch_ReturnsBadRequest_WhenModelInvalid()
-    {
-        // Arrange
-        AddModelError(_controller);
-
-        // Act
-        var result = await _controller.PrintCustomerBatch(new OrderPrintBatchRequest());
-
-        // Assert
-        var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
-        Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintCustomerBatch_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintCustomerBatchAsync(It.IsAny<int[]>(), null))
-            .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintCustomerBatch(new OrderPrintBatchRequest { Ids = new[] { 1, 2 } });
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
-    }
-
-    [Fact]
-    public async Task PrintCustomerAll_ReturnsBadRequest_WhenModelInvalid()
-    {
-        // Arrange
-        AddModelError(_controller);
-
-        // Act
-        var result = await _controller.PrintCustomerAll(new OrderPrintAllRequest());
-
-        // Assert
-        var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
-        Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintCustomerAll_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintCustomerAllAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), null))
-            .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintCustomerAll(new OrderPrintAllRequest { Keyword = "测试" });
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
     }
 
     [Fact]

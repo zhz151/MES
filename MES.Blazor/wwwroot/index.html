@@ -34,7 +34,7 @@
     
     <!-- 关键：先加载 MudBlazor JS，再加载 Blazor -->
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
-    <script src="js/print.js?v=9"></script>
+    <script src="js/print.js?v=13"></script>
     <script src="js/table-nav.js?v=11"></script>
     <script src="js/scanner.js"></script>
     <script src="js/filter-popup.js"></script>
@@ -63,19 +63,6 @@
                 }
             };
         })();
-    </script>
-    <script>
-        // 通用文件下载辅助函数
-        window.BlazorDownloadFile = function (fileName, contentType, bytes) {
-            var blob = new Blob([new Uint8Array(bytes)], { type: contentType });
-            var link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(link.href);
-        };
     </script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>

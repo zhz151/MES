@@ -53,15 +53,6 @@ public class TensileTestController : ControllerBase
         return Ok(ApiResponse<PagedResult<TensileTestDto>>.Ok(result));
     }
 
-    [HttpPost]
-    [Authorize(Roles = Roles.Policies.QualityEdit)]
-    public async Task<ActionResult<ApiResponse<TensileTestDto>>> Create([FromBody] CreateTensileTestRequest request)
-    {
-        if (!ModelState.IsValid) return BadRequest(ApiResponse<TensileTestDto>.Fail("请求参数无效"));
-        var result = await _service.CreateAsync(request);
-        return Ok(ApiResponse<TensileTestDto>.Ok(result, "创建成功"));
-    }
-
     [HttpPut("{id}")]
     [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<TensileTestDto>>> Update(int id, [FromBody] UpdateTensileTestRequest request)

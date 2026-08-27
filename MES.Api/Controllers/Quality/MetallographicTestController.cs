@@ -53,15 +53,6 @@ public class MetallographicTestController : ControllerBase
         return Ok(ApiResponse<PagedResult<MetallographicTestDto>>.Ok(result));
     }
 
-    [HttpPost]
-    [Authorize(Roles = Roles.Policies.QualityEdit)]
-    public async Task<ActionResult<ApiResponse<MetallographicTestDto>>> Create([FromBody] CreateMetallographicTestRequest request)
-    {
-        if (!ModelState.IsValid) return BadRequest(ApiResponse<MetallographicTestDto>.Fail("请求参数无效"));
-        var result = await _service.CreateAsync(request);
-        return Ok(ApiResponse<MetallographicTestDto>.Ok(result, "创建成功"));
-    }
-
     [HttpPut("{id}")]
     [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<MetallographicTestDto>>> Update(int id, [FromBody] UpdateMetallographicTestRequest request)

@@ -52,15 +52,12 @@ public partial class SubcontractReturnItems : IAsyncDisposable
     };
 
     // ========== 选中行 ==========
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
-            if (_allSelected)
+            if (value)
             {
                 foreach (var item in _pageItems)
                     selectedIds.Add(item.Id);
@@ -69,6 +66,7 @@ public partial class SubcontractReturnItems : IAsyncDisposable
             {
                 selectedIds.Clear();
             }
+            StateHasChanged();
         }
     }
     private HashSet<int> selectedIds = new();

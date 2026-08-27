@@ -194,12 +194,6 @@ public class ColumnPrefsService
         await _storage.SetItemAsStringAsync(key, json);
     }
 
-    public async Task<bool> ExistsAsync(string pageType, string? warehouseCode)
-    {
-        var key = BuildKey(pageType, warehouseCode);
-        return await _storage.ContainKeyAsync(key);
-    }
-
     private static string BuildKey(string pageType, string? warehouseCode) =>
         $"{Prefix}_{pageType}" + (string.IsNullOrEmpty(warehouseCode) ? "" : $"_{warehouseCode.ToLowerInvariant()}");
 }

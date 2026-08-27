@@ -14,16 +14,6 @@ public class MaterialReceiveCheckService
 
     public MaterialReceiveCheckService(AuthHttpClient http) => _http = http;
 
-    public async Task<ApiResponse<MaterialReceiveCheckDto>> GetMaterialReceiveCheckAsync(int batchId)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<MaterialReceiveCheckDto>>($"{BaseUrl}/{batchId}")
-                   ?? ApiResponse<MaterialReceiveCheckDto>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<MaterialReceiveCheckDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<MaterialReceiveCheckDto>> CreateMaterialReceiveCheckAsync(CreateMaterialReceiveCheckRequest request)
     {
         try
@@ -87,16 +77,6 @@ public class MaterialReceiveCheckService
                    ?? ApiResponse<MaterialCheckHealthSummaryDto>.Fail("获取健康汇总失败");
         }
         catch (Exception ex) { return ApiResponse<MaterialCheckHealthSummaryDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<List<MaterialReceiveCheckDto>>> GetAllMaterialReceiveCheckListAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<MaterialReceiveCheckDto>>>($"{BaseUrl}/all-list")
-                   ?? ApiResponse<List<MaterialReceiveCheckDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<MaterialReceiveCheckDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
     public async Task<ApiResponse<Dictionary<string, List<string>>>> GetMaterialCheckFilterContextsAsync()

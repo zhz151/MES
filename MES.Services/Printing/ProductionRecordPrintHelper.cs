@@ -80,6 +80,7 @@ public static class ProductionRecordPrintHelper
                 ["PlantGrade"] = r.PlantGrade ?? "",
                 ["DataSource"] = StringEnumDisplayHelper.GetDataSourceText(r.DataSource),
                 ["ProductStatus"] = DictValueDisplayHelper.GetText(DictValueDefaults.ProductStatus, r.ProductStatus) ?? "在制",
+                ["IsPreCut"] = r.IsPreCut == true ? "是" : "",
                 ["LengthStatus"] = r.LengthStatus.HasValue ? EnumHelper.GetDisplayName(r.LengthStatus.Value) : "",
                 ["Remark"] = r.Remark ?? "",
                 ["CreatedTime"] = r.CreatedTime.ToString("yyyy-MM-dd HH:mm"),

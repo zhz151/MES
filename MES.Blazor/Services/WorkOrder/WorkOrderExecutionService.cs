@@ -78,6 +78,22 @@ public class WorkOrderExecutionService
     }
 
     /// <summary>
+    /// 获取「错误疑问投料」明细（到料实投一致性 ∈ {2,3,4,5} 的全量工单行）
+    /// </summary>
+    public async Task<ApiResponse<List<ErrorDoubtInputItemDto>>> GetErrorDoubtInputItemsAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<ErrorDoubtInputItemDto>>>($"{BaseUrl}/error-doubt-inputs");
+            return response ?? ApiResponse<List<ErrorDoubtInputItemDto>>.Fail("获取错误疑问投料失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<ErrorDoubtInputItemDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// 全量刷新所有工单的执行状况汇总
     /// </summary>
     public async Task<ApiResponse<WorkOrderExecutionRefreshResultDto>> RefreshAllAsync()

@@ -30,6 +30,11 @@ public interface IWorkOrderExecutionService
     Task<List<WorkOrderExecutionDashboardItem>> GetDashboardSummaryAsync();
 
     /// <summary>
+    /// 获取「错误疑问投料」明细：到料实投一致性 ∈ {2,3,4,5}（2 疑问-到料少投/3 疑问-到料超投/4 错误-无料已投/5 错误-无需投料）的全量工单行
+    /// </summary>
+    Task<List<ErrorDoubtInputItemDto>> GetErrorDoubtInputItemsAsync();
+
+    /// <summary>
     /// 增量刷新指定工单号的执行状况汇总
     /// </summary>
     Task RefreshByWorkOrderNosAsync(List<string> workOrderNos);

@@ -17,12 +17,10 @@ namespace MES.Api.Controllers.Batch;
 public class PicklingController : ControllerBase
 {
     private readonly IPicklingService _service;
-    private readonly ILogger<PicklingController> _logger;
 
-    public PicklingController(IPicklingService service, ILogger<PicklingController> logger)
+    public PicklingController(IPicklingService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     // ========== 入缸记录 ==========
@@ -215,39 +213,6 @@ public class PicklingController : ControllerBase
     }
 
     // ========== 打印 ==========
-
-    /// <summary>
-    /// 批量打印入缸记录（选中）
-    /// </summary>
-    [HttpPost("print-selected")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintSelected([FromBody] PicklingInRecordPrintBatchRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    /// <summary>
-    /// 按筛选条件打印全部入缸记录
-    /// </summary>
-    [HttpPost("print-all")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintAll([FromBody] PicklingInRecordPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending,
-            request.InDateFrom, request.InDateTo,
-            request.CompleteDateFrom, request.CompleteDateTo,
-            request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
 
     /// <summary>
     /// 批量打印入缸记录（选中，直接返回 PDF 文件）

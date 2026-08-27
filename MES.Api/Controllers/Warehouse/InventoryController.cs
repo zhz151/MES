@@ -367,6 +367,31 @@ public class InventoryController : ControllerBase
     }
 
     /// <summary>
+    /// 获取来源单号关联工单号已变更的入库批次列表（实时扫描：来源单内容变更后批次冗余工单号需同步）
+    /// </summary>
+    [HttpGet("source-order-changed-batches")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
+    public async Task<ActionResult<ApiResponse<List<SourceOrderChangedBatchDto>>>> GetSourceOrderChangedBatches(
+        [FromQuery] int? warehouseId = null)
+    {
+        var result = await _service.GetSourceOrderChangedBatchesAsync(warehouseId);
+        return Ok(ApiResponse<List<SourceOrderChangedBatchDto>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
+    /// 按入库批次来源（采购单号/委外单号+序号/生产批号）解析应关联的工单号+订单号+主号
+    /// （入库更正页点击「关联工单=是」时即时回填）
+    /// </summary>
+    [HttpGet("resolve-linked-work-order")]
+    [Authorize(Roles = Roles.Policies.WarehouseView)]
+    public async Task<ActionResult<ApiResponse<SourceOrderValidationResult>>> ResolveLinkedWorkOrder(
+        [FromQuery] int batchId)
+    {
+        var result = await _service.ResolveLinkedWorkOrderAsync(batchId);
+        return Ok(ApiResponse<SourceOrderValidationResult>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
     /// 获取仓库入库批次中引用的所有工单号（用于过滤工单变更通知）
     /// </summary>
     [HttpGet("workorder-nos/{warehouseId}")]

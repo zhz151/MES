@@ -177,14 +177,15 @@
                                StartIcon="@Icons.Material.Filled.Print"
                                Disabled="@(!selectedSalesOrderNos.Any())"
                                OnClick="PrintSelected">
-                        打印选中 (@selectedSalesOrderNos.Count)
+                        打印选中工单 (@selectedSalesOrderNos.Count)
                     </MudButton>
                     <MudButton Variant="Variant.Text"
                                Size="Size.Small"
                                Color="Color.Info"
                                StartIcon="@Icons.Material.Filled.Print"
-                               OnClick="PrintAll">
-                        打印全部
+                               Disabled="@(!selectedSalesOrderNos.Any())"
+                               OnClick="PrintSelectedList">
+                        打印选中列表
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录
@@ -202,7 +203,7 @@
                       RowsPerPageLabel="每页行数:">
                 <HeaderContent>
                     <MudTh Style="width: 40px;">
-                        <MudCheckBox T="bool" @bind-Value="_allSelected" Dense="true" />
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
                     </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
@@ -228,7 +229,7 @@
                     <MudTd Style="width: 40px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedSalesOrderNos.Contains(item.SalesOrderNo)"
-                                     ValueChanged="@((v) => { if(v) selectedSalesOrderNos.Add(item.SalesOrderNo); else selectedSalesOrderNos.Remove(item.SalesOrderNo); StateHasChanged(); })"
+                                     ValueChanged="@((v) => { if(v) selectedSalesOrderNos.Add(item.SalesOrderNo); else selectedSalesOrderNos.Remove(item.SalesOrderNo); UpdateAllSelectedState(); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
                     @foreach (var col in _visibleColumns)

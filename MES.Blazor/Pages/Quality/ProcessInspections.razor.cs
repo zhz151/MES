@@ -23,14 +23,11 @@ public partial class ProcessInspections
     private int _totalCount;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -638,17 +635,6 @@ public partial class ProcessInspections
 
     // ========== 单元格渲染 ==========
 
-    private bool IsCellEditable(string key) => key switch
-    {
-        "InspectionDate" or "EquipmentName" or "Inspector" or "Shift"
-            or "Quantity" or "Weight" or "InspectionItem"
-            or "QualifiedQuantity" or "QualifiedWeight"
-            or "QualifiedConcessionQuantity" or "ConcessionRemark"
-            or "DefectReworkQuantity" or "DefectWarehouseQuantity" or "DefectScrapQuantity"
-            or "DefectDescription" or "SourceUnit" or "TagNo" or "PlantGrade" or "Remark" => true,
-        _ => false
-    };
-
     private RenderFragment RenderCell(ProcessInspectionDto item, ColumnDef col) => builder =>
     {
         var isEditing = _editingIds.Contains(item.Id);
@@ -1036,22 +1022,6 @@ public partial class ProcessInspections
         var request = new ProcessInspectionPrintBatchRequest
         {
             Ids = selectedIds.ToArray(),
-            Columns = GetPrintColumnDefs()
-        };
-        var json = JsonSerializer.Serialize(request);
-        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-    }
-
-    private async Task PrintAll()
-    {
-        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.ProcessInspection}/print-all-file";
-        var request = new ProcessInspectionPrintAllRequest
-        {
-            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "inspectiondate",
-            IsDescending = sortDescending,
-            InspectionDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
-            InspectionDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
             Columns = GetPrintColumnDefs()
         };
         var json = JsonSerializer.Serialize(request);

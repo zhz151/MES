@@ -88,7 +88,7 @@ public class OrderService : IOrderService
 
     #region 订单管理
 
-    public async Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, string? technicalStatus = null, string? orderStatus = null, DateTime? signDateFrom = null, DateTime? signDateTo = null, DateTime? deliveryDateFrom = null, DateTime? deliveryDateTo = null)
+    public async Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, string? technicalStatus = null, string? orderStatus = null, DateTime? signDateFrom = null, DateTime? signDateTo = null, DateTime? deliveryDateFrom = null, DateTime? deliveryDateTo = null, OrderDeliveryEstimateFilterDto? estimateFilter = null)
     {
         bool? hasTechnicalRequirement = technicalStatus?.ToLower() switch
         {
@@ -129,6 +129,10 @@ public class OrderService : IOrderService
             queryable = queryable.Where(s => s.DeliveryStart >= deliveryDateFrom.Value);
         if (deliveryDateTo.HasValue)
             queryable = queryable.Where(s => s.DeliveryStart <= deliveryDateTo.Value);
+
+        // 订单交期预估小表点击联动筛选（表1 完成预估双口径 / 表2 延期按交期截止）
+        if (estimateFilter != null)
+            queryable = ApplyEstimateFilter(queryable, estimateFilter);
 
         // 关键字模糊搜索（多关键词AND + 状态中文映射）
         if (!string.IsNullOrEmpty(query.Keyword))
@@ -407,6 +411,20 @@ public class OrderService : IOrderService
         var delayOrders = orders.Where(o => o.Estimated > o.DeliveryEnd).ToList();
         var onTimeOrders = orders.Where(o => o.Estimated <= o.DeliveryEnd).ToList();
 
+        // 7 桶日期边界（含；与 GetDeliveryBucket 语义一致：桶0 date<=今日，桶1..5 区间，桶6 date>=尾部+1）
+        // 供前端点击联动筛选原样回传，保证与列表筛选口径一致
+        var bucketBounds = new (DateTime? From, DateTime? To)[7];
+        bucketBounds[0] = (null, now);
+        var prevEnd = 0;
+        var boundsIndex = 0;
+        foreach (var endOffset in new[] { bucket1, bucket2, bucket3, bucket4, bucket5 })
+        {
+            boundsIndex++;
+            bucketBounds[boundsIndex] = (now.AddDays(prevEnd + 1), now.AddDays(endOffset));
+            prevEnd = endOffset;
+        }
+        bucketBounds[6] = (now.AddDays(bucket5 + 1), null);
+
         // 表2：延期交货订单预估（延期订单按交期截止归桶；急中急=其中延期罚款=是的订单子集）
         var delayBuckets = new List<OrderDeliveryBucketDto>();
         for (var i = 0; i < 7; i++)
@@ -418,7 +436,9 @@ public class OrderService : IOrderService
                 Count = subset.Count,
                 Weight = subset.Sum(o => o.TotalContractWeight) / 1000m,
                 UrgentCount = urgent.Count,
-                UrgentWeight = urgent.Sum(o => o.TotalContractWeight) / 1000m
+                UrgentWeight = urgent.Sum(o => o.TotalContractWeight) / 1000m,
+                DateFrom = bucketBounds[i].From,
+                DateTo = bucketBounds[i].To
             });
         }
 
@@ -431,7 +451,9 @@ public class OrderService : IOrderService
             completeBuckets.Add(new OrderDeliveryBucketDto
             {
                 Count = d.Count + t.Count,
-                Weight = (d.Sum(o => o.TotalContractWeight) + t.Sum(o => o.TotalContractWeight)) / 1000m
+                Weight = (d.Sum(o => o.TotalContractWeight) + t.Sum(o => o.TotalContractWeight)) / 1000m,
+                DateFrom = bucketBounds[i].From,
+                DateTo = bucketBounds[i].To
             });
         }
 
@@ -452,12 +474,14 @@ public class OrderService : IOrderService
             {
                 new()
                 {
+                    Id = "complete",
                     Name = "订单(整单)完成预估",
                     BucketLabels = bucketLabels,
                     Buckets = completeBuckets
                 },
                 new()
                 {
+                    Id = "delay",
                     Name = "风险-已延期订单(整单)",
                     BucketLabels = bucketLabels,
                     Buckets = delayBuckets
@@ -478,6 +502,40 @@ public class OrderService : IOrderService
         if (days <= bucket4) return 4;
         if (days <= bucket5) return 5;
         return 6;
+    }
+
+    /// <summary>
+    /// 订单交期预估小表点击联动筛选（订单列表按小表单元格口径精确复现）
+    /// 共同前提：已排产（ScheduleStage≥2 且预计完成/交期截止非空，与 GetDeliveryEstimateAsync 参与范围一致）。
+    /// 表2 delay：延期（预计完成 &gt; 交期截止）且交期截止在桶日期范围；
+    /// 表1 complete：延期订单按预计完成日在桶范围 OR 非延期订单按交期截止在桶范围。
+    /// 桶日期边界由前端从小表 DTO 原样回传（DateFrom/DateTo 含边界），null=开放端。
+    /// </summary>
+    private static IQueryable<OrderListSummary> ApplyEstimateFilter(IQueryable<OrderListSummary> q, OrderDeliveryEstimateFilterDto f)
+    {
+        var from = f.DateFrom?.Date;
+        var to = f.DateTo?.Date;
+        q = q.Where(s => s.ScheduleStage >= 2 && s.EstimatedCompletionDate != null && s.DeliveryEnd != null);
+
+        if (f.Table == "delay")
+        {
+            q = q.Where(s => s.EstimatedCompletionDate!.Value > s.DeliveryEnd!.Value);
+            q = q.Where(s =>
+                (!from.HasValue || s.DeliveryEnd!.Value.Date >= from.Value) &&
+                (!to.HasValue || s.DeliveryEnd!.Value.Date <= to.Value));
+        }
+        else // complete
+        {
+            q = q.Where(s =>
+                (s.EstimatedCompletionDate!.Value > s.DeliveryEnd!.Value &&
+                    (!from.HasValue || s.EstimatedCompletionDate!.Value.Date >= from.Value) &&
+                    (!to.HasValue || s.EstimatedCompletionDate!.Value.Date <= to.Value))
+                ||
+                (s.EstimatedCompletionDate!.Value <= s.DeliveryEnd!.Value &&
+                    (!from.HasValue || s.DeliveryEnd!.Value.Date >= from.Value) &&
+                    (!to.HasValue || s.DeliveryEnd!.Value.Date <= to.Value)));
+        }
+        return q;
     }
 
     public async Task<SalesOrderDetailDto> GetByIdAsync(int id)
@@ -661,6 +719,24 @@ public class OrderService : IOrderService
         }
     }
 
+    /// <summary>
+    /// 失效待发货缓存（订单/项次删除或订单头变更后，C2 引用数据可能过期）
+    /// </summary>
+    private async Task InvalidatePendingDeliveryCachesAsync(string? context)
+    {
+        if (_scopeFactory == null) return;
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var pendingDelivery = scope.ServiceProvider.GetRequiredService<IPendingDeliveryQueryService>();
+            await pendingDelivery.InvalidateCachesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "待发货缓存失效失败（不影响主流程）: {Context}", context);
+        }
+    }
+
     public async Task<SalesOrderListDto> UpdateAsync(int id, UpdateSalesOrderRequest request)
     {
         var salesOrder = await _context.SalesOrders
@@ -779,6 +855,14 @@ public class OrderService : IOrderService
                     if (piercingPlans.Any()) _context.RoundBarPiercingPlans.RemoveRange(piercingPlans);
                     if (inProcessReworkPlans.Any()) _context.InProcessReworkPlans.RemoveRange(inProcessReworkPlans);
 
+                    // 清理定尺工单行与需求调整行（无FK约束，需手动清理，与 WorkOrderService 单删口径一致）
+                    var fixedLengthRows = await _context.FixedLengthWorkOrders
+                        .Where(f => woIds.Contains(f.WorkOrderId)).ToListAsync();
+                    if (fixedLengthRows.Any()) _context.FixedLengthWorkOrders.RemoveRange(fixedLengthRows);
+                    var demandAdjRows = await _context.Set<OrderDemandAdjustment>()
+                        .Where(d => woIds.Contains(d.WorkOrderId)).ToListAsync();
+                    if (demandAdjRows.Any()) _context.Set<OrderDemandAdjustment>().RemoveRange(demandAdjRows);
+
                     // 清理读模型行（事务内执行，避免残留脏数据）
                     var delListRows = await _context.Set<WorkOrderListSummary>()
                         .Where(s => woIds.Contains(s.WorkOrderId)).ToListAsync();
@@ -815,6 +899,9 @@ public class OrderService : IOrderService
 
         // 6. 刷新读模型（事务已提交，在 using 块之外执行）
         await RefreshByOrderIdAsync(salesOrder.Id);
+
+        // 订单删除影响待发货 DTO 的 C2 引用数据（客户/工单/项次），失效全部缓存
+        await InvalidatePendingDeliveryCachesAsync($"DeleteOrder:Id={id}");
 
         await _operationLogService.AddLogAsync("Order", id, "删除", $"订单号={salesOrder.OrderNumber}");
 
@@ -1086,6 +1173,9 @@ public class OrderService : IOrderService
         // 刷新用料计划总览读模型（工单状态变更后同步）
         if (_listSummaryService != null)
             await _listSummaryService.RefreshBySalesOrderAsync(salesOrder.OrderNumber);
+
+        // 项次删除影响待发货 DTO 的 C2 项次引用，失效全部缓存
+        await InvalidatePendingDeliveryCachesAsync($"DeleteItem:OrderId={orderId}");
     }
 
     public async Task<SaveAllOrderResponse> SaveAllAsync(int id, SaveAllOrderRequest request)
@@ -1333,6 +1423,10 @@ public class OrderService : IOrderService
         // 自动触发工单状态检测
         if (_workOrderService != null)
             await _workOrderService.CheckAndUpdateWorkOrderStatusAsync(salesOrder.Id);
+
+        // 项次删除影响待发货 DTO 的 C2 项次引用，失效全部缓存
+        if (request.DeletedItemIds.Count > 0)
+            await InvalidatePendingDeliveryCachesAsync($"SaveAllDeleteItems:OrderId={id}");
 
         return new SaveAllOrderResponse
         {
@@ -2047,6 +2141,15 @@ public class OrderService : IOrderService
         if (allIds.Length == 0) return Array.Empty<byte>();
         var orders = await GetByIdsForPrintAsync(allIds);
         return SalesOrderPrintHelper.GenerateBatchOrderPdf(orders);
+    }
+
+    /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
+    public Task<byte[]> PrintOrderListAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)
+    {
+        // 打印选中列表：列表显示模式（内容自适应列宽 + 整页宽度铺满 + 数据居中 + 表头行数不限）
+        var pdfBytes = TablePrintHelper.GeneratePdf(title, items, columns,
+            autoWidth: true, alignCenter: true, headerMaxLines: 0);
+        return Task.FromResult(pdfBytes);
     }
 
     public async Task<byte[]> PrintOrderRequirementsAsync(int orderId)

@@ -137,8 +137,6 @@ public abstract class TestBase : IDisposable
     public class FakeHttpMessageHandler : HttpMessageHandler
     {
         private readonly Dictionary<string, (object? Response, string Method)> _routes = new();
-        private readonly HashSet<string> _capturePaths = new();
-        public List<KeyValuePair<string, string>> CapturedQueries { get; } = new();
 
         public void Configure(string pathPrefix, object response, string method = "GET")
         {
@@ -150,22 +148,11 @@ public abstract class TestBase : IDisposable
             Configure(pathPrefix, new { }, method);
         }
 
-        public void CaptureQueryFor(string pathPrefix)
-        {
-            _capturePaths.Add(pathPrefix.ToLowerInvariant());
-        }
-
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken ct)
         {
             var path = request.RequestUri?.AbsolutePath?.ToLowerInvariant() ?? "";
             var method = request.Method.ToString().ToUpperInvariant();
-
-            if (_capturePaths.Any(p => path.Contains(p.ToLowerInvariant())))
-            {
-                var query = request.RequestUri?.Query ?? "";
-                CapturedQueries.Add(new KeyValuePair<string, string>(path, query));
-            }
 
             // 精确匹配
             if (_routes.TryGetValue(Key(path, method), out var route))

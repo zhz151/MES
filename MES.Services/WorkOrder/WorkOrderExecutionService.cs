@@ -2799,6 +2799,67 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         return result;
     }
 
+    /// <summary>
+    /// 「错误疑问投料」明细：到料实投一致性 ∈ {2,3,4,5}（2 疑问-到料少投/3 疑问-到料超投/4 错误-无料已投/5 错误-无需投料）的全量工单行。
+    /// 复用 WorkOrderExecutionSummaryDto 的 G3 计算属性（计划投料总重/现可投料总重/理论缺失总料重/到料实投一致性），
+    /// G3 为内存计算列，故先投影原始字段 ToList 后内存筛选。
+    /// </summary>
+    public async Task<List<ErrorDoubtInputItemDto>> GetErrorDoubtInputItemsAsync()
+    {
+        var rows = await _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
+            .Select(e => new WorkOrderExecutionSummaryDto
+            {
+                WorkOrderId = e.WorkOrderId,
+                WorkOrderNo = e.WorkOrderNo,
+                SalesOrderNo = e.SalesOrderNo,
+                ProductionMainNo = e.ProductionMainNo,
+                PlantGrade = e.PlantGrade,
+                Specification = e.Specification,
+                TotalWeight = e.TotalWeight,
+                ScheduleStage = e.ScheduleStage,
+                InputWeight = e.InputWeight,
+                CutoffArrivalDate = e.CutoffArrivalDate,
+                // 用料计划及执行实况（G4~G10 计划/到货/出库/投料量，供 G3 计算属性）
+                PiercingPlanWeight = e.PiercingPlanWeight,
+                SemiPlanWeight = e.SemiPlanWeight,
+                FinishPlanWeight = e.FinishPlanWeight,
+                InventoryPlanWeight = e.InventoryPlanWeight,
+                ReworkPlanWeight = e.ReworkPlanWeight,
+                InProcessReworkPlanWeight = e.InProcessReworkPlanWeight,
+                InMainPlanWeight = e.InMainPlanWeight,
+                PiercingSubInWeight = e.PiercingSubInWeight,
+                SemiInWeight = e.SemiInWeight,
+                FinishInWeight = e.FinishInWeight,
+                InventoryOutWeight = e.InventoryOutWeight,
+                ReworkPlanInputWeight = e.ReworkPlanInputWeight,
+                InProcessReworkInputWeight = e.InProcessReworkInputWeight,
+                InMainInputWeight = e.InMainInputWeight,
+            })
+            .ToListAsync();
+
+        // 只针对主号-关注（ScheduleStage）=2 原料锁定的工单（其余阶段 0/1/3/4 不显示）
+        return rows
+            .Where(x => x.ScheduleStage == 2 && x.PlanInputConsistency is 2 or 3 or 4 or 5)
+            .Select(x => new ErrorDoubtInputItemDto
+            {
+                WorkOrderId = x.WorkOrderId,
+                WorkOrderNo = x.WorkOrderNo,
+                SalesOrderNo = x.SalesOrderNo,
+                ProductionMainNo = x.ProductionMainNo,
+                PlantGrade = x.PlantGrade,
+                Specification = x.Specification,
+                TotalWeight = x.TotalWeight,
+                TotalPlanWeight = x.TotalPlanWeight,
+                CutoffArrivalDate = x.CutoffArrivalDate,
+                TotalAvailableWeight = x.TotalAvailableWeight,
+                TotalMissingWeight = x.TotalMissingWeight,
+                ActualInputWeight = x.ActualInputWeight,
+                PlanInputConsistency = x.PlanInputConsistency,
+            })
+            .OrderBy(x => x.WorkOrderNo)
+            .ToList();
+    }
+
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
         return await _cache.GetOrCreateAsync("WorkOrderExecutionService:FilterContexts", async entry =>

@@ -111,8 +111,7 @@ public class MaterialPlanServiceTests : TestBase
         var itemIds = items.Select(i => i.Sequence).ToList();
 
         var woLoggerMock = new Mock<ILogger<WorkOrderService>>();
-        var configMock = new Mock<IConfigParameterService>();
-        var woSvc = new WorkOrderService(ctx, woLoggerMock.Object, configMock.Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
+        var woSvc = new WorkOrderService(ctx, woLoggerMock.Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
         var result = await woSvc.GenerateWorkOrdersAsync(new CreateWorkOrderRequest
         {
             SalesOrderNo = order.OrderNumber,

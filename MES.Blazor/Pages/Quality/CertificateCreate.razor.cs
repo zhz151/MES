@@ -646,17 +646,4 @@ public partial class CertificateCreate
 
     private void GoBack() => Navigation.NavigateTo("/quality/certificates");
 
-    // ========== 子表分组 CSS ==========
-
-    private static string GetGroupCss(int groupKey)
-    {
-        return groupKey switch
-        {
-            1 => "col-g1-cell",
-            2 => "col-g2-cell",
-            3 => "col-g3-cell",
-            4 => "col-g4-cell",
-            _ => ""
-        };
-    }
 }

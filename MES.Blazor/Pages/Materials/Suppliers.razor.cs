@@ -26,14 +26,11 @@ public partial class Suppliers
     private bool _isFirstLoad = true;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -682,28 +679,6 @@ public partial class Suppliers
                 Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList()
             };
             var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Supplier}/print-batch-file";
-            var json = JsonSerializer.Serialize(request);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task PrintAll()
-    {
-        try
-        {
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            var request = new OrderPrintAllRequest
-            {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList()
-            };
-            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Supplier}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

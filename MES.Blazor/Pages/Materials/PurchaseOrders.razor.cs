@@ -51,14 +51,11 @@ public partial class PurchaseOrders : IAsyncDisposable
     private bool sortDescending = true;
 
     // 选中状态
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -1151,29 +1148,6 @@ public partial class PurchaseOrders : IAsyncDisposable
             var ids = selectedIds.ToArray();
             var request = new OrderPrintBatchRequest { Ids = ids, Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList() };
             var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.PurchaseOrder}/print-batch-file";
-            var json = JsonSerializer.Serialize(request);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
-    }
-
-    private async Task PrintAll()
-    {
-        try
-        {
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            DateTime? dateFrom = DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null;
-            DateTime? dateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo : null;
-            var request = new OrderPrintAllRequest
-            {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                DateFrom = dateFrom,
-                DateTo = dateTo,
-                Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList()
-            };
-            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.PurchaseOrder}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

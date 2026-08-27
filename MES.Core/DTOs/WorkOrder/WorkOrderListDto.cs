@@ -136,6 +136,33 @@ public class WorkOrderListDto
     public string? UrgencyLevel { get; set; }
 
     /// <summary>
+    /// 工单到料未投（kg）= Max(0, 现可投料总重 TotalAvailableWeight − 工单投料量 InputWeight)。
+    /// 现可投料总重 = 七类到货/出库/投料量之和（G4委外到货+G5采购到货+G6采购到货+G7出库量+G8投料量+G9投料量+G10投料量，与 WorkOrderExecutionSummaryDto.TotalAvailableWeight 同口径）
+    /// </summary>
+    public decimal? PendingInputWeight { get; set; }
+
+    /// <summary>
+    /// 理论缺失总料重（kg）= Max(0, 计划投料总重 TotalPlanWeight − 现可投料总重 TotalAvailableWeight)，
+    /// 与 WorkOrderExecutionSummaryDto.TotalMissingWeight 同口径（原料未至），无执行摘要时为空
+    /// </summary>
+    public decimal? TotalMissingWeight { get; set; }
+
+    /// <summary>
+    /// 工单投料量（kg）：WorkOrderExecutionSummary.InputWeight（原始投料组「总重量」），无执行摘要时为空
+    /// </summary>
+    public decimal? InputWeight { get; set; }
+
+    /// <summary>
+    /// 工单投料比（%）：WorkOrderExecutionSummary.InputOutputRatio（原始投料组「工单投料比」）
+    /// </summary>
+    public decimal? InputOutputRatio { get; set; }
+
+    /// <summary>
+    /// 工单投料状态：WorkOrderExecutionSummary.InputStatus（0 未投料/1 部分/2 满足/3 超量），中文显示走 IntStatusDisplayHelper.GetInputStatusText
+    /// </summary>
+    public int? InputStatus { get; set; }
+
+    /// <summary>
     /// 工单状态
     /// </summary>
     public WorkOrderStatus Status { get; set; }

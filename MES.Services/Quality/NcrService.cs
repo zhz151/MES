@@ -753,6 +753,15 @@ public class NcrService : INcrService
         return NcrPrintHelper.GeneratePdf(entities);
     }
 
+    /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
+    public Task<byte[]> PrintNcrListAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)
+    {
+        // 打印选中列表：列表显示模式（内容自适应列宽 + 整页宽度铺满 + 数据居中 + 表头行数不限）
+        var pdfBytes = TablePrintHelper.GeneratePdf(title, items, columns,
+            autoWidth: true, alignCenter: true, headerMaxLines: 0);
+        return Task.FromResult(pdfBytes);
+    }
+
     public async Task<byte[]> PrintAllAsync(NcrPrintAllRequest request)
     {
         var queryable = _context.Ncrs.AsNoTracking().AsQueryable();

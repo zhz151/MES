@@ -156,12 +156,6 @@ public class AuthHttpClient
     }
 
     /// <summary>
-    /// GET 请求
-    /// </summary>
-    public Task<HttpResponseMessage> GetAsync(string url)
-        => SendWithRefreshAsync(() => _http.GetAsync(url));
-
-    /// <summary>
     /// GET 请求并反序列化为 T
     /// </summary>
     public Task<T?> GetFromJsonAsync<T>(string url)

@@ -1015,8 +1015,6 @@ public partial class WarehouseInventory
         StateHasChanged();
     }
 
-    private bool IsItemSelected(InventoryBatchDto item) => _selectedItems.Contains(item);
-
     // ========== 跳转到出库页面 ==========
 
     private void NavigateToOutbound()
@@ -1054,30 +1052,6 @@ public partial class WarehouseInventory
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
             var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Inventory}/print-stock-selected-file";
-            var json = JsonSerializer.Serialize(request);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
-    }
-
-    private async Task PrintAll()
-    {
-        try
-        {
-            var columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
-            var request = new InventoryPrintAllRequest
-            {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                WarehouseId = warehouseId,
-                OnlyWithStock = true,
-                InboundDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
-                InboundDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
-                Columns = columns
-            };
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Inventory}/print-stock-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

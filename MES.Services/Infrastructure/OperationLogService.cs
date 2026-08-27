@@ -36,8 +36,6 @@ public class OperationLogService : IOperationLogService
             .Select(l => new OperationLogDto
             {
                 Id = l.Id,
-                Module = l.Module,
-                EntityId = l.EntityId,
                 OperationType = l.OperationType,
                 Detail = l.Detail,
                 CreatedBy = l.CreatedBy,

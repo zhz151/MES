@@ -28,16 +28,6 @@ public class InspectionRecordService
         catch (Exception ex) { return ApiResponse<PagedResult<InspectionRecordListDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<List<InspectionRecordListDto>>> GetAllListAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<InspectionRecordListDto>>>($"{BaseUrl}/all-list")
-                   ?? ApiResponse<List<InspectionRecordListDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<InspectionRecordListDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<InspectionRecordListDto>> GetByIdAsync(int id)
     {
         try

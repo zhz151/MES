@@ -53,15 +53,6 @@ public class PittingCorrosionTestController : ControllerBase
         return Ok(ApiResponse<PagedResult<PittingCorrosionTestDto>>.Ok(result));
     }
 
-    [HttpPost]
-    [Authorize(Roles = Roles.Policies.QualityEdit)]
-    public async Task<ActionResult<ApiResponse<PittingCorrosionTestDto>>> Create([FromBody] CreatePittingCorrosionTestRequest request)
-    {
-        if (!ModelState.IsValid) return BadRequest(ApiResponse<PittingCorrosionTestDto>.Fail("请求参数无效"));
-        var result = await _service.CreateAsync(request);
-        return Ok(ApiResponse<PittingCorrosionTestDto>.Ok(result, "创建成功"));
-    }
-
     [HttpPut("{id}")]
     [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<PittingCorrosionTestDto>>> Update(int id, [FromBody] UpdatePittingCorrosionTestRequest request)

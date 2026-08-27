@@ -36,7 +36,6 @@ public class CombinationGroupService : ICombinationGroupService
             SectionName = c.SectionName,
             ProductStatus = c.ProductStatus,
             FlowCategoryId = c.FlowCategoryId,
-            FlowCategoryName = c.FlowCategory?.CategoryName,
             ParagraphName = c.ParagraphName,
         }).ToList();
     }

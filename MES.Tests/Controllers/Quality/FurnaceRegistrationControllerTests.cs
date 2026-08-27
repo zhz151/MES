@@ -11,14 +11,12 @@ namespace MES.Tests.Controllers;
 public class FurnaceRegistrationControllerTests : ControllerTestBase
 {
     private readonly Mock<IFurnaceRegistrationService> _serviceMock;
-    private readonly Mock<ILogger<FurnaceRegistrationController>> _loggerMock;
     private readonly FurnaceRegistrationController _controller;
 
     public FurnaceRegistrationControllerTests()
     {
         _serviceMock = new Mock<IFurnaceRegistrationService>();
-        _loggerMock = CreateLoggerMock<FurnaceRegistrationController>();
-        _controller = new FurnaceRegistrationController(_serviceMock.Object, _loggerMock.Object);
+        _controller = new FurnaceRegistrationController(_serviceMock.Object);
     }
 
     [Fact]

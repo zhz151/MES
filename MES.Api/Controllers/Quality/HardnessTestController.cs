@@ -53,15 +53,6 @@ public class HardnessTestController : ControllerBase
         return Ok(ApiResponse<PagedResult<HardnessTestDto>>.Ok(result));
     }
 
-    [HttpPost]
-    [Authorize(Roles = Roles.Policies.QualityEdit)]
-    public async Task<ActionResult<ApiResponse<HardnessTestDto>>> Create([FromBody] CreateHardnessTestRequest request)
-    {
-        if (!ModelState.IsValid) return BadRequest(ApiResponse<HardnessTestDto>.Fail("请求参数无效"));
-        var result = await _service.CreateAsync(request);
-        return Ok(ApiResponse<HardnessTestDto>.Ok(result, "创建成功"));
-    }
-
     [HttpPut("{id}")]
     [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<HardnessTestDto>>> Update(int id, [FromBody] UpdateHardnessTestRequest request)

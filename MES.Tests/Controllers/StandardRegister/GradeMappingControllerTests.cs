@@ -153,66 +153,6 @@ public class GradeMappingControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task PrintGradeMappingBatch_ReturnsBadRequest_WhenModelInvalid()
-    {
-        // Arrange
-        AddModelError(_controller);
-
-        // Act
-        var result = await _controller.PrintGradeMappingBatch(new OrderPrintBatchRequest());
-
-        // Assert
-        var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
-        Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintGradeMappingBatch_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintGradeMappingBatchAsync(It.IsAny<int[]>(), It.IsAny<List<PrintColumnDef>>()))
-            .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintGradeMappingBatch(new OrderPrintBatchRequest { Ids = new[] { 1, 2 } });
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
-    }
-
-    [Fact]
-    public async Task PrintGradeMappingAll_ReturnsBadRequest_WhenModelInvalid()
-    {
-        // Arrange
-        AddModelError(_controller);
-
-        // Act
-        var result = await _controller.PrintGradeMappingAll(new OrderPrintAllRequest());
-
-        // Assert
-        var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
-        Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintGradeMappingAll_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintGradeMappingAllAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<List<PrintColumnDef>?>()))
-            .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintGradeMappingAll(new OrderPrintAllRequest { Keyword = "304" });
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
-    }
-
-    [Fact]
     public async Task GetFilterContexts_ReturnsOk()
     {
         var filterContexts = new Dictionary<string, List<string>>

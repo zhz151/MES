@@ -54,24 +54,6 @@ public partial class GradePhysicalProperties
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }
 
-    private async Task PrintAll()
-    {
-        try
-        {
-            var request = new GradePhysicalPropertyPrintAllRequest
-            {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                Columns = GetPrintColumnDefs()
-            };
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.GradePhysicalProperty}/print-all-file";
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-        }
-        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
-    }
-
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -334,25 +316,6 @@ public partial class GradePhysicalProperties
                 _isArrowNavSetup = false;
         }
     }
-
-    // ========== 单元格渲染 ==========
-
-    private string? GetCellRawValue(GradePhysicalPropertyDto item, string key) => key switch
-    {
-        "StandardGrade" => item.StandardGrade,
-        "StandardGradeCategory" => item.StandardGradeCategory,
-        "Density" => item.Density.ToString("G29"),
-        "HeatTreatmentTemp" => item.HeatTreatmentTemp,
-        "HardnessRockwell" => item.HardnessRockwell,
-        "HardnessVickers" => item.HardnessVickers,
-        "HardnessBrinell" => item.HardnessBrinell,
-        "TensileStrength" => item.TensileStrength,
-        "YieldStrength02" => item.YieldStrength02,
-        "YieldStrength10" => item.YieldStrength10,
-        "Elongation" => item.Elongation,
-        "GrainSize" => item.GrainSize,
-        _ => null
-    };
 
     private void NavigateToCreate() => Navigation.NavigateTo("/grade-physical-properties/create");
 

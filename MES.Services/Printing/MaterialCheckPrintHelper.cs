@@ -13,6 +13,7 @@ using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
 using MES.Core.Helpers;
+using MES.Core.Constants;
 
 namespace MES.Services.Printing;
 
@@ -49,6 +50,12 @@ public static class MaterialCheckPrintHelper
                 ["DeliveryState"] = m.DeliveryState.HasValue ? EnumHelper.GetDisplayName(typeof(DeliveryState), m.DeliveryState.Value) : "",
                 ["IsForceCompleted"] = m.IsForceCompleted ? "是" : "否",
                 ["IsDeliveryStatus"] = m.IsDeliveryStatus ?? "-",
+                ["ProductionMainNo"] = m.ProductionMainNo ?? "",
+                ["ProcessName"] = ProcessKeys.ToChinese(m.ProcessName) ?? m.ProcessName,
+                ["SequenceNumber"] = m.SequenceNumber.ToString("G29"),
+                ["InspectionType"] = m.InspectionTypeDisplay ?? "",
+                ["HealthIssue"] = m.HealthIssue ?? "正常",
+                ["ManufacturingStatus"] = m.ManufacturingStatusDisplay ?? "-",
                 ["Remark"] = m.Remark ?? "",
                 ["CreatedTime"] = m.CreatedTime.ToString("yyyy-MM-dd HH:mm"),
                 ["UpdatedTime"] = m.UpdatedTime.ToString("yyyy-MM-dd HH:mm")

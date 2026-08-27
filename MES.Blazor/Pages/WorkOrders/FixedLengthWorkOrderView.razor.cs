@@ -950,10 +950,35 @@ public partial class FixedLengthWorkOrderView
 
     private void SelectAllItems(bool selected)
     {
+        var pageItems = CurrentPageItems();
         if (selected)
-            _selectedItems = new HashSet<FixedLengthWorkOrderListDto>(_filteredItems);
+        {
+            // 只勾选当前页显示的行（与其它列表页表头全选作用域一致：本页全选）
+            foreach (var item in pageItems)
+                _selectedItems.Add(item);
+        }
         else
+        {
             _selectedItems.Clear();
+        }
+    }
+
+    /// <summary>当前页显示的行（Items 模式前端分页：MudTable CurrentPage 0-based × RowsPerPage 切片）</summary>
+    private List<FixedLengthWorkOrderListDto> CurrentPageItems()
+    {
+        if (table == null || _filteredItems.Count == 0) return new();
+        var rowsPerPage = table.RowsPerPage > 0 ? table.RowsPerPage : _pageSize;
+        return _filteredItems.Skip(table.CurrentPage * rowsPerPage).Take(rowsPerPage).ToList();
+    }
+
+    /// <summary>当前页是否全部被选中（表头全选勾选态，按本页行判定）</summary>
+    private bool AllSelectedOnPage
+    {
+        get
+        {
+            var pageItems = CurrentPageItems();
+            return pageItems.Count > 0 && pageItems.All(r => _selectedItems.Contains(r));
+        }
     }
 
     private void ToggleSelection(FixedLengthWorkOrderListDto item, bool selected)
@@ -966,17 +991,6 @@ public partial class FixedLengthWorkOrderView
 
     // ========== 打印 ==========
 
-    /// <summary>打印全部（当前筛选后全部行）</summary>
-    private async Task PrintAll()
-    {
-        if (_filteredItems.Count == 0)
-        {
-            Snackbar.Add("当前无数据可打印", Severity.Warning);
-            return;
-        }
-        await PrintItems(_filteredItems, "定尺工单定尺数据（全部）");
-    }
-
     /// <summary>打印选中行</summary>
     private async Task PrintSelected()
     {
@@ -985,7 +999,7 @@ public partial class FixedLengthWorkOrderView
             Snackbar.Add("请先选择要打印的行", Severity.Warning);
             return;
         }
-        await PrintItems(_selectedItems.ToList(), "定尺工单定尺数据（选中）");
+        await PrintItems(_selectedItems.ToList(), "定尺工单定尺数据");
     }
 
     private async Task PrintItems(List<FixedLengthWorkOrderListDto> items, string title)

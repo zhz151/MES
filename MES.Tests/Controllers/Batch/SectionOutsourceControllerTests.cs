@@ -11,14 +11,12 @@ namespace MES.Tests.Controllers;
 public class SectionOutsourceControllerTests : ControllerTestBase
 {
     private readonly Mock<ISectionOutsourceService> _serviceMock;
-    private readonly Mock<ILogger<SectionOutsourceController>> _loggerMock;
     private readonly SectionOutsourceController _controller;
 
     public SectionOutsourceControllerTests()
     {
         _serviceMock = new Mock<ISectionOutsourceService>();
-        _loggerMock = CreateLoggerMock<SectionOutsourceController>();
-        _controller = new SectionOutsourceController(_serviceMock.Object, _loggerMock.Object);
+        _controller = new SectionOutsourceController(_serviceMock.Object);
     }
 
     [Fact]

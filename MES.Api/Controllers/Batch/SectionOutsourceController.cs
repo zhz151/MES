@@ -17,12 +17,10 @@ namespace MES.Api.Controllers.Batch;
 public class SectionOutsourceController : ControllerBase
 {
     private readonly ISectionOutsourceService _service;
-    private readonly ILogger<SectionOutsourceController> _logger;
 
-    public SectionOutsourceController(ISectionOutsourceService service, ILogger<SectionOutsourceController> logger)
+    public SectionOutsourceController(ISectionOutsourceService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     // ========== 工段委外 ==========
@@ -232,70 +230,6 @@ public class SectionOutsourceController : ControllerBase
     }
 
     // ========== 打印 ==========
-
-    /// <summary>
-    /// 批量打印委外发出（选中）
-    /// </summary>
-    [HttpPost("print-selected")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintSelected([FromBody] SectionOutsourcePrintBatchRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    /// <summary>
-    /// 按筛选条件打印全部委外发出
-    /// </summary>
-    [HttpPost("print-all")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintAll([FromBody] SectionOutsourcePrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending,
-            request.SendOutDateFrom, request.SendOutDateTo,
-            request.ActualRecoveryDateFrom, request.ActualRecoveryDateTo,
-            request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    /// <summary>
-    /// 批量打印回收记录（选中）
-    /// </summary>
-    [HttpPost("recoveries/print-selected")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintRecoverySelected([FromBody] RecoveryPrintBatchRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintRecoveryBatchAsync(request.Ids, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    /// <summary>
-    /// 按筛选条件打印全部回收记录
-    /// </summary>
-    [HttpPost("recoveries/print-all")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintRecoveryAll([FromBody] RecoveryPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintRecoveryAllAsync(request.Keyword, request.SortBy, request.IsDescending,
-            request.RecoveryDateFrom, request.RecoveryDateTo, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
 
     [HttpPost("print-selected-file")]
     [Authorize(Roles = Roles.Policies.BatchView)]

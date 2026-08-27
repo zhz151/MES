@@ -12,14 +12,12 @@ namespace MES.Tests.Controllers;
 public class PicklingControllerTests : ControllerTestBase
 {
     private readonly Mock<IPicklingService> _serviceMock;
-    private readonly Mock<ILogger<PicklingController>> _loggerMock;
     private readonly PicklingController _controller;
 
     public PicklingControllerTests()
     {
         _serviceMock = new Mock<IPicklingService>();
-        _loggerMock = CreateLoggerMock<PicklingController>();
-        _controller = new PicklingController(_serviceMock.Object, _loggerMock.Object);
+        _controller = new PicklingController(_serviceMock.Object);
     }
 
     // ========== 入缸记录 ==========

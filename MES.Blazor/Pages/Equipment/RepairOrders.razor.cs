@@ -23,14 +23,11 @@ public partial class RepairOrders
     private int _totalCount;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -814,29 +811,6 @@ public partial class RepairOrders
             var columns = GetPrintColumnDefs();
             var request = new RepairOrderPrintBatchRequest { Ids = ids, Columns = columns };
             var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.RepairOrder}/print-batch-file";
-            var json = JsonSerializer.Serialize(request);
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task PrintAll()
-    {
-        try
-        {
-            var columns = GetPrintColumnDefs();
-            var request = new RepairOrderPrintAllRequest
-            {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                Columns = columns
-            };
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.RepairOrder}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);

@@ -897,29 +897,6 @@ public partial class SectionOutsources
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
-    private async Task PrintAll()
-    {
-        var columns = _visibleColumns
-            .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
-            .ToList();
-
-        var request = new SectionOutsourcePrintAllRequest
-        {
-            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword.Trim(),
-            SortBy = sortColumn,
-            IsDescending = sortDescending,
-            SendOutDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
-            SendOutDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
-            ActualRecoveryDateFrom = DateTime.TryParse(_recoveryDateFrom, out var arf) ? arf : null,
-            ActualRecoveryDateTo = DateTime.TryParse(_recoveryDateTo, out var art) ? art : null,
-            Columns = columns
-        };
-        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.SectionOutsource}/print-all-file";
-        var json = JsonSerializer.Serialize(request);
-        Snackbar.Add("正在生成PDF...", Severity.Info);
-        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-    }
-
     // ========== 实时委外在产 / 月度委外数据 折叠卡片 ==========
 
     private bool _showPendingCard;

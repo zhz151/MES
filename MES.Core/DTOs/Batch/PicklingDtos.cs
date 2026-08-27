@@ -61,8 +61,6 @@ public class PicklingInRecordDto
     public DateTimeOffset UpdatedTime { get; set; }
 
     // ========== 完工汇总 ==========
-    /// <summary>关联完工记录ID（为空则未完工）</summary>
-    public int? PicklingOutRecordId { get; set; }
     /// <summary>完工日期</summary>
     public DateTime? CompleteDate { get; set; }
     /// <summary>完工班次（出缸时登记的，区别于入缸班次）</summary>

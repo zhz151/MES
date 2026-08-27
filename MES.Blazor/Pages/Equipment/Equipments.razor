@@ -86,13 +86,6 @@
                     <MudButton Variant="Variant.Text"
                                Size="Size.Small"
                                Color="Color.Info"
-                               StartIcon="@Icons.Material.Filled.Print"
-                               OnClick="PrintAll">
-                        打印全部
-                    </MudButton>
-                    <MudButton Variant="Variant.Text"
-                               Size="Size.Small"
-                               Color="Color.Info"
                                StartIcon="@Icons.Material.Filled.QrCode"
                                Disabled="@(!selectedIds.Any())"
                                OnClick="PrintQrCodes"

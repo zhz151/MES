@@ -12,14 +12,12 @@ namespace MES.Tests.Controllers;
 public class RepairOrderControllerTests : ControllerTestBase
 {
     private readonly Mock<IRepairOrderService> _serviceMock;
-    private readonly Mock<ILogger<RepairOrderController>> _loggerMock;
     private readonly RepairOrderController _controller;
 
     public RepairOrderControllerTests()
     {
         _serviceMock = new Mock<IRepairOrderService>();
-        _loggerMock = CreateLoggerMock<RepairOrderController>();
-        _controller = new RepairOrderController(_serviceMock.Object, _loggerMock.Object);
+        _controller = new RepairOrderController(_serviceMock.Object);
     }
 
     [Fact]
@@ -162,66 +160,6 @@ public class RepairOrderControllerTests : ControllerTestBase
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<ApiResponse>(okResult.Value);
         Assert.True(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintBatch_ReturnsBadRequest_WhenModelInvalid()
-    {
-        // Arrange
-        AddModelError(_controller);
-
-        // Act
-        var result = await _controller.PrintBatch(new RepairOrderPrintBatchRequest());
-
-        // Assert
-        var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
-        Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintBatch_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintBatchAsync(It.IsAny<int[]>(), It.IsAny<List<PrintColumnDef>>()))
-            .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintBatch(new RepairOrderPrintBatchRequest { Ids = new[] { 1, 2 } });
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
-    }
-
-    [Fact]
-    public async Task PrintAll_ReturnsBadRequest_WhenModelInvalid()
-    {
-        // Arrange
-        AddModelError(_controller);
-
-        // Act
-        var result = await _controller.PrintAll(new RepairOrderPrintAllRequest());
-
-        // Assert
-        var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
-        Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintAll_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintAllAsync(It.IsAny<RepairOrderQueryParams>(), It.IsAny<List<PrintColumnDef>>()))
-            .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintAll(new RepairOrderPrintAllRequest { Keyword = "设备" });
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
     }
 
     [Fact]

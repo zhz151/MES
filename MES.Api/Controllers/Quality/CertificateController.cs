@@ -17,12 +17,10 @@ namespace MES.Api.Controllers.Quality;
 public class CertificateController : ControllerBase
 {
     private readonly ICertificateService _service;
-    private readonly ILogger<CertificateController> _logger;
 
-    public CertificateController(ICertificateService service, ILogger<CertificateController> logger)
+    public CertificateController(ICertificateService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     /// <summary>
@@ -154,5 +152,14 @@ public class CertificateController : ControllerBase
     {
         var pdfBytes = await _service.PrintFileAsync(request);
         return File(pdfBytes, "application/pdf", "质量证明书.pdf");
+    }
+
+    /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
+    [HttpPost("print-list-file")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
+    public async Task<IActionResult> PrintListFile([FromBody] CertificatePrintListRequest request)
+    {
+        var pdfBytes = await _service.PrintCertificateListAsync(request.Title, request.Items, request.Columns);
+        return File(pdfBytes, "application/pdf", "质量证明书列表.pdf");
     }
 }

@@ -18,12 +18,10 @@ namespace MES.Api.Controllers.Order;
 public class CustomerController : ControllerBase
 {
     private readonly ICustomerService _customerService;
-    private readonly ILogger<CustomerController> _logger;
 
-    public CustomerController(ICustomerService customerService, ILogger<CustomerController> logger)
+    public CustomerController(ICustomerService customerService)
     {
         _customerService = customerService;
-        _logger = logger;
     }
 
     /// <summary>
@@ -137,36 +135,6 @@ public class CustomerController : ControllerBase
     }
 
     // ========== 打印 ==========
-
-    /// <summary>
-    /// 批量打印客户
-    /// </summary>
-    [HttpPost("print-batch")]
-    [Authorize(Roles = Roles.Policies.OrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintCustomerBatch([FromBody] OrderPrintBatchRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _customerService.PrintCustomerBatchAsync(request.Ids, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    /// <summary>
-    /// 按筛选条件打印全部客户
-    /// </summary>
-    [HttpPost("print-all")]
-    [Authorize(Roles = Roles.Policies.OrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintCustomerAll([FromBody] OrderPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _customerService.PrintCustomerAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
 
     /// <summary>
     /// 批量打印客户（直接返回 PDF 文件）

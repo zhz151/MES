@@ -203,14 +203,6 @@ public partial class EnumDisplayDefinitions
         if (table != null) await table.ReloadServerData();
     }
 
-    private async Task OnSearchChanged(string value)
-    {
-        _searchKeyword = value ?? string.Empty;
-        _resetToFirstPage = true;
-        await SavePageStateAsync();
-        if (table != null) await table.ReloadServerData();
-    }
-
     private async Task OnEnumKeyChanged(string? value)
     {
         _selectedEnumKey = string.IsNullOrEmpty(value) ? null : value;

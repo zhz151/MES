@@ -96,7 +96,6 @@ public class InventoryService : IInventoryService
         UpdatedBy = r.UpdatedBy,
         UpdatedTime = r.UpdatedTime
     };
-    private static readonly Func<OutboundRecord, OutboundRecordDto> OutboundToDto = OutboundToDtoExpr.Compile();
 
     public InventoryService(
         AppDbContext context,
@@ -378,10 +377,21 @@ public class InventoryService : IInventoryService
     public async Task<InventoryBatchDto> GetByIdAsync(int id)
         => await _batchWriteService.GetByIdAsync(id);
 
+    /// <summary>
+    /// 库存/出库数据写操作后失效列筛选上下文缓存（Outbound/InventoryFilterContexts），
+    /// 避免下拉选项残留已删值或缺失新增值
+    /// </summary>
+    private void InvalidateFilterContexts()
+    {
+        _cache.Remove("InventoryService:OutboundFilterContexts");
+        _cache.Remove("InventoryService:InventoryFilterContexts");
+    }
+
     public async Task<InventoryBatchDto> InboundAsync(CreateInboundRequest request)
     {
         var result = await _batchWriteService.InboundAsync(request);
         await _pendingDeliveryQueryService.InvalidateCachesAsync();
+        InvalidateFilterContexts();
         return result;
     }
 
@@ -389,6 +399,7 @@ public class InventoryService : IInventoryService
     {
         var result = await _batchWriteService.BatchInboundAsync(request);
         await _pendingDeliveryQueryService.InvalidateCachesAsync();
+        InvalidateFilterContexts();
         return result;
     }
 
@@ -396,6 +407,7 @@ public class InventoryService : IInventoryService
     {
         var result = await _batchWriteService.UpdateInventoryBatchAsync(id, request);
         await _pendingDeliveryQueryService.InvalidateCachesAsync();
+        InvalidateFilterContexts();
         return result;
     }
 
@@ -403,6 +415,7 @@ public class InventoryService : IInventoryService
     {
         await _batchWriteService.HardDeleteInventoryBatchAsync(id);
         await _pendingDeliveryQueryService.InvalidateCachesAsync();
+        InvalidateFilterContexts();
     }
 
     // ========== 出库操作 ==========
@@ -411,6 +424,7 @@ public class InventoryService : IInventoryService
     {
         var result = await _outboundWriteService.OutboundAsync(request);
         await _pendingDeliveryQueryService.InvalidateCachesAsync();
+        InvalidateFilterContexts();
         return result;
     }
 
@@ -418,6 +432,7 @@ public class InventoryService : IInventoryService
     {
         var result = await _outboundWriteService.BatchOutboundAsync(request);
         await _pendingDeliveryQueryService.InvalidateCachesAsync();
+        InvalidateFilterContexts();
         return result;
     }
 
@@ -544,6 +559,7 @@ public class InventoryService : IInventoryService
     {
         var result = await _outboundWriteService.UpdateOutboundRecordAsync(id, request);
         await _pendingDeliveryQueryService.InvalidateCachesAsync();
+        InvalidateFilterContexts();
         return result;
     }
 
@@ -551,6 +567,7 @@ public class InventoryService : IInventoryService
     {
         await _outboundWriteService.HardDeleteOutboundRecordAsync(id);
         await _pendingDeliveryQueryService.InvalidateCachesAsync();
+        InvalidateFilterContexts();
     }
 
     // ========== 来源单验证与同步 ==========
@@ -561,11 +578,17 @@ public class InventoryService : IInventoryService
     public async Task<SourceOrderValidationResult> ValidateProductionBatchAsync(string productionBatchNo)
         => await _syncService.ValidateProductionBatchAsync(productionBatchNo);
 
+    public async Task<SourceOrderValidationResult> ResolveLinkedWorkOrderAsync(int inventoryBatchId)
+        => await _syncService.ResolveLinkedWorkOrderAsync(inventoryBatchId);
+
     public async Task<List<string>> ValidateWarehouseWorkOrderNosAsync(int warehouseId)
         => await _syncService.ValidateWarehouseWorkOrderNosAsync(warehouseId);
 
     public async Task<List<BatchWorkOrderMismatchDto>> GetMismatchedWorkOrderBatchesAsync(int? warehouseId = null)
         => await _syncService.GetMismatchedWorkOrderBatchesAsync(warehouseId);
+
+    public async Task<List<SourceOrderChangedBatchDto>> GetSourceOrderChangedBatchesAsync(int? warehouseId = null)
+        => await _syncService.GetSourceOrderChangedBatchesAsync(warehouseId);
 
     public async Task<List<string>> GetDistinctWorkOrderNosByWarehouseAsync(int warehouseId)
         => await _syncService.GetDistinctWorkOrderNosByWarehouseAsync(warehouseId);

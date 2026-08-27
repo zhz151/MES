@@ -19,6 +19,9 @@ public class OrderDeliveryEstimateDto
 /// </summary>
 public class OrderDeliveryEstimateTableDto
 {
+    /// <summary>表标识（complete=订单(整单)完成预估 / delay=风险-已延期订单(整单)，供前端点击联动筛选定位）</summary>
+    public string Id { get; set; } = "";
+
     /// <summary>表名（订单(整单)完成预估 / 风险-已延期订单(整单)）</summary>
     public string Name { get; set; } = null!;
 
@@ -45,4 +48,10 @@ public class OrderDeliveryBucketDto
 
     /// <summary>「急中急」重量（吨，kg 已换算；仅表2 统计）</summary>
     public decimal UrgentWeight { get; set; }
+
+    /// <summary>桶日期范围起始（含；null=无下界，如「≤今日」桶），供前端点击联动筛选回传</summary>
+    public DateTime? DateFrom { get; set; }
+
+    /// <summary>桶日期范围结束（含；null=无上界，如「≥尾部」桶），供前端点击联动筛选回传</summary>
+    public DateTime? DateTo { get; set; }
 }

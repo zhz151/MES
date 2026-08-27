@@ -152,15 +152,6 @@ public partial class ReportOverview
         }
     }
 
-    private void RefreshTab(int index)
-    {
-        if (index == 1 || index == 6) { _refreshKey++; return; }
-        if (!_loaded[index]) return;
-        _loaded[index] = false;
-        _failed[index] = false;
-        _ = ActivateTabAsync(index);
-    }
-
     // ========== Tab1 业务总况：订单接单·出库及现负荷汇总 ==========
 
     private OrderInOutSummaryDto? _inOutSummary;
@@ -613,7 +604,6 @@ public partial class ReportOverview
 
     // Tab5 段落/工段流转
     private static string RenderInt(decimal? val) => val.HasValue ? Math.Round(val.Value, 0).ToString() : "-";
-    private static string RenderDecimal(decimal? val) => val.HasValue ? val.Value.ToString("F1") : "-";
     private static Color GetStatusColor(string? status) => status switch
     {
         "偏少" => Color.Error,

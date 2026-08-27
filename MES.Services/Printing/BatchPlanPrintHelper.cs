@@ -11,6 +11,8 @@ public static class BatchPlanPrintHelper
         {
             ["LengthStatus"] = v => EnumHelper.GetDisplayName<LengthStatus>(v?.ToString()),
         };
-        return TablePrintHelper.GeneratePdf(title, items, columns, resolvers);
+        // 批次计划打印样式：按数据内容自适应列宽、整页宽度铺满、表头行数不限、数据居中
+        return TablePrintHelper.GeneratePdf(title, items, columns, resolvers,
+            autoWidth: true, alignCenter: true, headerMaxLines: 0);
     }
 }

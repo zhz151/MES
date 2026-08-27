@@ -63,6 +63,7 @@ public class ProductionRecordService : IProductionRecordService
     private readonly IFixedLengthWorkOrderService _fixedLengthWorkOrderService;
     private readonly ISectionNameDisplayService _sectionNameDisplay;
     private readonly IProcessDefinitionService _processDefService;
+    private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
     private readonly IMemoryCache _cache;
 
     private sealed record SectionOutsourceInfo(
@@ -89,7 +90,8 @@ public class ProductionRecordService : IProductionRecordService
         IFixedLengthWorkOrderService fixedLengthWorkOrderService,
         ISectionNameDisplayService sectionNameDisplay,
         IProcessDefinitionService processDefService,
-        IMemoryCache cache)
+        IMemoryCache cache,
+        IWorkOrderListSummaryRefreshService? listSummaryService = null)
     {
         _context = context;
         _logger = logger;
@@ -102,6 +104,7 @@ public class ProductionRecordService : IProductionRecordService
         _sectionNameDisplay = sectionNameDisplay;
         _processDefService = processDefService;
         _cache = cache;
+        _listSummaryService = listSummaryService;
     }
 
     /// <summary>
@@ -1004,6 +1007,29 @@ public class ProductionRecordService : IProductionRecordService
         await TryRefreshQualityProcessTrackingAsync(batchId);
         await UpdateBatchTrackingFromRecordsAsync(batchId);
         await TryRefreshExecutionSummaryAsync(batchId);
+        await TryRefreshListSummaryAsync(batchId);
+    }
+
+    /// <summary>
+    /// 刷新用料计划总览（WorkOrderListSummary）：生产记录删除经批次状态重算
+    /// （Completed 判定）影响产能工量 completedOutput，须联动刷新
+    /// </summary>
+    private async Task TryRefreshListSummaryAsync(int batchId)
+    {
+        if (_listSummaryService == null) return;
+        try
+        {
+            var salesOrderNo = await _context.ProductionBatches.AsNoTracking()
+                .Where(b => b.Id == batchId)
+                .Select(b => b.SalesOrderNo)
+                .FirstOrDefaultAsync();
+            if (!string.IsNullOrWhiteSpace(salesOrderNo))
+                await _listSummaryService.RefreshBySalesOrderAsync(salesOrderNo);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "用料计划总览刷新失败（不影响主流程）: BatchId={BatchId}", batchId);
+        }
     }
 
     // ========== 工段委外 ==========
@@ -2979,6 +3005,7 @@ public class ProductionRecordService : IProductionRecordService
                 r.TagNo,
                 r.PlantGrade,
                 r.Remark,
+                r.DataSource,
                 BatchNo = r.ProductionBatch.BatchNo,
                 WorkOrderNo = r.ProductionBatch.WorkOrderNo,
                 SalesOrderNo = r.ProductionBatch.SalesOrderNo,
@@ -3015,6 +3042,7 @@ public class ProductionRecordService : IProductionRecordService
                 TagNo = r.TagNo,
                 PlantGrade = r.PlantGrade,
                 Remark = r.Remark,
+                DataSource = r.DataSource,
                 BatchNo = r.BatchNo,
                 WorkOrderNo = r.WorkOrderNo,
                 SalesOrderNo = r.SalesOrderNo,
@@ -3211,9 +3239,4 @@ public class ProductionRecordService : IProductionRecordService
     private static string? CalculateLengthStatus(string? sectionName, string? productStatus, string? batchLengthStatus)
         => sectionName == SectionKeys.Cut && productStatus == ProductStatuses.Finished ? batchLengthStatus : null;
 
-    /// <summary>
-    /// 判断制造物品是否属于"成品"类别（OrderFinishedProduct/PreparedMaterial/SpecialDeliveryStatus）
-    /// </summary>
-    private static bool IsFinishedManufacturingItem(string? manufacturingItem) =>
-        ProductStatusHelper.IsFinishedManufacturingItem(manufacturingItem);
 }

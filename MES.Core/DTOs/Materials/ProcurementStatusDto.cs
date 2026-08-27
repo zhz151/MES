@@ -18,6 +18,9 @@ public class ProcurementStatusDto
     public MaterialType? MaterialCategory { get; set; }
     public string? MaterialCategoryDisplay => MaterialCategory.HasValue ? EnumHelper.GetDisplayName(MaterialCategory.Value) : null;
 
+    /// <summary>工厂牌号（计划行级，同工单同分类多牌号去重后用顿号拼接）</summary>
+    public string? PlantGrade { get; set; }
+
     /// <summary>计划总量(kg)</summary>
     public decimal PlanWeight { get; set; }
 

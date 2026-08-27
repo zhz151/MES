@@ -17,12 +17,10 @@ namespace MES.Api.Controllers.Quality;
 public class FurnaceRegistrationController : ControllerBase
 {
     private readonly IFurnaceRegistrationService _service;
-    private readonly ILogger<FurnaceRegistrationController> _logger;
 
-    public FurnaceRegistrationController(IFurnaceRegistrationService service, ILogger<FurnaceRegistrationController> logger)
+    public FurnaceRegistrationController(IFurnaceRegistrationService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     /// <summary>

@@ -723,6 +723,16 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             if (request.ProductionMainNo == "") entity.ProductionMainNo = null;
             if (request.OrderItemIds == "") entity.OrderItemIds = null;
         }
+        // IsLinkedToWorkOrder 级联：否→是（前端发送 IsLinkedToWorkOrder=true + 显式工单号触发）
+        // 工单号/订单号/主号以本次显式传入值为准（入库更正页点击「关联工单=是」时按来源匹配回填）
+        else if (request.IsLinkedToWorkOrder.HasValue && request.IsLinkedToWorkOrder.Value)
+        {
+            entity.IsLinkedToWorkOrder = true;
+            if (request.WorkOrderNo != null) entity.WorkOrderNo = request.WorkOrderNo.Length == 0 ? null : request.WorkOrderNo;
+            if (request.SalesOrderNo != null) entity.SalesOrderNo = request.SalesOrderNo.Length == 0 ? null : request.SalesOrderNo;
+            if (request.ProductionMainNo != null) entity.ProductionMainNo = request.ProductionMainNo.Length == 0 ? null : request.ProductionMainNo;
+            if (request.OrderItemIds != null) entity.OrderItemIds = request.OrderItemIds.Length == 0 ? null : request.OrderItemIds;
+        }
 
         // 前端显式传入 MaterialType 时触发物料变更（FG 级联）
         if (request.MaterialType.HasValue)
@@ -737,8 +747,10 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             .FirstOrDefaultAsync();
         var updAssoc = await ResolveAssociationAsync(entity);
         var updMaps = await _fixedLengthWorkOrderService.GetLengthMapsAsync();
-        // 主号：工单号/生产批号任一非空时按权威关联（生产批号优先→工单号兜底）推导，保证与定尺核查口径一致
-        if (!string.IsNullOrEmpty(entity.WorkOrderNo) || !string.IsNullOrEmpty(entity.ProductionBatchNo))
+        // 主号：本次未显式回填工单号时，工单号/生产批号任一非空按权威关联（生产批号优先→工单号兜底）推导，
+        // 保证与定尺核查口径一致；已显式回填（点击「关联工单=是」按来源匹配）时保留匹配结果，保证展示与保存一致
+        if (request.WorkOrderNo == null
+            && (!string.IsNullOrEmpty(entity.WorkOrderNo) || !string.IsNullOrEmpty(entity.ProductionBatchNo)))
             entity.ProductionMainNo = updAssoc?.ProductionMainNo;
         var hasBothLinks = !string.IsNullOrEmpty(entity.ProductionBatchNo) && !string.IsNullOrEmpty(entity.WorkOrderNo);
         if (hasBothLinks
@@ -793,6 +805,12 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         if (hasOutbounds)
             throw new BusinessException($"批次{entity.BatchNo}存在出库记录，无法直接删除。请先在出库历史中删除关联的出库记录后重试");
 
+        // 已被生产批次合并投料/领料引用（FK NoAction）→ 禁止删除，避免破坏领料追溯
+        var referencedByProduction = await _context.ProductionBatchInventories
+            .AnyAsync(x => x.InventoryBatchId == id);
+        if (referencedByProduction)
+            throw new BusinessException($"批次{entity.BatchNo}已被生产批次合并投料领用，无法直接删除");
+
         var sourceOrderNo = entity.SourceOrderNo;
         var workOrderNo = entity.WorkOrderNo;
         var productionBatchNo = entity.ProductionBatchNo;
@@ -803,20 +821,18 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         await TryRefreshQualityProcessTrackingAsync(productionBatchNo);
         await TrySyncSourceOrderAsync(sourceOrderNo);
 
-        // 若此为关联该批次的最后一条入库记录，回退批次状态
-        // （不限定 Completed：非完成批次删除最后一条入库后，"入库"当前工段会残留，需一并重算）
+        // 回退批次状态/跟踪字段（不限定"最后一条入库"：多条入库删除一条且该条是唯一"匹配制造物品"的入库时，
+        // hasWarehouse 也会变化，需重算；RefreshBatchTrackingFieldsAsync 幂等，无条件调用更安全）
         if (!string.IsNullOrEmpty(productionBatchNo))
         {
-            var remainingCount = await _context.InventoryBatches
-                .CountAsync(ib => ib.ProductionBatchNo == productionBatchNo);
-            if (remainingCount == 0)
+            var batch = await _context.ProductionBatches
+                .FirstOrDefaultAsync(b => b.BatchNo == productionBatchNo);
+            if (batch != null)
             {
-                var batch = await _context.ProductionBatches
-                    .FirstOrDefaultAsync(b => b.BatchNo == productionBatchNo);
-                if (batch != null)
-                {
-                    await _productionRecordService.RefreshBatchTrackingFieldsAsync(batch.Id);
-                }
+                // 按生产批次权威工单号刷新执行摘要（入库批次 WorkOrderNo 可能为空），并在批次状态/完成档位
+                // 变化后同步刷新用料计划总览（产能工量依赖 Status==Completed 的批次有效产出）
+                await _productionRecordService.RefreshBatchTrackingFieldsAsync(batch.Id);
+                await TryRefreshListSummaryAsync(batch.SalesOrderNo);
             }
         }
     }

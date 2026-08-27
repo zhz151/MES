@@ -53,15 +53,6 @@ public class FlaringTestController : ControllerBase
         return Ok(ApiResponse<PagedResult<FlaringTestDto>>.Ok(result));
     }
 
-    [HttpPost]
-    [Authorize(Roles = Roles.Policies.QualityEdit)]
-    public async Task<ActionResult<ApiResponse<FlaringTestDto>>> Create([FromBody] CreateFlaringTestRequest request)
-    {
-        if (!ModelState.IsValid) return BadRequest(ApiResponse<FlaringTestDto>.Fail("请求参数无效"));
-        var result = await _service.CreateAsync(request);
-        return Ok(ApiResponse<FlaringTestDto>.Ok(result, "创建成功"));
-    }
-
     [HttpPut("{id}")]
     [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<FlaringTestDto>>> Update(int id, [FromBody] UpdateFlaringTestRequest request)

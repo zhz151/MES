@@ -36,14 +36,11 @@ public partial class GradeMappings
 
     // 选中
     private HashSet<int> selectedIds = new();
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -339,22 +336,6 @@ public partial class GradeMappings
                 _isArrowNavSetup = false;
         }
     }
-
-    // ========== 单元格渲染 ==========
-
-    private string? GetCellRawValue(StandardGradeMappingDto item, string key) => key switch
-    {
-        "StandardGrade" => item.StandardGrade,
-        "StandardGradeCategory" => item.StandardGradeCategory,
-        "PlantGrade" => item.PlantGrade,
-        "Density" => item.Density.ToString("G29"),
-        "HeatTreatment" => item.HeatTreatment,
-        "SpecialMaterial" => item.SpecialMaterial.ToString(),
-        "SpecialNote" => item.SpecialNote,
-        "SteelProperty" => item.SteelProperty,
-        "Remark" => item.Remark,
-        _ => null
-    };
 
     private void NavigateToCreate() => Navigation.NavigateTo("/grade-mappings/create");
 
@@ -657,27 +638,6 @@ public partial class GradeMappings
             var ids = selectedIds.ToArray();
             var request = new OrderPrintBatchRequest { Ids = ids, Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList() };
             var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.GradeMapping}/print-batch-file";
-            var json = JsonSerializer.Serialize(request);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task PrintAll()
-    {
-        try
-        {
-            var request = new OrderPrintAllRequest
-            {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList()
-            };
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.GradeMapping}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

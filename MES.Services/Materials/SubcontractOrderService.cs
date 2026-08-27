@@ -1676,6 +1676,30 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             }
         }
 
+        // 工单实时关注：按来源工单号关联工单执行状况读模型（同 GetReturnItemListAsync，无记录默认 null → 打印 "-"）
+        var workOrderNos = items.Where(x => !string.IsNullOrEmpty(x.SourceWorkOrderNo))
+            .Select(x => x.SourceWorkOrderNo!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (workOrderNos.Count > 0)
+        {
+            var execLookup = await _context.WorkOrderExecutionSummaries.AsNoTracking()
+                .Where(e => workOrderNos.Contains(e.WorkOrderNo))
+                .Select(e => new { e.WorkOrderNo, e.ScheduleStage, e.UrgencyLevel, e.RawMaterialLockRemark, e.TheoreticalCutoffDate })
+                .ToListAsync();
+            var execMap = execLookup.ToDictionary(e => e.WorkOrderNo, e => e, StringComparer.OrdinalIgnoreCase);
+            foreach (var item in items)
+            {
+                if (item.SourceWorkOrderNo != null && execMap.TryGetValue(item.SourceWorkOrderNo, out var exec))
+                {
+                    item.ExecutionScheduleStage = exec.ScheduleStage;
+                    item.ExecutionUrgencyLevel = exec.UrgencyLevel;
+                    item.ExecutionRawMaterialLockRemark = exec.RawMaterialLockRemark;
+                    item.ExecutionTheoreticalCutoffDate = exec.TheoreticalCutoffDate;
+                }
+            }
+        }
+
         var resolvers = new Dictionary<string, Func<object?, string>>
         {
             ["ProcessStatus"] = v => v is SubcontractOrderStatus ps
@@ -1698,6 +1722,15 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
     {
         var orders = await GetByIdsAsync(ids);
         return SubcontractOrderPrintHelper.GenerateBatchPdf(orders);
+    }
+
+    /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
+    public Task<byte[]> PrintSubcontractOrderListAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)
+    {
+        // 打印选中列表：列表显示模式（内容自适应列宽 + 整页宽度铺满 + 数据居中 + 表头行数不限）
+        var pdfBytes = TablePrintHelper.GeneratePdf(title, items, columns,
+            autoWidth: true, alignCenter: true, headerMaxLines: 0);
+        return Task.FromResult(pdfBytes);
     }
 
     public async Task<List<SubcontractOrderDto>> GetByIdsAsync(int[] ids)

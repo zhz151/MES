@@ -75,6 +75,7 @@
                                 <HeaderContent>
                                     <MudTh Style="width: 120px;">工单号</MudTh>
                                     <MudTh Style="width: 90px;">物料分类</MudTh>
+                                    <MudTh Style="width: 110px;">工厂牌号</MudTh>
                                     <MudTh Style="width: 100px;" Class="text-right">计划总量(kg)</MudTh>
                                     <MudTh Style="width: 100px;" Class="text-right">已委外(kg)</MudTh>
                                     <MudTh Style="width: 100px;" Class="text-right">缺少量(kg)</MudTh>
@@ -86,6 +87,7 @@
                                 <RowTemplate>
                                     <MudTd>@context.WorkOrderNo</MudTd>
                                     <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
+                                    <MudTd>@context.PlantGrade</MudTd>
                                     <MudTd Class="text-right">@(((int)context.PlanWeight).ToString())</MudTd>
                                     <MudTd Class="text-right">@(((int)context.SubcontractWeight).ToString())</MudTd>
                                     <MudTd Class="text-right">@(((int)context.MissingWeight).ToString())</MudTd>
@@ -120,10 +122,10 @@
                 </div>
                 <div class="d-flex align-center" style="margin-left:auto;">
                     <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info" StartIcon="@Icons.Material.Filled.Print" Disabled="@(!selectedIds.Any())" OnClick="PrintSelected">
-                        打印选中 (@selectedIds.Count)
+                        打印选中穿孔单 (@selectedIds.Count)
                     </MudButton>
-                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info" StartIcon="@Icons.Material.Filled.Print" OnClick="PrintAll">
-                        打印全部
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info" StartIcon="@Icons.Material.Filled.Print" Disabled="@(!selectedIds.Any())" OnClick="PrintSelectedList" Class="ml-2">
+                        打印选中列表
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-4">共 @_totalCount 条记录</MudText>
                 </div>
@@ -158,7 +160,7 @@
                     <MudTd Class="col-selection-td" Style="width:40px;padding:0 4px;">
                         <MudCheckBox T="bool"
                                      Value="@selectedIds.Contains(item.Id)"
-                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); _allSelectedField = _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id)); StateHasChanged(); })"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); StateHasChanged(); })"
                                      Dense="true" />
                     </MudTd>
                     @foreach (var col in _visibleColumns)

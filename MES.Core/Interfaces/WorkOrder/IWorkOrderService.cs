@@ -2,6 +2,7 @@ using MES.Core.Models;
 
 using MES.Core.DTOs.Order;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.DTOs.Shared;
 namespace MES.Core.Interfaces.WorkOrder;
 
 /// <summary>
@@ -37,7 +38,7 @@ public interface IWorkOrderService
     /// <summary>
     /// 分页查询工单列表（含用料计划聚合数据，供用料计划总览页使用）
     /// </summary>
-    Task<PagedResult<WorkOrderListDto>> GetPagedWithPlansAsync(WorkOrderQueryParams query);
+    Task<PagedResult<WorkOrderListDto>> GetPagedWithPlansAsync(WorkOrderQueryParams query, MaterialPlanLinkFilterDto? linkFilter = null);
 
     /// <summary>
     /// 根据ID获取工单详情
@@ -118,6 +119,11 @@ public interface IWorkOrderService
     /// 按筛选项打印全部工单（全部打印）
     /// </summary>
     Task<byte[]> PrintWorkOrdersByOrderAllAsync(WorkOrderQueryParams query);
+
+    /// <summary>
+    /// 打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）
+    /// </summary>
+    Task<byte[]> PrintWorkOrderListAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns);
 
     /// <summary>
     /// 获取工单筛选上下文（各列去重值），用于 ExcelFilter 下拉选项

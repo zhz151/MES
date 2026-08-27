@@ -812,29 +812,6 @@ public partial class PicklingInRecords
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
-    private async Task PrintAll()
-    {
-        var columns = _visibleColumns
-            .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
-            .ToList();
-
-        var request = new PicklingInRecordPrintAllRequest
-        {
-            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword.Trim(),
-            SortBy = sortColumn,
-            IsDescending = sortDescending,
-            InDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
-            InDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
-            CompleteDateFrom = DateTime.TryParse(_completeDateFrom, out var cdf) ? cdf : null,
-            CompleteDateTo = DateTime.TryParse(_completeDateTo, out var cdt) ? cdt : null,
-            Columns = columns
-        };
-        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Pickling}/print-all-file";
-        var json = JsonSerializer.Serialize(request);
-        Snackbar.Add("正在生成PDF...", Severity.Info);
-        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-    }
-
     // ========== 分组渲染 ==========
 
     private class GroupHeaderInfo

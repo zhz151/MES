@@ -17,35 +17,6 @@ public class InventoryService
         _http = http;
     }
 
-    public async Task<ApiResponse<List<InventoryBatchDto>>> GetAllListAsync(InventoryQueryParams query)
-    {
-        try
-        {
-            var url = $"{BaseUrl}/all?sortBy={Uri.EscapeDataString(query.SortBy)}&isDescending={query.IsDescending}";
-
-            if (query.WarehouseId.HasValue)
-                url += $"&warehouseId={query.WarehouseId.Value}";
-
-            if (!string.IsNullOrEmpty(query.Keyword))
-                url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
-
-            if (!string.IsNullOrEmpty(query.MaterialType))
-                url += $"&materialType={Uri.EscapeDataString(query.MaterialType)}";
-
-            if (!string.IsNullOrEmpty(query.PlantGrade))
-                url += $"&plantGrade={Uri.EscapeDataString(query.PlantGrade)}";
-
-            url += $"&onlyWithStock={query.OnlyWithStock}";
-
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<InventoryBatchDto>>>(url);
-            return response ?? ApiResponse<List<InventoryBatchDto>>.Fail("获取库存列表失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<List<InventoryBatchDto>>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     public async Task<ApiResponse<PagedResult<InventoryBatchDto>>> GetPagedAsync(InventoryQueryParams query, string? filters = null)
     {
         try
@@ -109,32 +80,6 @@ public class InventoryService
         catch (Exception ex)
         {
             return ApiResponse<BatchInboundResult>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    public async Task<ApiResponse<InventoryBatchDto>> InboundAsync(CreateInboundRequest request)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<CreateInboundRequest, ApiResponse<InventoryBatchDto>>($"{BaseUrl}/inbound", request);
-            return response ?? ApiResponse<InventoryBatchDto>.Fail("入库失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<InventoryBatchDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    public async Task<ApiResponse<OutboundRecordDto>> OutboundAsync(CreateOutboundRequest request)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<CreateOutboundRequest, ApiResponse<OutboundRecordDto>>($"{BaseUrl}/outbound", request);
-            return response ?? ApiResponse<OutboundRecordDto>.Fail("出库失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<OutboundRecordDto>.Fail($"网络错误: {ex.Message}");
         }
     }
 
@@ -270,16 +215,6 @@ public class InventoryService
 
     // ========== 工单号验证 ==========
 
-    public async Task<ApiResponse<List<string>>> ValidateWorkOrderNosAsync(int warehouseId)
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<string>>>($"{BaseUrl}/validate-workorder-nos/{warehouseId}");
-            return response ?? ApiResponse<List<string>>.Fail("验证失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<string>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     /// <summary>
     /// 获取入库批次中工单号不存在的批次列表（实时扫描）
     /// </summary>
@@ -294,6 +229,37 @@ public class InventoryService
             return response ?? ApiResponse<List<BatchWorkOrderMismatchDto>>.Fail("查询失败");
         }
         catch (Exception ex) { return ApiResponse<List<BatchWorkOrderMismatchDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    /// <summary>
+    /// 获取来源单号关联工单号已变更的入库批次列表（实时扫描）
+    /// </summary>
+    public async Task<ApiResponse<List<SourceOrderChangedBatchDto>>> GetSourceOrderChangedBatchesAsync(int? warehouseId = null)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/source-order-changed-batches";
+            if (warehouseId.HasValue)
+                url += $"?warehouseId={warehouseId.Value}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<SourceOrderChangedBatchDto>>>(url);
+            return response ?? ApiResponse<List<SourceOrderChangedBatchDto>>.Fail("查询失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<SourceOrderChangedBatchDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    /// <summary>
+    /// 按入库批次来源（采购单号/委外单号+序号/生产批号）解析应关联的工单号+订单号+主号
+    /// （入库更正页点击「关联工单=是」时即时回填）
+    /// </summary>
+    public async Task<ApiResponse<SourceOrderValidationResult>> ResolveLinkedWorkOrderAsync(int batchId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<SourceOrderValidationResult>>(
+                $"{BaseUrl}/resolve-linked-work-order?batchId={batchId}");
+            return response ?? ApiResponse<SourceOrderValidationResult>.Fail("查询失败");
+        }
+        catch (Exception ex) { return ApiResponse<SourceOrderValidationResult>.Fail($"网络错误: {ex.Message}"); }
     }
 
     /// <summary>

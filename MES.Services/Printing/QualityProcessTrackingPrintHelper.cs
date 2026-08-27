@@ -43,6 +43,8 @@ public static class QualityProcessTrackingPrintHelper
                 ["Salesman"] = dto.Salesman ?? "",
                 ["ManufacturingStatus"] = dto.ManufacturingStatusDisplay ?? "",
                 ["DeliveryState"] = dto.DeliveryState.HasValue ? EnumHelper.GetDisplayName(dto.DeliveryState.Value) : "",
+                ["InspectionType"] = dto.InspectionTypeDisplay ?? "",
+                ["IsDeliveryStatus"] = dto.IsDeliveryStatusDisplay ?? "",
                 ["EndCustomer"] = dto.EndCustomer ?? "",
                 ["ProductionWeight"] = dto.ProductionWeight?.ToString("G29") ?? "",
                 ["ProductionCutQuantity"] = dto.ProductionCutQuantity.ToString(),
@@ -64,6 +66,7 @@ public static class QualityProcessTrackingPrintHelper
                 ["EddyCurrentDate"] = dto.EddyCurrentDate?.ToString("yyyy-MM-dd") ?? "",
                 ["UltrasonicDate"] = dto.UltrasonicDate?.ToString("yyyy-MM-dd") ?? "",
                 ["PortColoringDate"] = dto.PortColoringDate?.ToString("yyyy-MM-dd") ?? "",
+                ["MaxInspectionDate"] = dto.MaxInspectionDate?.ToString("yyyy-MM-dd") ?? "-",
 
                 // G4: 检验的数量信息
                 ["TotalQuantity"] = dto.TotalQuantity.ToString(),

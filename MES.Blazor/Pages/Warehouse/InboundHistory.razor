@@ -78,6 +78,25 @@
                     </div>
                 </MudAlert>
             }
+            <!-- 来源单号关联工单号变更通知（实时扫描） -->
+            @if (_sourceOrderChangedBatches.Count > 0)
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Filled" Class="mb-4">
+                    <div>
+                        @foreach (var item in _sourceOrderChangedBatches)
+                        {
+                            @if (item.IsCancelled)
+                            {
+                                <div>仓库批 "@item.BatchNo"，来源单号相关联的"工单号"已取消（原工单号：@item.ExpectedWorkOrderNo），请修改关联工单或清空工单号！</div>
+                            }
+                            else
+                            {
+                                <div>仓库批 "@item.BatchNo"，来源单号相关联的"工单号"已变更［工单号：@item.ExpectedWorkOrderNo］，请更改！</div>
+                            }
+                        }
+                    </div>
+                </MudAlert>
+            }
             <!-- 筛选栏 -->
             <MudGrid Class="mb-2">
                 <MudItem xs="12" md="6">
@@ -133,12 +152,6 @@
                                Disabled="@(!_selectedItems.Any())"
                                OnClick="PrintSelected" Class="mr-1">
                         打印选中 (@_selectedItems.Count)
-                    </MudButton>
-                    <MudButton Variant="Variant.Text" Size="Size.Small"
-                               Color="Color.Info"
-                               StartIcon="@Icons.Material.Filled.Print"
-                               OnClick="PrintAll" Class="mr-4">
-                        打印全部
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录

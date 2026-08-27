@@ -17,12 +17,10 @@ namespace MES.Api.Controllers.Quality;
 public class ChemicalAnalysisController : ControllerBase
 {
     private readonly IChemicalAnalysisService _service;
-    private readonly ILogger<ChemicalAnalysisController> _logger;
 
-    public ChemicalAnalysisController(IChemicalAnalysisService service, ILogger<ChemicalAnalysisController> logger)
+    public ChemicalAnalysisController(IChemicalAnalysisService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     /// <summary>
@@ -69,20 +67,6 @@ public class ChemicalAnalysisController : ControllerBase
             catch { }
         var result = await _service.GetAllAsync(query);
         return Ok(ApiResponse<PagedResult<ChemicalAnalysisDto>>.Ok(result, "查询成功"));
-    }
-
-    /// <summary>
-    /// 创建化学分析记录
-    /// </summary>
-    [HttpPost]
-    [Authorize(Roles = Roles.Policies.QualityEdit)]
-    public async Task<ActionResult<ApiResponse<ChemicalAnalysisDto>>> Create(
-        [FromBody] CreateChemicalAnalysisRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<ChemicalAnalysisDto>.Fail("请求参数无效"));
-        var result = await _service.CreateAsync(request);
-        return Ok(ApiResponse<ChemicalAnalysisDto>.Ok(result, "创建成功"));
     }
 
     /// <summary>

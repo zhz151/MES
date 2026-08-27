@@ -43,14 +43,5 @@ public class PageStateService
         }
     }
 
-    /// <summary>
-    /// 清除页面状态
-    /// </summary>
-    public async Task ClearAsync(string pageKey)
-    {
-        var key = BuildKey(pageKey);
-        await _storage.RemoveItemAsync(key);
-    }
-
     private static string BuildKey(string pageKey) => $"{Prefix}_{pageKey}";
 }

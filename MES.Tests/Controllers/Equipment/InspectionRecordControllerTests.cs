@@ -12,14 +12,12 @@ namespace MES.Tests.Controllers;
 public class InspectionRecordControllerTests : ControllerTestBase
 {
     private readonly Mock<IInspectionRecordService> _serviceMock;
-    private readonly Mock<ILogger<InspectionRecordController>> _loggerMock;
     private readonly InspectionRecordController _controller;
 
     public InspectionRecordControllerTests()
     {
         _serviceMock = new Mock<IInspectionRecordService>();
-        _loggerMock = CreateLoggerMock<InspectionRecordController>();
-        _controller = new InspectionRecordController(_serviceMock.Object, _loggerMock.Object);
+        _controller = new InspectionRecordController(_serviceMock.Object);
     }
 
     [Fact]
@@ -162,66 +160,6 @@ public class InspectionRecordControllerTests : ControllerTestBase
         // Assert
         var (_, response) = AssertBadRequest<ApiResponse<List<InspectionRecordListDto>>>(result);
         Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintBatch_ReturnsBadRequest_WhenModelInvalid()
-    {
-        // Arrange
-        AddModelError(_controller);
-
-        // Act
-        var result = await _controller.PrintBatch(new InspectionRecordPrintBatchRequest());
-
-        // Assert
-        var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
-        Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintBatch_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintBatchAsync(It.IsAny<int[]>(), It.IsAny<List<PrintColumnDef>>()))
-            .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintBatch(new InspectionRecordPrintBatchRequest { Ids = new[] { 1, 2 } });
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
-    }
-
-    [Fact]
-    public async Task PrintAll_ReturnsBadRequest_WhenModelInvalid()
-    {
-        // Arrange
-        AddModelError(_controller);
-
-        // Act
-        var result = await _controller.PrintAll(new InspectionRecordPrintAllRequest());
-
-        // Assert
-        var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
-        Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintAll_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintAllAsync(It.IsAny<InspectionRecordQueryParams>(), It.IsAny<List<PrintColumnDef>>()))
-            .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintAll(new InspectionRecordPrintAllRequest { Keyword = "设备" });
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
     }
 
     [Fact]

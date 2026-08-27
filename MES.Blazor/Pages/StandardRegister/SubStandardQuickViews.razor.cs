@@ -54,24 +54,6 @@ public partial class SubStandardQuickViews
         catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
     }
 
-    private async Task PrintAll()
-    {
-        try
-        {
-            var request = new SubStandardQuickViewPrintAllRequest
-            {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortColumn,
-                IsDescending = sortDescending,
-                Columns = GetPrintColumnDefs()
-            };
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.SubStandardQuickView}/print-all-file";
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-        }
-        catch (Exception ex) { Snackbar.Add($"打印失败: {ex.Message}", Severity.Error); }
-    }
-
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -346,37 +328,6 @@ public partial class SubStandardQuickViews
                 _isArrowNavSetup = false;
         }
     }
-
-    // ========== 单元格渲染 ==========
-
-    private string? GetCellRawValue(SubStandardQuickViewDto item, string key) => key switch
-    {
-        "StandardNo" => item.StandardNo,
-        "ChemicalComposition" => item.ChemicalComposition,
-        "HydrostaticTest" => item.HydrostaticTest,
-        "EddyCurrent" => item.EddyCurrent,
-        "UltrasonicTest" => item.UltrasonicTest,
-        "RadiographicTest" => item.RadiographicTest,
-        "HardnessRockwell" => item.HardnessRockwell,
-        "HardnessBrinell" => item.HardnessBrinell,
-        "HardnessVickers" => item.HardnessVickers,
-        "TensileRoomTemp" => item.TensileRoomTemp,
-        "TensileHighTemp" => item.TensileHighTemp,
-        "WeldJointTensile" => item.WeldJointTensile,
-        "ImpactTest" => item.ImpactTest,
-        "WeldJointImpact" => item.WeldJointImpact,
-        "FlatteningTest" => item.FlatteningTest,
-        "FlaringTest" => item.FlaringTest,
-        "ExpandingTest" => item.ExpandingTest,
-        "BendTest" => item.BendTest,
-        "WeldJointBend" => item.WeldJointBend,
-        "GrainSize" => item.GrainSize,
-        "IntergranularCorrosion" => item.IntergranularCorrosion,
-        "PittingCorrosion" => item.PittingCorrosion,
-        "FerriteContent" => item.FerriteContent,
-        "Macrostructure" => item.Macrostructure,
-        _ => null
-    };
 
     // ========== 内联编辑 ==========
 

@@ -157,13 +157,6 @@
                                OnClick="PrintSelected">
                         打印选中 (@selectedIds.Count)
                     </MudButton>
-                    <MudButton Variant="Variant.Text"
-                               Size="Size.Small"
-                               Color="Color.Info"
-                               StartIcon="@Icons.Material.Filled.Print"
-                               OnClick="PrintAll">
-                        打印全部
-                    </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录
                     </MudText>
@@ -191,7 +184,7 @@
                       RowsPerPageLabel="每页行数:">
                 <HeaderContent>
                     <MudTh Class="col-selection-th" Style="width:40px;padding:0 4px;">
-                        <MudCheckBox T="bool" Value="@_allSelected" ValueChanged="@((v) => { _allSelected = v; if (v) { selectedIds.Clear(); foreach (var i in _pageItems) selectedIds.Add(i.Id); } else { selectedIds.Clear(); } StateHasChanged(); })" Dense="true" />
+                        <MudCheckBox T="bool" Value="@allSelected" ValueChanged="@((v) => { if (v) { foreach (var i in _pageItems) selectedIds.Add(i.Id); } else { selectedIds.Clear(); } StateHasChanged(); })" Dense="true" />
                     </MudTh>
                     @{
                         int? _prevGk = null;

@@ -17,12 +17,10 @@ namespace MES.Api.Controllers.Quality;
 public class ProcessInspectionController : ControllerBase
 {
     private readonly IProcessInspectionService _service;
-    private readonly ILogger<ProcessInspectionController> _logger;
 
-    public ProcessInspectionController(IProcessInspectionService service, ILogger<ProcessInspectionController> logger)
+    public ProcessInspectionController(IProcessInspectionService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     /// <summary>

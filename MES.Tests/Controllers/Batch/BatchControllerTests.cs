@@ -18,7 +18,6 @@ public class BatchControllerTests : ControllerTestBase
     private readonly Mock<IBatchService> _serviceMock;
     private readonly Mock<IProductionRecordService> _productionRecordServiceMock;
     private readonly Mock<IOperationLogService> _operationLogServiceMock;
-    private readonly Mock<ILogger<BatchController>> _loggerMock;
     private readonly BatchController _controller;
 
     public BatchControllerTests()
@@ -26,8 +25,7 @@ public class BatchControllerTests : ControllerTestBase
         _serviceMock = new Mock<IBatchService>();
         _productionRecordServiceMock = new Mock<IProductionRecordService>();
         _operationLogServiceMock = new Mock<IOperationLogService>();
-        _loggerMock = CreateLoggerMock<BatchController>();
-        _controller = new BatchController(_serviceMock.Object, _productionRecordServiceMock.Object, _operationLogServiceMock.Object, _loggerMock.Object);
+        _controller = new BatchController(_serviceMock.Object, _productionRecordServiceMock.Object, _operationLogServiceMock.Object);
     }
 
     [Fact]
@@ -397,111 +395,6 @@ public class BatchControllerTests : ControllerTestBase
         var notFoundResult = Assert.IsType<NotFoundObjectResult>(result.Result);
         var response = Assert.IsType<ApiResponse<List<CreateProcessGroupRequest>>>(notFoundResult.Value);
         Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintBatch_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintBatchAsync(1)).ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintBatch(1);
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
-    }
-
-    [Fact]
-    public async Task PrintBatchAll_ReturnsBadRequest_WhenModelInvalid()
-    {
-        // Arrange
-        AddModelError(_controller);
-
-        // Act
-        var result = await _controller.PrintBatchAll(new BatchPrintAllRequest());
-
-        // Assert
-        var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
-        Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintBatchAll_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintBatchAllAsync(It.IsAny<BatchPrintAllRequest>()))
-            .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintBatchAll(new BatchPrintAllRequest());
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
-    }
-
-    [Fact]
-    public async Task PrintBatchSelected_ReturnsBadRequest_WhenModelInvalid()
-    {
-        // Arrange
-        AddModelError(_controller);
-
-        // Act
-        var result = await _controller.PrintBatchSelected(new BatchPrintSelectedRequest { Ids = Array.Empty<int>() });
-
-        // Assert
-        var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
-        Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintBatchSelected_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintBatchSelectedAsync(It.IsAny<int[]>(), It.IsAny<List<PrintColumnDef>>()))
-            .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintBatchSelected(new BatchPrintSelectedRequest { Ids = new[] { 1, 2 } });
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
-    }
-
-    [Fact]
-    public async Task PrintProcessCard_ReturnsBadRequest_WhenModelInvalid()
-    {
-        // Arrange
-        AddModelError(_controller);
-
-        // Act
-        var result = await _controller.PrintProcessCard(new ProcessCardPrintRequest());
-
-        // Assert
-        var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
-        Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintProcessCard_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintProcessCardAsync(It.IsAny<ProcessCardPrintRequest>()))
-            .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintProcessCard(new ProcessCardPrintRequest());
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
     }
 
     [Fact]

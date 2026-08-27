@@ -284,13 +284,15 @@
                                Color="Color.Default"
                                StartIcon="@Icons.Material.Filled.Print"
                                OnClick="PrintSelected" Class="ml-2">
-                        打印选中
+                        打印选中报告
                     </MudButton>
-                    <MudButton Variant="Variant.Text" Size="Size.Small"
-                               Color="Color.Default"
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Info"
                                StartIcon="@Icons.Material.Filled.Print"
-                               OnClick="PrintAll" Class="ml-2">
-                        打印全部
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintSelectedList" Class="ml-2">
+                        打印选中列表
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录

@@ -157,6 +157,15 @@ public class NcrController : ControllerBase
         return File(pdf, "application/pdf", $"NCR_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
     }
 
+    /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
+    [HttpPost("print-list-file")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
+    public async Task<IActionResult> PrintListFile([FromBody] NcrPrintListRequest request)
+    {
+        var pdfBytes = await _ncrService.PrintNcrListAsync(request.Title, request.Items, request.Columns);
+        return File(pdfBytes, "application/pdf", "不合格报告列表.pdf");
+    }
+
     /// <summary>打印全部 NCR（生成 PDF）</summary>
     [HttpPost("print-all-file")]
     [Authorize(Roles = Roles.Policies.QualityView)]

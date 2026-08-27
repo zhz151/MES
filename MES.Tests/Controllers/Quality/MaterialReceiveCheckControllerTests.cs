@@ -12,14 +12,12 @@ namespace MES.Tests.Controllers;
 public class MaterialReceiveCheckControllerTests : ControllerTestBase
 {
     private readonly Mock<IMaterialReceiveCheckService> _serviceMock;
-    private readonly Mock<ILogger<MaterialReceiveCheckController>> _loggerMock;
     private readonly MaterialReceiveCheckController _controller;
 
     public MaterialReceiveCheckControllerTests()
     {
         _serviceMock = new Mock<IMaterialReceiveCheckService>();
-        _loggerMock = CreateLoggerMock<MaterialReceiveCheckController>();
-        _controller = new MaterialReceiveCheckController(_serviceMock.Object, _loggerMock.Object);
+        _controller = new MaterialReceiveCheckController(_serviceMock.Object);
     }
 
     [Fact]
@@ -146,62 +144,6 @@ public class MaterialReceiveCheckControllerTests : ControllerTestBase
         // Assert
         var (_, response) = AssertOk<ApiResponse<List<MaterialReceiveCheckDto>>>(result);
         Assert.Single(response.Data!);
-    }
-
-    [Fact]
-    public async Task PrintMaterialCheckBatch_ReturnsBadRequest_WhenModelInvalid()
-    {
-        // Arrange
-        _controller.ModelState.AddModelError("Ids", "Required");
-
-        // Act
-        var result = await _controller.PrintMaterialCheckBatch(new MaterialCheckPrintBatchRequest());
-
-        // Assert
-        var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
-        Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintMaterialCheckBatch_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintMaterialCheckBatchAsync(It.IsAny<int[]>(), It.IsAny<List<PrintColumnDef>>()))
-            .ReturnsAsync(new byte[] { 1, 2, 3 });
-
-        // Act
-        var result = await _controller.PrintMaterialCheckBatch(new MaterialCheckPrintBatchRequest { Ids = new[] { 1 } });
-
-        // Assert
-        Assert.IsType<OkObjectResult>(result.Result);
-    }
-
-    [Fact]
-    public async Task PrintMaterialCheckAll_ReturnsBadRequest_WhenModelInvalid()
-    {
-        // Arrange
-        _controller.ModelState.AddModelError("Columns", "Required");
-
-        // Act
-        var result = await _controller.PrintMaterialCheckAll(new MaterialCheckPrintAllRequest());
-
-        // Assert
-        var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
-        Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintMaterialCheckAll_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintMaterialCheckAllAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<List<PrintColumnDef>>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<string?>()))
-            .ReturnsAsync(new byte[] { 1, 2, 3 });
-
-        // Act
-        var result = await _controller.PrintMaterialCheckAll(new MaterialCheckPrintAllRequest { Keyword = "BATCH" });
-
-        // Assert
-        Assert.IsType<OkObjectResult>(result.Result);
     }
 
     [Fact]

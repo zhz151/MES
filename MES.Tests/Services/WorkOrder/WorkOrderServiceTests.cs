@@ -7,6 +7,7 @@ using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.DTOs.Shared;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces.Configuration;
@@ -39,10 +40,7 @@ public class WorkOrderServiceTests : TestBase
     private WorkOrderService CreateService(AppDbContext ctx)
     {
         var loggerMock = new Mock<ILogger<WorkOrderService>>();
-        var configMock = new Mock<IConfigParameterService>();
-        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
-            .ReturnsAsync(new Dictionary<string, decimal>());
-        return new WorkOrderService(ctx, loggerMock.Object, configMock.Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
+        return new WorkOrderService(ctx, loggerMock.Object, new Mock<IOperationLogService>().Object, new MemoryCache(new MemoryCacheOptions()));
     }
 
     private async Task<(int OrderId, string OrderNo)> SeedConfirmedOrderAsync(AppDbContext ctx)
@@ -1032,5 +1030,30 @@ public class WorkOrderServiceTests : TestBase
         result.Should().ContainKeys("WorkOrderNo", "SalesOrderNo", "ProductionMainNo", "ProductionSubNo", "SignDate", "Salesman", "EndCustomer", "DeliveryDate", "PlantGrade", "Specification", "LatestPlanDate");
         foreach (var kvp in result)
             kvp.Value.Should().BeEmpty($"字段 {kvp.Key} 应返回空列表");
+    }
+
+    [Fact]
+    public async Task PrintWorkOrderListAsync_生成列表PDF()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var items = new List<Dictionary<string, object>>
+        {
+            new() { ["WorkOrderNo"] = "WO001", ["SalesOrderNo"] = "SO001", ["TotalWeight"] = "2000" },
+            new() { ["WorkOrderNo"] = "WO002", ["SalesOrderNo"] = "SO001", ["TotalWeight"] = "1500" }
+        };
+        var columns = new List<PrintColumnDef>
+        {
+            new() { Key = "WorkOrderNo", Label = "工单号" },
+            new() { Key = "SalesOrderNo", Label = "订单号" },
+            new() { Key = "TotalWeight", Label = "总重量" }
+        };
+
+        var bytes = await svc.PrintWorkOrderListAsync("工单列表", items, columns);
+
+        bytes.Should().NotBeNullOrEmpty();
+        // PDF 魔数 %PDF
+        System.Text.Encoding.ASCII.GetString(bytes.Take(4).ToArray()).Should().Be("%PDF");
     }
 }

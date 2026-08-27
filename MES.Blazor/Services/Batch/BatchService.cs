@@ -35,19 +35,6 @@ public class BatchService
         catch (Exception ex) { return ApiResponse<PagedResult<ProductionBatchListDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<List<ProductionBatchListDto>> GetAllBatchListAsync()
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<ProductionBatchListDto>>>($"{BaseUrl}/all-list");
-            return response?.Data ?? new List<ProductionBatchListDto>();
-        }
-        catch
-        {
-            return new List<ProductionBatchListDto>();
-        }
-    }
-
     public async Task<ApiResponse<ProductionBatchDetailDto>> GetByIdAsync(int id)
     {
         try
@@ -163,26 +150,6 @@ public class BatchService
                    ?? ApiResponse<List<ProcessGroupDto>>.Fail("获取工序组失败");
         }
         catch (Exception ex) { return ApiResponse<List<ProcessGroupDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<ProcessGroupDto>> AddProcessGroupAsync(int batchId, CreateProcessGroupRequest request)
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<CreateProcessGroupRequest, ApiResponse<ProcessGroupDto>>($"{BaseUrl}/{batchId}/records", request)
-                   ?? ApiResponse<ProcessGroupDto>.Fail("添加工序组失败");
-        }
-        catch (Exception ex) { return ApiResponse<ProcessGroupDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<object>> DeleteProcessGroupAsync(int recordId)
-    {
-        try
-        {
-            return await _http.DeleteFromJsonAsync<ApiResponse<object>>($"{BaseUrl}/records/{recordId}")
-                   ?? ApiResponse<object>.Fail("删除工序组失败");
-        }
-        catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
     }
 
     // ========== 复制上个工序组 ==========

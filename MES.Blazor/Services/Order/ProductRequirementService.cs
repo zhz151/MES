@@ -15,23 +15,6 @@ public class ProductRequirementService
     }
 
     /// <summary>
-    /// 根据订单项次ID获取产品要求
-    /// </summary>
-    public async Task<ApiResponse<ProductRequirementDto>> GetByOrderItemIdAsync(int orderId, int itemId)
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<ProductRequirementDto>>(
-                $"{ApiEndpoints.Order}/{orderId}/items/{itemId}/requirement");
-            return response ?? ApiResponse<ProductRequirementDto>.Fail("获取产品要求失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<ProductRequirementDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// 创建或更新产品要求
     /// </summary>
     public async Task<ApiResponse<ProductRequirementDto>> CreateOrUpdateAsync(

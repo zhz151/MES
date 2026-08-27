@@ -826,6 +826,45 @@ public class InventoryServiceTests : TestBase
     }
 
     [Fact]
+    public async Task UpdateInventoryBatchAsync_否到是_写入回填工单号订单号主号()
+    {
+        var ctx = CreateDbContext();
+        var wh = await SeedFgWarehouseAsync(ctx);
+        await SeedWorkOrderAsync(ctx, "D26Z1104002-X01-01", "SO2604002", "X01");
+        var svc = CreateService(ctx);
+
+        // 原批次未关联工单（关联工单=否）
+        var batch = await svc.InboundAsync(new CreateInboundRequest
+        {
+            WarehouseId = wh.Id,
+            MaterialType = MaterialType.OrderFinished,
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InboundSource = InboundSource.Purchase,
+            SourceName = "供应商A",
+            InitialQuantity = 10,
+            InitialWeight = 1000m,
+            InboundDate = DateTime.Today
+        });
+        batch.IsLinkedToWorkOrder.Should().BeFalse();
+
+        // 点击「关联工单=是」：按来源匹配回填的工单号+订单号+主号随请求保存
+        await svc.UpdateInventoryBatchAsync(batch.Id, new UpdateInventoryBatchRequest
+        {
+            IsLinkedToWorkOrder = true,
+            WorkOrderNo = "D26Z1104002-X01-01",
+            SalesOrderNo = "SO2604002",
+            ProductionMainNo = "X01"
+        });
+
+        var persisted = await ctx.InventoryBatches.AsNoTracking().SingleAsync();
+        persisted.IsLinkedToWorkOrder.Should().BeTrue();
+        persisted.WorkOrderNo.Should().Be("D26Z1104002-X01-01");
+        persisted.SalesOrderNo.Should().Be("SO2604002");
+        persisted.ProductionMainNo.Should().Be("X01");
+    }
+
+    [Fact]
     public async Task ValidateProductionBatchAsync_返回批次主号()
     {
         var ctx = CreateDbContext();

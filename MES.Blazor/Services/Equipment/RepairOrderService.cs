@@ -38,16 +38,6 @@ public class RepairOrderService
         catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<List<RepairOrderListDto>>> GetAllListAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<RepairOrderListDto>>>($"{BaseUrl}/all-list")
-                   ?? ApiResponse<List<RepairOrderListDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<RepairOrderListDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<RepairOrderListDto>> GetByIdAsync(int id)
     {
         try

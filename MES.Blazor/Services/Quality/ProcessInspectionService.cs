@@ -28,16 +28,6 @@ public class ProcessInspectionService
         catch (Exception ex) { return ApiResponse<PagedResult<ProcessInspectionDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<List<ProcessInspectionDto>>> GetAllListAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<ProcessInspectionDto>>>($"{BaseUrl}/all-list")
-                   ?? ApiResponse<List<ProcessInspectionDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<ProcessInspectionDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<List<ProcessInspectionDto>>> BatchCreateAsync(List<CreateProcessInspectionRequest> requests)
     {
         try

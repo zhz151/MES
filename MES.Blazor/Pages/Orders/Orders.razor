@@ -124,6 +124,7 @@
                             {
                                 @for (var i = 0; i < _deliveryEstimate.Tables.Count; i++)
                                 {
+                                    var tableIndex = i; // 捕获副本（for 循环变量被闭包共享，事件触发时读到结束值）
                                     var estimateTable = _deliveryEstimate.Tables[i];
                                     var tableId = $"order-delivery-estimate-{i}";
                                     <div class="mt-3">
@@ -149,9 +150,17 @@
                                             <tbody>
                                                 <tr>
                                                     <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">单数/重量</td>
-                                                    @foreach (var bucket in estimateTable.Buckets)
+                                                    @for (var bi = 0; bi < estimateTable.Buckets.Count; bi++)
                                                     {
-                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatDeliveryBucket(bucket)</td>
+                                                        var bucketIndex = bi; // 捕获副本（for 循环变量被闭包共享，事件触发时读到结束值）
+                                                        var bucket = estimateTable.Buckets[bi];
+                                                        var isClickable = bucket.Count > 0 || bucket.Weight > 0;
+                                                        var cellStyle = "padding:4px 10px; border:1px solid #e0e0e0; text-align:center;" + (isClickable ? " cursor:pointer;" : "");
+                                                        <td class="@(isClickable ? "estimate-cell" : "")"
+                                                            style="@cellStyle"
+                                                            @onclick="() => OnEstimateBucketClick(tableIndex, bucketIndex)">
+                                                            @FormatDeliveryBucket(bucket)
+                                                        </td>
                                                     }
                                                 </tr>
                                             </tbody>
@@ -163,6 +172,19 @@
                         }
                     </MudCardContent>
                 </MudCard>
+            }
+
+            <!-- 订单交期预估小表点击联动筛选提示条 -->
+            @if (_estimateLinkFilter != null)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-2" Dense="true">
+                    <div class="d-flex align-center justify-space-between" style="gap: 8px;">
+                        <MudText Class="d-inline">已按「@_estimateLinkLabel」联动筛选订单列表（共 @_totalCount 条）</MudText>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary" OnClick="ClearEstimateLinkFilter">
+                            清除筛选
+                        </MudButton>
+                    </div>
+                </MudAlert>
             }
 
             <!-- 筛选栏 -->
@@ -234,14 +256,15 @@
                                StartIcon="@Icons.Material.Filled.Print"
                                Disabled="@(!selectedOrderIds.Any())"
                                OnClick="PrintSelected">
-                        打印选中 (@selectedOrderIds.Count)
+                        打印选中订单 (@selectedOrderIds.Count)
                     </MudButton>
                     <MudButton Variant="Variant.Text"
                                Size="Size.Small"
                                Color="Color.Info"
                                StartIcon="@Icons.Material.Filled.Print"
-                               OnClick="PrintAll">
-                        打印全部
+                               Disabled="@(!selectedOrderIds.Any())"
+                               OnClick="PrintSelectedList">
+                        打印选中列表
                     </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录

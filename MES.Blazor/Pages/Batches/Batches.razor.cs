@@ -31,14 +31,11 @@ public partial class Batches
     private List<DefectRateBatchDto> _defectRateAlerts = new();
     private List<ForcedCompletedInspectionBatchDto> _forcedCompletedInspectionBatches = new();
     private CancellationTokenSource? _pollingCts;
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -1054,6 +1051,15 @@ public partial class Batches
             Snackbar.Add("请先选择要打印的批次", Severity.Warning);
             return;
         }
+
+        // 列过多时各列被压缩到单字符放不下的宽度 → QuestPDF 布局冲突；A4 可显示列数上限 35 列（与后端 TablePrintHelper.MaxPrintColumns 同步），超限提前拦截并页面内警示
+        const int MaxPrintColumns = 35;
+        if (_visibleColumns.Count > MaxPrintColumns)
+        {
+            Snackbar.Add($"当前可见列过多（{_visibleColumns.Count} 列，打印上限 {MaxPrintColumns} 列），请通过列显隐精简后再打印", Severity.Warning);
+            return;
+        }
+
         try
         {
             var ids = selectedIds.ToArray();
@@ -1063,28 +1069,6 @@ public partial class Batches
                 Columns = GetPrintColumnDefs()
             };
             var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Batch}/print-selected-file";
-            var json = JsonSerializer.Serialize(request);
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task PrintAll()
-    {
-        try
-        {
-            var request = new BatchPrintAllRequest
-            {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                StartDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
-                StartDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
-                Columns = GetPrintColumnDefs()
-            };
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Batch}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);

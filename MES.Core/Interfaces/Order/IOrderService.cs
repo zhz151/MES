@@ -2,6 +2,7 @@ using MES.Core.Models;
 using MES.Core.Enums;
 
 using MES.Core.DTOs.Order;
+using MES.Core.DTOs.Shared;
 namespace MES.Core.Interfaces.Order;
 
 /// <summary>
@@ -14,7 +15,7 @@ public interface IOrderService
     /// <summary>
     /// 分页查询订单列表（支持技术要求状态和订单状态筛选）
     /// </summary>
-    Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, string? technicalStatus = null, string? orderStatus = null, DateTime? signDateFrom = null, DateTime? signDateTo = null, DateTime? deliveryDateFrom = null, DateTime? deliveryDateTo = null);
+    Task<PagedResult<SalesOrderListDto>> GetPagedAsync(QueryParams query, string? technicalStatus = null, string? orderStatus = null, DateTime? signDateFrom = null, DateTime? signDateTo = null, DateTime? deliveryDateFrom = null, DateTime? deliveryDateTo = null, OrderDeliveryEstimateFilterDto? estimateFilter = null);
 
     /// <summary>
     /// 根据ID获取订单详情
@@ -94,6 +95,11 @@ public interface IOrderService
     /// 按筛选条件打印全部订单PDF
     /// </summary>
     Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom = null, DateTime? signDateTo = null, DateTime? deliveryDateFrom = null, DateTime? deliveryDateTo = null);
+
+    /// <summary>
+    /// 打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）
+    /// </summary>
+    Task<byte[]> PrintOrderListAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns);
 
     /// <summary>
     /// 打印订单技术要求PDF

@@ -150,16 +150,4 @@ public class StandardRegisterService
         }
     }
 
-    public async Task<ApiResponse<int>> CleanupOrphanedItemsAsync()
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<object?, ApiResponse<int>>($"{BaseUrl}/cleanup-orphaned-items", null)
-                   ?? ApiResponse<int>.Fail("清理失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<int>.Fail($"网络错误: {ex.Message}");
-        }
-    }
 }

@@ -35,16 +35,6 @@ public class EquipmentService
         catch (Exception ex) { return ApiResponse<PagedResult<EquipmentListDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<List<EquipmentListDto>>> GetAllListAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<EquipmentListDto>>>($"{BaseUrl}/all-list")
-                   ?? ApiResponse<List<EquipmentListDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<EquipmentListDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
     {
         try

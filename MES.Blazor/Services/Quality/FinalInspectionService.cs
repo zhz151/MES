@@ -64,16 +64,6 @@ public class FinalInspectionService
         catch (Exception ex) { return ApiResponse<List<FinalInspectionMonthlySummaryRowDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<List<FinalInspectionDto>>> GetAllListAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<FinalInspectionDto>>>($"{BaseUrl}/all-list")
-                   ?? ApiResponse<List<FinalInspectionDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<FinalInspectionDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<FinalInspectionDto>> GetByIdAsync(int id)
     {
         try

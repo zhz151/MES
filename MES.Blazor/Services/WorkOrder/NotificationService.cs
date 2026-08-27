@@ -18,22 +18,6 @@ public class NotificationService
     }
 
     /// <summary>
-    /// 获取未读通知数量
-    /// </summary>
-    public async Task<ApiResponse<int>> GetUnreadCountAsync()
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<int>>($"{BaseUrl}/unread-count");
-            return response ?? ApiResponse<int>.Fail("获取未读数量失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<int>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// 分页获取通知列表
     /// </summary>
     public async Task<ApiResponse<PagedResult<NotificationDto>>> GetPagedAsync(int pageIndex, int pageSize)
@@ -58,22 +42,6 @@ public class NotificationService
         try
         {
             var response = await _http.PostAsJsonAsync<object, ApiResponse<object>>($"{BaseUrl}/{id}/read", new { });
-            return response ?? ApiResponse<object>.Fail("标记失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 标记所有通知为已读
-    /// </summary>
-    public async Task<ApiResponse<object>> MarkAllAsReadAsync()
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<object, ApiResponse<object>>($"{BaseUrl}/read-all", new { });
             return response ?? ApiResponse<object>.Fail("标记失败");
         }
         catch (Exception ex)

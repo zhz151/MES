@@ -8,6 +8,7 @@
 @using Microsoft.AspNetCore.Authorization
 @inject WorkOrderService WorkOrderService
 @inject MaterialPlanService MaterialPlanService
+@inject RawMaterialLockPlanAndExecutionService RawMaterialLockPlanService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -26,6 +27,20 @@
                 </div>
             </CardHeaderContent>
             <CardHeaderActions>
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           Color="@(_showSummaryCard ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showSummaryCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleSummaryCard">
+                    待投料量汇总
+                </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           Color="@(_showErrorDoubtCard ? Color.Error : Color.Default)"
+                           StartIcon="@(_showErrorDoubtCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleErrorDoubtCard" Class="ml-2">
+                    工单原锁-错疑投料
+                </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
 
@@ -34,6 +49,402 @@
             @if (!string.IsNullOrEmpty(errorMessage))
             {
                 <MudText Typo="Typo.body2" Color="Color.Error" Class="mb-4">@errorMessage</MudText>
+            }
+
+            <!-- 待投料量汇总卡片（默认折叠，标题栏「待投料量汇总」按钮切换显隐，数据复用原锁计划） -->
+            @if (_showSummaryCard)
+            {
+                <MudCard Class="mb-3 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_pendingSummary == null)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">@(_summaryLoading ? "正在加载..." : "数据加载失败")</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2"><b>待投料量汇总</b></MudText>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintSummaryTable">
+                                    打印
+                                </MudButton>
+                            </div>
+                            <MudGrid>
+                                <MudItem xs="12">
+                                    <div class="d-flex flex-wrap" style="gap: 16px; align-items: center;">
+                                        <MudText Typo="Typo.body2" Class="font-weight-bold text-brand" Style="min-width: 140px;">
+                                            <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
+                                            工单总数: @_pendingSummary.TotalOrderCount 批
+                                        </MudText>
+                                        <MudDivider Vertical="true" />
+                                        <MudText Typo="Typo.body2" Class="text-warning-orange" Style="min-width: 120px;">
+                                            <MudIcon Icon="@Icons.Material.Filled.HourglassEmpty" Size="Size.Small" Color="Color.Warning" Class="mr-1" />
+                                            待投料: @((_pendingSummary.PendingWeight / 1000m).ToString("F1"))t
+                                            @if (_pendingSummary.HasPurchaseData)
+                                            {
+                                                <text> + {成购：@((_pendingSummary.PurchaseWeight / 1000m).ToString("F1"))t}</text>
+                                            }
+                                        </MudText>
+                                    </div>
+                                </MudItem>
+                                <MudItem xs="12" Class="mt-2">
+                                    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                                        @* 待投料矩阵：行=原料锁定备注，列=主号计划性；点击行/列/单元格联动筛选下方工单列表（严格限定原料锁定） *@
+                                        <div id="mpol-summary-pending" style="flex:1; min-width:340px;">
+                                            <div style="font-weight:600; color:#E65100; margin-bottom:4px;">待投料</div>
+                                            <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="text-align:left; padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0;">备注 \ 计划性</th>
+                                                        @for (var ci = 0; ci < _pendingSummary.MatrixColumnLabels.Count; ci++)
+                                                        {
+                                                            var ciCopy = ci;
+                                                            var colClickable = _pendingSummary.MatrixColumnTotals[ci].Count > 0;
+                                                            <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;@(colClickable ? " cursor:pointer;" : "")"
+                                                                class="@(colClickable ? "estimate-cell" : "")"
+                                                                @onclick="() => OnMatrixColumnClick(ciCopy)">@_pendingSummary.MatrixColumnLabels[ci]</th>
+                                                        }
+                                                        <th style="padding:4px 10px; background:#eef3fa; border:1px solid #e0e0e0; text-align:center;">合计</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @for (var ri = 0; ri < _pendingSummary.MatrixRowLabels.Count; ri++)
+                                                    {
+                                                        var riCopy = ri;
+                                                        var row = _pendingSummary.MatrixRows[ri];
+                                                        var rowClickable = row.RowCount > 0;
+                                                        <tr>
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;@(rowClickable ? " cursor:pointer;" : "")"
+                                                                class="@(rowClickable ? "estimate-cell" : "")"
+                                                                @onclick="() => OnMatrixRowClick(riCopy)">@_pendingSummary.MatrixRowLabels[ri]</td>
+                                                            @for (var ci = 0; ci < row.Cells.Count; ci++)
+                                                            {
+                                                                var ciCopy = ci;
+                                                                var c = row.Cells[ci];
+                                                                var cellClickable = c.Count > 0 || c.PendingWeight > 0;
+                                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;@(cellClickable ? " cursor:pointer;" : "")"
+                                                                    class="@(cellClickable ? "estimate-cell" : "")"
+                                                                    @onclick="() => OnMatrixCellClick(riCopy, ciCopy)">@FormatMatrixPending(c.Count, c.PendingWeight)</td>
+                                                            }
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#f0f7f0; font-weight:600;@(rowClickable ? " cursor:pointer;" : "")"
+                                                                class="@(rowClickable ? "estimate-cell" : "")"
+                                                                @onclick="() => OnMatrixRowClick(riCopy)">@FormatMatrixPending(row.RowCount, row.RowPendingWeight)</td>
+                                                        </tr>
+                                                    }
+                                                    <tr>
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600; background:#eef3fa;">合计</td>
+                                                        @for (var ci = 0; ci < _pendingSummary.MatrixColumnTotals.Count; ci++)
+                                                        {
+                                                            var ciCopy = ci;
+                                                            var col = _pendingSummary.MatrixColumnTotals[ci];
+                                                            var colClickable = col.Count > 0;
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#eef3fa; font-weight:600;@(colClickable ? " cursor:pointer;" : "")"
+                                                                class="@(colClickable ? "estimate-cell" : "")"
+                                                                @onclick="() => OnMatrixColumnClick(ciCopy)">@FormatMatrixPending(col.Count, col.PendingWeight)</td>
+                                                        }
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#e8f0e8; font-weight:700;">@FormatMatrixPending(_pendingSummary.MatrixGrandTotals.Count, _pendingSummary.MatrixGrandTotals.PendingWeight)</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        @* 成购矩阵：仅当有外购成品未到时显示；点击同待投料矩阵（共用备注/计划性联动筛选） *@
+                                        @if (_pendingSummary.HasPurchaseData)
+                                        {
+                                            <div id="mpol-summary-purchase" style="flex:1; min-width:340px;">
+                                                <div style="font-weight:600; color:#1565C0; margin-bottom:4px;">成购（外购成品）</div>
+                                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                                    <thead>
+                                                        <tr>
+                                                            <th style="text-align:left; padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0;">备注 \ 计划性</th>
+                                                            @for (var ci = 0; ci < _pendingSummary.MatrixColumnLabels.Count; ci++)
+                                                            {
+                                                                var ciCopy = ci;
+                                                                var colClickable = _pendingSummary.MatrixColumnTotals[ci].PurchaseCount > 0;
+                                                                <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;@(colClickable ? " cursor:pointer;" : "")"
+                                                                    class="@(colClickable ? "estimate-cell" : "")"
+                                                                    @onclick="() => OnPurchaseMatrixColumnClick(ciCopy)">@_pendingSummary.MatrixColumnLabels[ci]</th>
+                                                            }
+                                                            <th style="padding:4px 10px; background:#eef3fa; border:1px solid #e0e0e0; text-align:center;">合计</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @for (var ri = 0; ri < _pendingSummary.MatrixRowLabels.Count; ri++)
+                                                        {
+                                                            var riCopy = ri;
+                                                            var row = _pendingSummary.MatrixRows[ri];
+                                                            var rowClickable = row.RowPurchaseCount > 0;
+                                                            <tr>
+                                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;@(rowClickable ? " cursor:pointer;" : "")"
+                                                                    class="@(rowClickable ? "estimate-cell" : "")"
+                                                                    @onclick="() => OnPurchaseMatrixRowClick(riCopy)">@_pendingSummary.MatrixRowLabels[ri]</td>
+                                                                @for (var ci = 0; ci < row.Cells.Count; ci++)
+                                                                {
+                                                                    var ciCopy = ci;
+                                                                    var c = row.Cells[ci];
+                                                                    var cellClickable = c.PurchaseCount > 0 || c.PurchaseWeight > 0;
+                                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;@(cellClickable ? " cursor:pointer;" : "")"
+                                                                        class="@(cellClickable ? "estimate-cell" : "")"
+                                                                        @onclick="() => OnPurchaseMatrixCellClick(riCopy, ciCopy)">@FormatMatrixPurchase(c.PurchaseCount, c.PurchaseWeight)</td>
+                                                                }
+                                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#f0f7f0; font-weight:600;@(rowClickable ? " cursor:pointer;" : "")"
+                                                                    class="@(rowClickable ? "estimate-cell" : "")"
+                                                                    @onclick="() => OnPurchaseMatrixRowClick(riCopy)">@FormatMatrixPurchase(row.RowPurchaseCount, row.RowPurchaseWeight)</td>
+                                                            </tr>
+                                                        }
+                                                        <tr>
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600; background:#eef3fa;">合计</td>
+                                                            @for (var ci = 0; ci < _pendingSummary.MatrixColumnTotals.Count; ci++)
+                                                            {
+                                                                var ciCopy = ci;
+                                                                var col = _pendingSummary.MatrixColumnTotals[ci];
+                                                                var colClickable = col.PurchaseCount > 0;
+                                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#eef3fa; font-weight:600;@(colClickable ? " cursor:pointer;" : "")"
+                                                                    class="@(colClickable ? "estimate-cell" : "")"
+                                                                    @onclick="() => OnPurchaseMatrixColumnClick(ciCopy)">@FormatMatrixPurchase(col.PurchaseCount, col.PurchaseWeight)</td>
+                                                            }
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#e8f0e8; font-weight:700;">@FormatMatrixPurchase(_pendingSummary.MatrixGrandTotals.PurchaseCount, _pendingSummary.MatrixGrandTotals.PurchaseWeight)</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        }
+                                    </div>
+                                </MudItem>
+                            </MudGrid>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            <!-- 工单原锁-错疑投料卡片（默认折叠，标题栏「工单原锁-错疑投料」按钮切换显隐；数据来自工单执行状况读模型，仅主号-关注=2 原料锁定 且 到料实投一致性∈{2,3,4,5} 的工单） -->
+            @if (_showErrorDoubtCard)
+            {
+                <MudCard Class="mb-3 summary-card" Elevation="0">
+                    <MudCardContent>
+                        @if (_errorDoubtItems == null)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">@(_errorDoubtLoading ? "正在加载..." : "数据加载失败")</MudText>
+                        }
+                        else if (_errorDoubtItems.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">暂无原料锁定工单的错疑投料数据</MudText>
+                        }
+                        else
+                        {
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle2">
+                                    <b>工单原锁-错疑投料</b>
+                                </MudText>
+                                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintErrorDoubtTable">
+                                    打印
+                                </MudButton>
+                            </div>
+                            <MudTable Items="_errorDoubtVisibleItems" Dense="true" Hover="true" Elevation="0" Class="auto-table"
+                                      Striped="true" Style="font-size: 0.8125rem;" id="mpol-error-doubt-table">
+                                <HeaderContent>
+                                    <MudTh Style="text-align:center">
+                                        <div class="col-header-cell">
+                                            <span @onclick='() => ToggleErrorDoubtSort("WorkOrderNo")' style="cursor:pointer">工单号</span>
+                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="工单号" FieldKey="WorkOrderNo"
+                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
+                                                         DisplaySelector="@(x => x.WorkOrderNo)" RawValueSelector="@(x => x.WorkOrderNo)"
+                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("WorkOrderNo"))"
+                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
+                                        </div>
+                                    </MudTh>
+                                    <MudTh Style="text-align:center">
+                                        <div class="col-header-cell">
+                                            <span @onclick='() => ToggleErrorDoubtSort("SalesOrderNo")' style="cursor:pointer">订单号</span>
+                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="订单号" FieldKey="SalesOrderNo"
+                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
+                                                         DisplaySelector="@(x => x.SalesOrderNo)" RawValueSelector="@(x => x.SalesOrderNo)"
+                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("SalesOrderNo"))"
+                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
+                                        </div>
+                                    </MudTh>
+                                    <MudTh Style="text-align:center">
+                                        <div class="col-header-cell">
+                                            <span @onclick='() => ToggleErrorDoubtSort("ProductionMainNo")' style="cursor:pointer">主号</span>
+                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="主号" FieldKey="ProductionMainNo"
+                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
+                                                         DisplaySelector="@(x => x.ProductionMainNo)" RawValueSelector="@(x => x.ProductionMainNo)"
+                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("ProductionMainNo"))"
+                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
+                                        </div>
+                                    </MudTh>
+                                    <MudTh Style="text-align:center">
+                                        <div class="col-header-cell">
+                                            <span @onclick='() => ToggleErrorDoubtSort("PlantGrade")' style="cursor:pointer">工厂牌号</span>
+                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="工厂牌号" FieldKey="PlantGrade"
+                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
+                                                         DisplaySelector="@(x => x.PlantGrade)" RawValueSelector="@(x => x.PlantGrade)"
+                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("PlantGrade"))"
+                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
+                                        </div>
+                                    </MudTh>
+                                    <MudTh Style="text-align:center">
+                                        <div class="col-header-cell">
+                                            <span @onclick='() => ToggleErrorDoubtSort("Specification")' style="cursor:pointer">规格</span>
+                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="规格" FieldKey="Specification"
+                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
+                                                         DisplaySelector="@(x => x.Specification)" RawValueSelector="@(x => x.Specification)"
+                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("Specification"))"
+                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
+                                        </div>
+                                    </MudTh>
+                                    <MudTh Style="text-align:center">
+                                        <div class="col-header-cell">
+                                            <span @onclick='() => ToggleErrorDoubtSort("TotalWeight")' style="cursor:pointer">总重量</span>
+                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="总重量" FieldKey="TotalWeight"
+                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
+                                                         DisplaySelector="@(x => ((int)x.TotalWeight).ToString("G29"))" RawValueSelector="@(x => ((int)x.TotalWeight).ToString("G29"))"
+                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("TotalWeight"))"
+                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
+                                        </div>
+                                    </MudTh>
+                                    <MudTh Style="text-align:center">
+                                        <div class="col-header-cell">
+                                            <span @onclick='() => ToggleErrorDoubtSort("TotalPlanWeight")' style="cursor:pointer">计划投料总重</span>
+                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="计划投料总重" FieldKey="TotalPlanWeight"
+                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
+                                                         DisplaySelector="@(x => ((int)x.TotalPlanWeight).ToString("G29"))" RawValueSelector="@(x => ((int)x.TotalPlanWeight).ToString("G29"))"
+                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("TotalPlanWeight"))"
+                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
+                                        </div>
+                                    </MudTh>
+                                    <MudTh Style="text-align:center">
+                                        <div class="col-header-cell">
+                                            <span @onclick='() => ToggleErrorDoubtSort("CutoffArrivalDate")' style="cursor:pointer">截止到料日</span>
+                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="截止到料日" FieldKey="CutoffArrivalDate"
+                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
+                                                         DisplaySelector="@(x => x.CutoffArrivalDate?.ToString("yyyy-MM-dd"))" RawValueSelector="@(x => x.CutoffArrivalDate?.ToString("yyyy-MM-dd"))"
+                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("CutoffArrivalDate"))"
+                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
+                                        </div>
+                                    </MudTh>
+                                    <MudTh Style="text-align:center">
+                                        <div class="col-header-cell">
+                                            <span @onclick='() => ToggleErrorDoubtSort("TotalAvailableWeight")' style="cursor:pointer">可投料总重</span>
+                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="可投料总重" FieldKey="TotalAvailableWeight"
+                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
+                                                         DisplaySelector="@(x => ((int)x.TotalAvailableWeight).ToString("G29"))" RawValueSelector="@(x => ((int)x.TotalAvailableWeight).ToString("G29"))"
+                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("TotalAvailableWeight"))"
+                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
+                                        </div>
+                                    </MudTh>
+                                    <MudTh Style="text-align:center">
+                                        <div class="col-header-cell">
+                                            <span @onclick='() => ToggleErrorDoubtSort("ActualInputWeight")' style="cursor:pointer">实际已投料量</span>
+                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="实际已投料量" FieldKey="ActualInputWeight"
+                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
+                                                         DisplaySelector="@(x => ((int)x.ActualInputWeight).ToString("G29"))" RawValueSelector="@(x => ((int)x.ActualInputWeight).ToString("G29"))"
+                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("ActualInputWeight"))"
+                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
+                                        </div>
+                                    </MudTh>
+                                    <MudTh Style="text-align:center">
+                                        <div class="col-header-cell">
+                                            <span @onclick='() => ToggleErrorDoubtSort("PlanInputConsistency")' style="cursor:pointer">到料实投一致性</span>
+                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="到料实投一致性" FieldKey="PlanInputConsistency"
+                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
+                                                         DisplaySelector="@(x => IntStatusDisplayHelper.GetPlanInputConsistencyText(x.PlanInputConsistency))" RawValueSelector="@(x => x.PlanInputConsistency.ToString())"
+                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("PlanInputConsistency"))"
+                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
+                                        </div>
+                                    </MudTh>
+                                    <MudTh Style="text-align:center">
+                                        <div class="col-header-cell">
+                                            <span @onclick='() => ToggleErrorDoubtSort("TotalMissingWeight")' style="cursor:pointer">理论原料未至</span>
+                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="理论原料未至" FieldKey="TotalMissingWeight"
+                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
+                                                         DisplaySelector="@(x => ((int)x.TotalMissingWeight).ToString("G29"))" RawValueSelector="@(x => ((int)x.TotalMissingWeight).ToString("G29"))"
+                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("TotalMissingWeight"))"
+                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
+                                        </div>
+                                    </MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd Style="text-align:center">@context.WorkOrderNo</MudTd>
+                                    <MudTd Style="text-align:center">@context.SalesOrderNo</MudTd>
+                                    <MudTd Style="text-align:center">@context.ProductionMainNo</MudTd>
+                                    <MudTd Style="text-align:center">@context.PlantGrade</MudTd>
+                                    <MudTd Style="text-align:center">@context.Specification</MudTd>
+                                    <MudTd Style="text-align:center">@FormatErrorDoubtWeight(context.TotalWeight)</MudTd>
+                                    <MudTd Style="text-align:center">@FormatErrorDoubtWeight(context.TotalPlanWeight)</MudTd>
+                                    <MudTd Style="text-align:center">@(context.CutoffArrivalDate?.ToString("yyyy-MM-dd") ?? "-")</MudTd>
+                                    <MudTd Style="text-align:center">@FormatErrorDoubtWeight(context.TotalAvailableWeight)</MudTd>
+                                    <MudTd Style="text-align:center">@FormatErrorDoubtWeight(context.ActualInputWeight)</MudTd>
+                                    <MudTd Style="text-align:center">
+                                        <MudChip Size="Size.Small"
+                                                  Color="@GetErrorDoubtConsistencyColor(context.PlanInputConsistency)"
+                                                  Variant="Variant.Outlined">
+                                            @IntStatusDisplayHelper.GetPlanInputConsistencyText(context.PlanInputConsistency)
+                                        </MudChip>
+                                    </MudTd>
+                                    <MudTd Style="text-align:center">@FormatErrorDoubtWeight(context.TotalMissingWeight)</MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                            <div class="d-flex justify-space-between align-center mt-2">
+                                <MudText Typo="Typo.body2" Class="text-hint">共 @_errorDoubtSortedFiltered.Count 条</MudText>
+                                <div class="d-flex align-center" style="gap:6px;">
+                                    <MudText Typo="Typo.body2">每页行数</MudText>
+                                    <MudSelect T="int" Value="_errorDoubtDisplayCount" ValueChanged="@(v => _errorDoubtDisplayCount = v)"
+                                               Dense="true" Margin="Margin.Dense" Style="width:90px;">
+                                        @foreach (var n in _errorDoubtDisplayOptions)
+                                        {
+                                            <MudSelectItem T="int" Value="@n">@n</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </div>
+                            </div>
+                            @* 隐藏完整打印表：绑定排序+筛选后全部行，打印按筛选数据输出（不受显示行数截断影响） *@
+                            <div style="display:none" id="mpol-error-doubt-print-table">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>工单号</th><th>订单号</th><th>主号</th><th>工厂牌号</th><th>规格</th>
+                                            <th>总重量</th><th>计划投料总重</th><th>截止到料日</th><th>可投料总重</th><th>实际已投料量</th>
+                                            <th>到料实投一致性</th><th>理论原料未至</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var item in _errorDoubtSortedFiltered)
+                                        {
+                                            <tr>
+                                                <td>@item.WorkOrderNo</td>
+                                                <td>@item.SalesOrderNo</td>
+                                                <td>@item.ProductionMainNo</td>
+                                                <td>@item.PlantGrade</td>
+                                                <td>@item.Specification</td>
+                                                <td>@FormatErrorDoubtWeight(item.TotalWeight)</td>
+                                                <td>@FormatErrorDoubtWeight(item.TotalPlanWeight)</td>
+                                                <td>@(item.CutoffArrivalDate?.ToString("yyyy-MM-dd") ?? "-")</td>
+                                                <td>@FormatErrorDoubtWeight(item.TotalAvailableWeight)</td>
+                                                <td>@FormatErrorDoubtWeight(item.ActualInputWeight)</td>
+                                                <td>@IntStatusDisplayHelper.GetPlanInputConsistencyText(item.PlanInputConsistency)</td>
+                                                <td>@FormatErrorDoubtWeight(item.TotalMissingWeight)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            <!-- 卡片点击联动筛选提示条（仿订单首页小表点击） -->
+            @if (_linkFilter != null)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-2" Dense="true">
+                    <div class="d-flex align-center justify-space-between" style="gap: 8px;">
+                        <MudText Class="d-inline">已按「@_linkLabel」联动筛选工单列表（共 @_totalCount 条）</MudText>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary" OnClick="ClearLinkFilter">
+                            清除筛选
+                        </MudButton>
+                    </div>
+                </MudAlert>
             }
 
             <!-- 筛选栏 -->
@@ -107,9 +518,17 @@
                                Size="Size.Small"
                                Color="Color.Info"
                                StartIcon="@Icons.Material.Filled.Print"
+                               Disabled="@(!selectedWorkOrderIds.Any())"
+                               OnClick="PrintSelectedList">
+                        打印选中列表
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
                                Disabled="@(!selectedWorkOrderIds.Any() || !anyPlanTypeSelected)"
-                               OnClick="PrintSelectedPlans">
-                        打印选中 (@selectedWorkOrderIds.Count)
+                               OnClick="PrintSelectedPlans" Class="ml-2">
+                        打印选中计划 (@selectedWorkOrderIds.Count)
                     </MudButton>
                     <MudCheckBox T="bool" Value="@includePiercing" ValueChanged="@((bool v) => OnPlanTypeFilterChangedAsync(v, 5))" Dense="true" Class="ml-2" />
                     <MudText Typo="Typo.body2" Class="mr-3">圆棒穿孔</MudText>
@@ -155,7 +574,7 @@
                         int? _prevGk = null;
                     }
                     <MudTh Style="width: 40px;">
-                        <MudCheckBox T="bool" Value="@_allSelected" ValueChanged="@((v) => { _allSelected = v; if (v) { selectedWorkOrderIds.Clear(); foreach (var i in _pageItems) selectedWorkOrderIds.Add(i.Id); } else { selectedWorkOrderIds.Clear(); } StateHasChanged(); })" Dense="true" />
+                        <MudCheckBox T="bool" Value="@allSelected" ValueChanged="@((v) => { if (v) { foreach (var i in _pageItems) selectedWorkOrderIds.Add(i.Id); } else { selectedWorkOrderIds.Clear(); } StateHasChanged(); })" Dense="true" />
                     </MudTh>
                     @foreach (var col in _visibleColumns)
                     {

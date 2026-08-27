@@ -25,14 +25,11 @@ public partial class ProductionRecords
     private int _pageSize = 10;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -762,17 +759,6 @@ public partial class ProductionRecords
 
     // ========== 单元格渲染 ==========
 
-    private bool IsCellEditable(string key) => key switch
-    {
-        "ExecDate" or "EquipmentName" or "Operator" or "Shift"
-            or "Quantity" or "Weight"
-            or "SolutionTemperature" or "SoakTime"
-            or "FaceCutCount"
-            or "CuttingMultiple" or "FinishedCutLength"
-            or "PostCutQuantity" or "TagNo" or "PlantGrade" or "Remark" => true,
-        _ => false
-    };
-
     private RenderFragment RenderCell(ProductionRecordDto item, ColumnDef col) => builder =>
     {
         var isEditing = _editingIds.Contains(item.Id);
@@ -1137,33 +1123,6 @@ public partial class ProductionRecords
             var cols = GetPrintColumnDefs();
             var request = new ProductionRecordPrintBatchRequest { Ids = ids, Columns = cols };
             var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.ProductionRecord}/print-batch-file";
-            var json = JsonSerializer.Serialize(request);
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    private async Task PrintAll()
-    {
-        try
-        {
-            var cols = GetPrintColumnDefs();
-            var sortCol = _allColumns.FirstOrDefault(c => c.Key == sortColumn);
-            var sortBy = sortCol?.SortKey ?? sortColumn ?? "createdtime";
-            var request = new ProductionRecordPrintAllRequest
-            {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortBy,
-                IsDescending = sortDescending,
-                ExecDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
-                ExecDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
-                Columns = cols
-            };
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.ProductionRecord}/print-all-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);

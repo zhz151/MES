@@ -22,16 +22,6 @@ public class FurnaceRegistrationService
         catch (Exception ex) { return ApiResponse<FurnaceRegistrationDto>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<List<FurnaceRegistrationDto>>> GetAllListAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<FurnaceRegistrationDto>>>($"{BaseUrl}/all-list")
-                   ?? ApiResponse<List<FurnaceRegistrationDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<FurnaceRegistrationDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<PagedResult<FurnaceRegistrationDto>>> GetAllAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, DateTime? incomingDateFrom = null, DateTime? incomingDateTo = null, string? filters = null)
     {
         try

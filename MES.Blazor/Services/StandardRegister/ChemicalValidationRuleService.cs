@@ -56,27 +56,6 @@ public class ChemicalValidationRuleService
         catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<List<ChemicalValidationRuleDto>>> GetAllListAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<ChemicalValidationRuleDto>>>($"{BaseUrl}/all-list")
-                   ?? ApiResponse<List<ChemicalValidationRuleDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<ChemicalValidationRuleDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<ChemicalValidationRuleDto?>> GetByPlantGradeAsync(string plantGrade)
-    {
-        try
-        {
-            var url = $"{BaseUrl}/by-plant-grade?plantGrade={Uri.EscapeDataString(plantGrade)}";
-            return await _http.GetFromJsonAsync<ApiResponse<ChemicalValidationRuleDto?>>(url)
-                   ?? ApiResponse<ChemicalValidationRuleDto?>.Fail("获取验证规则失败");
-        }
-        catch (Exception ex) { return ApiResponse<ChemicalValidationRuleDto?>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
     {
         try

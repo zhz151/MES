@@ -97,13 +97,4 @@ public class CertificateService
         catch (Exception ex) { return ApiResponse<List<CertificateItemDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<string>> GetNextCertificateNoAsync(string orderNo)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<string>>($"{BaseUrl}/next-no?orderNo={Uri.EscapeDataString(orderNo)}")
-                   ?? ApiResponse<string>.Fail("获取编号失败");
-        }
-        catch (Exception ex) { return ApiResponse<string>.Fail($"网络错误: {ex.Message}"); }
-    }
 }

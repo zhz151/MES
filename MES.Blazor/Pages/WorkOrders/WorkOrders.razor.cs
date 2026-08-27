@@ -12,6 +12,7 @@ using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Shared.Constants;
 using MES.Core.DTOs.WorkOrder;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.WorkOrders;
@@ -67,6 +68,12 @@ public partial class WorkOrders : IAsyncDisposable
         }
     }
     private HashSet<string> selectedSalesOrderNos = new();
+
+    /// <summary>按当前页实际选中状态重算全选复选框（单选/翻页/筛选后保持视觉一致）</summary>
+    private void UpdateAllSelectedState()
+    {
+        _allSelected = _pageItems.Any() && _pageItems.All(i => selectedSalesOrderNos.Contains(i.SalesOrderNo));
+    }
 
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
@@ -217,6 +224,7 @@ public partial class WorkOrders : IAsyncDisposable
         }
 
         ComputePageSums();
+        UpdateAllSelectedState();
         await SavePageStateAsync();
 
         return new TableData<WorkOrderListItemDto>
@@ -709,28 +717,6 @@ public partial class WorkOrders : IAsyncDisposable
         }
     }
 
-    // ========== 状态筛选 ==========
-
-    private async Task FilterByStatus(string status)
-    {
-        _columnFilters["Status"] = new HashSet<string> { status };
-        await SavePageStateAsync();
-        if (table != null) await table.ReloadServerData();
-    }
-
-    // ========== 颜色 ==========
-
-    private Color GetStatusColor(int status)
-    {
-        return status switch
-        {
-            0 => Color.Default,
-            1 => Color.Success,
-            2 => Color.Warning,
-            _ => Color.Default
-        };
-    }
-
     // ========== 导航 ==========
 
     private void NavigateToGenerate(string salesOrderNo, string status)
@@ -751,38 +737,6 @@ public partial class WorkOrders : IAsyncDisposable
     private void NavigateToTrace(string salesOrderNo)
     {
         Navigation.NavigateTo($"/workorders/relation?salesOrderNo={Uri.EscapeDataString(salesOrderNo)}");
-    }
-
-    // ========== 软删除 ==========
-
-    private async Task SoftDeleteWorkOrder(int workOrderId, string orderNumber)
-    {
-        var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
-        {
-            ["ContentText"] = $"确定要删除订单 \"{orderNumber}\" 关联的工单吗？\n\n删除后数据将不可恢复！",
-            ["ConfirmText"] = "确认删除",
-            ["Color"] = Color.Error
-        });
-        var dialogResult = await dialog.Result;
-        if (dialogResult.Canceled) return;
-
-        try
-        {
-            var result = await WorkOrderService.SoftDeleteAsync(workOrderId);
-            if (result.Success)
-            {
-                Snackbar.Add($"工单已删除", Severity.Success);
-                if (table != null) await table.ReloadServerData();
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
-        }
     }
 
     // ========== 物理删除 ==========
@@ -836,21 +790,44 @@ public partial class WorkOrders : IAsyncDisposable
         }
     }
 
-    private async Task PrintAll()
+    /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
+    private async Task PrintSelectedList()
     {
+        if (!selectedSalesOrderNos.Any())
+        {
+            Snackbar.Add("请先选择要打印的工单", Severity.Warning);
+            return;
+        }
+
+        // 列过多时各列被压缩到单字符放不下的宽度 → QuestPDF 布局冲突；A4 可显示列数上限 35 列（与后端 TablePrintHelper.MaxPrintColumns 同步），超限提前拦截并页面内警示
+        const int MaxPrintColumns = 35;
+        if (_visibleColumns.Count > MaxPrintColumns)
+        {
+            Snackbar.Add($"当前可见列过多（{_visibleColumns.Count} 列，打印上限 {MaxPrintColumns} 列），请通过列显隐精简后再打印", Severity.Warning);
+            return;
+        }
+
         try
         {
-            var queryParams = new
+            var selectedItems = _pageItems
+                .Where(i => selectedSalesOrderNos.Contains(i.SalesOrderNo))
+                .Select(item =>
+                {
+                    var dict = new Dictionary<string, object>();
+                    foreach (var col in _visibleColumns)
+                        dict[col.Key] = GetPrintValue(item, col);
+                    return dict;
+                }).ToList();
+
+            var request = new WorkOrderPrintListRequest
             {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SignDateFrom = DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : (DateTime?)null,
-                SignDateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo : (DateTime?)null,
-                DeliveryDateStart = DateTime.TryParse(_deliveryDateFrom, out var ddf) ? ddf : (DateTime?)null,
-                DeliveryDateEnd = DateTime.TryParse(_deliveryDateTo, out var ddt) ? ddt : (DateTime?)null,
+                Title = "工单列表",
+                Items = selectedItems,
+                Columns = GetPrintColumnDefs()
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.WorkOrder}/order-print-all-file";
-            var json = JsonSerializer.Serialize(queryParams);
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.WorkOrder}/order-print-list-file";
+            var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
         catch (Exception ex)
@@ -859,20 +836,40 @@ public partial class WorkOrders : IAsyncDisposable
         }
     }
 
-    private async Task PrintOrderWorkOrders(string salesOrderNo)
+    /// <summary>当前可见列 → 打印列定义（Key/Label 对应当前列显隐与顺序）</summary>
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
+    /// <summary>按列取表格显示文本（对齐 RenderCell 口径：日期格式/枚举中文/布尔/数值）</summary>
+    private object GetPrintValue(WorkOrderListItemDto item, ColumnDef col) => col.Key switch
     {
-        try
-        {
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.WorkOrder}/order-print-file";
-            var json = JsonSerializer.Serialize(salesOrderNo);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
+        "WorkOrderNo" => item.WorkOrderNo,
+        "SalesOrderNo" => item.SalesOrderNo,
+        "ProductionMainNo" => item.ProductionMainNo,
+        "ProductionSubNo" => item.ProductionSubNo ?? "-",
+        "SignDate" => item.SignDate.ToString("yyyy-MM-dd"),
+        "Salesman" => item.Salesman,
+        "EndCustomer" => item.EndCustomer ?? "-",
+        "DeliveryDate" => item.DeliveryDate.ToString("yyyy-MM-dd"),
+        "DelayPenalty" => DisplayHelper.GetYesNoText(item.DelayPenalty),
+        "SettlementMethod" => DisplayHelper.GetSettlementMethodText(item.SettlementMethod),
+        "PlantGrade" => item.PlantGrade,
+        "MaterialName" => DisplayHelper.GetPipeManufacturingTypeText(item.PipeManufacturingType),
+        "Specification" => item.Specification,
+        "LengthStatus" => DisplayHelper.GetWorkOrderLengthStatusText(item.LengthStatus, item.MinLength, item.MaxLength),
+        "MinLength" => item.MinLength?.ToString("G29") ?? "-",
+        "MaxLength" => item.MaxLength?.ToString("G29") ?? "-",
+        "TotalQuantity" => item.TotalQuantity.ToString(),
+        "TotalWeight" => ((int)item.TotalWeight).ToString(),
+        "DeliveryState" => DisplayHelper.GetDeliveryStateText(item.DeliveryState),
+        "TotalItemCount" => item.TotalItemCount.ToString(),
+        "Status" => DisplayHelper.GetWorkOrderStatusText(item.Status),
+        "CreatedBy" => string.IsNullOrEmpty(item.CreatedBy) ? "-" : item.CreatedBy,
+        "CreatedTime" => item.CreatedTime == default ? "-" : item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        "UpdatedBy" => string.IsNullOrEmpty(item.UpdatedBy) ? "-" : item.UpdatedBy,
+        "UpdatedTime" => item.UpdatedTime == default ? "-" : item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        _ => "-"
+    };
 
     // ========== 通知定时轮询（每 2 分钟） ==========
 

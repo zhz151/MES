@@ -31,16 +31,6 @@ function loadJsQr() {
     });
 }
 
-// 获取支持的条码格式
-function getSupportedFormats() {
-    if (!useNativeDetector) return null;
-    try {
-        return BarcodeDetector.getSupportedFormats();
-    } catch {
-        return null;
-    }
-}
-
 // 启动摄像头扫描
 window.startScanner = async function (videoElementId, canvasElementId, dotnetRef, callbackMethod) {
     try {
@@ -161,11 +151,5 @@ window.stopScanner = function () {
     scanCanvasCtx = null;
     scanCallbackRef = null;
 
-    return true;
-};
-
-// 清理资源
-window.disposeScanner = function () {
-    stopScanner();
     return true;
 };

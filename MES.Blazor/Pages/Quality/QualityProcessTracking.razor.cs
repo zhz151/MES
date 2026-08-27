@@ -809,23 +809,6 @@ public partial class QualityProcessTracking
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
-    private async Task PrintAll()
-    {
-        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.QualityProcessTracking}/print-all-file";
-        var request = new QualityProcessTrackingPrintAllRequest
-        {
-            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "receivedate",
-            IsDescending = sortDescending,
-            Columns = GetPrintColumnDefs(),
-            ReceiveDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
-            ReceiveDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
-            Filters = SerializeFilters()
-        };
-        var json = JsonSerializer.Serialize(request);
-        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-    }
-
     // ========== 持久化 ==========
 
     private async Task SavePageStateAsync()

@@ -181,7 +181,6 @@ public partial class CombinationGroups
                     item.SectionName = cache.SectionName;
                     item.ProductStatus = cache.ProductStatus;
                     item.FlowCategoryId = cache.FlowCategoryId;
-                    item.FlowCategoryName = _categoryOptions.FirstOrDefault(c => c.Id == cache.FlowCategoryId)?.CategoryName;
                     item.ParagraphName = cache.ParagraphName;
                     _editingIds.Remove(item.Id);
                     _editCache.Remove(item.Id);

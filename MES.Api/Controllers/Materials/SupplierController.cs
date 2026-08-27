@@ -15,12 +15,10 @@ namespace MES.Api.Controllers.Materials;
 public class SupplierController : ControllerBase
 {
     private readonly ISupplierService _service;
-    private readonly ILogger<SupplierController> _logger;
 
-    public SupplierController(ISupplierService service, ILogger<SupplierController> logger)
+    public SupplierController(ISupplierService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     [HttpGet("list")]
@@ -122,18 +120,6 @@ public class SupplierController : ControllerBase
 
     // ========== 打印 ==========
 
-    [HttpPost("print-batch")]
-    [Authorize(Roles = Roles.Policies.MaterialView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintSupplierBatch([FromBody] OrderPrintBatchRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintSupplierBatchAsync(request.Ids, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
     [HttpPost("print-batch-file")]
     [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<IActionResult> PrintSupplierBatchFile([FromBody] OrderPrintBatchRequest request)
@@ -143,18 +129,6 @@ public class SupplierController : ControllerBase
 
         var pdfBytes = await _service.PrintSupplierBatchAsync(request.Ids, request.Columns);
         return File(pdfBytes, "application/pdf", $"供应商批量.pdf");
-    }
-
-    [HttpPost("print-all")]
-    [Authorize(Roles = Roles.Policies.MaterialView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintSupplierAll([FromBody] OrderPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintSupplierAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
 
     [HttpPost("print-all-file")]

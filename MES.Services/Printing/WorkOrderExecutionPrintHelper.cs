@@ -5,6 +5,8 @@ namespace MES.Services.Printing;
 
 public static class WorkOrderExecutionPrintHelper
 {
+    // 列数超限校验统一在 TablePrintHelper.GeneratePdf（所有 Mode B 打印共用兜底）
+
     public static byte[] GeneratePdf(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)
     {
         var resolvers = new Dictionary<string, Func<object?, string>>

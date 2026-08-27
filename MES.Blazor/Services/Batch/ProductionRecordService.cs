@@ -14,17 +14,6 @@ public class ProductionRecordService
 
     // ========== 内部生产记录 ==========
 
-    public async Task<ApiResponse<PagedResult<ProductionRecordDto>>> GetProductionRecordsAsync(int batchId, int pageIndex = 1, int pageSize = 20)
-    {
-        try
-        {
-            var url = $"{BaseUrl}/{batchId}/records?pageIndex={pageIndex}&pageSize={pageSize}";
-            return await _http.GetFromJsonAsync<ApiResponse<PagedResult<ProductionRecordDto>>>(url)
-                   ?? ApiResponse<PagedResult<ProductionRecordDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<PagedResult<ProductionRecordDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<ProductionRecordDto>> CreateProductionRecordAsync(CreateProductionRecordRequest request)
     {
         try
@@ -67,17 +56,6 @@ public class ProductionRecordService
 
     // ========== 工段委外 ==========
 
-    public async Task<ApiResponse<PagedResult<SectionOutsourceDto>>> GetSectionOutsourcesAsync(int batchId, int pageIndex = 1, int pageSize = 20)
-    {
-        try
-        {
-            var url = $"{BaseUrl}/{batchId}/outsources?pageIndex={pageIndex}&pageSize={pageSize}";
-            return await _http.GetFromJsonAsync<ApiResponse<PagedResult<SectionOutsourceDto>>>(url)
-                   ?? ApiResponse<PagedResult<SectionOutsourceDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<PagedResult<SectionOutsourceDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     // ========== 跨批次查询（用于独立页面） ==========
 
     public async Task<ApiResponse<PagedResult<ProductionRecordDto>>> GetAllProductionRecordsAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, DateTime? execDateFrom = null, DateTime? execDateTo = null, string? filters = null)
@@ -96,62 +74,6 @@ public class ProductionRecordService
         catch (Exception ex) { return ApiResponse<PagedResult<ProductionRecordDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<PagedResult<SectionOutsourceDto>>> GetAllSectionOutsourcesAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true)
-    {
-        try
-        {
-            var url = $"{BaseUrl}/all/outsources?pageIndex={pageIndex}&pageSize={pageSize}&isDescending={isDescending.ToString().ToLower()}";
-            if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
-            if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
-            return await _http.GetFromJsonAsync<ApiResponse<PagedResult<SectionOutsourceDto>>>(url)
-                   ?? ApiResponse<PagedResult<SectionOutsourceDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<PagedResult<SectionOutsourceDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<PagedResult<OutsourceRecoveryDto>>> GetAllOutsourceRecoveriesAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true)
-    {
-        try
-        {
-            var url = $"{BaseUrl}/all/recoveries?pageIndex={pageIndex}&pageSize={pageSize}&isDescending={isDescending.ToString().ToLower()}";
-            if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
-            if (!string.IsNullOrEmpty(sortBy)) url += $"&sortBy={Uri.EscapeDataString(sortBy)}";
-            return await _http.GetFromJsonAsync<ApiResponse<PagedResult<OutsourceRecoveryDto>>>(url)
-                   ?? ApiResponse<PagedResult<OutsourceRecoveryDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<PagedResult<OutsourceRecoveryDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<List<ProductionRecordDto>>> GetAllProductionRecordListAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<ProductionRecordDto>>>($"{BaseUrl}/all-list")
-                   ?? ApiResponse<List<ProductionRecordDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<ProductionRecordDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<List<SectionOutsourceDto>>> GetAllSectionOutsourceListAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<SectionOutsourceDto>>>($"{BaseUrl}/section-outsources/all-list")
-                   ?? ApiResponse<List<SectionOutsourceDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<SectionOutsourceDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<List<OutsourceRecoveryDto>>> GetAllOutsourceRecoveryListAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<OutsourceRecoveryDto>>>($"{BaseUrl}/outsource-recoveries/all-list")
-                   ?? ApiResponse<List<OutsourceRecoveryDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<OutsourceRecoveryDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     // ========== 筛选上下文 ==========
 
     /// <summary>
@@ -168,16 +90,6 @@ public class ProductionRecordService
     }
 
     // ========== 批次跟踪字段 ==========
-
-    public async Task<ApiResponse<object>> RefreshBatchTrackingAsync(int batchId)
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<object, ApiResponse<object>>($"{BaseUrl}/{batchId}/refresh-tracking", new { })
-                   ?? ApiResponse<object>.Fail("刷新失败");
-        }
-        catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
-    }
 
     /// <summary>
     /// 获取批次跟踪可视化数据

@@ -743,17 +743,8 @@ public class BatchService : IBatchService
             // 保存合并投料来源
             if (request.SourceItems != null && request.SourceItems.Count > 0)
             {
-                foreach (var src in request.SourceItems)
-                {
-                    _context.ProductionBatchInventories.Add(new ProductionBatchInventory
-                    {
-                        ProductionBatchId = entity.Id,
-                        InventoryBatchId = src.InventoryBatchId,
-                        OutboundRecordId = src.OutboundRecordId,
-                        InputQuantity = src.InputQuantity,
-                        InputWeight = src.InputWeight
-                    });
-                }
+                var sourceLinks = await BuildSourceInventoryItemsAsync(entity.Id, request.SourceItems);
+                _context.ProductionBatchInventories.AddRange(sourceLinks);
                 await _context.SaveChangesAsync();
 
                 // 如果 SourceBatchNo 为空，从第一个来源批次回填
@@ -949,17 +940,8 @@ public class BatchService : IBatchService
                 .ToListAsync();
             _context.ProductionBatchInventories.RemoveRange(existingLinks);
 
-            foreach (var src in request.SourceItems)
-            {
-                _context.ProductionBatchInventories.Add(new ProductionBatchInventory
-                {
-                    ProductionBatchId = entity.Id,
-                    InventoryBatchId = src.InventoryBatchId,
-                    OutboundRecordId = src.OutboundRecordId,
-                    InputQuantity = src.InputQuantity,
-                    InputWeight = src.InputWeight
-                });
-            }
+            var sourceLinks = await BuildSourceInventoryItemsAsync(entity.Id, request.SourceItems);
+            _context.ProductionBatchInventories.AddRange(sourceLinks);
 
             // 重新汇总 InputQuantity/InputWeight
             if (request.SourceItems.Count > 0)
@@ -1203,7 +1185,20 @@ public class BatchService : IBatchService
                 .Where(p => processGroupIds.Contains(p.ProcessGroupId))
                 .ToListAsync();
             _context.PicklingInRecords.RemoveRange(picklingInRecords);
+
+            // 清理成检到料（FK → ProcessGroup 为 NoAction，会阻塞批次级联删除，须先手动删）
+            var materialReceiveChecks = await _context.MaterialReceiveChecks
+                .Where(m => processGroupIds.Contains(m.ProcessGroupId))
+                .ToListAsync();
+            _context.MaterialReceiveChecks.RemoveRange(materialReceiveChecks);
         }
+
+        // 清理质量过程跟踪孤儿行（物化表无 FK 约束，批次删除后残留会带脏数据）
+        var qptRows = await _context.QualityProcessTrackings
+            .Where(q => q.ProductionBatchId == id)
+            .ToListAsync();
+        if (qptRows.Count > 0)
+            _context.QualityProcessTrackings.RemoveRange(qptRows);
 
         // 先记录删除日志
         await _operationLogService.AddLogAsync("Batch", id, "删除", $"批次号={entity.BatchNo}, 工单号={entity.WorkOrderNo}");
@@ -1408,17 +1403,8 @@ public class BatchService : IBatchService
                 .ToListAsync();
             _context.ProductionBatchInventories.RemoveRange(existingLinks);
 
-            foreach (var src in request.SourceItems)
-            {
-                _context.ProductionBatchInventories.Add(new ProductionBatchInventory
-                {
-                    ProductionBatchId = entity.Id,
-                    InventoryBatchId = src.InventoryBatchId,
-                    OutboundRecordId = src.OutboundRecordId,
-                    InputQuantity = src.InputQuantity,
-                    InputWeight = src.InputWeight
-                });
-            }
+            var sourceLinks = await BuildSourceInventoryItemsAsync(entity.Id, request.SourceItems);
+            _context.ProductionBatchInventories.AddRange(sourceLinks);
 
             if (request.SourceItems.Count > 0)
             {
@@ -2298,7 +2284,14 @@ public class BatchService : IBatchService
             "TheoreticalOutputWeight" => (object?)b.TheoreticalOutputWeight ?? DBNull.Value,
             "TheoreticalUnitWeight" => (object?)b.TheoreticalUnitWeight ?? DBNull.Value,
 
-            // 质量
+            // 质量（与列表 DTO 显示口径一致）
+            "ProcessInspectionQualifiedQty" => (object?)b.ProcessInspectionQualifiedQty ?? DBNull.Value,
+            "ProcessInspectionQualifiedWeight" => (object?)b.ProcessInspectionQualifiedWeight ?? DBNull.Value,
+            "ProcessInspectionTheoreticalQty" => (object?)b.ProcessInspectionTheoreticalQty ?? DBNull.Value,
+            "ProcessInspectionNeedAdjust" => b.ProcessInspectionNeedAdjust switch { true => "是", false => "-", null => "-" },
+            "ProcessInspectionReworkWeight" => b.ProcessInspectionReworkWeight is { } rw && rw != 0 ? rw.ToString("G29") : "",
+            "ProcessInspectionScrapWeight" => b.ProcessInspectionScrapWeight is { } sw && sw != 0 ? sw.ToString("G29") : "",
+            "ProductUnitWeight" => (object?)b.ProductUnitWeight ?? DBNull.Value,
             "SolutionParams" => (object?)b.SolutionParams ?? "",
             "QualityRemark" => (object?)b.QualityRemark ?? "",
 
@@ -2678,6 +2671,43 @@ public class BatchService : IBatchService
         return mismatches;
     }
 
+    /// <summary>
+    /// 构建合并投料来源关联实体：从请求 SourceItems 反查关联库存批次，复制来源快照字段（不再实时 JOIN 仓库）
+    /// </summary>
+    private async Task<List<ProductionBatchInventory>> BuildSourceInventoryItemsAsync(int productionBatchId, List<SourceBatchItemRequest>? items)
+    {
+        var result = new List<ProductionBatchInventory>();
+        if (items == null || items.Count == 0)
+            return result;
+
+        var ibIds = items.Select(i => i.InventoryBatchId).Distinct().ToList();
+        var ibs = await _context.InventoryBatches
+            .Where(ib => ibIds.Contains(ib.Id))
+            .Include(ib => ib.Warehouse)
+            .ToDictionaryAsync(ib => ib.Id);
+
+        foreach (var src in items)
+        {
+            var ib = ibs.GetValueOrDefault(src.InventoryBatchId);
+            result.Add(new ProductionBatchInventory
+            {
+                ProductionBatchId = productionBatchId,
+                InventoryBatchId = src.InventoryBatchId,
+                OutboundRecordId = src.OutboundRecordId,
+                InputQuantity = src.InputQuantity,
+                InputWeight = src.InputWeight,
+                SnapshotBatchNo = ib?.BatchNo,
+                SnapshotHeatNo = ib?.HeatNo,
+                SnapshotPlantGrade = ib?.PlantGrade,
+                SnapshotSpecification = ib?.Specification,
+                SnapshotMaterialType = ib?.MaterialType,
+                SnapshotSourceName = ib?.SourceName,
+                SnapshotWarehouseName = ib?.Warehouse?.Name
+            });
+        }
+        return result;
+    }
+
     private static ProductionBatchDetailDto ToDetailDto(ProductionBatch entity)
     {
         return new ProductionBatchDetailDto
@@ -2783,13 +2813,16 @@ public class BatchService : IBatchService
             {
                 InventoryBatchId = pbi.InventoryBatchId,
                 OutboundRecordId = pbi.OutboundRecordId,
-                BatchNo = pbi.InventoryBatch?.BatchNo ?? "",
-                HeatNo = pbi.InventoryBatch?.HeatNo,
-                PlantGrade = pbi.InventoryBatch?.PlantGrade,
-                Specification = pbi.InventoryBatch?.Specification,
-                MaterialType = EnumHelper.TryParse<MES.Core.Enums.MaterialType>(pbi.InventoryBatch?.MaterialType),
-                SourceName = pbi.InventoryBatch?.SourceName,
-                WarehouseName = pbi.InventoryBatch?.Warehouse?.Name ?? "",
+                // 优先读创建/编辑时复制的快照字段；历史数据快照为空时兜底回退实时 JOIN
+                BatchNo = !string.IsNullOrEmpty(pbi.SnapshotBatchNo) ? pbi.SnapshotBatchNo : pbi.InventoryBatch?.BatchNo ?? "",
+                HeatNo = !string.IsNullOrEmpty(pbi.SnapshotHeatNo) ? pbi.SnapshotHeatNo : pbi.InventoryBatch?.HeatNo,
+                PlantGrade = !string.IsNullOrEmpty(pbi.SnapshotPlantGrade) ? pbi.SnapshotPlantGrade : pbi.InventoryBatch?.PlantGrade,
+                Specification = !string.IsNullOrEmpty(pbi.SnapshotSpecification) ? pbi.SnapshotSpecification : pbi.InventoryBatch?.Specification,
+                MaterialType = !string.IsNullOrEmpty(pbi.SnapshotMaterialType)
+                    ? EnumHelper.TryParse<MES.Core.Enums.MaterialType>(pbi.SnapshotMaterialType)
+                    : EnumHelper.TryParse<MES.Core.Enums.MaterialType>(pbi.InventoryBatch?.MaterialType),
+                SourceName = !string.IsNullOrEmpty(pbi.SnapshotSourceName) ? pbi.SnapshotSourceName : pbi.InventoryBatch?.SourceName,
+                WarehouseName = !string.IsNullOrEmpty(pbi.SnapshotWarehouseName) ? pbi.SnapshotWarehouseName : pbi.InventoryBatch?.Warehouse?.Name ?? "",
                 InputQuantity = pbi.InputQuantity,
                 InputWeight = pbi.InputWeight
             }).ToList() ?? new()

@@ -24,14 +24,11 @@ public partial class FinalInspections
     private int _totalCount;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -964,14 +961,6 @@ public partial class FinalInspections
         _ => null
     };
 
-    private string? GetCellDisplayText(FinalInspectionDto item, string key) => key switch
-    {
-        "InspectionItem" => DisplayHelper.GetInspectionItemText(item.InspectionItem),
-        "ManufacturingItem" => DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
-        "InspectionType" => DisplayHelper.GetInspectionTypeText(item.InspectionType),
-        _ => GetCellRawValue(item, key) ?? ""
-    };
-
     // ========== 实时健康校验通知条 ==========
 
     private async Task LoadHealthSummaryAsync(DateTime? dateFrom, DateTime? dateTo, string? filtersJson)
@@ -1216,7 +1205,20 @@ public partial class FinalInspections
 
     private async Task PrintSelected()
     {
-        if (!selectedIds.Any()) return;
+        if (!selectedIds.Any())
+        {
+            Snackbar.Add("请先选择要打印的记录", Severity.Warning);
+            return;
+        }
+
+        // 列过多时各列被压缩到单字符放不下的宽度 → QuestPDF 布局冲突；A4 可显示列数上限 35 列（与后端 TablePrintHelper.MaxPrintColumns 同步），超限提前拦截并页面内警示
+        const int MaxPrintColumns = 35;
+        if (_visibleColumns.Count > MaxPrintColumns)
+        {
+            Snackbar.Add($"当前可见列过多（{_visibleColumns.Count} 列，打印上限 {MaxPrintColumns} 列），请通过列显隐精简后再打印", Severity.Warning);
+            return;
+        }
+
         var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.FinalInspection}/print-batch-file";
         var request = new FinalInspectionPrintBatchRequest
         {
@@ -1227,43 +1229,7 @@ public partial class FinalInspections
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
-    private async Task PrintAll()
-    {
-        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.FinalInspection}/print-all-file";
-        var request = new FinalInspectionPrintAllRequest
-        {
-            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "inspectiondate",
-            IsDescending = sortDescending,
-            InspectionDateFrom = DateTime.TryParse(_dateFrom, out var df) ? df : null,
-            InspectionDateTo = DateTime.TryParse(_dateTo, out var dt) ? dt : null,
-            Columns = GetPrintColumnDefs(),
-            Filters = SerializeFilters()
-        };
-        var json = JsonSerializer.Serialize(request);
-        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-    }
-
     // ========== 单元格渲染 ==========
-
-    private bool IsCellEditable(string key) => key switch
-    {
-        "InspectionDate" or "EquipmentName" or "Shift" or "Operator"
-            or "FixedLength" or "NonFixedLengthRange"
-            or "Quantity" or "Weight"
-            or "QualifiedQuantity" or "QualifiedWeight"
-            or "QualifiedConcessionQuantity" or "ConcessionRemark"
-            or "DefectReworkQuantity" or "DefectWarehouseQuantity" or "DefectScrapQuantity"
-            or "DefectReworkWeight" or "DefectWarehouseWeight" or "DefectScrapWeight"
-            or "DefectDescription" or "OuterDiameterRange" or "WallThicknessRange"
-            or "LengthAllowanceRange" or "Pressure" or "HoldTime"
-            or "QualificationLevel" or "InspectionStandard" or "InspectionGrade"
-            or "InstrumentModel" or "NdtMethod" or "StandardSampleSize"
-            or "StandardSampleDefect" or "ProbeType" or "Couplant"
-            or "CalibrationFrequency" or "DetectionFrequency" or "DetectionSensitivity"
-            or "DetectionPhase" or "DetectionSpeed" or "Remark" => true,
-        _ => false
-    };
 
     private RenderFragment RenderCell(FinalInspectionDto item, ColumnDef col) => builder =>
     {

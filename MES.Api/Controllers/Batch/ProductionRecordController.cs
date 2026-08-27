@@ -17,12 +17,10 @@ namespace MES.Api.Controllers.Batch;
 public class ProductionRecordController : ControllerBase
 {
     private readonly IProductionRecordService _service;
-    private readonly ILogger<ProductionRecordController> _logger;
 
-    public ProductionRecordController(IProductionRecordService service, ILogger<ProductionRecordController> logger)
+    public ProductionRecordController(IProductionRecordService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     // ========== 内部生产记录 ==========
@@ -251,33 +249,8 @@ public class ProductionRecordController : ControllerBase
     }
 
     /// <summary>
-    /// 批量打印生产记录
+    /// 批量打印生产记录（直接返回 PDF 文件）
     /// </summary>
-    [HttpPost("print-batch")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintProductionRecordBatch([FromBody] ProductionRecordPrintBatchRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintProductionRecordBatchAsync(request.Ids, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    /// <summary>
-    /// 按筛选条件打印全部生产记录
-    /// </summary>
-    [HttpPost("print-all")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintProductionRecordAll([FromBody] ProductionRecordPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintProductionRecordAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.ExecDateFrom, request.ExecDateTo);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
     [HttpPost("print-batch-file")]
     [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintProductionRecordBatchFile([FromBody] ProductionRecordPrintBatchRequest request)

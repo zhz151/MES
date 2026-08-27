@@ -172,14 +172,6 @@ public partial class DictValueDefinitions
         if (table != null) await table.ReloadServerData();
     }
 
-    private async Task OnSearchChanged(string value)
-    {
-        _searchKeyword = value ?? string.Empty;
-        _resetToFirstPage = true;
-        await SavePageStateAsync();
-        if (table != null) await table.ReloadServerData();
-    }
-
     private async Task OnDictKeyChanged(string? value)
     {
         _selectedDictKey = string.IsNullOrEmpty(value) ? null : value;

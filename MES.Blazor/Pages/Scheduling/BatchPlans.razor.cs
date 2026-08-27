@@ -29,10 +29,35 @@ public partial class BatchPlans
 
     private void SelectAllItems(bool selected)
     {
+        var pageItems = CurrentPageItems();
         if (selected)
-            _selectedItems = new HashSet<BatchPlanDto>(_filteredAllItems);
+        {
+            // 只勾选当前页显示的行（与其它列表页表头全选作用域一致：本页全选）
+            foreach (var item in pageItems)
+                _selectedItems.Add(item);
+        }
         else
+        {
             _selectedItems.Clear();
+        }
+    }
+
+    /// <summary>当前页显示的行（Items 模式前端分页：MudTable CurrentPage 0-based × RowsPerPage 切片）</summary>
+    private List<BatchPlanDto> CurrentPageItems()
+    {
+        if (table == null || _filteredItems.Count == 0) return new();
+        var rowsPerPage = table.RowsPerPage > 0 ? table.RowsPerPage : _pageSize;
+        return _filteredItems.Skip(table.CurrentPage * rowsPerPage).Take(rowsPerPage).ToList();
+    }
+
+    /// <summary>当前页是否全部被选中（表头全选勾选态，按本页行判定）</summary>
+    private bool AllSelectedOnPage
+    {
+        get
+        {
+            var pageItems = CurrentPageItems();
+            return pageItems.Count > 0 && pageItems.All(r => _selectedItems.Contains(r));
+        }
     }
 
     private void ToggleSelection(BatchPlanDto item, bool selected)
@@ -290,10 +315,10 @@ public partial class BatchPlans
         all.AddRange(g3);   // 状态跟踪
         all.AddRange(g12);  // 执行反馈
 
-        // 用户决策默认隐藏（列显隐选择器仍可切换打开）：工单计划(工单紧急性/计划状态/生产流转性 默认显示)、关联冷轧排程、批次计划(执行序/目标序)、状态跟踪(现执行序)、执行反馈(原工量差)
+        // 用户决策默认隐藏（列显隐选择器仍可切换打开）：工单计划（整组）、关联冷轧排程、批次计划(执行序/目标序)、状态跟踪(现执行序)、执行反馈(原工量差)
         foreach (var c in all)
         {
-            if ((c.GroupName is "工单计划" && c.Key is not ("UrgencyLevel" or "ScheduleStage" or "ProductionFlowProperty")) ||
+            if ((c.GroupName is "工单计划") ||
                 (c.GroupName is "关联冷轧排程") ||
                 (c.Key is "PlanExecutionSequence" or "PlanTargetSequence" or "ExecutionSequence" or "OriginalDiff"))
                 c.Visible = false;
@@ -652,17 +677,6 @@ public partial class BatchPlans
             }
         }
     }
-
-    /// <summary>实时排程档位 → 薄表等级（V5.28 五档映射：急+→急+/急→急/急-→急-/顺·带→一般/略→略）</summary>
-    private static int PlanLevelFromScheduleTier(int tier) => tier switch
-    {
-        1 => 1, // 急+
-        2 => 2, // 急
-        3 => 3, // 急-
-        4 => 4, // 顺 → 一般
-        5 => 4, // 带 → 一般
-        _ => 5, // 略
-    };
 
     private static string? GetFilterValue(BatchPlanDto item, string key) => key switch
     {
@@ -1064,6 +1078,10 @@ public partial class BatchPlans
     {
         // 从 _allItems 中过滤
         var filtered = _allItems.ToList();
+
+        // 0. 非「全部」工段按钮：列表仅展示「批次计划」组流转=是（PlanIsFlow）的批次（顶部 Tab 汇总保持工段全量，见 UpdateTabSummary）
+        if (_selectedSection != null)
+            filtered = filtered.Where(x => x.PlanIsFlow).ToList();
 
         // 1. 关键词搜索
         if (!string.IsNullOrWhiteSpace(_searchKeyword))
@@ -1981,6 +1999,8 @@ public partial class BatchPlans
             "ProductionType" => string.IsNullOrEmpty(item.ProductionType) ? "" : DisplayHelper.GetProductionTypeText(item.ProductionType),
             "ManufacturingItem" => string.IsNullOrEmpty(item.ManufacturingItem) ? "" : DisplayHelper.GetMaterialTypeText(item.ManufacturingItem),
             "ManufacturingStatus" => string.IsNullOrEmpty(item.ManufacturingStatus) ? "" : DisplayHelper.GetDeliveryStateText(item.ManufacturingStatus),
+            "DeliveryState" => (object?)item.DeliveryState,
+            "LengthStatus" => (object?)item.LengthStatus,
             "WorkOrderNo" => item.WorkOrderNo ?? "",
             "SalesOrderNo" => item.SalesOrderNo ?? "",
             "ProductionMainNo" => item.ProductionMainNo ?? "",
@@ -1999,6 +2019,7 @@ public partial class BatchPlans
             "PendingEquipment" => item.PendingEquipment ?? "",
             "ExecutionSequence" => item.ExecutionSequence ?? 0,
             "UrgencyLevel" => DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey,item.UrgencyLevel) ?? "",
+            "ScheduleStage" => item.ScheduleStage,
             "MainNoAttentionProcess" => ProcessDisplayHelper.GetProcessNameText(item.MainNoAttentionProcess),
             "AttentionProcessSectionSequence" => item.AttentionProcessSectionSequence,
             "IsKeyBatch" => item.IsKeyBatch,

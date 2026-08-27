@@ -109,15 +109,15 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
 
         queryable = ApplySorting(queryable, query.SortBy ?? "plantgrade", query.IsDescending);
 
-        var items = await queryable
+        // 私有静态方法不能进 EF 投影（无法翻译），先物化实体再内存映射
+        var entities = await queryable
             .Skip(query.Skip)
             .Take(query.PageSize)
-            .Select(r => ToDto(r))
             .ToListAsync();
 
         return new PagedResult<ChemicalValidationRuleDto>
         {
-            Items = items,
+            Items = entities.Select(ToDto).ToList(),
             TotalCount = totalCount,
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
@@ -220,11 +220,11 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
 
     public async Task<ChemicalValidationRuleDto?> GetByIdAsync(int id)
     {
-        return await _context.ChemicalValidationRules
+        var entity = await _context.ChemicalValidationRules
             .AsNoTracking()
             .Where(r => r.Id == id)
-            .Select(r => ToDto(r))
             .FirstOrDefaultAsync();
+        return entity == null ? null : ToDto(entity);
     }
 
     public async Task<List<ChemicalValidationRuleDto>> GetAllListAsync()
@@ -353,11 +353,11 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
 
     public async Task<ChemicalValidationRuleDto?> GetByPlantGradeAsync(string plantGrade)
     {
-        return await _context.ChemicalValidationRules
+        var entity = await _context.ChemicalValidationRules
             .AsNoTracking()
             .Where(r => r.PlantGrade == plantGrade)
-            .Select(r => ToDto(r))
             .FirstOrDefaultAsync();
+        return entity == null ? null : ToDto(entity);
     }
 
     private static ChemicalValidationRuleDto ToDto(ChemicalValidationRule r) => new()

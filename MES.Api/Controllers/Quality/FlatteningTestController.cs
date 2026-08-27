@@ -53,15 +53,6 @@ public class FlatteningTestController : ControllerBase
         return Ok(ApiResponse<PagedResult<FlatteningTestDto>>.Ok(result));
     }
 
-    [HttpPost]
-    [Authorize(Roles = Roles.Policies.QualityEdit)]
-    public async Task<ActionResult<ApiResponse<FlatteningTestDto>>> Create([FromBody] CreateFlatteningTestRequest request)
-    {
-        if (!ModelState.IsValid) return BadRequest(ApiResponse<FlatteningTestDto>.Fail("请求参数无效"));
-        var result = await _service.CreateAsync(request);
-        return Ok(ApiResponse<FlatteningTestDto>.Ok(result, "创建成功"));
-    }
-
     [HttpPut("{id}")]
     [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<FlatteningTestDto>>> Update(int id, [FromBody] UpdateFlatteningTestRequest request)

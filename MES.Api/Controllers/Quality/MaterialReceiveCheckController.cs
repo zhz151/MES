@@ -17,12 +17,10 @@ namespace MES.Api.Controllers.Quality;
 public class MaterialReceiveCheckController : ControllerBase
 {
     private readonly IMaterialReceiveCheckService _service;
-    private readonly ILogger<MaterialReceiveCheckController> _logger;
 
-    public MaterialReceiveCheckController(IMaterialReceiveCheckService service, ILogger<MaterialReceiveCheckController> logger)
+    public MaterialReceiveCheckController(IMaterialReceiveCheckService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     /// <summary>
@@ -174,34 +172,6 @@ public class MaterialReceiveCheckController : ControllerBase
     }
 
     // ========== 打印 ==========
-
-    /// <summary>
-    /// 批量打印检验到料
-    /// </summary>
-    [HttpPost("print-batch")]
-    [Authorize(Roles = Roles.Policies.QualityView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintMaterialCheckBatch([FromBody] MaterialCheckPrintBatchRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintMaterialCheckBatchAsync(request.Ids, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    /// <summary>
-    /// 按筛选条件打印全部检验到料
-    /// </summary>
-    [HttpPost("print-all")]
-    [Authorize(Roles = Roles.Policies.QualityView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintMaterialCheckAll([FromBody] MaterialCheckPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintMaterialCheckAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.ReceiveDateFrom, request.ReceiveDateTo);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
 
     /// <summary>
     /// 批量打印检验到料（直接返回 PDF 文件）

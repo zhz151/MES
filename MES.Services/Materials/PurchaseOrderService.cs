@@ -328,10 +328,12 @@ public class PurchaseOrderService : IPurchaseOrderService
         var items = await (from p in _context.PurchaseOrders.AsNoTracking()
                            join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
                            from w in wj.DefaultIfEmpty()
+                           join e in _context.WorkOrderExecutionSummaries.AsNoTracking() on p.SourceWorkOrderNo equals e.WorkOrderNo into ej
+                           from e in ej.DefaultIfEmpty()
                            orderby p.OrderDate, p.OrderNo
                            select new
                            {
-                               p, w, MaterialCategory = p.MaterialCategory
+                               p, w, e, MaterialCategory = p.MaterialCategory
                            }).ToListAsync();
 
         var dtos = items.Select(x => new PurchaseOrderDto
@@ -379,6 +381,10 @@ public class PurchaseOrderService : IPurchaseOrderService
             WoTotalWeight = x.w != null ? (decimal?)x.w.TotalWeight : null,
             WoDeliveryState = x.w != null ? (DeliveryState?)x.w.DeliveryState : null,
             WoTotalItemCount = x.w != null ? (int?)x.w.TotalItemCount : null,
+            ExecutionScheduleStage = x.e != null ? (int?)x.e.ScheduleStage : null,
+            ExecutionUrgencyLevel = x.e != null ? x.e.UrgencyLevel : null,
+            ExecutionRawMaterialLockRemark = x.e != null ? x.e.RawMaterialLockRemark : null,
+            ExecutionTheoreticalCutoffDate = x.e != null ? (DateTime?)x.e.TheoreticalCutoffDate : null,
         }).ToList();
 
         // 退货量（内存补充）
@@ -397,8 +403,10 @@ public class PurchaseOrderService : IPurchaseOrderService
         var item = await (from p in _context.PurchaseOrders.AsNoTracking()
                           join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
                           from w in wj.DefaultIfEmpty()
+                          join e in _context.WorkOrderExecutionSummaries.AsNoTracking() on p.SourceWorkOrderNo equals e.WorkOrderNo into ej
+                          from e in ej.DefaultIfEmpty()
                           where p.Id == id
-                          select new { p, w, MaterialCategory = p.MaterialCategory }).FirstOrDefaultAsync();
+                          select new { p, w, e, MaterialCategory = p.MaterialCategory }).FirstOrDefaultAsync();
 
         if (item == null) throw new BusinessException("采购单不存在");
 
@@ -447,6 +455,10 @@ public class PurchaseOrderService : IPurchaseOrderService
             WoTotalWeight = (decimal?)item.w?.TotalWeight,
             WoDeliveryState = item.w != null ? (DeliveryState?)item.w.DeliveryState : null,
             WoTotalItemCount = (int?)item.w?.TotalItemCount,
+            ExecutionScheduleStage = item.e != null ? (int?)item.e.ScheduleStage : null,
+            ExecutionUrgencyLevel = item.e != null ? item.e.UrgencyLevel : null,
+            ExecutionRawMaterialLockRemark = item.e != null ? item.e.RawMaterialLockRemark : null,
+            ExecutionTheoreticalCutoffDate = item.e != null ? (DateTime?)item.e.TheoreticalCutoffDate : null,
         };
 
         var returnMap = await BuildReturnSummaryAsync(new[] { dto.OrderNo });
@@ -698,11 +710,11 @@ public class PurchaseOrderService : IPurchaseOrderService
         foreach (var order in orders)
         {
             var orderBatches = batches.Where(b => string.Equals(b.SourceOrderNo, order.OrderNo, StringComparison.OrdinalIgnoreCase)).ToList();
-            if (orderBatches.Count == 0) continue;
 
+            // 关联批次可能已删光（无匹配）→ 到货字段回退为 0，避免残留快照（空批次 Sum=0，Max 需判空）
             order.ReceivedQuantity = orderBatches.Sum(b => b.InitialQuantity);
             order.ReceivedWeight = orderBatches.Sum(b => b.InitialWeight);
-            order.LastArrivalDate = orderBatches.Max(b => b.InboundDate);
+            order.LastArrivalDate = orderBatches.Count > 0 ? orderBatches.Max(b => b.InboundDate) : null;
 
             if (!order.IsForceCompleted)
             {
@@ -891,7 +903,7 @@ public class PurchaseOrderService : IPurchaseOrderService
 
         var allWorkOrderNos = workOrders.Values.ToList();
 
-        // 3. 原料采购计划：按工单号+原料类型汇总
+        // 3. 原料采购计划：按工单号+原料类型汇总（工厂牌号取计划行级，同组多牌号去重）
         var semiPlanData = await _context.PurchaseSemiPlans
             .AsNoTracking()
             .Where(p => p.RequiredWeight > 0 && workOrderIds.Contains(p.WorkOrderId))
@@ -900,11 +912,12 @@ public class PurchaseOrderService : IPurchaseOrderService
             {
                 g.Key.WorkOrderId,
                 CategoryName = g.Key.RawMaterialType == MaterialType.RoughTube ? InventoryMaterialTypes.RoughTube : InventoryMaterialTypes.SemiFinished,
-                PlanWeight = g.Sum(p => p.RequiredWeight)
+                PlanWeight = g.Sum(p => p.RequiredWeight),
+                PlantGrades = g.Select(p => p.PlantGrade).Distinct().ToList()
             })
             .ToListAsync();
 
-        // 4. 成品采购计划：按工单号+成品类型汇总
+        // 4. 成品采购计划：按工单号+成品类型汇总（工厂牌号取计划行级，同组多牌号去重）
         var finishedPlanData = await _context.PurchaseFinishedPlans
             .AsNoTracking()
             .Where(p => p.RequiredWeight > 0 && workOrderIds.Contains(p.WorkOrderId))
@@ -915,7 +928,8 @@ public class PurchaseOrderService : IPurchaseOrderService
                 CategoryName = g.Key.ProductType == FinishedProductType.Critical ? InventoryMaterialTypes.CriticalFinished
                     : g.Key.ProductType == FinishedProductType.SpecialDeliveryStatus ? InventoryMaterialTypes.SpecialDeliveryStatus
                     : InventoryMaterialTypes.OrderFinished,
-                PlanWeight = g.Sum(p => p.RequiredWeight)
+                PlanWeight = g.Sum(p => p.RequiredWeight),
+                PlantGrades = g.Select(p => p.PlantGrade).Distinct().ToList()
             })
             .ToListAsync();
 
@@ -948,6 +962,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                     WorkOrderNo = workOrderNo,
                     MaterialName = workOrderNo,
                     MaterialCategory = EnumHelper.TryParse<MaterialType>(x.CategoryName),
+                    PlantGrade = x.PlantGrades.Count > 0 ? string.Join("、", x.PlantGrades) : null,
                     PlanWeight = x.PlanWeight,
                     PurchaseWeight = purchaseW,
                     MissingWeight = Math.Max(0, x.PlanWeight - purchaseW),
@@ -993,7 +1008,7 @@ public class PurchaseOrderService : IPurchaseOrderService
 
         var allWorkOrderNos = workOrders.Values.ToList();
 
-        // 3. 圆棒穿孔计划：按工单号汇总
+        // 3. 圆棒穿孔计划：按工单号汇总（工厂牌号取计划行级，同工单多牌号去重）
         var piercingPlanData = await _context.RoundBarPiercingPlans
             .AsNoTracking()
             .Where(p => p.RequiredWeight > 0 && piercingWorkOrderIds.Contains(p.WorkOrderId))
@@ -1001,7 +1016,8 @@ public class PurchaseOrderService : IPurchaseOrderService
             .Select(g => new
             {
                 WorkOrderId = g.Key,
-                PlanWeight = g.Sum(p => p.RequiredWeight)
+                PlanWeight = g.Sum(p => p.RequiredWeight),
+                PlantGrades = g.Select(p => p.PlantGrade).Distinct().ToList()
             })
             .ToListAsync();
 
@@ -1033,6 +1049,7 @@ public class PurchaseOrderService : IPurchaseOrderService
                     WorkOrderNo = workOrderNo,
                     MaterialName = workOrderNo,
                     MaterialCategory = EnumHelper.TryParse<MaterialType>(InventoryMaterialTypes.RoundBar),
+                    PlantGrade = x.PlantGrades.Count > 0 ? string.Join("、", x.PlantGrades) : null,
                     PlanWeight = x.PlanWeight,
                     PurchaseWeight = 0,
                     SubcontractWeight = subW,
@@ -1590,8 +1607,10 @@ public class PurchaseOrderService : IPurchaseOrderService
         var items = await (from p in _context.PurchaseOrders.AsNoTracking()
                            join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
                            from w in wj.DefaultIfEmpty()
+                           join e in _context.WorkOrderExecutionSummaries.AsNoTracking() on p.SourceWorkOrderNo equals e.WorkOrderNo into ej
+                           from e in ej.DefaultIfEmpty()
                            where ids.Contains(p.Id)
-                           select new { p, w, MaterialCategory = p.MaterialCategory }).ToListAsync();
+                           select new { p, w, e, MaterialCategory = p.MaterialCategory }).ToListAsync();
 
         var dtos = items.Select(x => new PurchaseOrderDto
         {
@@ -1638,6 +1657,10 @@ public class PurchaseOrderService : IPurchaseOrderService
             WoTotalWeight = x.w != null ? (decimal?)x.w.TotalWeight : null,
             WoDeliveryState = x.w != null ? (DeliveryState?)x.w.DeliveryState : null,
             WoTotalItemCount = x.w != null ? (int?)x.w.TotalItemCount : null,
+            ExecutionScheduleStage = x.e != null ? (int?)x.e.ScheduleStage : null,
+            ExecutionUrgencyLevel = x.e != null ? x.e.UrgencyLevel : null,
+            ExecutionRawMaterialLockRemark = x.e != null ? x.e.RawMaterialLockRemark : null,
+            ExecutionTheoreticalCutoffDate = x.e != null ? (DateTime?)x.e.TheoreticalCutoffDate : null,
         }).ToList();
 
         // 退货量（内存补充）
@@ -1709,6 +1732,11 @@ public class PurchaseOrderService : IPurchaseOrderService
         ["WoTotalWeight"] = (object?)dto.WoTotalWeight ?? "",
         ["WoDeliveryState"] = (object?)dto.WoDeliveryState ?? "",
         ["WoTotalItemCount"] = (object?)dto.WoTotalItemCount ?? "",
+        // 工单实时关注组（与前端 RenderCell 口径一致）
+        ["ExecutionScheduleStage"] = dto.ExecutionScheduleStage.HasValue ? IntStatusDisplayHelper.GetScheduleStageText(dto.ExecutionScheduleStage.Value) : "-",
+        ["ExecutionUrgencyLevel"] = string.IsNullOrEmpty(dto.ExecutionUrgencyLevel) ? "-" : (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, dto.ExecutionUrgencyLevel) ?? "-"),
+        ["ExecutionRawMaterialLockRemark"] = string.IsNullOrEmpty(dto.ExecutionRawMaterialLockRemark) ? "-" : (DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, dto.ExecutionRawMaterialLockRemark) ?? "-"),
+        ["ExecutionTheoreticalCutoffDate"] = dto.ExecutionTheoreticalCutoffDate?.ToString("yyyy-MM-dd") ?? "-",
     };
 
     /// <summary>

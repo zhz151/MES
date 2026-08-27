@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MES.Core.DTOs.Order;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.Enums;
 using MES.Core.Constants;
@@ -225,6 +226,51 @@ public class InventorySyncService : IInventorySyncService
         return result;
     }
 
+    /// <summary>
+    /// 按入库批次来源（采购单号/委外单号+序号/生产批号）解析应关联的工单号+订单号+主号。
+    /// 用于入库更正页点击「关联工单=是」时即时回填；来源单未关联工单时 IsValid 仍为 true 但 ExpectedWorkOrderNo 为空。
+    /// </summary>
+    public async Task<SourceOrderValidationResult> ResolveLinkedWorkOrderAsync(int inventoryBatchId)
+    {
+        var batch = await _context.InventoryBatches
+            .AsNoTracking()
+            .Where(b => b.Id == inventoryBatchId)
+            .Select(b => new { b.InboundSource, b.SourceOrderNo, b.SourceOrderSequence, b.ProductionBatchNo })
+            .FirstOrDefaultAsync();
+
+        if (batch == null)
+            return new SourceOrderValidationResult { IsValid = false, Warnings = { "入库批次不存在" } };
+
+        // 外购 → 采购单号；委外 → 委外单号+序号；检验/生产入库 → 生产批号
+        if (batch.InboundSource == InboundSource.Purchase.ToString())
+        {
+            if (string.IsNullOrEmpty(batch.SourceOrderNo))
+                return new SourceOrderValidationResult { IsValid = false, Warnings = { "批次未填写来源单号，无法匹配采购订单" } };
+            return await ValidateSourceOrderAsync(batch.SourceOrderNo, batch.InboundSource, batch.SourceOrderSequence);
+        }
+
+        if (batch.InboundSource == InboundSource.Subcontract.ToString())
+        {
+            if (string.IsNullOrEmpty(batch.SourceOrderNo) || !batch.SourceOrderSequence.HasValue)
+                return new SourceOrderValidationResult { IsValid = false, Warnings = { "批次未填写委外单号或序号，无法匹配圆棒穿孔" } };
+            return await ValidateSourceOrderAsync(batch.SourceOrderNo, batch.InboundSource, batch.SourceOrderSequence);
+        }
+
+        if (batch.InboundSource == InboundSource.InspectionInbound.ToString()
+            || batch.InboundSource == InboundSource.ProductionInbound.ToString())
+        {
+            if (string.IsNullOrEmpty(batch.ProductionBatchNo))
+                return new SourceOrderValidationResult { IsValid = false, Warnings = { "批次未填写生产批号，无法匹配生产批次" } };
+            return await ValidateProductionBatchAsync(batch.ProductionBatchNo);
+        }
+
+        return new SourceOrderValidationResult
+        {
+            IsValid = false,
+            Warnings = { $"入库来源「{batch.InboundSource}」暂不支持关联工单匹配" }
+        };
+    }
+
     public async Task<List<string>> ValidateWarehouseWorkOrderNosAsync(int warehouseId)
     {
         var workOrderNos = await _context.InventoryBatches
@@ -288,6 +334,149 @@ public class InventorySyncService : IInventorySyncService
             .ToList();
     }
 
+    public async Task<List<SourceOrderChangedBatchDto>> GetSourceOrderChangedBatchesAsync(int? warehouseId = null)
+    {
+        // 批次工单号为空/未填也纳入比对（来源单当前有工单号时提示同步填写）；
+        // 仅排除明确标记「非工单」的哨兵值。
+        var query = _context.InventoryBatches
+            .AsNoTracking()
+            .Where(b => b.SourceOrderNo != null
+                     && b.SourceOrderNo != string.Empty
+                     && (b.WorkOrderNo == null || b.WorkOrderNo != WorkOrderNoSentinel.NotWorkOrder));
+
+        if (warehouseId.HasValue)
+            query = query.Where(b => b.WarehouseId == warehouseId.Value);
+
+        var batches = await query
+            .Select(b => new
+            {
+                b.Id,
+                b.BatchNo,
+                SourceOrderNo = b.SourceOrderNo ?? string.Empty,
+                b.SourceOrderSequence,
+                WorkOrderNo = b.WorkOrderNo ?? string.Empty
+            })
+            .ToListAsync();
+
+        if (batches.Count == 0)
+            return new List<SourceOrderChangedBatchDto>();
+
+        var sourceOrderNos = batches.Select(b => b.SourceOrderNo).Distinct().ToList();
+
+        // 采购单：OrderNo → 当前关联工单号（含空值，用于识别「来源单已清空工单号=已取消」）
+        var purchaseMap = (await _context.PurchaseOrders
+                .AsNoTracking()
+                .Where(p => sourceOrderNos.Contains(p.OrderNo))
+                .Select(p => new { p.OrderNo, p.SourceWorkOrderNo })
+                .ToListAsync())
+            .ToDictionary(x => x.OrderNo, x => x.SourceWorkOrderNo ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+
+        // 委外单：OrderNo → 主表 Id
+        var subOrders = await _context.SubcontractOrders
+            .AsNoTracking()
+            .Where(s => sourceOrderNos.Contains(s.OrderNo))
+            .Select(s => new { s.Id, s.OrderNo })
+            .ToListAsync();
+        var subOrderIdByNo = subOrders.ToDictionary(x => x.OrderNo, x => x.Id, StringComparer.OrdinalIgnoreCase);
+        var subOrderIds = subOrders.Select(s => s.Id).ToList();
+
+        // 委外明细：(主表Id, 序号) → 当前关联工单号（含空值，用于识别「明细已清空工单号=已取消」）
+        var subItemMap = new Dictionary<(int SubOrderId, int Sequence), string>();
+        if (subOrderIds.Count > 0)
+        {
+            var items = await _context.SubcontractReturnItems
+                .AsNoTracking()
+                .Where(i => subOrderIds.Contains(i.SubcontractOrderId))
+                .Select(i => new { i.SubcontractOrderId, i.Sequence, i.SourceWorkOrderNo })
+                .ToListAsync();
+            foreach (var it in items)
+                subItemMap[(it.SubcontractOrderId, it.Sequence)] = it.SourceWorkOrderNo ?? string.Empty;
+        }
+
+        // 工单存在集：批次冗余工单号与来源单当前工单号中，仍存在于工单管理（未被删除=未取消）的工单号
+        var candidateWorkOrderNos = batches
+            .Select(b => b.WorkOrderNo)
+            .Concat(purchaseMap.Values)
+            .Concat(subItemMap.Values)
+            .Where(w => !string.IsNullOrEmpty(w))
+            .Distinct()
+            .ToList();
+        var existingWorkOrderNos = candidateWorkOrderNos.Count == 0
+            ? new List<string>()
+            : await _context.WorkOrders
+                .AsNoTracking()
+                .Where(w => candidateWorkOrderNos.Contains(w.WorkOrderNo))
+                .Select(w => w.WorkOrderNo)
+                .ToListAsync();
+        var existingWorkOrderSet = existingWorkOrderNos.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var result = new List<SourceOrderChangedBatchDto>();
+        foreach (var b in batches)
+        {
+            string? expected = null;
+
+            // 委外来源（带序号）：以委外明细工单号为准
+            if (b.SourceOrderSequence.HasValue
+                && subOrderIdByNo.TryGetValue(b.SourceOrderNo, out var subId)
+                && subItemMap.TryGetValue((subId, b.SourceOrderSequence.Value), out var subWo))
+                expected = subWo;
+
+            // 采购来源（或无序号委外）：以采购单工单号为准
+            if (expected == null && purchaseMap.TryGetValue(b.SourceOrderNo, out var poWo))
+                expected = poWo;
+
+            var batchWo = b.WorkOrderNo;
+
+            // 场景一：来源单当前无工单号（已清空/来源单不存在）→ 批次残留工单号判定为「已取消」
+            if (string.IsNullOrEmpty(expected))
+            {
+                if (!string.IsNullOrEmpty(batchWo))
+                {
+                    result.Add(new SourceOrderChangedBatchDto
+                    {
+                        BatchId = b.Id,
+                        BatchNo = b.BatchNo,
+                        SourceOrderNo = b.SourceOrderNo,
+                        SourceOrderSequence = b.SourceOrderSequence,
+                        ExpectedWorkOrderNo = batchWo,
+                        IsCancelled = true
+                    });
+                }
+                continue;
+            }
+
+            // 场景二：来源单当前工单号 ≠ 批次冗余工单号 → 「已变更」（含批次未填工单号需同步填写）
+            if (!string.Equals(batchWo, expected, StringComparison.OrdinalIgnoreCase))
+            {
+                result.Add(new SourceOrderChangedBatchDto
+                {
+                    BatchId = b.Id,
+                    BatchNo = b.BatchNo,
+                    SourceOrderNo = b.SourceOrderNo,
+                    SourceOrderSequence = b.SourceOrderSequence,
+                    ExpectedWorkOrderNo = expected
+                });
+                continue;
+            }
+
+            // 场景三：批次与来源单一致，但来源单指向的工单已被删除（取消）→ 「已取消」
+            if (!existingWorkOrderSet.Contains(expected))
+            {
+                result.Add(new SourceOrderChangedBatchDto
+                {
+                    BatchId = b.Id,
+                    BatchNo = b.BatchNo,
+                    SourceOrderNo = b.SourceOrderNo,
+                    SourceOrderSequence = b.SourceOrderSequence,
+                    ExpectedWorkOrderNo = expected,
+                    IsCancelled = true
+                });
+            }
+        }
+
+        return result;
+    }
+
     public async Task<List<string>> GetDistinctWorkOrderNosByWarehouseAsync(int warehouseId)
     {
         return await _context.InventoryBatches
@@ -328,16 +517,26 @@ public class InventorySyncService : IInventorySyncService
             var batchDict = allBatchData.ToDictionary(x => x.OrderNo, x => x, StringComparer.OrdinalIgnoreCase);
             foreach (var order in purchaseOrders)
             {
-                if (!batchDict.TryGetValue(order.OrderNo, out var data)) continue;
-                order.ReceivedQuantity = data.TotalQty;
-                order.ReceivedWeight = data.TotalWt;
-                order.LastArrivalDate = data.MaxDate;
+                // 关联批次可能已删光（无匹配）→ 到货字段回退为 0，避免残留快照
+                var receivedQty = 0;
+                var receivedWt = 0m;
+                DateTime? maxDate = null;
+                if (batchDict.TryGetValue(order.OrderNo, out var data))
+                {
+                    receivedQty = data.TotalQty;
+                    receivedWt = data.TotalWt;
+                    maxDate = data.MaxDate;
+                }
+
+                order.ReceivedQuantity = receivedQty;
+                order.ReceivedWeight = receivedWt;
+                order.LastArrivalDate = maxDate;
 
                 if (!order.IsForceCompleted)
                 {
-                    if (order.ReceivedQuantity == 0)
+                    if (receivedQty == 0)
                         order.Status = PurchaseOrderStatus.Open;
-                    else if (order.Quantity.HasValue && order.ReceivedQuantity >= order.Quantity.Value)
+                    else if (order.Quantity.HasValue && receivedQty >= order.Quantity.Value)
                         order.Status = PurchaseOrderStatus.Completed;
                     else
                         order.Status = PurchaseOrderStatus.Partial;

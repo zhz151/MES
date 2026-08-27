@@ -47,7 +47,7 @@ public static class RepairOrderPrintHelper
                 ["RepairContent"] = m.RepairContent ?? "",
                 ["SparePartUsed"] = m.SparePartUsed ?? "",
                 ["RepairCategory"] = m.RepairCategory ?? "",
-                ["OtherRepairPersons"] = m.OtherRepairPersons != null ? string.Join(", ", m.OtherRepairPersons) : ""
+                ["OtherRepairPersons"] = m.OtherRepairPersons ?? "",
             };
             return dict;
         }).ToList();

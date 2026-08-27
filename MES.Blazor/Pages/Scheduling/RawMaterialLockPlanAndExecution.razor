@@ -262,7 +262,7 @@
                     }
                     <MudTh Class="col-selection-th" Style="width:40px;min-width:40px;max-width:40px;padding:0 4px;">
                         <MudCheckBox T="bool"
-                                     Value="@(_selectedItems.Count > 0 && _selectedItems.Count == _filteredItems.Count)"
+                                     Value="@AllSelectedOnPage"
                                      ValueChanged="@((bool v) => SelectAllItems(v))"
                                      Dense="true"
                                      TriState="false" />

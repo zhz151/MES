@@ -94,34 +94,6 @@ public class GradeMappingController : ControllerBase
     // ========== 打印 ==========
 
     /// <summary>
-    /// 批量打印牌号对照
-    /// </summary>
-    [HttpPost("print-batch")]
-    [Authorize(Roles = Roles.Policies.StandardView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintGradeMappingBatch([FromBody] OrderPrintBatchRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintGradeMappingBatchAsync(request.Ids, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    /// <summary>
-    /// 按筛选条件打印全部牌号对照
-    /// </summary>
-    [HttpPost("print-all")]
-    [Authorize(Roles = Roles.Policies.StandardView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintGradeMappingAll([FromBody] OrderPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintGradeMappingAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    /// <summary>
     /// 批量打印牌号对照（直接返回 PDF 文件）
     /// </summary>
     [HttpPost("print-batch-file")]

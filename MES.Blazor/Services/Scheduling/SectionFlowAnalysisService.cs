@@ -32,19 +32,6 @@ public class SectionFlowAnalysisService
         }
     }
 
-    public async Task<ApiResponse> UpdateSettingAsync(SectionFlowSettingUpdateDto dto)
-    {
-        try
-        {
-            var response = await _http.PutAsJsonAsync<SectionFlowSettingUpdateDto, ApiResponse>($"{BaseUrl}/setting", dto);
-            return response ?? ApiResponse.Fail("保存失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     // ========== 参数表管理 ==========
 
     public async Task<ApiResponse<List<SectionFlowCategorySettingDto>>> GetSettingsAsync()

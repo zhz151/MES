@@ -250,7 +250,6 @@ public class PicklingService : IPicklingService
                 DataSource = s.DataSource,
                 CreatedTime = s.CreatedTime,
                 UpdatedTime = s.UpdatedTime,
-                PicklingOutRecordId = s.PicklingOutRecords.Select(r => (int?)r.Id).FirstOrDefault(),
                 CompleteDate = s.PicklingOutRecords.Select(r => (DateTime?)r.CompleteDate).FirstOrDefault(),
                 CompleteShift = s.PicklingOutRecords.Select(po => po.Shift).FirstOrDefault(),
                 CompleteOperator = s.PicklingOutRecords.Select(r => r.Operator).FirstOrDefault()
@@ -284,7 +283,6 @@ public class PicklingService : IPicklingService
             DataSource = s.DataSource,
             CreatedTime = s.CreatedTime,
             UpdatedTime = s.UpdatedTime,
-            PicklingOutRecordId = s.PicklingOutRecordId,
             CompleteDate = s.CompleteDate,
             CompleteShift = s.CompleteShift is null ? null : EnumHelper.TryParse<ShiftType>(s.CompleteShift),
             CompleteOperator = s.CompleteOperator
@@ -1161,6 +1159,8 @@ public class PicklingService : IPicklingService
             ["PlantGrade"] = s.PlantGrade ?? "",
             ["Status"] = EnumHelper.GetDisplayName(s.Status),
             ["CompleteDate"] = s.PicklingOutRecords.Select(r => (DateTime?)r.CompleteDate).FirstOrDefault()?.ToString("yyyy-MM-dd") ?? "",
+            ["CompleteShift"] = EnumHelper.TryParse<ShiftType>(s.PicklingOutRecords.Select(po => po.Shift).FirstOrDefault()) is { } cs ? EnumHelper.GetDisplayName(cs) : "",
+            ["CompleteOperator"] = s.PicklingOutRecords.Select(r => r.Operator).FirstOrDefault() ?? "",
             ["Remark"] = s.Remark ?? "",
             ["DataSource"] = StringEnumDisplayHelper.GetDataSourceText(s.DataSource),
             ["UpdatedTime"] = s.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
@@ -1211,6 +1211,8 @@ public class PicklingService : IPicklingService
             ["PlantGrade"] = s.PlantGrade ?? "",
             ["Status"] = EnumHelper.GetDisplayName(s.Status),
             ["CompleteDate"] = s.CompleteDate?.ToString("yyyy-MM-dd") ?? "",
+            ["CompleteShift"] = s.CompleteShift.HasValue ? EnumHelper.GetDisplayName(s.CompleteShift.Value) : "",
+            ["CompleteOperator"] = s.CompleteOperator ?? "",
             ["Remark"] = s.Remark ?? "",
             ["DataSource"] = StringEnumDisplayHelper.GetDataSourceText(s.DataSource),
             ["UpdatedTime"] = s.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")

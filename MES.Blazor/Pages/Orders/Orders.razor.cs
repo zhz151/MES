@@ -12,6 +12,7 @@ using MES.Core.Models;
 using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Order;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 using MES.Shared.Constants;
 
@@ -44,6 +45,12 @@ public partial class Orders
     /// <summary>订单交期预估（两小表：订单(整单)完成预估 / 风险-已延期订单(整单)，x单/y吨，订单级口径）</summary>
     private OrderDeliveryEstimateDto? _deliveryEstimate;
     private int _currentMonthIndex => DateTime.Today.Month - 1;
+
+    // ========== 小表点击联动筛选订单列表 ==========
+    /// <summary>小表点击联动筛选条件（null=未联动），点击后覆盖现有搜索/列筛选</summary>
+    private OrderDeliveryEstimateFilterDto? _estimateLinkFilter;
+    /// <summary>联动提示条文案（如「风险-已延期订单(整单)·≤26/8/26」）</summary>
+    private string? _estimateLinkLabel;
 
     private string sortColumn = "signdate";
     private bool sortDescending = true;
@@ -273,7 +280,8 @@ public partial class Orders
                 dateFrom: DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom : null,
                 dateTo: DateTime.TryParse(_dateTo, out var dTo) ? dTo : null,
                 deliveryDateFrom: DateTime.TryParse(_deliveryDateFrom, out var ddFrom) ? ddFrom : null,
-                deliveryDateTo: DateTime.TryParse(_deliveryDateTo, out var ddTo) ? ddTo : null);
+                deliveryDateTo: DateTime.TryParse(_deliveryDateTo, out var ddTo) ? ddTo : null,
+                estimateFilter: _estimateLinkFilter);
 
             // 竞态保护：丢弃过期请求结果（搜索/筛选并发时旧请求晚返回不得覆盖新结果）
             if (version != _loadVersion)
@@ -547,6 +555,26 @@ public partial class Orders
                     var dict = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(raw);
                     if (dict != null)
                         _columnFilters = dict.ToDictionary(kv => kv.Key, kv => new HashSet<string>(kv.Value));
+                }
+                catch { }
+            }
+
+            // 恢复小表点击联动筛选（若存在，则联动时已覆盖并清空其他搜索/日期/列筛选，保持一致）
+            if (savedState.Extras?.ContainsKey("estimateLinkFilter") == true)
+            {
+                try
+                {
+                    _estimateLinkFilter = JsonSerializer.Deserialize<OrderDeliveryEstimateFilterDto>(savedState.Extras["estimateLinkFilter"]);
+                    _estimateLinkLabel = savedState.Extras.TryGetValue("estimateLinkLabel", out var label) ? label : null;
+                    if (_estimateLinkFilter != null)
+                    {
+                        _searchKeyword = string.Empty;
+                        _dateFrom = string.Empty;
+                        _dateTo = string.Empty;
+                        _deliveryDateFrom = string.Empty;
+                        _deliveryDateTo = string.Empty;
+                        _columnFilters.Clear();
+                    }
                 }
                 catch { }
             }
@@ -862,6 +890,45 @@ public partial class Orders
         }
     }
 
+    /// <summary>小表单元格点击：按桶口径联动筛选订单列表（覆盖现有搜索/列筛选，显示可清除提示条）</summary>
+    private async Task OnEstimateBucketClick(int tableIndex, int bucketIndex)
+    {
+        var estimateTable = _deliveryEstimate?.Tables.ElementAtOrDefault(tableIndex);
+        var bucket = estimateTable?.Buckets.ElementAtOrDefault(bucketIndex);
+        if (estimateTable == null || bucket == null || (bucket.Count <= 0 && bucket.Weight <= 0)) return;
+
+        _estimateLinkFilter = new OrderDeliveryEstimateFilterDto
+        {
+            Table = estimateTable.Id,
+            DateFrom = bucket.DateFrom,
+            DateTo = bucket.DateTo
+        };
+        _estimateLinkLabel = $"{estimateTable.Name}·{estimateTable.BucketLabels[bucketIndex]}";
+
+        // 覆盖现有搜索/签订日期/交货日期/列筛选
+        _searchKeyword = string.Empty;
+        _dateFrom = string.Empty;
+        _dateTo = string.Empty;
+        _deliveryDateFrom = string.Empty;
+        _deliveryDateTo = string.Empty;
+        _columnFilters.Clear();
+        _resetToFirstPage = true;
+
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+        Snackbar.Add($"已按「{_estimateLinkLabel}」联动筛选订单列表（{bucket.Count}单/{bucket.Weight.ToString("F1")}吨）", Severity.Info);
+    }
+
+    /// <summary>清除小表联动筛选，恢复全量列表</summary>
+    private async Task ClearEstimateLinkFilter()
+    {
+        _estimateLinkFilter = null;
+        _estimateLinkLabel = null;
+        _resetToFirstPage = true;
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+    }
+
     private static string FormatInOutWeight(decimal kg) => kg == 0m ? "-" : $"{kg / 1000m:F1}";
 
     /// <summary>订单交期预估小表单元格（x单/y吨，急中急子集 [*a/b] 标红）</summary>
@@ -914,21 +981,34 @@ public partial class Orders
 
     // ========== 打印方法 ==========
 
-    private async Task PrintAll()
+    /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
+    private async Task PrintSelectedList()
     {
+        if (!selectedOrderIds.Any())
+        {
+            Snackbar.Add("请先选择要打印的订单", Severity.Warning);
+            return;
+        }
         try
         {
-            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "signdate";
-            var request = new
+            var selectedItems = _pageItems
+                .Where(o => selectedOrderIds.Contains(o.Id))
+                .Select(item =>
+                {
+                    var dict = new Dictionary<string, object>();
+                    foreach (var col in _visibleColumns)
+                        dict[col.Key] = GetPrintValue(item, col);
+                    return dict;
+                }).ToList();
+
+            var request = new OrderPrintListRequest
             {
-                keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                sortBy,
-                isDescending = sortDescending,
-                dateFrom = DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom.ToString("yyyy-MM-dd") : null,
-                dateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo.ToString("yyyy-MM-dd") : null
+                Title = "订单列表",
+                Items = selectedItems,
+                Columns = GetPrintColumnDefs()
             };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Order}/print-all-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Order}/print-list-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -938,21 +1018,13 @@ public partial class Orders
         }
     }
 
-    private async Task PrintSingleOrder(int id)
-    {
-        try
-        {
-            var request = new OrderPrintBatchRequest { Ids = new[] { id } };
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Order}/print-file";
-            var json = JsonSerializer.Serialize(request);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
+    /// <summary>当前可见列 → 打印列定义（Key/Label 对应当前列显隐与顺序）</summary>
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
+    /// <summary>按列取表格显示文本（复用 GetCellDisplayText，保证与页面单元格口径一致）</summary>
+    private object GetPrintValue(SalesOrderListDto item, ColumnDef col) =>
+        GetCellDisplayText(item, col.Key) ?? "-";
 
     private async Task PrintSelected()
     {
@@ -986,6 +1058,11 @@ public partial class Orders
         if (!string.IsNullOrWhiteSpace(_deliveryDateTo)) extras["deliveryDateTo"] = _deliveryDateTo;
         if (_columnFilters.Count > 0)
             extras["columnFilters"] = JsonSerializer.Serialize(_columnFilters.ToDictionary(kv => kv.Key, kv => kv.Value.ToList()));
+        if (_estimateLinkFilter != null)
+        {
+            extras["estimateLinkFilter"] = JsonSerializer.Serialize(_estimateLinkFilter);
+            if (!string.IsNullOrWhiteSpace(_estimateLinkLabel)) extras["estimateLinkLabel"] = _estimateLinkLabel;
+        }
         var state = new PageState
         {
             SortBy = sortColumn,

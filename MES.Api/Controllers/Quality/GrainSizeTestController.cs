@@ -53,15 +53,6 @@ public class GrainSizeTestController : ControllerBase
         return Ok(ApiResponse<PagedResult<GrainSizeTestDto>>.Ok(result));
     }
 
-    [HttpPost]
-    [Authorize(Roles = Roles.Policies.QualityEdit)]
-    public async Task<ActionResult<ApiResponse<GrainSizeTestDto>>> Create([FromBody] CreateGrainSizeTestRequest request)
-    {
-        if (!ModelState.IsValid) return BadRequest(ApiResponse<GrainSizeTestDto>.Fail("请求参数无效"));
-        var result = await _service.CreateAsync(request);
-        return Ok(ApiResponse<GrainSizeTestDto>.Ok(result, "创建成功"));
-    }
-
     [HttpPut("{id}")]
     [Authorize(Roles = Roles.Policies.QualityEdit)]
     public async Task<ActionResult<ApiResponse<GrainSizeTestDto>>> Update(int id, [FromBody] UpdateGrainSizeTestRequest request)

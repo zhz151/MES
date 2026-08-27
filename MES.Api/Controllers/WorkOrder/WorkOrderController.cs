@@ -50,7 +50,6 @@ public class WorkOrderController : ControllerBase
         [FromQuery] string? salesman = null,
         [FromQuery] string? endCustomer = null,
         [FromQuery] string? plantGrade = null,
-        [FromQuery] bool includeCancelled = false,
         [FromQuery] int? materialPlanStatus = null,
         [FromQuery] int? mainNoMaterialPlanStatus = null,
         [FromQuery] int? orderMaterialPlanStatus = null,
@@ -77,7 +76,6 @@ public class WorkOrderController : ControllerBase
             Salesman = salesman,
             EndCustomer = endCustomer,
             PlantGrade = plantGrade,
-            IncludeCancelled = includeCancelled,
             MaterialPlanStatus = materialPlanStatus,
             MainNoMaterialPlanStatus = mainNoMaterialPlanStatus,
             OrderMaterialPlanStatus = orderMaterialPlanStatus,
@@ -211,7 +209,8 @@ public class WorkOrderController : ControllerBase
         [FromQuery] string? planTypeFilter = null,
         [FromQuery] DateTime? signDateFrom = null,
         [FromQuery] DateTime? signDateTo = null,
-        [FromQuery] string? filters = null)
+        [FromQuery] string? filters = null,
+        [FromQuery] string? linkFilter = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         WorkOrderQueryParams query = new()
@@ -240,7 +239,13 @@ public class WorkOrderController : ControllerBase
             try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
             catch { }
         }
-        var result = await _workOrderService.GetPagedWithPlansAsync(query);
+        MaterialPlanLinkFilterDto? linkFilterDto = null;
+        if (!string.IsNullOrEmpty(linkFilter))
+        {
+            try { linkFilterDto = JsonSerializer.Deserialize<MaterialPlanLinkFilterDto>(linkFilter, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
+        var result = await _workOrderService.GetPagedWithPlansAsync(query, linkFilterDto);
         return Ok(ApiResponse<PagedResult<WorkOrderListDto>>.Ok(result, "查询成功"));
     }
 
@@ -301,51 +306,6 @@ public class WorkOrderController : ControllerBase
         return Ok(ApiResponse.Ok("工单已删除"));
     }
 
-    [HttpGet("{id}/print")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintWorkOrder(int id)
-    {
-        var bytes = await _workOrderService.PrintWorkOrderAsync(id);
-        var base64 = Convert.ToBase64String(bytes);
-        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
-    }
-
-    [HttpGet("order-print")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintWorkOrdersByOrder(
-        [FromQuery] string salesOrderNo)
-    {
-        if (string.IsNullOrWhiteSpace(salesOrderNo))
-            return BadRequest(ApiResponse<string>.Fail("订单号不能为空"));
-
-        var bytes = await _workOrderService.PrintWorkOrdersByOrderAsync(salesOrderNo);
-        var base64 = Convert.ToBase64String(bytes);
-        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
-    }
-
-    [HttpPost("order-print-batch")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintWorkOrdersByOrderBatch(
-        [FromBody] string[] salesOrderNos)
-    {
-        if (salesOrderNos == null || salesOrderNos.Length == 0)
-            return BadRequest(ApiResponse<string>.Fail("请选择要打印的订单"));
-
-        var bytes = await _workOrderService.PrintWorkOrdersByOrderBatchAsync(salesOrderNos);
-        var base64 = Convert.ToBase64String(bytes);
-        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
-    }
-
-    [HttpPost("order-print-all")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintWorkOrdersByOrderAll(
-        [FromBody] WorkOrderQueryParams query)
-    {
-        var bytes = await _workOrderService.PrintWorkOrdersByOrderAllAsync(query);
-        var base64 = Convert.ToBase64String(bytes);
-        return Ok(ApiResponse<string>.Ok(base64, "生成成功"));
-    }
-
     [HttpPost("{id}/print-file")]
     [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<IActionResult> PrintWorkOrderFile(int id)
@@ -381,6 +341,14 @@ public class WorkOrderController : ControllerBase
     public async Task<IActionResult> PrintWorkOrdersByOrderAllFile([FromBody] WorkOrderQueryParams query)
     {
         var bytes = await _workOrderService.PrintWorkOrdersByOrderAllAsync(query);
+        return File(bytes, "application/pdf", "工单列表.pdf");
+    }
+
+    [HttpPost("order-print-list-file")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
+    public async Task<IActionResult> PrintWorkOrderListFile([FromBody] WorkOrderPrintListRequest request)
+    {
+        var bytes = await _workOrderService.PrintWorkOrderListAsync(request.Title, request.Items, request.Columns);
         return File(bytes, "application/pdf", "工单列表.pdf");
     }
 

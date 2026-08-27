@@ -201,14 +201,6 @@ th.mud-table-cell,
     height: 32px !important;
 }
 
-/* 表头筛选输入框保持小尺寸（24px） */
-.mud-table .filter-input .mud-input.mud-input-text {
-    height: 24px !important;
-    min-height: 24px !important;
-    font-size: 0.7rem !important;
-    margin-top: 2px;
-}
-
 /* ============================================================
    隐藏数值输入框上下箭头 - 强制生效
    ============================================================ */
@@ -344,29 +336,6 @@ input[type="number"]::-webkit-outer-spin-button {
    顶部导航栏样式
    ============================================================ */
 
-/* 导航按钮基础样式 */
-.nav-btn {
-    color: #ccc !important;
-    text-transform: none !important;
-    min-width: unset !important;
-    padding: 4px 10px !important;
-    border-radius: 4px !important;
-    transition: all 0.15s ease !important;
-    white-space: nowrap !important;
-}
-
-.nav-btn:hover {
-    color: #fff !important;
-    background-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-/* 当前选中菜单项 */
-.nav-active {
-    color: #fff !important;
-    background-color: rgba(255, 255, 255, 0.2) !important;
-    font-weight: 500 !important;
-}
-
 /* MudMenu 下拉菜单按钮的文字颜色 */
 .mud-menu .mud-button-text {
     color: inherit !important;
@@ -401,31 +370,6 @@ input[type="number"]::-webkit-outer-spin-button {
 .mud-menu .mud-list-item:hover {
     color: #fff !important;
     background-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-/* 当前选中菜单项（高亮） */
-.mud-menu .menu-item-active {
-    color: #fff !important;
-    background-color: rgba(255, 255, 255, 0.2) !important;
-    font-weight: 500 !important;
-}
-
-/* 菜单项右侧选中指示线 */
-.mud-menu .menu-item-active::after {
-    content: "";
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 4px;
-    height: 16px;
-    border-radius: 2px;
-    background-color: var(--mud-palette-primary, #1976d2);
-}
-
-/* 顶部导航容器 - 确保下拉菜单不被裁剪 */
-.top-nav {
-    overflow: visible !important;
 }
 
 /* 表格内联编辑的验证样式 */
@@ -498,36 +442,6 @@ input[type="number"]::-webkit-outer-spin-button {
     border-color: var(--mud-palette-error) !important;
 }
 
-/* ============================================================
-   表头筛选输入框 - 紧凑风格
-   ============================================================ */
-
-.mud-table .filter-input {
-    width: 100%;
-    min-width: 50px;
-}
-
-.mud-table .filter-input .mud-input {
-    font-size: 0.7rem !important;
-    height: 24px !important;
-    min-height: 24px !important;
-    margin-top: 2px;
-}
-
-.mud-table .filter-input .mud-input input {
-    padding: 0 4px !important;
-    line-height: 24px !important;
-}
-
-.mud-table .filter-input .mud-input-outlined-border {
-    border-width: 1px !important;
-}
-
-.mud-table .filter-input .mud-input-label {
-    font-size: 0.65rem !important;
-    top: 2px !important;
-}
-
 /* 表头文字与筛选框之间的间距 */
 .mud-table .mud-th {
     vertical-align: top;
@@ -545,130 +459,6 @@ input[type="number"]::-webkit-outer-spin-button {
     margin-bottom: 1px;
 }
 
-/* 批量出库对话框 - 选中条目列表 */
-.outbound-item-row td {
-    padding: 4px 8px;
-    vertical-align: middle;
-    font-size: 0.85rem;
-}
-
-.outbound-item-row .qty-input {
-    max-width: 100px;
-}
-
-.outbound-item-row .qty-input .mud-input {
-    height: 32px !important;
-    min-height: 32px !important;
-    font-size: 0.85rem !important;
-}
-
-.outbound-summary {
-    border-top: 2px solid var(--mud-palette-primary);
-    padding-top: 12px;
-    margin-top: 8px;
-}
-
-/* ============================================================
-   水平表单布局 - label在左，输入框在右
-   ============================================================ */
-
-.form-horizontal-field {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 48px;
-}
-
-.form-horizontal-field .form-label {
-    min-width: 100px;
-    text-align: right;
-    flex-shrink: 0;
-    font-size: 0.875rem;
-    color: rgba(0, 0, 0, 0.7);
-    white-space: nowrap;
-}
-
-.form-horizontal-field .form-input {
-    flex: 1;
-    min-width: 0;
-}
-
-/* 多行输入框（如备注）的行高适应 */
-.form-horizontal-field.form-field-multiline {
-    align-items: flex-start;
-}
-
-/* ============================================================
-   行内多字段布局 - 多个label+输入框在同一行
-   ============================================================ */
-
-.form-inline-row {
-    display: flex;
-    align-items: stretch;
-    gap: 24px;
-    flex-wrap: nowrap;
-}
-
-.form-inline-row .form-inline-field {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-    flex: 1;
-    min-width: 0;
-}
-
-.form-inline-row .form-inline-field .form-label {
-    white-space: nowrap;
-    font-size: 0.875rem;
-    color: rgba(0, 0, 0, 0.7);
-    flex-shrink: 0;
-    padding-bottom: 0;
-    line-height: 1.2;
-}
-
-.form-inline-row .form-inline-field .form-input-stack {
-    display: flex;
-    flex-direction: column;
-    width: 200px;
-    flex-shrink: 0;
-}
-
-.form-inline-row .form-inline-field .form-input-stack .input-hint {
-    font-size: 0.65rem;
-    color: var(--mud-palette-error);
-    line-height: 1.2;
-    padding-left: 2px;
-    margin-bottom: 0;
-    font-weight: 500;
-}
-
-/* 隐藏式输入框 - 无边框，hover/focus时显示 */
-.form-inline-row .form-hidden-input .mud-input {
-    min-height: 24px !important;
-    height: 24px !important;
-    margin-top: 0 !important;
-}
-
-.form-inline-row .form-hidden-input .mud-input-outlined .mud-input-outlined-border {
-    border-color: transparent !important;
-    transition: border-color 0.2s ease;
-}
-
-.form-inline-row .form-hidden-input .mud-input-outlined:hover .mud-input-outlined-border {
-    border-color: rgba(0, 0, 0, 0.12) !important;
-}
-
-.form-inline-row .form-hidden-input .mud-input-outlined:focus-within .mud-input-outlined-border {
-    border-color: var(--mud-palette-primary) !important;
-    border-width: 1px !important;
-}
-
-.form-inline-row .form-hidden-input .mud-input input {
-    padding: 0 4px !important;
-    line-height: 24px !important;
-    font-size: 0.875rem !important;
-}
-
 /* 更新修改模式：原项次主号只读样式 */
 .readonly-field .mud-input-input {
     background-color: #f0f0f0 !important;
@@ -677,24 +467,6 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 .readonly-field .mud-input .mud-input-outlined-border {
     border-color: #e0e0e0 !important;
-}
-
-/* 必填红色星号 - 输入框内右上角 */
-.form-inline-row .form-input-required {
-    position: relative;
-}
-
-.form-inline-row .form-input-required::after {
-    content: "*";
-    color: var(--mud-palette-error);
-    position: absolute;
-    top: 0;
-    right: 2px;
-    font-size: 0.9rem;
-    font-weight: bold;
-    z-index: 1;
-    pointer-events: none;
-    line-height: 1;
 }
 
 /* ============================================================
@@ -748,6 +520,15 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .auto-table {
     width: 100%;
+}
+
+/* 订单交期预估小表可点击单元格（联动筛选订单列表） */
+.estimate-cell {
+    transition: background-color 0.15s;
+    user-select: none;
+}
+.estimate-cell:hover {
+    background-color: #e3f2fd;
 }
 
 .auto-table td.mud-table-cell,
@@ -877,17 +658,6 @@ input[type="number"]::-webkit-outer-spin-button {
 .col-g5 .col-group-badge { color: #6A1B9A; background: #E1BEE7; }
 .col-g5-cell { background: #F8F4FC !important; }
 
-/* G6-G8: 冷轧排程子分组 - 紫色系（与 G5 同色） */
-.col-g6 { background: #F8F4FC !important; }
-.col-g6 .col-group-badge { color: #6A1B9A; background: #E1BEE7; }
-.col-g6-cell { background: #F8F4FC !important; }
-.col-g7 { background: #F8F4FC !important; }
-.col-g7 .col-group-badge { color: #6A1B9A; background: #E1BEE7; }
-.col-g7-cell { background: #F8F4FC !important; }
-.col-g8 { background: #F8F4FC !important; }
-.col-g8 .col-group-badge { color: #6A1B9A; background: #E1BEE7; }
-.col-g8-cell { background: #F8F4FC !important; }
-
 /* G6: 返整执行 - 青色系 */
 .col-g6 { background: #E0F7FA !important; }
 .col-g6 .col-group-badge { color: #00695C; background: #B2DFDB; }
@@ -938,35 +708,20 @@ input[type="number"]::-webkit-outer-spin-button {
 .col-g15 .col-group-badge { color: #E65100; background: #FFCC80; }
 .col-g15-cell { background: #FFF3E0 !important; }
 
-/* G4: 荒管采购 */
+/* G16: 荒管采购 */
 .col-g16 { background: #E8EAF6 !important; }
 .col-g16 .col-group-badge { color: #283593; background: #C5CAE9; }
 .col-g16-cell { background: #E8EAF6 !important; }
 
-/* G5: 成品采购 */
+/* G17: 成品采购 */
 .col-g17 { background: #FCE4EC !important; }
 .col-g17 .col-group-badge { color: #AD1457; background: #F48FB1; }
 .col-g17-cell { background: #FCE4EC !important; }
 
-/* G6: 库存使用 */
+/* G18: 库存使用 */
 .col-g18 { background: #E0F7FA !important; }
 .col-g18 .col-group-badge { color: #00695C; background: #80DEEA; }
 .col-g18-cell { background: #E0F7FA !important; }
-
-/* G7: 库料改制 */
-.col-g19 { background: #F1F8E9 !important; }
-.col-g19 .col-group-badge { color: #33691E; background: #AED581; }
-.col-g19-cell { background: #F1F8E9 !important; }
-
-/* G8: 在产改制 */
-.col-g20 { background: #FFF8E1 !important; }
-.col-g20 .col-group-badge { color: #F57F17; background: #FFD54F; }
-.col-g20-cell { background: #FFF8E1 !important; }
-
-/* G9: 在产主工单 */
-.col-g21 { background: #F3E5F5 !important; }
-.col-g21 .col-group-badge { color: #6A1B9A; background: #CE93D8; }
-.col-g21-cell { background: #F3E5F5 !important; }
 
 /* ============================================================
    WorkOrderExecution 分组底色统一（仅本页生效）
@@ -1031,11 +786,6 @@ input[type="number"]::-webkit-outer-spin-button {
     margin: 0;
 }
 
-/* ========== 表格横向滚动条加高防误触 ========== */
-#workorder-execution-table .mud-table-container {
-    scrollbar-width: thick;
-}
-
 /* 分组起始列 - 左侧竖线分隔 */
 .col-group-start { border-left: 2px solid #BDBDBD !important; }
 .col-group-start-cell { border-left: 2px solid #E0E0E0 !important; }
@@ -1066,13 +816,6 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 #workorder-execution-list-table .col-header-cell {
     justify-content: center;
-}
-/* 数字列右对齐 */
-#workorder-execution-list-table .col-numeric {
-    text-align: right !important;
-}
-#workorder-execution-list-table .col-numeric .col-header-cell {
-    justify-content: flex-end;
 }
 
 /* ============================================================
@@ -1180,31 +923,8 @@ input[type="number"]::-webkit-outer-spin-button {
     padding-bottom: 4px;
 }
 
-/* 批次时间线工段卡片悬浮效果 */
-.timeline-section {
-    transition: all 0.15s ease;
-    cursor: default;
-}
-.timeline-section:hover {
-    transform: translateX(2px);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-}
 .compact-card.mud-card .mud-card-content {
     padding-top: 0;
-}
-
-/* ============================================================
-   ColumnFilter 筛选弹窗
-   ============================================================ */
-.column-filter {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-}
-.filter-pa-3 {
-    padding: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    border-radius: 4px;
 }
 
 /* 确保表头不裁剪筛选弹窗 */
@@ -1213,31 +933,9 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 /* ============================================================
-   统一通知横幅 - 最大高度 + 溢出滚动
-   ============================================================ */
-.notification-banner {
-    max-height: 160px;
-}
-.notification-banner .notification-banner-body {
-    max-height: 130px;
-    overflow-y: auto;
-    flex: 1;
-    padding-right: 8px;
-}
-
-/* 取消订单卡片 - 内容区限制高度 */
-.cancelled-orders-card .mud-card-content {
-    max-height: 260px;
-    overflow-y: auto;
-}
-
-/* ============================================================
    移动端响应式样式 — 叠加在桌面样式之上
    ============================================================ */
 @media (max-width: 960px) {
-    /* 桌面水平导航隐藏，由移动端抽屉导航替代 */
-    .top-nav { display: none !important; }
-
     /* 表格横向滚动 */
     .mud-table-container {
         overflow-x: auto !important;
@@ -1269,21 +967,6 @@ input[type="number"]::-webkit-outer-spin-button {
     .mud-table .mud-table-cell {
         font-size: 0.75rem !important;
         padding: 2px 4px !important;
-    }
-
-    /* 行内表单换行 */
-    .form-inline-row {
-        flex-wrap: wrap !important;
-        gap: 8px !important;
-    }
-
-    .form-inline-row .form-inline-field {
-        min-width: 100% !important;
-    }
-
-    /* 提示文本 */
-    body::after {
-        display: none;
     }
 }
 
@@ -1325,55 +1008,12 @@ input[type="number"]::-webkit-outer-spin-button {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* ========== 批次计划等级高亮 ========== */
-.compact-select.flow-level-1 .mud-input input,
-.auto-table td .flow-level-1 input {
-    color: #D32F2F !important;
-    font-weight: 700 !important;
-}
-.compact-select.flow-level-2 .mud-input input,
-.auto-table td .flow-level-2 input {
-    color: #F57C00 !important;
-    font-weight: 600 !important;
-}
-.compact-select.flow-level-3 .mud-input input,
-.auto-table td .flow-level-3 input {
-    color: #1976D2 !important;
-    font-weight: 600 !important;
-}
-
-/* ========== 批次计划产量目标-零值淡化/有值高亮 ========== */
-.daily-target-zero .mud-input-root {
-    color: #FFFFFF !important;
-}
-.daily-target-set .mud-input-root {
-    color: #1565C0 !important;
-    font-weight: 600 !important;
-}
-.daily-target-set {
-    background: #E3F2FD !important;
-    border-radius: 4px;
-}
-
 /* ========== 列表页表格横向滚动（B34）========== */
 /* compact-table: width:max-content + table-layout:fixed
    - 列宽总和 ≤ 视口 → 无滚动条，列宽按设定显示
    - 列宽总和 > 视口 → mud-table-container(overflow-x:auto) 自动滚动
    未设宽度的列由内容决定宽度（如操作列按钮）。
    详见 04_开发规范.md §6.29 */
-
-/* ========== 参数配置-所属上下文标签 ========== */
-.context-badge {
-    display: inline-block;
-    padding: 1px 8px;
-    border-radius: 3px;
-    font-size: 0.82rem;
-    font-weight: 500;
-    color: #1565C0;
-    background: #E3F2FD;
-    white-space: nowrap;
-
-}
 
 /* ========== 表头语义层级标色（主号级青色 / 订单级橙色）========== */
 /* 主号级：单个表头强化——深青底 + 加粗 + 青色粗下边框（单元格不着色，避免与组色块混淆） */

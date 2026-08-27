@@ -23,14 +23,11 @@ public partial class Equipments
     private int _totalCount;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -553,36 +550,6 @@ public partial class Equipments
         }
     }
 
-    // ========== 单元格原始值/显示值 ==========
-
-    private string? GetCellRawValue(EquipmentListDto item, string key) => key switch
-    {
-        "EquipmentCode" => item.EquipmentCode,
-        "EquipmentName" => item.EquipmentName,
-        "ModelNumber" => item.ModelNumber,
-        "TechnicalParams" => item.TechnicalParams,
-        "Manufacturer" => item.Manufacturer,
-        "InstallationDate" => item.InstallationDate?.ToString("yyyy-MM-dd"),
-        "Location" => item.Location,
-        "RelatedSection" => item.RelatedSection,
-        "LifecycleStatus" => DisplayHelper.GetLifecycleStatusText(item.LifecycleStatus),
-        "UsageType" => DisplayHelper.GetUsageTypeText(item.UsageType),
-        "RunningStatus" => DisplayHelper.GetRunningStatusText(item.RunningStatus),
-        "InspectionStatus" => DisplayHelper.GetEquipmentTaskStatusText(item.InspectionStatus),
-        "NeedInspection" => item.NeedInspection.ToString(),
-        "InspectionPerson" => item.InspectionPerson,
-        "InspectionCycleDays" => item.InspectionCycleDays.ToString(),
-        "CurrentInspectionStartDate" => item.CurrentInspectionStartDate?.ToString("yyyy-MM-dd"),
-        "MaintStatus" => DisplayHelper.GetEquipmentTaskStatusText(item.MaintStatus),
-        "NeedMaintenance" => item.NeedMaintenance.ToString(),
-        "MaintPerson" => item.MaintPerson,
-        "MaintCycleDays" => item.MaintCycleDays.ToString(),
-        "CurrentMaintStartDate" => item.CurrentMaintStartDate?.ToString("yyyy-MM-dd"),
-        "LastRepairDate" => item.LastRepairDate?.ToString("yyyy-MM-dd"),
-        "Remark" => item.Remark,
-        _ => null
-    };
-
     // ========== 打印方法 ==========
 
     private List<PrintColumnDef> GetPrintColumnDefs()
@@ -637,29 +604,6 @@ public partial class Equipments
         await JS.InvokeVoidAsync("MES.printQrCodes", new List<string> { item.EquipmentCode });
     }
 
-    private async Task PrintAll()
-    {
-        try
-        {
-            var columns = GetPrintColumnDefs();
-            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "createdtime";
-            var request = new EquipmentPrintAllRequest
-            {
-                Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortBy,
-                IsDescending = sortDescending,
-                Columns = columns
-            };
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Equipment}/print-all-file";
-            var json = JsonSerializer.Serialize(request);
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
     // ========== 单元格渲染 ==========
 
     private RenderFragment RenderCell(EquipmentListDto item, ColumnDef col) => builder =>

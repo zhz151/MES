@@ -17,12 +17,10 @@ namespace MES.Api.Controllers.Quality;
 public class FinalInspectionsController : ControllerBase
 {
     private readonly IFinalInspectionService _service;
-    private readonly ILogger<FinalInspectionsController> _logger;
 
-    public FinalInspectionsController(IFinalInspectionService service, ILogger<FinalInspectionsController> logger)
+    public FinalInspectionsController(IFinalInspectionService service)
     {
         _service = service;
-        _logger = logger;
     }
 
     /// <summary>

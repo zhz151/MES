@@ -238,14 +238,11 @@ public partial class FurnaceRegistrations
     // ========== 内联编辑 ==========
 
     private HashSet<int> selectedIds = new();
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value) { foreach (var item in _pageItems) selectedIds.Add(item.Id); }
             else { selectedIds.Clear(); }
             StateHasChanged();
@@ -624,11 +621,6 @@ public partial class FurnaceRegistrations
         _ => null
     };
 
-    private string? GetCellDisplayText(FurnaceRegistrationDto item, string key) => key switch
-    {
-        _ => GetCellRawValue(item, key) ?? ""
-    };
-
     // ========== 持久化 ==========
 
     private async Task SavePageStateAsync()
@@ -665,28 +657,6 @@ public partial class FurnaceRegistrations
         {
             Ids = selectedIds.ToArray(),
             Columns = GetPrintColumnDefs()
-        };
-        var json = JsonSerializer.Serialize(request);
-        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-    }
-
-    private async Task PrintAll()
-    {
-        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.FurnaceRegistration}/print-all-file";
-
-        DateTime? dateFrom = null;
-        DateTime? dateTo = null;
-        if (DateTime.TryParse(_dateFrom, out var df)) dateFrom = df;
-        if (DateTime.TryParse(_dateTo, out var dt)) dateTo = dt;
-
-        var request = new FurnaceRegistrationPrintAllRequest
-        {
-            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-            SortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "furnacenumber",
-            IsDescending = sortDescending,
-            Columns = GetPrintColumnDefs(),
-            IncomingDateFrom = dateFrom,
-            IncomingDateTo = dateTo
         };
         var json = JsonSerializer.Serialize(request);
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);

@@ -41,7 +41,8 @@ public class OrderController : ControllerBase
         [FromQuery] DateTime? signDateTo = null,
         [FromQuery] DateTime? deliveryDateFrom = null,
         [FromQuery] DateTime? deliveryDateTo = null,
-        [FromQuery] string? filters = null)
+        [FromQuery] string? filters = null,
+        [FromQuery] string? estimateFilter = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         QueryParams query = new() { PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword, SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy, IsDescending = isDescending };
@@ -50,7 +51,14 @@ public class OrderController : ControllerBase
             try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
             catch { }
         }
-        var result = await _orderService.GetPagedAsync(query, technicalStatus, orderStatus, signDateFrom, signDateTo, deliveryDateFrom, deliveryDateTo);
+        // 订单交期预估小表点击联动筛选（前端从小表 DTO 回传桶边界 JSON）
+        OrderDeliveryEstimateFilterDto? estFilter = null;
+        if (!string.IsNullOrEmpty(estimateFilter))
+        {
+            try { estFilter = JsonSerializer.Deserialize<OrderDeliveryEstimateFilterDto>(estimateFilter, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+            catch { }
+        }
+        var result = await _orderService.GetPagedAsync(query, technicalStatus, orderStatus, signDateFrom, signDateTo, deliveryDateFrom, deliveryDateTo, estFilter);
         return Ok(ApiResponse<PagedResult<SalesOrderListDto>>.Ok(result, "查询成功"));
     }
 
@@ -189,15 +197,6 @@ public class OrderController : ControllerBase
         return File(pdfBytes, "application/pdf", "订单打印.pdf");
     }
 
-    [HttpGet("{id}/print")]
-    [Authorize(Roles = Roles.Policies.OrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintOrder(int id)
-    {
-        var pdfBytes = await _orderService.PrintOrderAsync(id);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
     [HttpPost("print-all-file")]
     [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<IActionResult> PrintAllFile([FromBody] OrderPrintAllRequest request)
@@ -206,25 +205,12 @@ public class OrderController : ControllerBase
         return File(pdfBytes, "application/pdf", "订单列表.pdf");
     }
 
-    [HttpPost("print-batch")]
+    [HttpPost("print-list-file")]
     [Authorize(Roles = Roles.Policies.OrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintOrderBatch([FromBody] OrderPrintBatchRequest request)
+    public async Task<IActionResult> PrintListFile([FromBody] OrderPrintListRequest request)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _orderService.PrintOrderBatchAsync(request.Ids);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
-    [HttpGet("{orderId}/requirements/print")]
-    [Authorize(Roles = Roles.Policies.OrderView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintOrderRequirements(int orderId)
-    {
-        var pdfBytes = await _orderService.PrintOrderRequirementsAsync(orderId);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+        var pdfBytes = await _orderService.PrintOrderListAsync(request.Title, request.Items, request.Columns);
+        return File(pdfBytes, "application/pdf", "订单列表.pdf");
     }
 
     [HttpPost("{orderId}/requirements/print-file")]

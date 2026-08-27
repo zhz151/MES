@@ -37,16 +37,6 @@ public abstract class ControllerTestBase
     }
 
     /// <summary>
-    /// 验证 ActionResult 返回 OkObjectResult（无泛型版本）
-    /// </summary>
-    protected static (OkObjectResult Result, ApiResponse Response) AssertOk(ActionResult<ApiResponse> actionResult)
-    {
-        var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
-        var response = Assert.IsType<ApiResponse>(okResult.Value);
-        return (okResult, response);
-    }
-
-    /// <summary>
     /// 验证 ActionResult 返回 BadRequestObjectResult 且 ApiResponse.Success == false
     /// </summary>
     protected static (BadRequestObjectResult Result, TResponse Response) AssertBadRequest<TResponse>(ActionResult<TResponse> actionResult)

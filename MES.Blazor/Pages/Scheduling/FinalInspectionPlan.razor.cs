@@ -83,10 +83,35 @@ public partial class FinalInspectionPlan
 
     private void SelectAllItems(bool selected)
     {
+        var pageItems = CurrentPageItems();
         if (selected)
-            _selectedItems = new HashSet<FinalInspectionPlanDto>(_filteredAllItems);
+        {
+            // 只勾选当前页显示的行（与其它列表页表头全选作用域一致：本页全选）
+            foreach (var item in pageItems)
+                _selectedItems.Add(item);
+        }
         else
+        {
             _selectedItems.Clear();
+        }
+    }
+
+    /// <summary>当前页显示的行（Items 模式前端分页：MudTable CurrentPage 0-based × RowsPerPage 切片）</summary>
+    private List<FinalInspectionPlanDto> CurrentPageItems()
+    {
+        if (table == null || _filteredItems.Count == 0) return new();
+        var rowsPerPage = table.RowsPerPage > 0 ? table.RowsPerPage : _pageSize;
+        return _filteredItems.Skip(table.CurrentPage * rowsPerPage).Take(rowsPerPage).ToList();
+    }
+
+    /// <summary>当前页是否全部被选中（表头全选勾选态，按本页行判定）</summary>
+    private bool AllSelectedOnPage
+    {
+        get
+        {
+            var pageItems = CurrentPageItems();
+            return pageItems.Count > 0 && pageItems.All(r => _selectedItems.Contains(r));
+        }
     }
 
     private void ToggleSelection(FinalInspectionPlanDto item, bool selected)

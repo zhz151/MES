@@ -6,6 +6,7 @@ using MES.Blazor.Components;
 using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Shared;
 using MES.Core.Models;
 using MES.Blazor.Helpers;
 using MES.Blazor.Shared;
@@ -32,14 +33,11 @@ public partial class Certificates
 
     // ========== 打印选择 ==========
     private HashSet<int> selectedIds = new();
-    private bool _allSelected;
     private bool allSelected
     {
-        get => _allSelected;
+        get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
         set
         {
-            if (_allSelected == value) return;
-            _allSelected = value;
             if (value)
             {
                 foreach (var item in _pageItems)
@@ -444,6 +442,26 @@ public partial class Certificates
         }
     };
 
+    /// <summary>当前可见列 → 打印列定义（Key/Label 对应当前列显隐与顺序）</summary>
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
+    /// <summary>按列取表格显示文本（复用 RenderCell 各分支口径，保证打印列表与页面单元格一致）</summary>
+    private string? GetCellDisplayText(CertificateDto item, string key) => key switch
+    {
+        "certificateno" => item.CertificateNo,
+        "issuedate" => item.IssueDate.ToString("yyyy-MM-dd"),
+        "customername" => item.CustomerName,
+        "productstandard" => item.ProductStandard,
+        "productname" => item.ProductName,
+        "deliverystatus" => DisplayHelper.GetDeliveryStateText(item.DeliveryStatus),
+        "createdby" => string.IsNullOrEmpty(item.CreatedBy) ? "-" : item.CreatedBy,
+        "createdtime" => item.CreatedTime == default ? "-" : item.CreatedTime.ToString("yyyy-MM-dd HH:mm"),
+        "updatedby" => string.IsNullOrEmpty(item.UpdatedBy) ? "-" : item.UpdatedBy,
+        "updatedtime" => item.UpdatedTime == default ? "-" : item.UpdatedTime.ToString("yyyy-MM-dd HH:mm"),
+        _ => null
+    };
+
     // ========== 业务操作 ==========
 
     private void NavigateToCreate() => Navigation.NavigateTo("/quality/certificates/create");
@@ -480,13 +498,43 @@ public partial class Certificates
         }
     }
 
-    private async Task PrintAll()
+    /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
+    private async Task PrintSelectedList()
     {
+        if (!selectedIds.Any())
+        {
+            Snackbar.Add("请先选择要打印的质量证明书", Severity.Warning);
+            return;
+        }
         try
         {
+            // 列过多时各列被压缩到单字符放不下的宽度 → QuestPDF 布局冲突；A4 可显示列数上限 35 列（与后端 TablePrintHelper.MaxPrintColumns 同步），超限提前拦截并页面内警示
+            const int MaxPrintColumns = 35;
+            var visible = _visibleColumns;
+            if (visible.Count > MaxPrintColumns)
+            {
+                Snackbar.Add($"当前可见列过多（{visible.Count} 列，打印上限 {MaxPrintColumns} 列），请通过列显隐精简后再打印", Severity.Warning);
+                return;
+            }
+
+            var selectedItems = _pageItems
+                .Where(o => selectedIds.Contains(o.Id))
+                .Select(item =>
+                {
+                    var dict = new Dictionary<string, object>();
+                    foreach (var col in visible)
+                        dict[col.Key] = GetCellDisplayText(item, col.Key) ?? "-";
+                    return dict;
+                }).ToList();
+
+            var request = new CertificatePrintListRequest
+            {
+                Title = "质量证明书列表",
+                Items = selectedItems,
+                Columns = GetPrintColumnDefs()
+            };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var request = new CertificatePrintRequest { Ids = Array.Empty<int>() };
-            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Certificate}/print-file";
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Certificate}/print-list-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

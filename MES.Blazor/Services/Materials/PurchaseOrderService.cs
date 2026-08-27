@@ -13,16 +13,6 @@ public class PurchaseOrderService
 
     public PurchaseOrderService(AuthHttpClient http) => _http = http;
 
-    public async Task<ApiResponse<List<PurchaseOrderDto>>> GetAllListAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<PurchaseOrderDto>>>($"{BaseUrl}/all")
-                   ?? ApiResponse<List<PurchaseOrderDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<PurchaseOrderDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<PagedResult<PurchaseOrderDto>>> GetPagedAsync(QueryParams query, string? status = null, DateTime? dateFrom = null, DateTime? dateTo = null, DateTime? requiredDateFrom = null, DateTime? requiredDateTo = null)
     {
         try
@@ -91,26 +81,6 @@ public class PurchaseOrderService
                    ?? ApiResponse<Dictionary<string, List<string>>>.Fail("获取筛选上下文失败");
         }
         catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<object>> SyncAllAsync()
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<object, ApiResponse<object>>($"{BaseUrl}/sync-all", new { })
-                   ?? ApiResponse<object>.Fail("同步失败");
-        }
-        catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<object>> SyncSingleAsync(int id)
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<object, ApiResponse<object>>($"{BaseUrl}/{id}/sync", new { })
-                   ?? ApiResponse<object>.Fail("同步失败");
-        }
-        catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
     }
 
     public async Task<ApiResponse<object>> UpdateStatusAsync(int id, UpdateOrderStatusRequest request)

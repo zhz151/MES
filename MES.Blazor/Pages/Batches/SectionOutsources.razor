@@ -287,11 +287,6 @@
                                OnClick="PrintSelected">
                         打印选中 (@selectedIds.Count)
                     </MudButton>
-                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Info"
-                               StartIcon="@Icons.Material.Filled.Print"
-                               OnClick="PrintAll">
-                        打印全部
-                    </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-2">
                         共 @_totalCount 条记录
                     </MudText>
@@ -356,9 +351,7 @@
                             <MudCheckBox T="bool"
                                          Value="@selectedIds.Contains(item.Id)"
                                          ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); StateHasChanged(); })"
-                                         Dense="true"
-                                         Disabled="@item.IsInternal"
-                                         Tooltip="@(item.IsInternal ? "厂内记录无需回收" : null)" />
+                                         Dense="true" />
                         }
                     </MudTd>
                     @foreach (var col in _visibleColumns)

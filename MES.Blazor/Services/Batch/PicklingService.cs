@@ -79,16 +79,6 @@ public class PicklingService
 
     // ========== 完工记录 ==========
 
-    public async Task<ApiResponse<PicklingOutRecordDto?>> GetOutRecordByInIdAsync(int picklingInRecordId)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<PicklingOutRecordDto?>>($"{BaseUrl}/{picklingInRecordId}/out-record")
-                   ?? ApiResponse<PicklingOutRecordDto?>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<PicklingOutRecordDto?>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<PagedResult<PicklingOutRecordDto>>> GetOutRecordsPagedAsync(
         int pageIndex = 1, int pageSize = 20, string? keyword = null,
         string? sortBy = null, bool isDescending = true,

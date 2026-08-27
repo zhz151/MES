@@ -361,10 +361,25 @@ public class InspectionRecordService : IInspectionRecordService
             .FirstOrDefaultAsync(r => r.Id == id);
         if (entity == null) throw new BusinessException("点检记录不存在");
 
+        var equipmentId = entity.EquipmentId;
         _context.InspectionRecords.Remove(entity);
         await _context.SaveChangesAsync();
+
+        // 回退设备最近点检日期快照：删除后按剩余点检单 ActualDate 最大值重算，不再残留已删记录的日期
+        var equipment = await _context.Equipment.FirstOrDefaultAsync(e => e.Id == equipmentId);
+        if (equipment != null)
+        {
+            var lastInspectionDate = (await _context.InspectionRecords
+                .AsNoTracking()
+                .Where(r => r.EquipmentId == equipmentId && r.ActualDate != null)
+                .Select(r => (DateTime?)r.ActualDate)
+                .ToListAsync()).Max();
+            equipment.LastInspectionDate = lastInspectionDate;
+            await _context.SaveChangesAsync();
+        }
+
         // 同步更新设备点检状况
-        await EquipmentStatusCalculator.RecalculateInspectionStatusAsync(_context, entity.EquipmentId);
+        await EquipmentStatusCalculator.RecalculateInspectionStatusAsync(_context, equipmentId);
     }
 
     public async Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)

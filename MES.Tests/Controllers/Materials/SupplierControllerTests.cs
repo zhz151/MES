@@ -12,14 +12,12 @@ namespace MES.Tests.Controllers;
 public class SupplierControllerTests : ControllerTestBase
 {
     private readonly Mock<ISupplierService> _serviceMock;
-    private readonly Mock<ILogger<SupplierController>> _loggerMock;
     private readonly SupplierController _controller;
 
     public SupplierControllerTests()
     {
         _serviceMock = new Mock<ISupplierService>();
-        _loggerMock = CreateLoggerMock<SupplierController>();
-        _controller = new SupplierController(_serviceMock.Object, _loggerMock.Object);
+        _controller = new SupplierController(_serviceMock.Object);
     }
 
     [Fact]

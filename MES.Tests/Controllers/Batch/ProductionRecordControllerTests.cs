@@ -11,14 +11,12 @@ namespace MES.Tests.Controllers;
 public class ProductionRecordControllerTests : ControllerTestBase
 {
     private readonly Mock<IProductionRecordService> _serviceMock;
-    private readonly Mock<ILogger<ProductionRecordController>> _loggerMock;
     private readonly ProductionRecordController _controller;
 
     public ProductionRecordControllerTests()
     {
         _serviceMock = new Mock<IProductionRecordService>();
-        _loggerMock = CreateLoggerMock<ProductionRecordController>();
-        _controller = new ProductionRecordController(_serviceMock.Object, _loggerMock.Object);
+        _controller = new ProductionRecordController(_serviceMock.Object);
     }
 
     [Fact]

@@ -110,6 +110,9 @@ public class FinalInspectionDto
         : ManufacturingStatus.HasValue && DeliveryState.HasValue
           && ManufacturingStatus.Value == DeliveryState.Value ? "是" : "否";
 
+    /// <summary>是否交付态（别名，供打印反射/列取值使用，与显示口径一致）</summary>
+    public string? IsDeliveryStatus => IsDeliveryStatusDisplay;
+
     /// <summary>设备名称</summary>
     public string? EquipmentName { get; set; }
 

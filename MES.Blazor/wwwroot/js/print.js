@@ -101,29 +101,22 @@ window.printRawHtml = function (htmlContent, title, pageOrientation) {
     openPrintWindow(htmlContent, title, pageOrientation);
 };
 
-// ===== PDF 打印（Base64 兼容版——旧页面用，Blob URL + iframe 覆盖层）=====
-
-window.openPdf = function (base64) {
-    try {
-        var byteChars = atob(base64);
-        var byteNums = new Array(byteChars.length);
-        for (var i = 0; i < byteChars.length; i++) {
-            byteNums[i] = byteChars.charCodeAt(i);
-        }
-        var byteArr = new Uint8Array(byteNums);
-        var blob = new Blob([byteArr], { type: 'application/pdf' });
-        var url = URL.createObjectURL(blob);
-        showPdfOverlay(url);
-    } catch (e) {
-        console.error('PDF打开失败:', e);
-        alert('PDF打开失败: ' + e.message);
-    }
-};
-
 // ===== PDF 打印（fetch + Blob URL + iframe 同页覆盖层——标准做法）=====
 // C# 传入 API 地址和 JSON 请求体，JS 直接 fetch 获取二进制 PDF
 
 window.openPdfFromApi = function (apiUrl, jsonBody) {
+    // 列数前置校验：列表打印请求携带 Columns（PascalCase，兼容 camelCase），列数超过 A4 可显示上限时页面内警示并中止请求。
+    // 阈值与后端 TablePrintHelper.MaxPrintColumns(35) 同步（列过多时各列被压到单字符放不下 → QuestPDF 布局冲突）；不携带 Columns 的请求（单据/批量计划打印）跳过校验。
+    var MAX_PRINT_COLUMNS = 35;
+    try {
+        var reqBody = JSON.parse(jsonBody);
+        var cols = reqBody.Columns || reqBody.columns;
+        if (cols && Array.isArray(cols) && cols.length > MAX_PRINT_COLUMNS) {
+            showPrintNotice('当前可见列过多（' + cols.length + ' 列，打印上限 ' + MAX_PRINT_COLUMNS + ' 列），请通过列显隐精简后再打印', 'warning');
+            return;
+        }
+    } catch (e) { }
+
     // 修正 API 基地址：若 Blazor 端口与 API 端口不同，替换 origin
     var apiBase = window.MES_API_URL;
     if (apiBase) {
@@ -150,7 +143,15 @@ window.openPdfFromApi = function (apiUrl, jsonBody) {
         body: jsonBody
     })
     .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
+        if (!r.ok) {
+            // 后端 BusinessException 返回 400 + ApiResponse<object>.message，解析出友好提示（如"打印列数过多…"）
+            return r.json().then(function (envelope) {
+                var msg = (envelope && envelope.message) ? envelope.message : ('HTTP ' + r.status);
+                throw new Error(msg);
+            }, function () {
+                throw new Error('HTTP ' + r.status);
+            });
+        }
         var contentType = r.headers.get('content-type') || '';
         if (contentType.indexOf('application/pdf') !== -1) {
             // 端点直接返回 PDF 文件（如 TablePrintHelper）
@@ -180,9 +181,43 @@ window.openPdfFromApi = function (apiUrl, jsonBody) {
     })
     .catch(function (e) {
         console.error('PDF加载失败:', e);
-        alert('PDF加载失败: ' + e.message + '\n请按 F12 查看详细错误');
+        var msg = (e && e.message) ? e.message : '未知错误';
+        showPrintNotice('打印失败：' + msg + '\n请按 F12 查看详细错误', 'error');
     });
 };
+
+// 页面内警示覆盖层（列过多无法打印 / 打印失败等业务警示），替代原生 alert，样式醒目且可关闭
+function showPrintNotice(message, level) {
+    var existing = document.getElementById('print-notice-overlay');
+    if (existing) existing.remove();
+
+    var color = level === 'error' ? '#d32f2f' : '#ed6c02';
+    var overlay = document.createElement('div');
+    overlay.id = 'print-notice-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;';
+
+    var box = document.createElement('div');
+    box.style.cssText = 'background:#fff;border-radius:8px;padding:24px 28px;max-width:520px;box-shadow:0 8px 24px rgba(0,0,0,0.25);text-align:center;font-family:sans-serif;';
+
+    var title = document.createElement('div');
+    title.textContent = level === 'error' ? '打印失败' : '无法打印';
+    title.style.cssText = 'font-size:18px;font-weight:bold;color:' + color + ';margin-bottom:12px;';
+
+    var msg = document.createElement('div');
+    msg.textContent = message || '';
+    msg.style.cssText = 'font-size:14px;color:#333;line-height:1.7;margin-bottom:18px;white-space:pre-line;word-break:break-all;';
+
+    var btn = document.createElement('button');
+    btn.textContent = '我知道了';
+    btn.style.cssText = 'padding:8px 28px;cursor:pointer;font-size:14px;background:' + color + ';color:#fff;border:none;border-radius:4px;';
+    btn.onclick = function () { overlay.remove(); };
+
+    box.appendChild(title);
+    box.appendChild(msg);
+    box.appendChild(btn);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+}
 
 function showPdfOverlay(url) {
     var existing = document.getElementById('pdf-overlay');

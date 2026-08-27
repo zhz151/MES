@@ -5,6 +5,7 @@ using MES.Api.Controllers.Order;
 using MES.Core.Models;
 using MES.Services.Order;
 using MES.Core.DTOs.Order;
+using MES.Core.DTOs.Shared;
 using MES.Core.Interfaces.Order;
 using MES.Core.Interfaces.Infrastructure;
 
@@ -34,7 +35,7 @@ public class OrderControllerTests : ControllerTestBase
             PageIndex = 1,
             PageSize = 20
         };
-        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<OrderDeliveryEstimateFilterDto?>()))
             .ReturnsAsync(pagedResult);
 
         // Act
@@ -214,63 +215,34 @@ public class OrderControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task PrintOrder_ReturnsOk()
+    public async Task PrintListFile_ReturnsPdfFile()
     {
         // Arrange
-        _serviceMock.Setup(x => x.PrintOrderAsync(1)).ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
+        var request = new OrderPrintListRequest
+        {
+            Title = "订单列表",
+            Items = new List<Dictionary<string, object>>
+            {
+                new() { ["ordernumber"] = "SO001", ["customername"] = "客户A" }
+            },
+            Columns = new List<PrintColumnDef>
+            {
+                new() { Key = "ordernumber", Label = "订单号" },
+                new() { Key = "customername", Label = "客户名称" }
+            }
+        };
+        var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 };
+        _serviceMock.Setup(x => x.PrintOrderListAsync(request.Title, request.Items, request.Columns))
+            .ReturnsAsync(pdfBytes);
 
         // Act
-        var result = await _controller.PrintOrder(1);
+        var result = await _controller.PrintListFile(request);
 
         // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
-    }
-
-    [Fact]
-    public async Task PrintOrderBatch_ReturnsBadRequest_WhenModelInvalid()
-    {
-        // Arrange
-        AddModelError(_controller);
-
-        // Act
-        var result = await _controller.PrintOrderBatch(new OrderPrintBatchRequest());
-
-        // Assert
-        var (_, response) = AssertBadRequest<ApiResponse<string>>(result);
-        Assert.False(response.Success);
-    }
-
-    [Fact]
-    public async Task PrintOrderBatch_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintOrderBatchAsync(It.IsAny<int[]>()))
-            .ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintOrderBatch(new OrderPrintBatchRequest { Ids = new[] { 1, 2 } });
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
-    }
-
-    [Fact]
-    public async Task PrintOrderRequirements_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.PrintOrderRequirementsAsync(1)).ReturnsAsync(new byte[] { 0x25, 0x50, 0x44, 0x46 });
-
-        // Act
-        var result = await _controller.PrintOrderRequirements(1);
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<string>>(result);
-        Assert.True(response.Success);
-        Assert.NotNull(response.Data);
+        var fileResult = Assert.IsType<FileContentResult>(result);
+        Assert.Equal("application/pdf", fileResult.ContentType);
+        Assert.Equal(pdfBytes, fileResult.FileContents);
+        _serviceMock.Verify(x => x.PrintOrderListAsync(request.Title, request.Items, request.Columns), Times.Once);
     }
 
     [Fact]
@@ -300,55 +272,55 @@ public class OrderControllerTests : ControllerTestBase
     [Fact]
     public async Task GetPaged_LimitsPageSize()
     {
-        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<OrderDeliveryEstimateFilterDto?>()))
             .ReturnsAsync(new PagedResult<SalesOrderListDto> { Items = new List<SalesOrderListDto>() });
         var result = await _controller.GetPaged(pageSize: 9999);
-        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.PageSize == 5000), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Once);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.PageSize == 5000), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<OrderDeliveryEstimateFilterDto?>()), Times.Once);
     }
 
     [Fact]
     public async Task GetPaged_PassesKeyword_ToService()
     {
-        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<OrderDeliveryEstimateFilterDto?>()))
             .ReturnsAsync(new PagedResult<SalesOrderListDto> { Items = new List<SalesOrderListDto>() });
         await _controller.GetPaged(keyword: "测试");
-        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Keyword == "测试"), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Once);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Keyword == "测试"), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<OrderDeliveryEstimateFilterDto?>()), Times.Once);
     }
 
     [Fact]
     public async Task GetPaged_PassesSortBy_ToService()
     {
-        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<OrderDeliveryEstimateFilterDto?>()))
             .ReturnsAsync(new PagedResult<SalesOrderListDto> { Items = new List<SalesOrderListDto>() });
         await _controller.GetPaged(sortBy: "OrderNumber");
-        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "OrderNumber"), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Once);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.SortBy == "OrderNumber"), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<OrderDeliveryEstimateFilterDto?>()), Times.Once);
     }
 
     [Fact]
     public async Task GetPaged_PassesFilters_ToService()
     {
-        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<OrderDeliveryEstimateFilterDto?>()))
             .ReturnsAsync(new PagedResult<SalesOrderListDto> { Items = new List<SalesOrderListDto>() });
         var filtersJson = "[{\"Field\":\"Status\",\"Operator\":\"equals\",\"Value\":\"Open\"}]";
         await _controller.GetPaged(filters: filtersJson);
-        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Filters != null && q.Filters.Count > 0), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Once);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.Is<QueryParams>(q => q.Filters != null && q.Filters.Count > 0), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<OrderDeliveryEstimateFilterDto?>()), Times.Once);
     }
 
     [Fact]
     public async Task GetPaged_PassesTechnicalStatus_ToService()
     {
-        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<OrderDeliveryEstimateFilterDto?>()))
             .ReturnsAsync(new PagedResult<SalesOrderListDto> { Items = new List<SalesOrderListDto>() });
         await _controller.GetPaged(technicalStatus: "已完成");
-        _serviceMock.Verify(x => x.GetPagedAsync(It.IsAny<QueryParams>(), "已完成", It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Once);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.IsAny<QueryParams>(), "已完成", It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<OrderDeliveryEstimateFilterDto?>()), Times.Once);
     }
 
     [Fact]
     public async Task GetPaged_PassesOrderStatus_ToService()
     {
-        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+        _serviceMock.Setup(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<OrderDeliveryEstimateFilterDto?>()))
             .ReturnsAsync(new PagedResult<SalesOrderListDto> { Items = new List<SalesOrderListDto>() });
         await _controller.GetPaged(orderStatus: "已确认");
-        _serviceMock.Verify(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), "已确认", It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()), Times.Once);
+        _serviceMock.Verify(x => x.GetPagedAsync(It.IsAny<QueryParams>(), It.IsAny<string?>(), "已确认", It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>(), It.IsAny<OrderDeliveryEstimateFilterDto?>()), Times.Once);
     }
 }

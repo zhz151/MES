@@ -60,11 +60,50 @@ public partial class Ncrs
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
-    private async Task PrintAll()
+    /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
+    private async Task PrintSelectedList()
     {
-        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Ncr}/print-all-file";
-        var json = JsonSerializer.Serialize(new { keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword, columns = GetPrintColumnDefs() });
-        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+        if (!selectedIds.Any())
+        {
+            Snackbar.Add("请先选择要打印的记录", Severity.Warning);
+            return;
+        }
+        try
+        {
+            // 列过多时各列被压缩到单字符放不下的宽度 → QuestPDF 布局冲突；A4 可显示列数上限 35 列（与后端 TablePrintHelper.MaxPrintColumns 同步），超限提前拦截并页面内警示
+            const int MaxPrintColumns = 35;
+            var visible = _visibleColumns;
+            if (visible.Count > MaxPrintColumns)
+            {
+                Snackbar.Add($"当前可见列过多（{visible.Count} 列，打印上限 {MaxPrintColumns} 列），请通过列显隐精简后再打印", Severity.Warning);
+                return;
+            }
+
+            var selectedItems = _pageItems
+                .Where(o => selectedIds.Contains(o.Id))
+                .Select(item =>
+                {
+                    var dict = new Dictionary<string, object>();
+                    foreach (var col in visible)
+                        dict[col.Key] = GetCellDisplayText(item, col.Key) ?? "-";
+                    return dict;
+                }).ToList();
+
+            var request = new NcrPrintListRequest
+            {
+                Title = "不合格报告列表",
+                Items = selectedItems,
+                Columns = GetPrintColumnDefs()
+            };
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Ncr}/print-list-file";
+            var json = JsonSerializer.Serialize(request);
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
     }
 
     // 待处理卡片
@@ -1092,6 +1131,27 @@ public partial class Ncrs
         var val = prop.GetValue(item);
         return val?.ToString();
     }
+
+    /// <summary>按列取表格显示文本（复用 RenderCell 各分支口径，保证打印列表与页面单元格一致）</summary>
+    private string? GetCellDisplayText(NcrDto item, string key) => key switch
+    {
+        "Status" => GetStatusText(item.Status),
+        "PipeCategory" => GetPipeCategoryText(item.PipeCategory),
+        "DisposalMethod" => GetDisposalMethodText(item.DisposalMethod),
+        "Severity" => GetSeverityText(item.Severity),
+        "ResponsibilityCategory" => DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, item.ResponsibilityCategory) ?? "",
+        "VerifyResult" => GetVerifyResultText(item.VerifyResult),
+        "DisposalIsCompleted" => item.DisposalIsCompleted ? "是" : "否",
+        "PersonIsCompleted" => item.PersonIsCompleted ? "是" : "否",
+        "ReportDate" => item.ReportDate.ToString("yyyy-MM-dd"),
+        "DisposalCompleteDate" => item.DisposalCompleteDate?.ToString("yyyy-MM-dd"),
+        "AnalysisConfirmDate" => item.AnalysisConfirmDate?.ToString("yyyy-MM-dd"),
+        "ActionPlanDate" => item.ActionPlanDate?.ToString("yyyy-MM-dd"),
+        "ActionVerifyDate" => item.ActionVerifyDate?.ToString("yyyy-MM-dd"),
+        "PersonCompleteDate" => item.PersonCompleteDate?.ToString("yyyy-MM-dd"),
+        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
+        _ => GetPropertyValue(item, key)
+    };
 
     private static Color GetStatusColor(NcrStatus status) => status switch
     {

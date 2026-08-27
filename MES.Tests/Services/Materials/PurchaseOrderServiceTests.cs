@@ -390,6 +390,28 @@ public class PurchaseOrderServiceTests : TestBase
     // ========== SyncAllAsync / SyncSingleAsync ==========
 
     [Fact]
+    public async Task SyncAllAsync_批次删光_到货字段回退为零状态Open()
+    {
+        // 场景：关联批次已被删除（表内无 SourceOrderNo 匹配），残留快照应回退为 0
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid, status: PurchaseOrderStatus.Completed, quantity: 100);
+        order.ReceivedQuantity = 1500;
+        order.ReceivedWeight = 32000m;
+        order.LastArrivalDate = DateTime.Today;
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.SyncAllAsync();
+
+        var updated = await ctx.PurchaseOrders.FindAsync(order.Id);
+        updated!.ReceivedQuantity.Should().Be(0);
+        updated.ReceivedWeight.Should().Be(0m);
+        updated.LastArrivalDate.Should().BeNull();
+        updated.Status.Should().Be(PurchaseOrderStatus.Open);
+    }
+
+    [Fact]
     public async Task SyncSingleAsync_更新到货数量_状态变为部分到货()
     {
         var ctx = CreateDbContext();
@@ -833,6 +855,7 @@ public class PurchaseOrderServiceTests : TestBase
         row.ExecutionScheduleStage.Should().Be(3);
         row.ExecutionUrgencyLevel.Should().Be("B");
         row.ExecutionRawMaterialLockRemark.Should().Be("A质量补料");
+        row.PlantGrade.Should().Be("20#");
         row.StatusText.Should().Be("未穿孔");
     }
 
@@ -916,7 +939,28 @@ public class PurchaseOrderServiceTests : TestBase
         row.PlanWeight.Should().Be(3000m);
         row.PurchaseWeight.Should().Be(1500m);
         row.MissingWeight.Should().Be(1500m);
+        row.PlantGrade.Should().Be("20#");
         row.StatusText.Should().Be("部分采购");
+    }
+
+    [Fact]
+    public async Task GetProcurementStatusAsync_同工单多牌号_去重拼接()
+    {
+        var ctx = CreateDbContext();
+        var wo = await SeedMinWorkOrderAsync(ctx, "PG");
+
+        // 同工单同分类（RoughTube）3 条计划行：牌号 20#（两条）/45#（一条），计划行级去重拼接
+        await SeedPurchaseSemiPlanAsync(ctx, wo.Id, "20#", "219*8", 1000m);
+        await SeedPurchaseSemiPlanAsync(ctx, wo.Id, "20#", "273*10", 2000m);
+        await SeedPurchaseSemiPlanAsync(ctx, wo.Id, "45#", "250*8", 500m);
+
+        var svc = CreateService(ctx);
+        var statuses = await svc.GetProcurementStatusAsync();
+
+        var row = statuses.Should().ContainSingle(s => s.WorkOrderNo == wo.WorkOrderNo).Subject;
+        row.PlantGrade.Should().Be("20#、45#");
+        row.PlanWeight.Should().Be(3500m);
+        row.StatusText.Should().Be("未采购");
     }
 
     // ========== B11 专项测试 ==========

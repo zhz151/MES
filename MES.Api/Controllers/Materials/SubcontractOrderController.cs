@@ -232,33 +232,12 @@ public class SubcontractOrderController : ControllerBase
 
     // ========== 打印 ==========
 
-    [HttpGet("{id}/print")]
-    [Authorize(Roles = Roles.Policies.MaterialView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintOrder(int id)
-    {
-        var pdfBytes = await _service.PrintOrderAsync(id);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
-    }
-
     [HttpPost("{id}/print-file")]
     [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<IActionResult> PrintOrderFile(int id)
     {
         var pdfBytes = await _service.PrintOrderAsync(id);
         return File(pdfBytes, "application/pdf", $"委外单_{id}.pdf");
-    }
-
-    [HttpPost("print-batch")]
-    [Authorize(Roles = Roles.Policies.MaterialView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintOrderBatch([FromBody] OrderPrintBatchRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintOrderBatchAsync(request.Ids);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
     }
 
     [HttpPost("print-batch-file")]
@@ -272,16 +251,12 @@ public class SubcontractOrderController : ControllerBase
         return File(pdfBytes, "application/pdf", $"委外单批量.pdf");
     }
 
-    [HttpPost("print-all")]
+    [HttpPost("print-list-file")]
     [Authorize(Roles = Roles.Policies.MaterialView)]
-    public async Task<ActionResult<ApiResponse<string>>> PrintOrderAll([FromBody] OrderPrintAllRequest request)
+    public async Task<IActionResult> PrintListFile([FromBody] SubcontractOrderPrintListRequest request)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.DateFrom, request.DateTo);
-        var base64 = Convert.ToBase64String(pdfBytes);
-        return Ok(ApiResponse<string>.Ok(base64, "打印成功"));
+        var pdfBytes = await _service.PrintSubcontractOrderListAsync(request.Title, request.Items, request.Columns);
+        return File(pdfBytes, "application/pdf", "圆棒穿孔列表.pdf");
     }
 
     [HttpPost("print-all-file")]

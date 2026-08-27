@@ -18,6 +18,7 @@ public class OutboundWriteService : IOutboundWriteService
     private readonly AppDbContext _context;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
     private readonly ILogger<OutboundWriteService> _logger;
+    private readonly IInventorySyncService? _syncService;
 
     private static readonly Expression<Func<OutboundRecord, OutboundRecordDto>> OutboundToDtoExpr = r => new OutboundRecordDto
     {
@@ -44,11 +45,13 @@ public class OutboundWriteService : IOutboundWriteService
     public OutboundWriteService(
         AppDbContext context,
         IWorkOrderExecutionService workOrderExecutionService,
-        ILogger<OutboundWriteService> logger)
+        ILogger<OutboundWriteService> logger,
+        IInventorySyncService? syncService = null)
     {
         _context = context;
         _workOrderExecutionService = workOrderExecutionService;
         _logger = logger;
+        _syncService = syncService;
     }
 
     private async Task TryRefreshExecutionSummaryAsync(string? workOrderNo)
@@ -321,6 +324,21 @@ public class OutboundWriteService : IOutboundWriteService
 
             // 刷新出库记录实际工单号（删除后该工单出库量减少）
             await TryRefreshExecutionSummaryAsync(workOrderNo);
+
+            // 退货出库删除后退货量减少 → 净到货/净回收变化，需重算来源单（采购/委外）到货字段与状态
+            if (entity.OutboundType == OutboundType.ReturnOut
+                && _syncService != null
+                && !string.IsNullOrWhiteSpace(entity.SourceOrderNo))
+            {
+                try
+                {
+                    await _syncService.SyncSourceOrdersAsync(new List<string> { entity.SourceOrderNo });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "来源单同步失败（不影响主流程）: SourceOrderNo={SourceOrderNo}", entity.SourceOrderNo);
+                }
+            }
         }
         catch
         {

@@ -130,19 +130,6 @@ public class MaterialPlanService
         }
     }
 
-    public async Task<ApiResponse<PurchaseFinishedPlanDto>> CreateFinishedPlanAsync(CreatePurchaseFinishedPlanRequest request)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<CreatePurchaseFinishedPlanRequest, ApiResponse<PurchaseFinishedPlanDto>>($"{BaseUrl}/finished", request);
-            return response ?? ApiResponse<PurchaseFinishedPlanDto>.Fail("创建失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<PurchaseFinishedPlanDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     public async Task<ApiResponse<List<PurchaseFinishedPlanDto>>> CreateFinishedPlanBatchAsync(List<CreatePurchaseFinishedPlanRequest> requests)
     {
         try
@@ -228,19 +215,6 @@ public class MaterialPlanService
         catch (Exception ex)
         {
             return ApiResponse<List<AvailableInventoryBatchDto>>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    public async Task<ApiResponse<InventoryPlanDto>> CreateInventoryPlanAsync(CreateInventoryPlanRequest request)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<CreateInventoryPlanRequest, ApiResponse<InventoryPlanDto>>($"{BaseUrl}/inventory", request);
-            return response ?? ApiResponse<InventoryPlanDto>.Fail("创建失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<InventoryPlanDto>.Fail($"网络错误: {ex.Message}");
         }
     }
 
@@ -458,19 +432,6 @@ public class MaterialPlanService
         catch (Exception ex)
         {
             return ApiResponse<WorkOrderMaterialPlanDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    public async Task<ApiResponse> RefreshStatusAsync(int workOrderId)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<object, ApiResponse>($"{BaseUrl}/refresh-status/{workOrderId}", new { });
-            return response ?? ApiResponse.Fail("刷新失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse.Fail($"网络错误: {ex.Message}");
         }
     }
 

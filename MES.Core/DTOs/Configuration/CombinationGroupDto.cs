@@ -21,9 +21,6 @@ public class CombinationGroupDto
     /// <summary>归属流转类别 Id（SectionFlowCategorySetting.Id，空=未归属）</summary>
     public int? FlowCategoryId { get; set; }
 
-    /// <summary>归属流转类别名称（显示用）</summary>
-    public string? FlowCategoryName { get; set; }
-
     /// <summary>归属生产段落（中文段落名，SectionParagraphConfig.ParagraphName；空=未归属段落）</summary>
     public string? ParagraphName { get; set; }
 }

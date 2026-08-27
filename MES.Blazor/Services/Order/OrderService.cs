@@ -24,7 +24,8 @@ public class OrderService
         DateTime? dateFrom = null,
         DateTime? dateTo = null,
         DateTime? deliveryDateFrom = null,
-        DateTime? deliveryDateTo = null)
+        DateTime? deliveryDateTo = null,
+        OrderDeliveryEstimateFilterDto? estimateFilter = null)
     {
         try
         {
@@ -47,6 +48,9 @@ public class OrderService
 
             if (deliveryDateFrom.HasValue) url += $"&deliveryDateFrom={deliveryDateFrom.Value:yyyy-MM-dd}";
             if (deliveryDateTo.HasValue) url += $"&deliveryDateTo={deliveryDateTo.Value:yyyy-MM-dd}";
+
+            if (estimateFilter != null)
+                url += $"&estimateFilter={Uri.EscapeDataString(JsonSerializer.Serialize(estimateFilter))}";
 
             if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
 
@@ -127,32 +131,6 @@ public class OrderService
         }
     }
 
-    public async Task<ApiResponse<OrderItemDto>> AddItemAsync(int orderId, AddOrderItemRequest request)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<AddOrderItemRequest, ApiResponse<OrderItemDto>>($"{BaseUrl}/{orderId}/items", request);
-            return response ?? ApiResponse<OrderItemDto>.Fail("添加项次失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<OrderItemDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    public async Task<ApiResponse<OrderItemDto>> UpdateItemAsync(int orderId, int itemId, UpdateOrderItemRequest request)
-    {
-        try
-        {
-            var response = await _http.PutAsJsonAsync<UpdateOrderItemRequest, ApiResponse<OrderItemDto>>($"{BaseUrl}/{orderId}/items/{itemId}", request);
-            return response ?? ApiResponse<OrderItemDto>.Fail("更新项次失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<OrderItemDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     public async Task<ApiResponse<object>> DeleteItemAsync(int orderId, int itemId)
     {
         try
@@ -193,22 +171,6 @@ public class OrderService
         catch (Exception ex)
         {
             return ApiResponse<List<SalesOrderListDto>>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 手动刷新订单列表读模型（即时更新）
-    /// </summary>
-    public async Task<ApiResponse> RefreshAsync()
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<object, ApiResponse>($"{BaseUrl}/refresh", new object());
-            return response ?? ApiResponse.Fail("刷新失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse.Fail($"网络错误: {ex.Message}");
         }
     }
 

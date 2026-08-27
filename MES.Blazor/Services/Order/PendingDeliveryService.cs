@@ -15,32 +15,6 @@ public class PendingDeliveryService
         _http = http;
     }
 
-    public async Task<ApiResponse<List<PendingDeliveryItemDto>>> GetPendingItemsAsync(
-        string? orderNo = null,
-        string? productStandard = null,
-        string? deliveryStatus = null)
-    {
-        try
-        {
-            var queryParams = new List<string>();
-            if (!string.IsNullOrEmpty(orderNo))
-                queryParams.Add($"orderNo={Uri.EscapeDataString(orderNo)}");
-            if (!string.IsNullOrEmpty(productStandard))
-                queryParams.Add($"productStandard={Uri.EscapeDataString(productStandard)}");
-            if (!string.IsNullOrEmpty(deliveryStatus))
-                queryParams.Add($"deliveryStatus={Uri.EscapeDataString(deliveryStatus)}");
-
-            var queryString = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<PendingDeliveryItemDto>>>(
-                $"{BaseUrl}/list{queryString}");
-            return response ?? ApiResponse<List<PendingDeliveryItemDto>>.Fail("获取订单成品(实时库存)失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<List<PendingDeliveryItemDto>>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     public async Task<ApiResponse<PagedResult<PendingDeliveryItemDto>>> GetAllAsync(
         QueryParams query,
         DateTime? inboundDateFrom = null,

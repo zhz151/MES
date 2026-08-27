@@ -91,106 +91,43 @@
                                     <MudText Typo="Typo.body2">@request.SourceBatchNo</MudText>
                                 </td>
                                 <td>
-                                    @if (_isWarehouseMode)
-                                    {
-                                        <MudText Typo="Typo.body2">@DisplayHelper.GetMaterialTypeText(request.SourceMaterialType)</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudSelect T="MaterialType?" @bind-Value="formSourceMaterialType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
-                                            <MudSelectItem Value="@((MaterialType?)null)">请选择</MudSelectItem>
-                                            @foreach (var opt in DisplayHelper.GetEnumOptions<MaterialType>())
-                                            {
-                                                <MudSelectItem Value="@((MaterialType?)Enum.Parse<MaterialType>(opt.Value))">@opt.Display</MudSelectItem>
-                                            }
-                                        </MudSelect>
-                                    }
+                                    <MudSelect T="MaterialType?" @bind-Value="formSourceMaterialType" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                        <MudSelectItem Value="@((MaterialType?)null)">请选择</MudSelectItem>
+                                        @foreach (var opt in DisplayHelper.GetEnumOptions<MaterialType>())
+                                        {
+                                            <MudSelectItem Value="@((MaterialType?)Enum.Parse<MaterialType>(opt.Value))">@opt.Display</MudSelectItem>
+                                        }
+                                    </MudSelect>
                                 </td>
                                 <td>
-                                    @if (_isWarehouseMode)
-                                    {
-                                        <MudText Typo="Typo.body2">@request.SourceName</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudTextField T="string" @bind-Value="request.SourceName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
-                                    }
+                                    <MudTextField T="string" @bind-Value="request.SourceName" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
                                 </td>
                                 <td>
-                                    @if (_isWarehouseMode)
-                                    {
-                                        <MudText Typo="Typo.body2">@request.SourceHeatNo</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudTextField T="string" @bind-Value="request.SourceHeatNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
-                                    }
+                                    <MudTextField T="string" @bind-Value="request.SourceHeatNo" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
                                 </td>
                                 <td>
-                                    @if (_isWarehouseMode)
-                                    {
-                                        <MudText Typo="Typo.body2">@request.SourcePlantGrade</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudTextField T="string" @bind-Value="request.SourcePlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
-                                    }
+                                    <MudTextField T="string" @bind-Value="request.SourcePlantGrade" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
                                 </td>
                                 <td>
-                                    @if (_isWarehouseMode)
-                                    {
-                                        <MudText Typo="Typo.body2">@request.SourceSpecification</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudTextField T="string" @bind-Value="request.SourceSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
-                                    }
+                                    <MudTextField T="string" @bind-Value="request.SourceSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true" />
                                 </td>
                                 <td>
-                                    @if (_isWarehouseMode)
-                                    {
-                                        <MudText Typo="Typo.body2">@DisplayHelper.GetLengthStatusText(request.SourceLengthStatus?.ToString())</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudSelect T="string" @bind-Value="formSourceLengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
-                                            <MudSelectItem Value="@("")">请选择</MudSelectItem>
-                                            @foreach (var opt in DisplayHelper.GetEnumOptions<LengthStatus>())
-                                            {
-                                                <MudSelectItem Value="@opt.Value">@opt.Display</MudSelectItem>
-                                            }
-                                        </MudSelect>
-                                    }
+                                    <MudSelect T="string" @bind-Value="formSourceLengthStatus" Dense="true" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">
+                                        <MudSelectItem Value="@("")">请选择</MudSelectItem>
+                                        @foreach (var opt in DisplayHelper.GetEnumOptions<LengthStatus>())
+                                        {
+                                            <MudSelectItem Value="@opt.Value">@opt.Display</MudSelectItem>
+                                        }
+                                    </MudSelect>
                                 </td>
                                 <td>
-                                    @if (_isWarehouseMode)
-                                    {
-                                        <MudText Typo="Typo.body2">@request.SourceUnitWeight?.ToString("G29")</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudNumericField T="decimal?" @bind-Value="request.SourceUnitWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" />
-                                    }
+                                    <MudNumericField T="decimal?" @bind-Value="request.SourceUnitWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" />
                                 </td>
                                 <td>
-                                    @if (_isWarehouseMode)
-                                    {
-                                        <MudText Typo="Typo.body2">@request.InputQuantity</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudNumericField T="int?" @bind-Value="request.InputQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" Min="0" />
-                                    }
+                                    <MudNumericField T="int?" @bind-Value="request.InputQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" Min="0" />
                                 </td>
                                 <td>
-                                    @if (_isWarehouseMode)
-                                    {
-                                        <MudText Typo="Typo.body2">@request.InputWeight?.ToString("G29")</MudText>
-                                    }
-                                    else
-                                    {
-                                        <MudNumericField T="decimal?" @bind-Value="request.InputWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" Min="0" />
-                                    }
+                                    <MudNumericField T="decimal?" @bind-Value="request.InputWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" Min="0" />
                                 </td>
                                 <td>
                                     @if (_hasSourceBatchNo)
@@ -792,7 +729,6 @@
     }
 
     private bool _hasSourceBatchNo => !string.IsNullOrEmpty(request.SourceBatchNo);
-    private bool _isWarehouseMode => request.InputType == BatchInputType.Warehouse;
 
     // ========== 可用批次（仅用于初始化同步） ==========
     private List<AvailableBatchDto> availableBatches = new();

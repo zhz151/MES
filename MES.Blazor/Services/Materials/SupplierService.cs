@@ -13,16 +13,6 @@ public class SupplierService
 
     public SupplierService(AuthHttpClient http) => _http = http;
 
-    public async Task<ApiResponse<List<SupplierProfileDto>>> GetAllListAsync()
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<List<SupplierProfileDto>>>($"{BaseUrl}/all")
-                   ?? ApiResponse<List<SupplierProfileDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<SupplierProfileDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<PagedResult<SupplierProfileDto>>> GetPagedAsync(QueryParams query)
     {
         try

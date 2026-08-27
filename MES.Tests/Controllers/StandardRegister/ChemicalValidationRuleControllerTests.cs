@@ -11,14 +11,12 @@ namespace MES.Tests.Controllers;
 public class ChemicalValidationRuleControllerTests : ControllerTestBase
 {
     private readonly Mock<IChemicalValidationRuleService> _serviceMock;
-    private readonly Mock<ILogger<ChemicalValidationRuleController>> _loggerMock;
     private readonly ChemicalValidationRuleController _controller;
 
     public ChemicalValidationRuleControllerTests()
     {
         _serviceMock = new Mock<IChemicalValidationRuleService>();
-        _loggerMock = CreateLoggerMock<ChemicalValidationRuleController>();
-        _controller = new ChemicalValidationRuleController(_serviceMock.Object, _loggerMock.Object);
+        _controller = new ChemicalValidationRuleController(_serviceMock.Object);
     }
 
     [Fact]

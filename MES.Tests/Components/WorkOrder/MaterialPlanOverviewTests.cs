@@ -127,6 +127,7 @@ public class MaterialPlanOverviewTests : IDisposable
         var authHttpClient = new AuthHttpClient(httpClient, _localStorage.Object, fakeNav);
         _ctx.Services.AddSingleton(new WorkOrderService(authHttpClient));
         _ctx.Services.AddSingleton(new MaterialPlanService(authHttpClient));
+        _ctx.Services.AddSingleton(new RawMaterialLockPlanAndExecutionService(authHttpClient));
     }
 
     private void ConfigureResponse(Action<PagedResult<WorkOrderListDto>> configure)

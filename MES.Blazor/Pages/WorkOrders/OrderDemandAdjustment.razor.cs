@@ -119,9 +119,9 @@ public partial class OrderDemandAdjustment
             new() { Key = "ScheduleStage",           Label = "主号-关注",       SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetScheduleStageOptions(), GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
             new() { Key = "UrgencyLevel",            Label = "主号-计划性",     SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
             new() { Key = "EstimatedProcessCompletionDate",Label = "主号-预计完成日",SortKey = "EstimatedProcessCompletionDate", FilterType = "date", Width = "120", GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
-            new() { Key = "DaysDiffFromDelivery",    Label = "主号-交期相差天数", SortKey = "DaysDiffFromDelivery",  FilterType = "number", Width = "80", GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
-            new() { Key = "TotalRemainingWorkDays",  Label = "主号-剩余总工量(天)",SortKey = "TotalRemainingWorkDays", FilterType = "number", Width = "80", GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
-            new() { Key = "CapacityWorkDays",        Label = "主号-产能工量(天)", SortKey = "CapacityWorkDays",      FilterType = "number", Width = "80", GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "DaysDiffFromDelivery",    Label = "主号-交期相差天数", SortKey = "DaysDiffFromDelivery",  FilterType = "number", Width = "80", Visible = false, GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "TotalRemainingWorkDays",  Label = "主号-剩余总工量(天)",SortKey = "TotalRemainingWorkDays", FilterType = "number", Width = "80", Visible = false, GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "CapacityWorkDays",        Label = "主号-产能工量(天)", SortKey = "CapacityWorkDays",      FilterType = "number", Width = "80", Visible = false, GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
             new() { Key = "RawMaterialLockRemark",   Label = "主号-原锁备注",   SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
         };
 
@@ -395,12 +395,6 @@ public partial class OrderDemandAdjustment
     }
 
     // ========== 内联编辑 ==========
-
-    private async Task ToggleUrging(OrderDemandAdjustmentDto item)
-    {
-        item.IsUrging = !item.IsUrging;
-        await SaveUrgingAsync(item);
-    }
 
     private async Task OnAdjustmentRemarkChanged(OrderDemandAdjustmentDto item, string? newValue)
     {
@@ -814,38 +808,6 @@ public partial class OrderDemandAdjustment
     // ========== 颜色 ==========
 
     // ========== 打印 ==========
-
-    private async Task PrintAll()
-    {
-        try
-        {
-            var printColumns = _visibleColumns
-                .Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label })
-                .ToList();
-
-            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "ScheduleStage";
-            var request = new
-            {
-                keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                sortBy,
-                isDescending = sortDescending,
-                signDateFrom = DateTime.TryParse(_dateFrom, out var dFrom) ? dFrom.ToString("yyyy-MM-dd") : null,
-                signDateTo = DateTime.TryParse(_dateTo, out var dTo) ? dTo.ToString("yyyy-MM-dd") : null,
-                deliveryDateStart = DateTime.TryParse(_deliveryDateFrom, out var ddf) ? ddf.ToString("yyyy-MM-dd") : null,
-                deliveryDateEnd = DateTime.TryParse(_deliveryDateTo, out var ddt) ? ddt.ToString("yyyy-MM-dd") : null,
-                columns = printColumns
-            };
-
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.OrderDemandAdjustment}/print-all-file";
-            var json = JsonSerializer.Serialize(request);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
 
     private async Task PrintSelected()
     {
