@@ -252,7 +252,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
             entity.ProcessGroupId = pg.Id;
             entity.ProcessName = request.ProcessName ?? pg.ProcessName;
-            entity.SequenceNumber = request.SequenceNumber ?? pg.Inspection!.Value;
+            entity.SequenceNumber = pg.Inspection!.Value;
         }
         else
         {
@@ -395,7 +395,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
                 IsForceCompleted = false,
                 ProcessGroupId = finalPgId,
                 ProcessName = request.ProcessName ?? finalPg.ProcessName,
-                SequenceNumber = request.SequenceNumber ?? finalPg.Inspection!.Value,
+                SequenceNumber = finalPg.Inspection!.Value,
                 InspectionType = isLastBatch ? nameof(InspectionType.FormalInspection) : nameof(InspectionType.PreInspection)
             });
         }

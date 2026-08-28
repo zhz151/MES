@@ -222,6 +222,68 @@ public class ProductionRecordServiceTests : TestBase
     }
 
     [Fact]
+    public async Task CreateProductionRecordAsync_前端传非0序号_仍按工段步骤号对齐()
+    {
+        // 语义A：序号=工段步骤号，新增记录一旦定位工序组即强制对齐，忽略前端传入的 SequenceNumber
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedProcessGroupAsync(ctx, batch.Id);  // 冷轧拔=1
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            SequenceNumber = 99,  // 前端错误值，应被工序组步骤号覆盖
+            ExecDate = DateTime.Today,
+            Quantity = 10,
+            Weight = 1000m
+        });
+
+        result.SequenceNumber.Should().Be(1);
+        var saved = await ctx.ProductionRecords.FirstAsync(r => r.Id == result.Id);
+        saved.SequenceNumber.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task UpdateProductionRecordAsync_工序组工段步骤号变更后_重对齐序号()
+    {
+        // 语义A：更新时序号 = 工段步骤号（工序组编辑后纠正漂移）
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var pg = await SeedProcessGroupAsync(ctx, batch.Id);  // 冷轧拔=1
+        var svc = CreateService(ctx);
+
+        var created = await svc.CreateProductionRecordAsync(new CreateProductionRecordRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            ExecDate = DateTime.Today,
+            Quantity = 10,
+            Weight = 1000m
+        });
+        created.SequenceNumber.Should().Be(1);
+
+        // 工序组被编辑：冷轧拔从 1 改为 2（前面插入工段）
+        pg.ColdRollDraw = 2;
+        await ctx.SaveChangesAsync();
+
+        var updated = await svc.UpdateProductionRecordAsync(created.Id, new UpdateProductionRecordRequest
+        {
+            ExecDate = DateTime.Today,
+            Quantity = 20
+        });
+
+        updated.SequenceNumber.Should().Be(2);
+        var saved = await ctx.ProductionRecords.FirstAsync(r => r.Id == created.Id);
+        saved.SequenceNumber.Should().Be(2);
+    }
+
+    [Fact]
     public async Task CreateProductionRecordAsync_批次不存在_抛出BusinessException()
     {
         var ctx = CreateDbContext();

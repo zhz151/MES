@@ -2050,4 +2050,192 @@ public class BatchServiceTests : TestBase
         item.WarehouseName.Should().Be("原料仓库");
         item.InputQuantity.Should().Be(5);
     }
+
+    // ========== 流转判定 ComputeFlowJudgment ==========
+
+    /// <summary>
+    /// 反射调用 private static ComputeFlowJudgment（纯内存判定，正常/疑问）
+    /// </summary>
+    private static string InvokeComputeFlowJudgment((int Seq, DateTime Date)[] seqRecords, DateTime? inboundDate)
+    {
+        var method = typeof(BatchService).GetMethod("ComputeFlowJudgment", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        return (string)method.Invoke(null, new object?[] { seqRecords, inboundDate })!;
+    }
+
+    public static TheoryData<(int Seq, DateTime Date)[], DateTime?, string> FlowJudgmentCases => new()
+    {
+        // ===== 正常 =====
+        { Array.Empty<(int, DateTime)>(), null, "正常" },                                              // 未产
+        { Array.Empty<(int, DateTime)>(), new DateTime(2026, 8, 20), "正常" },                        // 仅仓库入库（终点覆盖，规则2跳过）
+        { new[] { (1, new DateTime(2026, 8, 10)) }, null, "正常" },                                   // N=1，补位≤0 跳过
+        { new[] { (1, new DateTime(2026, 8, 10)), (2, new DateTime(2026, 8, 10)), (3, new DateTime(2026, 8, 11)) }, null, "正常" }, // 完整连续，位置=全量max
+        { new[] { (1, new DateTime(2026, 8, 10)), (2, new DateTime(2026, 8, 11)) }, new DateTime(2026, 8, 12), "正常" },               // 已入库终点，入库日期最新
+        { new[] { (1, new DateTime(2026, 8, 10)), (3, new DateTime(2026, 8, 11)) }, null, "正常" },  // 读法A：N=3，N-2=1 存在，N-1=2 缺失容忍
+        { new[] { (2, new DateTime(2026, 8, 10)), (4, new DateTime(2026, 8, 11)) }, null, "正常" },  // 读法A：N=4，N-2=2 存在，N-1=3 缺失容忍
+        { new[] { (1, new DateTime(2026, 8, 10)), (2, new DateTime(2026, 8, 10)), (4, new DateTime(2026, 8, 11)) }, null, "正常" }, // 读法A：N=4，N-2=2 存在，N-1=3 缺失容忍（中间隔一道工序无记录）
+
+        // ===== 疑问 =====
+        { new[] { (1, new DateTime(2026, 8, 15)), (2, new DateTime(2026, 8, 10)) }, null, "疑问" },  // 低序晚录：位置(seq2=8-10) ≠ 全量max(8-15)
+        { new[] { (2, new DateTime(2026, 8, 10)) }, null, "疑问" },                                  // 跳段单记录：N=2，N-1=1 缺失
+        { new[] { (3, new DateTime(2026, 8, 10)) }, null, "疑问" },                                  // N=3，N-1=2 与 N-2=1 都缺失（两个都缺失→疑问）
+        { new[] { (4, new DateTime(2026, 8, 10)) }, null, "疑问" },                                  // N=4，N-1=3 与 N-2=2 都缺失（两个都缺失→疑问）
+        { new[] { (1, new DateTime(2026, 8, 15)), (2, new DateTime(2026, 8, 10)) }, new DateTime(2026, 8, 12), "疑问" } // 入库后低序晚录：全量max(8-15) > 入库(8-12)
+    };
+
+    [Theory]
+    [MemberData(nameof(FlowJudgmentCases))]
+    public void ComputeFlowJudgment_正常疑问判定((int Seq, DateTime Date)[] seqRecords, DateTime? inboundDate, string expected)
+    {
+        InvokeComputeFlowJudgment(seqRecords, inboundDate).Should().Be(expected);
+    }
+
+    // ========== 流转判定 排序/筛选（GetPagedAsync 内存路径） ==========
+
+    /// <summary>创建简单批次（无生产记录=未产=正常），返回 DTO（含 Id）</summary>
+    private static async Task<ProductionBatchListDto> CreateSimpleFlowBatchAsync(BatchService svc, string tagNo)
+    {
+        return await svc.CreateAsync(new CreateProductionBatchRequest
+        {
+            WorkOrderNo = "非工单",
+            TagNo = tagNo,
+            ProductionType = ProductionType.RoughTube,
+            ManufacturingItem = MaterialType.OrderFinished,
+            PlantGrade = "20#",
+            Specification = "219×8",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
+            MaterialName = PipeManufacturingType.SeamlessPipe,
+            LengthStatus = LengthStatus.NonFixed,
+            TotalWeight = 1000m,
+            ProductionRatio = 1,
+            SourcePlantGrade = "20#",
+            SourceSpecification = "219×8",
+            SourceLengthStatus = LengthStatus.NonFixed,
+            InputWeight = 1200m,
+            InputQuantity = 100
+        });
+    }
+
+    /// <summary>给批次注入低序晚录生产记录（seq2 08-10 &lt; seq1 08-15 → 位置日期 ≠ 全量max → 疑问）</summary>
+    private static async Task SeedDoubtRecordsAsync(AppDbContext ctx, int batchId)
+    {
+        ctx.ProductionRecords.AddRange(
+            new ProductionRecord { ProductionBatchId = batchId, ProcessGroupId = 1, ProcessName = "Test", SectionName = "Test", SequenceNumber = 1, ExecDate = new DateTime(2026, 8, 15) },
+            new ProductionRecord { ProductionBatchId = batchId, ProcessGroupId = 1, ProcessName = "Test", SectionName = "Test", SequenceNumber = 2, ExecDate = new DateTime(2026, 8, 10) });
+        await ctx.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_FlowJudgment筛选_只返回匹配判定()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var normal = await CreateSimpleFlowBatchAsync(svc, "FLOW-NORMAL");
+        var doubt = await CreateSimpleFlowBatchAsync(svc, "FLOW-DOUBT");
+        await SeedDoubtRecordsAsync(ctx, doubt.Id);
+
+        var result = await svc.GetPagedAsync(new BatchQueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "FlowJudgment", Operator = "in", Values = new List<string> { "疑问" } }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.TotalCount.Should().Be(1);
+        result.Items.Should().ContainSingle(i => i.TagNo == "FLOW-DOUBT");
+        result.Items.Single().FlowJudgment.Should().Be("疑问");
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_FlowJudgment排序_疑问在前()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var normal = await CreateSimpleFlowBatchAsync(svc, "FLOW-NORMAL");
+        var doubt = await CreateSimpleFlowBatchAsync(svc, "FLOW-DOUBT");
+        await SeedDoubtRecordsAsync(ctx, doubt.Id);
+
+        var result = await svc.GetPagedAsync(new BatchQueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            SortBy = "FlowJudgment",
+            IsDescending = false
+        });
+
+        // 升序：疑问(0)在前，正常(1)在后
+        result.Items.Should().NotBeEmpty();
+        result.Items.Should().Contain(i => i.TagNo == "FLOW-NORMAL");
+        result.Items.Should().Contain(i => i.TagNo == "FLOW-DOUBT");
+        result.Items.First().TagNo.Should().Be("FLOW-DOUBT");
+        result.Items.Last().TagNo.Should().Be("FLOW-NORMAL");
+    }
+
+    // ========== 「批次-错疑执行」卡片统计 GetDoubtExecutionSummaryAsync ==========
+
+    [Fact]
+    public async Task GetDoubtExecutionSummaryAsync_4类错疑统计_批次数与领料重量正确()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        // 批次A：命中「匹配工单」——摘要表无该工单 → 执行匹配=错误（未产 FlowJudgment=正常，NeedAdjust/CutDoubt 空）
+        var batchA = await CreateSimpleFlowBatchAsync(svc, "DOUBT-A");
+        var a = (await ctx.ProductionBatches.FindAsync(batchA.Id))!;
+        a.WorkOrderNo = "W-ERR";
+        a.InputWeight = 1200m;
+        await ctx.SaveChangesAsync();
+
+        // 批次B：命中「工段流转」——低序晚录生产记录 → 流转判定=疑问（非工单 → 执行匹配=正常，NeedAdjust/CutDoubt 空）
+        var batchB = await CreateSimpleFlowBatchAsync(svc, "DOUBT-B");
+        await SeedDoubtRecordsAsync(ctx, batchB.Id);
+
+        // 批次C：命中「有效投料」——需调整=是
+        var batchC = await CreateSimpleFlowBatchAsync(svc, "DOUBT-C");
+        var c = (await ctx.ProductionBatches.FindAsync(batchC.Id))!;
+        c.ProcessInspectionNeedAdjust = true;
+        c.InputWeight = 800m;
+        await ctx.SaveChangesAsync();
+
+        // 批次D/D2：命中「成品切割」——成切存疑=疑问-数量 / 疑问-缺少
+        var batchD = await CreateSimpleFlowBatchAsync(svc, "DOUBT-D");
+        var d = (await ctx.ProductionBatches.FindAsync(batchD.Id))!;
+        d.CutDoubt = CutDoubtType.QuantityMismatch;
+        d.InputWeight = 300m;
+        await ctx.SaveChangesAsync();
+        var batchD2 = await CreateSimpleFlowBatchAsync(svc, "DOUBT-D2");
+        var d2 = (await ctx.ProductionBatches.FindAsync(batchD2.Id))!;
+        d2.CutDoubt = CutDoubtType.MissingRecords;
+        d2.InputWeight = 500m;
+        await ctx.SaveChangesAsync();
+
+        // 批次E：正常批次——4 类均不命中
+        await CreateSimpleFlowBatchAsync(svc, "DOUBT-NORMAL");
+
+        var result = await svc.GetDoubtExecutionSummaryAsync();
+
+        result.Should().HaveCount(4);
+
+        var matchOrder = result.Single(x => x.DoubtType == BatchDoubtExecutionType.MatchOrder);
+        matchOrder.BatchCount.Should().Be(1);
+        matchOrder.InputWeight.Should().Be(1200m);
+
+        var flowDoubt = result.Single(x => x.DoubtType == BatchDoubtExecutionType.FlowDoubt);
+        flowDoubt.BatchCount.Should().Be(1);
+        flowDoubt.InputWeight.Should().Be(1200m);
+
+        var needAdjust = result.Single(x => x.DoubtType == BatchDoubtExecutionType.NeedAdjust);
+        needAdjust.BatchCount.Should().Be(1);
+        needAdjust.InputWeight.Should().Be(800m);
+
+        var cutDoubt = result.Single(x => x.DoubtType == BatchDoubtExecutionType.CutDoubt);
+        cutDoubt.BatchCount.Should().Be(2);
+        cutDoubt.InputWeight.Should().Be(800m); // 300 + 500
+    }
 }

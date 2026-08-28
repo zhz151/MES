@@ -77,7 +77,8 @@ public class ProductionRecordService : IProductionRecordService
         DateTime SendOutDate,
         int RecoveryCount,
         decimal RecoveryWeight,
-        bool IsInternal);
+        bool IsInternal,
+        DateTime? MaxRecoveryDate);
 
     public ProductionRecordService(
         AppDbContext context,
@@ -334,16 +335,17 @@ public class ProductionRecordService : IProductionRecordService
             processGroupId = processGroup ?? 0;
         }
 
-        // 自动解析 SequenceNumber（为0时从ProcessGroup查）
+        // 自动解析 SequenceNumber（语义A：序号=工段步骤号，一旦定位工序组即对齐；工段不在工序组时保留前端值兜底）
         var sequenceNumber = request.SequenceNumber;
-        if (sequenceNumber == 0 && processGroupId > 0)
+        if (processGroupId > 0)
         {
             var pg = await _context.ProcessGroups.FindAsync(processGroupId.Value);
             if (pg != null)
             {
                 var sections = GetSectionsFromProcessGroup(pg);
                 var match = sections.FirstOrDefault(s => SectionKeys.ToKey(s.SectionName) == request.SectionName);
-                sequenceNumber = match.Sequence;
+                if (match.Sequence > 0)
+                    sequenceNumber = match.Sequence;
             }
         }
 
@@ -800,16 +802,17 @@ public class ProductionRecordService : IProductionRecordService
                 processGroupId = matchedPg?.Id;
             }
 
-            // 自动解析 SequenceNumber
+            // 自动解析 SequenceNumber（语义A：序号=工段步骤号，始终对齐工序组；工段必须存在已在校验阶段保证）
             var sequenceNumber = request.SequenceNumber;
-            if (sequenceNumber == 0 && processGroupId > 0)
+            if (processGroupId > 0)
             {
                 var pg = processGroups.FirstOrDefault(pg => pg.Id == processGroupId.Value);
                 if (pg != null)
                 {
                     var sections = GetSectionsFromProcessGroup(pg);
                     var match = sections.FirstOrDefault(s => SectionKeys.ToKey(s.SectionName) == request.SectionName);
-                    sequenceNumber = match.Sequence;
+                    if (match.Sequence > 0)
+                        sequenceNumber = match.Sequence;
                 }
             }
 
@@ -901,6 +904,15 @@ public class ProductionRecordService : IProductionRecordService
         var batchProcessGroups = await _context.ProcessGroups
             .Where(pg => pg.ProductionBatchId == entity.ProductionBatchId)
             .ToListAsync();
+
+        // 语义A：更新时重对齐序号 = 工段步骤号（工序组编辑后纠正漂移；工段不在工序组时保留原值）
+        var recPg = batchProcessGroups.FirstOrDefault(pg => pg.Id == entity.ProcessGroupId);
+        if (recPg != null)
+        {
+            var recSeq = recPg.GetSectionSequence(entity.SectionName);
+            if (recSeq.HasValue)
+                entity.SequenceNumber = recSeq.Value;
+        }
 
         entity.ExecDate = request.ExecDate;
         entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;
@@ -1557,7 +1569,8 @@ public class ProductionRecordService : IProductionRecordService
                     s.SendOutDate,
                     s.IsInternal,
                     RecoveryCount = s.OutsourceRecoveries.Count,
-                    RecoveryWeight = s.OutsourceRecoveries.Sum(r => r.RecoveryWeight ?? 0)
+                    RecoveryWeight = s.OutsourceRecoveries.Sum(r => r.RecoveryWeight ?? 0),
+                    MaxRecoveryDate = s.OutsourceRecoveries.Select(r => (DateTime?)r.RecoveryDate).Max()
                 })
                 .OrderBy(s => s.SequenceNumber)
                 .ToListAsync();
@@ -1571,6 +1584,7 @@ public class ProductionRecordService : IProductionRecordService
 
             // 收集该批次的所有去油/酸洗入缸记录
             var picklingInRecords = await _context.PicklingInRecords
+                .Include(p => p.PicklingOutRecords)
                 .Where(p => p.ProductionBatchId == batchId)
                 .OrderBy(p => p.SequenceNumber)
                 .ThenBy(p => p.InDate)
@@ -1617,7 +1631,7 @@ public class ProductionRecordService : IProductionRecordService
             var outsourceInfos = sectionOutsources.Select(s => new SectionOutsourceInfo(
                 s.Id, 0, s.ProcessGroupId, s.SectionName, s.SequenceNumber,
                 s.ProcessName, s.OutsourceVendor, s.SendOutDate, s.RecoveryCount,
-                s.RecoveryWeight, s.IsInternal
+                s.RecoveryWeight, s.IsInternal, s.MaxRecoveryDate
             )).ToList();
 
             // 公共跟踪计算（除投料变更外）
@@ -2023,7 +2037,8 @@ public class ProductionRecordService : IProductionRecordService
                 s.SendOutDate,
                 s.IsInternal,
                 RecoveryCount = s.OutsourceRecoveries.Count,
-                RecoveryWeight = s.OutsourceRecoveries.Sum(r => r.RecoveryWeight ?? 0)
+                RecoveryWeight = s.OutsourceRecoveries.Sum(r => r.RecoveryWeight ?? 0),
+                MaxRecoveryDate = s.OutsourceRecoveries.Select(r => (DateTime?)r.RecoveryDate).Max()
             })
             .OrderBy(s => s.SequenceNumber)
             .ToListAsync();
@@ -2041,6 +2056,7 @@ public class ProductionRecordService : IProductionRecordService
 
         // 5c. 一次查出所有活跃批次的去油/酸洗入缸记录
         var allPicklingInRecords = await _context.PicklingInRecords
+            .Include(p => p.PicklingOutRecords)
             .Where(p => activeBatchIds.Contains(p.ProductionBatchId))
             .OrderBy(p => p.SequenceNumber)
             .ThenBy(p => p.InDate)
@@ -2142,7 +2158,7 @@ public class ProductionRecordService : IProductionRecordService
             var outsourceInfos = sectionOutsources.Select(s => new SectionOutsourceInfo(
                 s.Id, 0, s.ProcessGroupId, s.SectionName, s.SequenceNumber,
                 s.ProcessName, s.OutsourceVendor, s.SendOutDate, s.RecoveryCount,
-                s.RecoveryWeight, s.IsInternal
+                s.RecoveryWeight, s.IsInternal, s.MaxRecoveryDate
             )).ToList();
 
             // 公共跟踪计算（除投料变更外）
@@ -2281,13 +2297,16 @@ public class ProductionRecordService : IProductionRecordService
         }
 
         // ====== 截止执行日：生产/委外/过程检验/到料/入缸 五路日期取最大 ======
+        // 委外/酸洗日期口径（A）：已完工取回收日/完工日，未完工取发出日/入缸日
         batch.CurrentExecDate = new[]
         {
             maxSeqRecord?.ExecDate,
-            maxSeqOutsource?.SendOutDate,
+            (maxSeqOutsource?.RecoveryCount > 0 && maxSeqOutsource?.MaxRecoveryDate is { } outRecDate) ? outRecDate : maxSeqOutsource?.SendOutDate,
             maxSeqInspection?.InspectionDate,
             hasMaterialCheck ? materialCheckDate : null,
-            maxSeqPickling?.InDate
+            (maxSeqPickling?.Status == PicklingStatus.Completed && maxSeqPickling.PicklingOutRecords.Count > 0)
+                ? maxSeqPickling.PicklingOutRecords.Max(o => (DateTime?)o.CompleteDate)
+                : maxSeqPickling?.InDate
         }.Max();
 
         // ====== 当前工段/工序/规格（按 overallMaxSeq 唯一归因，与下一工段/剩余工量同口径） ======

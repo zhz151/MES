@@ -22,6 +22,11 @@ public interface IBatchService
     Task<List<ProductionBatchListDto>> GetAllBatchListAsync();
 
     /// <summary>
+    /// 「批次-错疑执行」卡片统计：全量批次按 执行匹配=错误/流转判定=疑问/需调整=是/成切存疑=疑问 4 类统计批次数 + 领料重量合计
+    /// </summary>
+    Task<List<BatchDoubtExecutionItemDto>> GetDoubtExecutionSummaryAsync();
+
+    /// <summary>
     /// 根据ID获取批次详情
     /// </summary>
     Task<ProductionBatchDetailDto> GetByIdAsync(int id);

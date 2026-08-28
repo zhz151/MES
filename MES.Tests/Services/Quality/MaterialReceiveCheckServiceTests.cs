@@ -127,6 +127,24 @@ public class MaterialReceiveCheckServiceTests : TestBase
     }
 
     [Fact]
+    public async Task CreateMaterialReceiveCheckAsync_前端传SequenceNumber_仍强制用检验工段步骤号()
+    {
+        // 语义A：成检到料序号 = 检验工段步骤号（pg.Inspection），前端传入值被忽略
+        var ctx = CreateDbContext();
+        await SeedBatchAsync(ctx);  // 工序组 Inspection=1
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateMaterialReceiveCheckAsync(new CreateMaterialReceiveCheckRequest
+        {
+            BatchNo = "BATCH001",
+            ReceiveDate = DateTime.Today,
+            SequenceNumber = 88  // 前端错误值，应被 pg.Inspection=1 覆盖
+        });
+
+        result.SequenceNumber.Should().Be(1);
+    }
+
+    [Fact]
     public async Task UpdateMaterialReceiveCheckAsync_工序组变更后保存_重算推导值()
     {
         var ctx = CreateDbContext();

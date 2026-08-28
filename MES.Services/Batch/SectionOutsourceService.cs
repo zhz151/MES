@@ -371,7 +371,7 @@ public class SectionOutsourceService : ISectionOutsourceService
         if (request.IsInternal && request.SectionName != SectionKeys.ColdRollDraw)
             throw new BusinessException("厂内（虚拟发外）仅限冷轧拔工段，不能用于其他工段");
 
-        // 自动解析 ProcessGroupId 和 SequenceNumber
+        // 自动解析 ProcessGroupId 和 SequenceNumber（语义A：序号=工段步骤号，始终对齐工序组；工段不存在时下方抛错）
         var processGroupId = request.ProcessGroupId;
         var sequenceNumber = request.SequenceNumber;
         if (processGroupId == null || processGroupId == 0)
@@ -382,10 +382,10 @@ public class SectionOutsourceService : ISectionOutsourceService
                     && pg.ManufacturingSpec == request.ManufacturingSpec)
                 .FirstOrDefaultAsync();
             processGroupId = pg?.Id ?? 0;
-            if (pg != null && sequenceNumber == 0)
+            if (pg != null)
                 sequenceNumber = pg.GetSectionSequence(request.SectionName) ?? 0;
         }
-        else if (sequenceNumber == 0)
+        else
         {
             var pg = await _context.ProcessGroups.FindAsync(processGroupId.Value);
             if (pg != null)
@@ -564,9 +564,9 @@ public class SectionOutsourceService : ISectionOutsourceService
                 processGroupId = matchedPg?.Id;
             }
 
-            // 自动解析 SequenceNumber
+            // 自动解析 SequenceNumber（语义A：序号=工段步骤号，始终对齐工序组；工段必须存在已在校验阶段保证）
             var sequenceNumber = request.SequenceNumber;
-            if (sequenceNumber == 0 && processGroupId > 0)
+            if (processGroupId > 0)
             {
                 var pg = processGroups.FirstOrDefault(pg => pg.Id == processGroupId.Value);
                 if (pg != null)
@@ -660,6 +660,16 @@ public class SectionOutsourceService : ISectionOutsourceService
             var processGroups = await _context.ProcessGroups
                 .Where(pg => pg.ProductionBatchId == entity.ProductionBatchId)
                 .ToListAsync();
+
+            // 语义A：更新时重对齐序号 = 工段步骤号（工序组编辑后纠正漂移；工段不在工序组时保留原值）
+            var osPg = processGroups.FirstOrDefault(pg => pg.Id == entity.ProcessGroupId);
+            if (osPg != null)
+            {
+                var osSeq = osPg.GetSectionSequence(entity.SectionName);
+                if (osSeq.HasValue)
+                    entity.SequenceNumber = osSeq.Value;
+            }
+
             entity.ProductStatus = ProductStatusHelper.Calculate(
                 entity.ProcessName, entity.ManufacturingSpec, entity.ProductionBatch.ManufacturingItem, processGroups, entity.ProductionBatch.Specification);
         }

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Interfaces.Batch;
 using MES.Core.Interfaces.Configuration;
@@ -67,6 +68,7 @@ public class DataFixService : IDataFixService
 
         try
         {
+            report.ProcessGroupSectionNumbersFixed = await FixProcessGroupSectionNumbersAsync();
             report.SequenceNumbersFixed = await FixSequenceNumbersAsync();
             report.OutsourceStatusFixed = await FixSectionOutsourceStatusAsync();
             report.BatchTrackingFixed = await FixBatchTrackingAsync();
@@ -202,8 +204,98 @@ public class DataFixService : IDataFixService
             }
         }
 
+        // PicklingInRecord（入缸）：按 ProcessGroupId 直接定位工序组对齐序号（语义A：序号=工段步骤号）
+        var picklingPgMap = processGroups.ToDictionary(pg => pg.Id);
+        var picklingRecords = await _context.Set<PicklingInRecord>().ToListAsync();
+        foreach (var pr in picklingRecords)
+        {
+            if (pr.ProcessGroupId > 0 && picklingPgMap.TryGetValue(pr.ProcessGroupId, out var pg))
+            {
+                var newSeq = pg.GetSectionSequence(pr.SectionName);
+                if (newSeq.HasValue && pr.SequenceNumber != newSeq.Value)
+                {
+                    pr.SequenceNumber = newSeq.Value;
+                    totalFixed++;
+                }
+            }
+        }
+
+        // MaterialReceiveCheck（成检到料）：序号 = 检验工段步骤号（pg.Inspection），按 ProcessGroupId 定位
+        var receiveChecks = await _context.Set<MaterialReceiveCheck>().ToListAsync();
+        foreach (var rc in receiveChecks)
+        {
+            if (rc.ProcessGroupId > 0 && picklingPgMap.TryGetValue(rc.ProcessGroupId, out var pg))
+            {
+                var newSeq = pg.Inspection;
+                if (newSeq.HasValue && rc.SequenceNumber != newSeq.Value)
+                {
+                    rc.SequenceNumber = newSeq.Value;
+                    totalFixed++;
+                }
+            }
+        }
+
         await _context.SaveChangesAsync();
         _logger.LogInformation("组内序号修复完成: {Count} 条", totalFixed);
+        return totalFixed;
+    }
+
+    // ==================== 1.5 工序组工段步骤号连续化 ====================
+
+    /// <summary>
+    /// 按批次将工序组全部非空工段步骤号重排为 1..N 连续（仅补缺号、不改变相对执行顺序）。
+    /// 记录序号 = 工段步骤号（语义A），工段步骤号缺号不连续会直接导致 FlowJudgment 规则2 误报疑问，故先连续化。
+    /// </summary>
+    private async Task<int> FixProcessGroupSectionNumbersAsync()
+    {
+        var processGroups = await _context.Set<ProcessGroup>().ToListAsync();
+        var groupsByBatch = processGroups
+            .Where(pg => pg.ProductionBatchId > 0)
+            .GroupBy(pg => pg.ProductionBatchId);
+
+        // 工段定义顺序（同序号冲突时的确定性排序键）
+        var sectionOrder = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (int i = 0; i < SectionKeys.All.Length; i++)
+            sectionOrder[SectionKeys.All[i]] = i;
+
+        int totalFixed = 0;
+
+        foreach (var batchGroup in groupsByBatch)
+        {
+            // 收集该批次全部非空工段（工段名 → 当前步骤号 → 所属工序组）
+            var sections = new List<(string SectionName, int CurrentSeq, ProcessGroup Pg)>();
+            foreach (var pg in batchGroup)
+            {
+                foreach (var (name, seq) in pg.GetNonEmptySections())
+                    sections.Add((name, seq, pg));
+            }
+
+            if (sections.Count == 0) continue;
+
+            // 按当前步骤号升序稳定排序（保持相对执行顺序），再按工序组序号 + 工段定义顺序保证确定性
+            var ordered = sections
+                .OrderBy(s => s.CurrentSeq)
+                .ThenBy(s => s.Pg.SequenceNumber)
+                .ThenBy(s => sectionOrder.GetValueOrDefault(SectionKeys.ToKey(s.SectionName) ?? "", int.MaxValue))
+                .ToList();
+
+            // 重新编号 1..N 连续
+            for (int i = 0; i < ordered.Count; i++)
+            {
+                var (sectionName, currentSeq, pg) = ordered[i];
+                var newSeq = i + 1;
+                if (currentSeq != newSeq)
+                {
+                    pg.SetSectionNumber(sectionName, newSeq);
+                    totalFixed++;
+                }
+            }
+        }
+
+        if (totalFixed > 0)
+            await _context.SaveChangesAsync();
+
+        _logger.LogInformation("工序组工段步骤号连续化完成: {Count} 处", totalFixed);
         return totalFixed;
     }
 

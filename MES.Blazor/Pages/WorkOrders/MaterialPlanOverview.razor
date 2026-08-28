@@ -41,6 +41,13 @@
                            OnClick="ToggleErrorDoubtCard" Class="ml-2">
                     工单原锁-错疑投料
                 </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           Color="@(_showInProdInspectionCard ? Color.Warning : Color.Default)"
+                           StartIcon="@(_showInProdInspectionCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleInProdInspectionCard" Class="ml-2">
+                    在产在检-错疑待料
+                </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
 
@@ -216,10 +223,12 @@
                 </MudCard>
             }
 
-            <!-- 工单原锁-错疑投料卡片（默认折叠，标题栏「工单原锁-错疑投料」按钮切换显隐；数据来自工单执行状况读模型，仅主号-关注=2 原料锁定 且 到料实投一致性∈{2,3,4,5} 的工单） -->
+            <!-- 原锁-错疑投料 与 在产在检-错疑待料 两张卡片并排（左=原料锁定错疑明细大表，右=在产在检三档聚合小表，可分别折叠） -->
+            <div class="d-flex flex-wrap gap-3 mb-3" style="align-items:flex-start;">
+
             @if (_showErrorDoubtCard)
             {
-                <MudCard Class="mb-3 summary-card" Elevation="0">
+                <MudCard Class="flex-grow-1 summary-card" Elevation="0" Style="min-width:0; flex-basis:0;">
                     <MudCardContent>
                         @if (_errorDoubtItems == null)
                         {
@@ -433,6 +442,57 @@
                     </MudCardContent>
                 </MudCard>
             }
+
+            <!-- 在产在检-错疑待料卡片（默认折叠，标题栏「在产在检-错疑待料」按钮切换显隐；数据来自工单执行状况读模型，
+                 主号-关注 = 1 主号完成/3 生产执行/4 成品检验 三档，统计「理论原料未至」「工单到料未投」的工单数/累计重量；点击数据值联动筛选下方工单列表） -->
+            @if (_showInProdInspectionCard)
+            {
+                <MudCard Class="summary-card" Elevation="0" Style="width:420px; flex-shrink:0; margin-left:auto;">
+                    <MudCardContent>
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">
+                            <b>在产在检-错疑待料</b>
+                        </MudText>
+                        @if (_inProdInspectionItems == null)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">@(_inProdInspectionLoading ? "正在加载..." : "数据加载失败")</MudText>
+                        }
+                        else if (_inProdInspectionItems.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint">暂无在产在检错疑待料数据</MudText>
+                        }
+                        else
+                        {
+                            <table style="width:100%; border-collapse:collapse; font-size:0.8125rem;">
+                                <thead>
+                                    <tr style="background:#f5f5f5;">
+                                        <th style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">工单关注</th>
+                                        <th style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">理论原料未至</th>
+                                        <th style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">工单到料未投</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var row in _inProdInspectionItems)
+                                    {
+                                        var missingClickable = row.MissingOrderCount > 0;
+                                        var pendingClickable = row.PendingInputOrderCount > 0;
+                                        <tr>
+                                            <td style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">@row.ScheduleStageText</td>
+                                            <td style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center;@(missingClickable ? " cursor:pointer; font-weight:600; color:#c62828;" : " color:#bdbdbd;")"
+                                                class="@(missingClickable ? "estimate-cell" : "")"
+                                                @onclick="() => ApplyStageDoubtLink(row.ScheduleStage, true, false)">@FormatStageDoubtCell(row.MissingOrderCount, row.MissingWeight)</td>
+                                            <td style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center;@(pendingClickable ? " cursor:pointer; font-weight:600; color:#1565c0;" : " color:#bdbdbd;")"
+                                                class="@(pendingClickable ? "estimate-cell" : "")"
+                                                @onclick="() => ApplyStageDoubtLink(row.ScheduleStage, false, true)">@FormatStageDoubtCell(row.PendingInputOrderCount, row.PendingInputWeight)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                            <MudText Typo="Typo.caption" Class="text-hint mt-1">点击数据值联动筛选下方工单列表</MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+            </div>
 
             <!-- 卡片点击联动筛选提示条（仿订单首页小表点击） -->
             @if (_linkFilter != null)

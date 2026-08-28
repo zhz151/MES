@@ -2860,6 +2860,63 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .ToList();
     }
 
+    /// <summary>
+    /// 「在产在检-错疑待料」聚合：主号-关注（ScheduleStage）=1 主号完成 / 3 生产执行 / 4 成品检验 三档，
+    /// 分别统计「理论原料未至」（TotalMissingWeight &gt; 0，3% 门槛口径）与「工单到料未投」（PendingInputWeight &gt; 0）的工单数 + 累计重量。
+    /// G3 计算列为内存列，先投影原始字段 ToList 后内存分组。
+    /// </summary>
+    public async Task<List<InProductionInspectionDoubtItemDto>> GetInProductionInspectionDoubtItemsAsync()
+    {
+        var tol = MaterialPlanToleranceProvider.InputConsistencyTolerance;
+
+        var rows = await _context.Set<WorkOrderExecutionSummary>().AsNoTracking()
+            .Where(e => e.ScheduleStage == 1 || e.ScheduleStage == 3 || e.ScheduleStage == 4)
+            .Select(e => new
+            {
+                e.ScheduleStage,
+                // 理论原料未至（与 WorkOrderExecutionSummaryDto.TotalMissingWeight 同口径：缺口 > 计划×3% 才取值，否则 0）
+                Missing = (e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
+                            + e.InventoryPlanWeight + e.ReworkPlanWeight
+                            + e.InProcessReworkPlanWeight + e.InMainPlanWeight
+                            - (e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                                + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                                + e.InProcessReworkInputWeight + e.InMainInputWeight))
+                        > (e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
+                            + e.InventoryPlanWeight + e.ReworkPlanWeight
+                            + e.InProcessReworkPlanWeight + e.InMainPlanWeight) * tol
+                        ? e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
+                            + e.InventoryPlanWeight + e.ReworkPlanWeight
+                            + e.InProcessReworkPlanWeight + e.InMainPlanWeight
+                            - (e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                                + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                                + e.InProcessReworkInputWeight + e.InMainInputWeight)
+                        : 0m,
+                // 工单到料未投（与 WorkOrderService.PendingInputWeight 同口径：Max(0, 现可投料总重 − 工单投料量)）
+                PendingInput = (e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                                + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                                + e.InProcessReworkInputWeight + e.InMainInputWeight - e.InputWeight)
+                            > 0m
+                        ? e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                            + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                            + e.InProcessReworkInputWeight + e.InMainInputWeight - e.InputWeight
+                        : 0m,
+            })
+            .ToListAsync();
+
+        return rows
+            .GroupBy(r => r.ScheduleStage)
+            .OrderBy(g => g.Key == 3 ? 0 : g.Key == 4 ? 1 : 2) // 生产执行 → 成品检验 → 主号完成 展示顺序
+            .Select(g => new InProductionInspectionDoubtItemDto
+            {
+                ScheduleStage = g.Key,
+                MissingOrderCount = g.Count(r => r.Missing > 0),
+                MissingWeight = g.Sum(r => r.Missing),
+                PendingInputOrderCount = g.Count(r => r.PendingInput > 0),
+                PendingInputWeight = g.Sum(r => r.PendingInput),
+            })
+            .ToList();
+    }
+
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
         return await _cache.GetOrCreateAsync("WorkOrderExecutionService:FilterContexts", async entry =>
@@ -3129,11 +3186,15 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 ["TotalAvailableWeight"] = DistinctDecimals(all.Select(x =>
                     x.PiercingSubInWeight + x.SemiInWeight + x.FinishInWeight
                     + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight)),
-                ["TotalMissingWeight"] = DistinctDecimals(all.Select(x => Math.Max(0m,
-                    (x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
-                        + x.InventoryPlanWeight + x.ReworkPlanWeight + x.InProcessReworkPlanWeight + x.InMainPlanWeight)
-                    - (x.PiercingSubInWeight + x.SemiInWeight + x.FinishInWeight
-                        + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight)))),
+                ["TotalMissingWeight"] = DistinctDecimals(all.Select(x =>
+                {
+                    // 与 DTO 计算属性同口径：缺口 > 计划投料总重×3% 才取值，否则为 0（小缺口降噪）
+                    var plan = x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
+                        + x.InventoryPlanWeight + x.ReworkPlanWeight + x.InProcessReworkPlanWeight + x.InMainPlanWeight;
+                    var missing = plan - (x.PiercingSubInWeight + x.SemiInWeight + x.FinishInWeight
+                        + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight);
+                    return missing > plan * MaterialPlanToleranceProvider.InputConsistencyTolerance ? missing : 0m;
+                })),
             };
         }) ?? new Dictionary<string, List<string>>();
     }
@@ -3152,19 +3213,28 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             + x.InventoryOutWeight + x.ReworkPlanInputWeight
             + x.InProcessReworkInputWeight + x.InMainInputWeight;
 
-    /// <summary>理论缺失总料重量 = Max(0, 计划投料总重 − 现可投料总重)。
-    /// ⚠️ 不能用 Math.Max —— EF Core 无法翻译 System.Math.Max（SQL 排序/筛选会 500），必须写成 SQL 可翻译的内联三元。</summary>
+    /// <summary>理论缺失总料重量 = 计划投料总重 − 现可投料总重；仅当缺口 &gt; 计划投料总重×3%（InputConsistencyTolerance）才取值，否则为 0（与 DTO 计算属性同口径）。
+    /// ⚠️ 不能用 Math.Max —— EF Core 无法翻译 System.Math.Max（SQL 排序/筛选会 500），必须写成 SQL 可翻译的内联三元。
+    /// ⚠️ 容差不能直接引用静态属性（EF 无法翻译），在 Build 方法内捕获为局部变量（EF 参数化，仿 BuildPlanInputConsistencyExpr）。</summary>
     private static readonly System.Linq.Expressions.Expression<Func<WorkOrderExecutionSummary, decimal>> G3TotalMissingWeightExpr =
-        x => (x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
-                + x.InventoryPlanWeight + x.ReworkPlanWeight + x.InProcessReworkPlanWeight + x.InMainPlanWeight)
-                - (x.PiercingSubInWeight + x.SemiInWeight + x.FinishInWeight
-                + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight)
-            > 0m
-            ? (x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
-                + x.InventoryPlanWeight + x.ReworkPlanWeight + x.InProcessReworkPlanWeight + x.InMainPlanWeight)
-                - (x.PiercingSubInWeight + x.SemiInWeight + x.FinishInWeight
-                + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight)
-            : 0m;
+        BuildTotalMissingWeightExpr();
+
+    private static System.Linq.Expressions.Expression<Func<WorkOrderExecutionSummary, decimal>> BuildTotalMissingWeightExpr()
+    {
+        // 捕获 MaterialPlanToleranceProvider 当前容差快照：类初始化时取一次（与档5缺口率阈值同源 InputConsistencyTolerance）
+        var tol = MaterialPlanToleranceProvider.InputConsistencyTolerance;
+        return x => (x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
+                    + x.InventoryPlanWeight + x.ReworkPlanWeight + x.InProcessReworkPlanWeight + x.InMainPlanWeight)
+                    - (x.PiercingSubInWeight + x.SemiInWeight + x.FinishInWeight
+                    + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight)
+                > (x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
+                    + x.InventoryPlanWeight + x.ReworkPlanWeight + x.InProcessReworkPlanWeight + x.InMainPlanWeight) * tol
+                ? (x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
+                    + x.InventoryPlanWeight + x.ReworkPlanWeight + x.InProcessReworkPlanWeight + x.InMainPlanWeight)
+                    - (x.PiercingSubInWeight + x.SemiInWeight + x.FinishInWeight
+                    + x.InventoryOutWeight + x.ReworkPlanInputWeight + x.InProcessReworkInputWeight + x.InMainInputWeight)
+                : 0m;
+    }
 
     /// <summary>
     /// 到料实投一致性：0=一致 1=待投 2=疑问-到料少投 3=疑问-到料超投 4=错误-无料已投 5=错误-无需投料 6=略（与 DTO 计算属性一致）
@@ -3250,6 +3320,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 {
                     var vals = ParseDecimalValues(f.Values);
                     if (vals.Count == 0) break;
+                    // 捕获当前容差（与 DTO 计算属性同口径：缺口 > 计划×3% 才取值，否则 0）
+                    var tol = MaterialPlanToleranceProvider.InputConsistencyTolerance;
                     // ⚠️ 不能用 Math.Max —— EF Core 无法翻译，SQL 筛选会 500，必须写成内联三元
                     query = query.Where(x => vals.Contains(
                         (x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
@@ -3258,7 +3330,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                             - (x.PiercingSubInWeight + x.SemiInWeight + x.FinishInWeight
                                 + x.InventoryOutWeight + x.ReworkPlanInputWeight
                                 + x.InProcessReworkInputWeight + x.InMainInputWeight)
-                            > 0m
+                            > (x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
+                                + x.InventoryPlanWeight + x.ReworkPlanWeight
+                                + x.InProcessReworkPlanWeight + x.InMainPlanWeight) * tol
                             ? (x.PiercingPlanWeight + x.SemiPlanWeight + x.FinishPlanWeight
                                 + x.InventoryPlanWeight + x.ReworkPlanWeight
                                 + x.InProcessReworkPlanWeight + x.InMainPlanWeight)

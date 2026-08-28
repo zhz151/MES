@@ -251,4 +251,15 @@ public class BatchService
         }
         catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
     }
+
+    /// <summary>「批次-错疑执行」卡片统计（4 类错疑批次数 + 领料重量合计）</summary>
+    public async Task<ApiResponse<List<BatchDoubtExecutionItemDto>>> GetDoubtExecutionSummaryAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<BatchDoubtExecutionItemDto>>>($"{BaseUrl}/doubt-execution-summary")
+                   ?? ApiResponse<List<BatchDoubtExecutionItemDto>>.Fail("获取批次错疑执行统计失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<BatchDoubtExecutionItemDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
 }

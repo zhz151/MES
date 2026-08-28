@@ -126,10 +126,69 @@
                            Class="ml-2">
                     工艺卡打印
                 </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           Color="@(_showDoubtExecutionCard ? Color.Warning : Color.Default)"
+                           StartIcon="@(_showDoubtExecutionCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleDoubtExecutionCard" Class="ml-2">
+                    批次-错疑执行
+                </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
 
         <MudCardContent>
+            <!-- 「批次-错疑执行」折叠卡片（默认折叠；4 类错疑批次数 + 领料重量合计，点击数据值联动列筛选批次列表） -->
+            @if (_showDoubtExecutionCard)
+            {
+                <div class="d-flex justify-end mb-3" style="width:100%;">
+                    <MudCard Class="summary-card" Elevation="0" Style="width:420px; flex-shrink:0;">
+                        <MudCardContent>
+                            <div class="d-flex justify-space-between align-center mb-2" style="width:100%;">
+                                <MudText Typo="Typo.subtitle2">
+                                    <b>批次-错疑执行</b>
+                                </MudText>
+                                @if (HasActiveDoubtFilter)
+                                {
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Default"
+                                               StartIcon="@Icons.Material.Filled.FilterAltOff"
+                                               OnClick="CancelDoubtExecutionFilterAsync" Class="pa-0">
+                                        取消筛选
+                                    </MudButton>
+                                }
+                            </div>
+                            @if (_doubtExecutionItems == null)
+                            {
+                                <MudText Typo="Typo.body2" Class="text-hint">@(_doubtExecutionLoading ? "正在加载..." : "数据加载失败")</MudText>
+                            }
+                            else
+                            {
+                                <table style="width:100%; border-collapse:collapse; font-size:0.8125rem;">
+                                    <thead>
+                                        <tr style="background:#f5f5f5;">
+                                            <th style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">错疑类别</th>
+                                            <th style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">批次数量</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var item in _doubtExecutionItems)
+                                        {
+                                            var clickable = item.BatchCount > 0;
+                                            <tr>
+                                                <td style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">@item.DoubtTypeText</td>
+                                                <td style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center;@(clickable ? " cursor:pointer; font-weight:600; color:#c62828;" : " color:#bdbdbd;")"
+                                                    class="@(clickable ? "estimate-cell" : "")"
+                                                    @onclick="() => ApplyDoubtExecutionLink(item)">@FormatDoubtExecutionCell(item)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                                <MudText Typo="Typo.caption" Class="text-hint mt-1">点击数据值联动筛选批次列表</MudText>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+                </div>
+            }
+
             <!-- 搜索栏 -->
             <MudGrid>
                 <MudItem xs="12" md="6">

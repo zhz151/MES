@@ -86,6 +86,17 @@ public class WorkOrderExecutionController : ControllerBase
     }
 
     /// <summary>
+    /// 获取「在产在检-错疑待料」聚合（主号-关注 = 主号完成/生产执行/成品检验 三档 × 理论原料未至/工单到料未投 的工单数+累计重量）
+    /// </summary>
+    [HttpGet("in-production-inspection-doubt-items")]
+    [Authorize(Roles = Roles.Policies.WorkOrderView)]
+    public async Task<ActionResult<ApiResponse<List<InProductionInspectionDoubtItemDto>>>> GetInProductionInspectionDoubtItems()
+    {
+        var result = await _service.GetInProductionInspectionDoubtItemsAsync();
+        return Ok(ApiResponse<List<InProductionInspectionDoubtItemDto>>.Ok(result));
+    }
+
+    /// <summary>
     /// 获取筛选上下文（各列的筛选项列表）
     /// </summary>
     [HttpGet("filter-contexts")]

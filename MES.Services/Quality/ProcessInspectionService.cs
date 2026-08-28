@@ -479,14 +479,16 @@ public class ProcessInspectionService : IProcessInspectionService
                 pgId = matchedPg?.Id;
             }
 
-            // 解析 SequenceNumber
+            // 解析 SequenceNumber（语义A：序号=工段步骤号，一旦定位工序组即对齐；解析不到保留前端值兜底）
             int seqNum = request.SequenceNumber;
-            if (seqNum == 0 && pgId > 0)
+            if (pgId > 0)
             {
                 var pg = pgByBatch.GetValueOrDefault(batchId)?.FirstOrDefault(p => p.Id == pgId);
                 if (pg != null)
                 {
-                    seqNum = pg.GetSectionSequence(request.SectionName) ?? 0;
+                    var aligned = pg.GetSectionSequence(request.SectionName);
+                    if (aligned.HasValue)
+                        seqNum = aligned.Value;
                 }
             }
 
@@ -718,6 +720,16 @@ public class ProcessInspectionService : IProcessInspectionService
             var batchProcessGroups = await _context.ProcessGroups
                 .Where(pg => pg.ProductionBatchId == entity.ProductionBatchId)
                 .ToListAsync();
+
+            // 语义A：更新时重对齐序号 = 工段步骤号（工序组编辑后纠正漂移；工段不在工序组时保留原值）
+            var inspPg = batchProcessGroups.FirstOrDefault(pg => pg.Id == entity.ProcessGroupId);
+            if (inspPg != null)
+            {
+                var inspSeq = inspPg.GetSectionSequence(entity.SectionName);
+                if (inspSeq.HasValue)
+                    entity.SequenceNumber = inspSeq.Value;
+            }
+
             entity.ProductStatus = ProductStatusHelper.Calculate(
                 entity.ProcessName, entity.ManufacturingSpec, batch.ManufacturingItem, batchProcessGroups, batch.Specification);
         }

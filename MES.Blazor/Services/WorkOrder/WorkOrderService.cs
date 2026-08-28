@@ -319,6 +319,22 @@ public class WorkOrderService
     }
 
     /// <summary>
+    /// 获取「在产在检-错疑待料」聚合（主号-关注 = 主号完成/生产执行/成品检验 三档 × 理论原料未至/工单到料未投 的工单数+累计重量，走工单执行状况读模型端点）
+    /// </summary>
+    public async Task<ApiResponse<List<InProductionInspectionDoubtItemDto>>> GetInProductionInspectionDoubtItemsAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<InProductionInspectionDoubtItemDto>>>($"{ApiEndpoints.WorkOrderExecution}/in-production-inspection-doubt-items");
+            return response ?? ApiResponse<List<InProductionInspectionDoubtItemDto>>.Fail("获取在产在检错疑待料失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<InProductionInspectionDoubtItemDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// 获取所有用料计划总览数据（无分页，客户端筛选排序）
     /// </summary>
     public async Task<ApiResponse<List<WorkOrderListDto>>> GetAllAsync()

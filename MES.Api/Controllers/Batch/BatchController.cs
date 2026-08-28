@@ -83,6 +83,14 @@ public class BatchController : ControllerBase
         return Ok(ApiResponse<List<ProductionBatchListDto>>.Ok(result, "查询成功"));
     }
 
+    [HttpGet("doubt-execution-summary")]
+    [Authorize(Roles = Roles.Policies.BatchView)]
+    public async Task<ActionResult<ApiResponse<List<BatchDoubtExecutionItemDto>>>> GetDoubtExecutionSummary()
+    {
+        var result = await _service.GetDoubtExecutionSummaryAsync();
+        return Ok(ApiResponse<List<BatchDoubtExecutionItemDto>>.Ok(result, "查询成功"));
+    }
+
     [HttpGet("{id}")]
     [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<ProductionBatchDetailDto>>> GetById(int id)

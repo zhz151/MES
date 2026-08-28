@@ -150,6 +150,9 @@ public class BatchService : IBatchService
             .AsNoTracking()
             .AsQueryable();
 
+        // 关联工单状态（工单关注/执行匹配）来源：工单执行状况读模型 WorkOrderExecutionSummary，按工单号关联子查询
+        var exec = _context.WorkOrderExecutionSummaries.AsNoTracking();
+
         // 关键字搜索
         if (!string.IsNullOrEmpty(query.Keyword))
         {
@@ -245,11 +248,114 @@ public class BatchService : IBatchService
         if (query.StartDateTo.HasValue)
             queryable = queryable.Where(b => b.CreatedTime <= query.StartDateTo.Value);
 
+        // ===== 关联工单状态派生字段筛选（工单关注 ScheduleStage / 执行匹配 ExecutionMatch） =====
+        // 非实体属性，ApplyFilters 反射无法处理，需拦截后按关联子查询过滤
+        // 工单关注档位：null=略（工单号=非工单）、-1=无此工单（摘要表无该工单）、0~4=主号暂停/主号完成/原料锁定/生产执行/成品检验
+        var derivedStageFilter = query.Filters?.FirstOrDefault(f => f.Field.Equals("ScheduleStage", StringComparison.OrdinalIgnoreCase));
+        if (derivedStageFilter != null && derivedStageFilter.Operator == "in" && derivedStageFilter.Values?.Count > 0)
+        {
+            query.Filters!.Remove(derivedStageFilter);
+            var stageVals = derivedStageFilter.Values.Where(v => int.TryParse(v, out _)).Select(int.Parse).ToList();
+            var hasLue = derivedStageFilter.Values.Contains("略", StringComparer.Ordinal);
+            var hasNoWo = derivedStageFilter.Values.Contains("-1", StringComparer.Ordinal);
+            queryable = queryable.Where(b =>
+                (stageVals.Count > 0 && exec.Where(e => e.WorkOrderNo == b.WorkOrderNo && stageVals.Contains(e.ScheduleStage)).Any())
+                || (hasLue && b.WorkOrderNo == NotWorkOrder)
+                || (hasNoWo && b.WorkOrderNo != NotWorkOrder && !exec.Where(e => e.WorkOrderNo == b.WorkOrderNo).Any()));
+        }
+
+        // 执行匹配：错误=工单关注为"无此工单"，或工单关注为"主号完成"但批次现执行状态≠完成；其余正常
+        var derivedMatchFilter = query.Filters?.FirstOrDefault(f => f.Field.Equals("ExecutionMatch", StringComparison.OrdinalIgnoreCase));
+        if (derivedMatchFilter != null && derivedMatchFilter.Operator == "in" && derivedMatchFilter.Values?.Count > 0)
+        {
+            query.Filters!.Remove(derivedMatchFilter);
+            var hasError = derivedMatchFilter.Values.Contains("错误", StringComparer.Ordinal);
+            var hasNormal = derivedMatchFilter.Values.Contains("正常", StringComparer.Ordinal);
+            queryable = queryable.Where(b =>
+                (hasError && (
+                    (b.WorkOrderNo != NotWorkOrder && !exec.Where(e => e.WorkOrderNo == b.WorkOrderNo).Any())
+                    || (b.WorkOrderNo != NotWorkOrder && exec.Where(e => e.WorkOrderNo == b.WorkOrderNo && e.ScheduleStage == 1).Any() && b.Status != BatchStatus.Completed)))
+                || (hasNormal && !(
+                    (b.WorkOrderNo != NotWorkOrder && !exec.Where(e => e.WorkOrderNo == b.WorkOrderNo).Any())
+                    || (b.WorkOrderNo != NotWorkOrder && exec.Where(e => e.WorkOrderNo == b.WorkOrderNo && e.ScheduleStage == 1).Any() && b.Status != BatchStatus.Completed))));
+        }
+
+        // ===== 流转判定派生字段拦截（内存路径，依赖 6 表复杂计算，无法 SQL 下推） =====
+        // 命中条件：Filters 含 FlowJudgment 筛选（in 正常/疑问）或 SortBy=FlowJudgment；命中后移出通用筛选，改走内存分页
+        var flowFilter = query.Filters?.FirstOrDefault(f => f.Field.Equals("FlowJudgment", StringComparison.OrdinalIgnoreCase));
+        var needFlowFilter = flowFilter != null && flowFilter.Operator == "in" && flowFilter.Values?.Count > 0;
+        if (flowFilter != null)
+            query.Filters!.Remove(flowFilter);
+
         // 通用筛选
         queryable = queryable.ApplyFilters(query.Filters);
 
-        // 排序
-        queryable = queryable.ApplySort(query.SortBy, query.IsDescending);
+        // ===== 排序 =====
+        // 关联工单状态派生字段（非实体属性，ApplySort 反射无法处理）按关联子查询排序
+        // 工单关注：档位在后（升序 0-4 在前，略=5 无此工单=6 排最后）；执行匹配：错误在前（错误=0 正常=1）
+        var sortBy = query.SortBy;
+        var needFlowSort = sortBy.Equals("FlowJudgment", StringComparison.OrdinalIgnoreCase);
+        var needFlowPath = needFlowSort || needFlowFilter;
+        // 流转判定排序走内存路径（下方分页分支），SQL 层不执行排序
+        if (!needFlowSort && sortBy.Equals("ScheduleStage", StringComparison.OrdinalIgnoreCase))
+        {
+            queryable = query.IsDescending
+                ? queryable.OrderByDescending(b => b.WorkOrderNo == NotWorkOrder ? 5 : (exec.Where(e => e.WorkOrderNo == b.WorkOrderNo).Select(e => (int?)e.ScheduleStage).FirstOrDefault() ?? 6))
+                : queryable.OrderBy(b => b.WorkOrderNo == NotWorkOrder ? 5 : (exec.Where(e => e.WorkOrderNo == b.WorkOrderNo).Select(e => (int?)e.ScheduleStage).FirstOrDefault() ?? 6));
+        }
+        else if (!needFlowSort && sortBy.Equals("ExecutionMatch", StringComparison.OrdinalIgnoreCase))
+        {
+            queryable = query.IsDescending
+                ? queryable.OrderByDescending(b =>
+                    (b.WorkOrderNo != NotWorkOrder && !exec.Where(e => e.WorkOrderNo == b.WorkOrderNo).Any())
+                    || (b.WorkOrderNo != NotWorkOrder && exec.Where(e => e.WorkOrderNo == b.WorkOrderNo && e.ScheduleStage == 1).Any() && b.Status != BatchStatus.Completed)
+                        ? 0 : 1)
+                : queryable.OrderBy(b =>
+                    (b.WorkOrderNo != NotWorkOrder && !exec.Where(e => e.WorkOrderNo == b.WorkOrderNo).Any())
+                    || (b.WorkOrderNo != NotWorkOrder && exec.Where(e => e.WorkOrderNo == b.WorkOrderNo && e.ScheduleStage == 1).Any() && b.Status != BatchStatus.Completed)
+                        ? 0 : 1);
+        }
+        else if (!needFlowSort)
+        {
+            queryable = queryable.ApplySort(query.SortBy, query.IsDescending);
+        }
+
+        // ===== 分页：流转判定需内存路径（筛选/排序），其余走 SQL 分页 =====
+        if (needFlowPath)
+        {
+            // 内存路径：全量加载 → 批量算流转判定 → 内存筛选 → 内存排序（疑问在前） → 内存分页
+            var allItems = await queryable.ToListAsync();
+            var flowMap = await BuildFlowJudgmentMapAsync(allItems.Select(b => b.Id).ToList());
+
+            if (needFlowFilter)
+            {
+                var flowValues = flowFilter!.Values!;
+                allItems = allItems
+                    .Where(b => flowValues.Contains(flowMap.GetValueOrDefault(b.Id, "正常"), StringComparer.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            if (needFlowSort)
+            {
+                // 疑问在前（0）正常在后（1），与执行匹配同向；同档按 Id 稳定
+                allItems = query.IsDescending
+                    ? allItems.OrderByDescending(b => flowMap.GetValueOrDefault(b.Id, "正常") == "疑问" ? 0 : 1).ThenByDescending(b => b.Id).ToList()
+                    : allItems.OrderBy(b => flowMap.GetValueOrDefault(b.Id, "正常") == "疑问" ? 0 : 1).ThenBy(b => b.Id).ToList();
+            }
+
+            var totalCountFlow = allItems.Count;
+            var flowItems = allItems.Skip(query.Skip).Take(query.PageSize).ToList();
+
+            var summaryMapFlow = await LoadScheduleStageMapAsync();
+            var flowMappedItems = MapBatchList(flowItems, summaryMapFlow, flowMap);
+            return new PagedResult<ProductionBatchListDto>
+            {
+                Items = flowMappedItems,
+                TotalCount = totalCountFlow,
+                PageIndex = query.PageIndex,
+                PageSize = query.PageSize
+            };
+        }
 
         var totalCount = await queryable.CountAsync();
         var items = await queryable
@@ -257,7 +363,32 @@ public class BatchService : IBatchService
             .Take(query.PageSize)
             .ToListAsync();
 
-        var mappedItems = items.Select(b => new ProductionBatchListDto
+        // 关联工单状态映射：一次加载全量 WorkOrderNo→ScheduleStage（避免逐条 N+1；同一工单号摘要仅一条）
+        var summaryMap = await LoadScheduleStageMapAsync();
+
+        // 流转判定映射：规则1（日期归因）+ 规则2（序列连续）+ 入库特判，按页面批次一次批量计算
+        var flowJudgmentMap = await BuildFlowJudgmentMapAsync(items.Select(b => b.Id).ToList());
+
+        var mappedItems = MapBatchList(items, summaryMap, flowJudgmentMap);
+
+        return new PagedResult<ProductionBatchListDto>
+        {
+            Items = mappedItems,
+            TotalCount = totalCount,
+            PageIndex = query.PageIndex,
+            PageSize = query.PageSize
+        };
+    }
+
+    /// <summary>
+    /// 批次列表 DTO 映射：关联工单状态（ScheduleStage/ExecutionMatch）+ 流转判定（FlowJudgment）
+    /// </summary>
+    private static List<ProductionBatchListDto> MapBatchList(
+        IEnumerable<ProductionBatch> items,
+        Dictionary<string, int> summaryMap,
+        Dictionary<int, string> flowJudgmentMap)
+    {
+        return items.Select(b => new ProductionBatchListDto
         {
             Id = b.Id,
             BatchNo = b.BatchNo,
@@ -343,16 +474,13 @@ public class BatchService : IBatchService
             SourceProductionNo = b.SourceProductionNo,
             TheoreticalOutputQty = b.TheoreticalOutputQty,
             TheoreticalOutputWeight = b.TheoreticalOutputWeight,
-            TheoreticalUnitWeight = b.TheoreticalUnitWeight
+            TheoreticalUnitWeight = b.TheoreticalUnitWeight,
+            ScheduleStage = b.WorkOrderNo == NotWorkOrder ? null
+                : summaryMap.TryGetValue(b.WorkOrderNo, out var batchStage) ? batchStage : -1,
+            ExecutionMatch = b.WorkOrderNo == NotWorkOrder ? "正常"
+                : (!summaryMap.TryGetValue(b.WorkOrderNo, out var matchStage) || (matchStage == 1 && b.Status != BatchStatus.Completed)) ? "错误" : "正常",
+            FlowJudgment = flowJudgmentMap.GetValueOrDefault(b.Id, "正常")
         }).ToList();
-
-        return new PagedResult<ProductionBatchListDto>
-        {
-            Items = mappedItems,
-            TotalCount = totalCount,
-            PageIndex = query.PageIndex,
-            PageSize = query.PageSize
-        };
     }
 
     public async Task<List<ProductionBatchListDto>> GetAllBatchListAsync()
@@ -364,96 +492,51 @@ public class BatchService : IBatchService
         var items = await queryable
             .ToListAsync();
 
-        var mappedItems = items.Select(b => new ProductionBatchListDto
-        {
-            Id = b.Id,
-            BatchNo = b.BatchNo,
-            TagNo = b.TagNo,
-            CreatedTime = b.CreatedTime,
-            UpdatedTime = b.UpdatedTime,
-            WorkOrderNo = b.WorkOrderNo,
-            SalesOrderNo = b.SalesOrderNo,
-            ProductionMainNo = b.ProductionMainNo,
-            ProductionSubNo = b.ProductionSubNo,
-            ProductionType = EnumHelper.TryParse<MES.Core.Enums.ProductionType>(b.ProductionType),
-            ManufacturingItem = !string.IsNullOrEmpty(b.ManufacturingItem) && Enum.TryParse<MaterialType>(b.ManufacturingItem, out var r299) ? r299 : default,
-            Status = b.Status,
-            IsForceCompleted = b.IsForceCompleted,
-            ProductionRatio = b.ProductionRatio,
-            CurrentExecDate = b.CurrentExecDate,
-            CurrentGroupName = b.CurrentGroupName,
-            CurrentSectionName = b.CurrentSectionName,
-            CurrentEquipmentName = b.CurrentEquipmentName,
-            CurrentOutsource = b.CurrentOutsource,
-            CurrentSpec = b.CurrentSpec,
-            NextSectionName = b.NextSectionName,
-            CorrespondingSpec = b.CorrespondingSpec,
-            NextProcess = b.NextProcess,
-            CurrentSectionCompleted = b.CurrentSectionCompleted,
-            RemainingWorkDays = b.RemainingWorkDays,
-            TotalWorkDays = b.TotalWorkDays,
-            CurrentValidQty = b.CurrentValidQty,
-            CurrentValidWeight = b.CurrentValidWeight,
-            CreatedBy = b.CreatedBy,
-            UpdatedBy = b.UpdatedBy,
-            SignDate = b.SignDate,
-            Salesman = b.Salesman,
-            EndCustomer = b.EndCustomer,
-            DeliveryDate = b.DeliveryDate,
-            DelayPenalty = b.DelayPenalty,
-            MaterialName = b.MaterialName,
-            SettlementMethod = string.IsNullOrEmpty(b.SettlementMethod) ? default : Enum.Parse<SettlementMethod>(b.SettlementMethod),
-            StandardCode = b.StandardCode,
-            DeliveryState = string.IsNullOrEmpty(b.DeliveryState) ? default : Enum.Parse<DeliveryState>(b.DeliveryState),
-            ManufacturingStatus = !string.IsNullOrEmpty(b.ManufacturingStatus) && Enum.TryParse<DeliveryState>(b.ManufacturingStatus, out var ms) ? ms : null,
-            PlantGrade = b.PlantGrade,
-            Specification = b.Specification,
-            LengthStatus = string.IsNullOrEmpty(b.LengthStatus) ? default : Enum.Parse<LengthStatus>(b.LengthStatus),
-            TotalQuantity = b.TotalQuantity,
-            TotalMeters = b.TotalMeters,
-            TotalWeight = b.TotalWeight,
-            ProductUnitWeight = b.ProductUnitWeight,
-            TechnicalRequirements = b.TechnicalRequirements,
-            Remark = b.Remark,
-            SourceHeatNo = b.SourceHeatNo,
-            TotalItemCount = b.TotalItemCount,
-            SourceSpecification = b.SourceSpecification,
-            InputQuantity = b.InputQuantity,
-            InputWeight = b.InputWeight,
-            SolutionParams = b.SolutionParams,
-            QualityRemark = b.QualityRemark,
-            SourceMaterialType = !string.IsNullOrEmpty(b.SourceMaterialType) ? EnumHelper.TryParse<MaterialType>(b.SourceMaterialType) : null,
-            SourceName = b.SourceName,
-            HasInputChange = b.HasInputChange,
-            ProcessInspectionQualifiedQty = b.ProcessInspectionQualifiedQty,
-            ProcessInspectionQualifiedWeight = b.ProcessInspectionQualifiedWeight,
-            ProcessInspectionTheoreticalQty = b.ProcessInspectionTheoreticalQty,
-            ProcessInspectionNeedAdjust = b.ProcessInspectionNeedAdjust,
-            ProcessInspectionReworkWeight = b.ProcessInspectionReworkWeight ?? 0,
-            ProcessInspectionScrapWeight = b.ProcessInspectionScrapWeight ?? 0,
-            InspectionStage = b.InspectionStage,
-            CutRequirement = b.CutRequirement,
-            CutExecution = b.CutExecution,
-            CutQuantity = b.CutQuantity,
-            CutDoubt = b.CutDoubt,
-            OuterDiameterNegative = b.OuterDiameterNegative,
-            OuterDiameterPositive = b.OuterDiameterPositive,
-            WallThicknessNegative = b.WallThicknessNegative,
-            WallThicknessPositive = b.WallThicknessPositive,
-            MinLength = b.MinLength,
-            MaxLength = b.MaxLength,
-            SourceBatchNo = b.SourceBatchNo,
-            SourcePlantGrade = b.SourcePlantGrade,
-            SourceUnitWeight = b.SourceUnitWeight,
-            InputType = b.InputType,
-            SourceLengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(b.SourceLengthStatus),
-            SourceProductionNo = b.SourceProductionNo,
-            TheoreticalOutputQty = b.TheoreticalOutputQty,
-            TheoreticalOutputWeight = b.TheoreticalOutputWeight,
-            TheoreticalUnitWeight = b.TheoreticalUnitWeight
-        }).ToList();
+        // 关联工单状态映射：一次加载全量 WorkOrderNo→ScheduleStage（避免逐条 N+1；同一工单号摘要仅一条）
+        var summaryMap = await LoadScheduleStageMapAsync();
 
-        return mappedItems;
+        // 流转判定映射：规则1（日期归因）+ 规则2（序列连续）+ 入库特判
+        var flowJudgmentMap = await BuildFlowJudgmentMapAsync(items.Select(b => b.Id).ToList());
+
+        return MapBatchList(items, summaryMap, flowJudgmentMap);
+
+
+    }
+
+    /// <summary>
+    /// 「批次-错疑执行」卡片统计：全量批次按 4 类错疑条件统计批次数 + 领料重量合计（InputWeight 之和）
+    /// </summary>
+    public async Task<List<BatchDoubtExecutionItemDto>> GetDoubtExecutionSummaryAsync()
+    {
+        var all = await GetAllBatchListAsync();
+        var types = new[]
+        {
+            BatchDoubtExecutionType.MatchOrder,
+            BatchDoubtExecutionType.FlowDoubt,
+            BatchDoubtExecutionType.NeedAdjust,
+            BatchDoubtExecutionType.CutDoubt
+        };
+        return types.Select(t => BuildDoubtExecutionItem(all, t)).ToList();
+    }
+
+    /// <summary>按错疑类别统计命中批次（计数 + InputWeight 合计），口径与批次列表对应派生字段筛选完全一致</summary>
+    private static BatchDoubtExecutionItemDto BuildDoubtExecutionItem(List<ProductionBatchListDto> all, BatchDoubtExecutionType type)
+    {
+        IEnumerable<ProductionBatchListDto> matched = type switch
+        {
+            BatchDoubtExecutionType.MatchOrder => all.Where(d => string.Equals(d.ExecutionMatch, "错误", StringComparison.Ordinal)),
+            BatchDoubtExecutionType.FlowDoubt => all.Where(d => string.Equals(d.FlowJudgment, "疑问", StringComparison.Ordinal)),
+            BatchDoubtExecutionType.NeedAdjust => all.Where(d => d.ProcessInspectionNeedAdjust == true),
+            BatchDoubtExecutionType.CutDoubt => all.Where(d => d.CutDoubt is CutDoubtType.QuantityMismatch or CutDoubtType.MissingRecords),
+            _ => Enumerable.Empty<ProductionBatchListDto>()
+        };
+        var list = matched.ToList();
+        return new BatchDoubtExecutionItemDto
+        {
+            DoubtType = type,
+            BatchCount = list.Count,
+            InputWeight = list.Sum(d => d.InputWeight ?? 0)
+        };
     }
 
     public async Task<ProductionBatchDetailDto> GetByIdAsync(int id)
@@ -2139,8 +2222,179 @@ public class BatchService : IBatchService
             .ToListAsync();
 
         var columns = request.Columns?.Count > 0 ? request.Columns : GetDefaultBatchPrintColumns();
-        var items = BuildBatchDictItems(entities, columns);
+        var summaryMap = await LoadScheduleStageMapAsync();
+        var flowJudgmentMap = await BuildFlowJudgmentMapAsync(entities.Select(b => b.Id).ToList());
+        var items = BuildBatchDictItems(entities, columns, summaryMap, flowJudgmentMap);
         return TablePrintHelper.GeneratePdf("生产批次列表", items, columns);
+    }
+
+    /// <summary>
+    /// 关联工单状态映射源：一次加载全量 WorkOrderNo→ScheduleStage（同一工单号摘要仅一条）
+    /// </summary>
+    private async Task<Dictionary<string, int>> LoadScheduleStageMapAsync()
+    {
+        var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var s in await _context.WorkOrderExecutionSummaries.AsNoTracking().Select(e => new { e.WorkOrderNo, e.ScheduleStage }).ToListAsync())
+            map[s.WorkOrderNo] = s.ScheduleStage;
+        return map;
+    }
+
+    /// <summary>
+    /// 流转判定映射（批次Id → 正常/疑问）。判定规则：
+    /// 规则1（日期归因一致性）：现最大执行序对应的位置日期 ≠ 6表全量max日期 → 疑问；
+    /// 规则2（序列连续性）：最大执行序N存在时，N-1/N-2/N-3 任一缺失 → 疑问；未产/补位≤0 → 正常。
+    /// 附加特判：仓库入库为终点覆盖，位置日期=InboundDate；委外/酸洗日期口径（A）：已完工取回收日/完工日，未完工取发出日/入缸日。
+    /// </summary>
+    private async Task<Dictionary<int, string>> BuildFlowJudgmentMapAsync(List<int> batchIds)
+    {
+        var map = new Dictionary<int, string>();
+        if (batchIds.Count == 0) return map;
+
+        foreach (var chunk in batchIds.Chunk(1000))
+        {
+            var ids = chunk.ToList();
+
+            // 批次元数据：批号 + 制造物品 + 有效重量（用于仓库入库动态匹配）
+            var batchMeta = await _context.ProductionBatches.AsNoTracking()
+                .Where(b => ids.Contains(b.Id))
+                .Select(b => new { b.Id, b.BatchNo, b.ManufacturingItem, b.CurrentValidWeight })
+                .ToListAsync();
+
+            // 1. 生产记录：序号 + 执行日
+            var prods = await _context.ProductionRecords.AsNoTracking()
+                .Where(r => ids.Contains(r.ProductionBatchId))
+                .Select(r => new { r.ProductionBatchId, r.SequenceNumber, r.ExecDate })
+                .ToListAsync();
+
+            // 2. 工段委外：序号 + 发出日 + 回收数 + 最大回收日
+            var outsources = await _context.SectionOutsources.AsNoTracking()
+                .Where(o => ids.Contains(o.ProductionBatchId))
+                .Select(o => new
+                {
+                    o.ProductionBatchId,
+                    o.SequenceNumber,
+                    o.SendOutDate,
+                    RecoveryCount = o.OutsourceRecoveries.Count,
+                    MaxRecoveryDate = o.OutsourceRecoveries.Select(r => (DateTime?)r.RecoveryDate).Max()
+                })
+                .ToListAsync();
+
+            // 3. 去油/酸洗：序号 + 入缸日 + 状态 + 最大完工日
+            var picklings = await _context.PicklingInRecords.AsNoTracking()
+                .Where(p => ids.Contains(p.ProductionBatchId))
+                .Select(p => new
+                {
+                    p.ProductionBatchId,
+                    p.SequenceNumber,
+                    p.InDate,
+                    p.Status,
+                    MaxCompleteDate = p.PicklingOutRecords.Select(o => (DateTime?)o.CompleteDate).Max()
+                })
+                .ToListAsync();
+
+            // 4. 过程检验：序号 + 检验日
+            var inspections = await _context.ProcessInspections.AsNoTracking()
+                .Where(pi => ids.Contains(pi.ProductionBatchId))
+                .Select(pi => new { pi.ProductionBatchId, pi.SequenceNumber, pi.InspectionDate })
+                .ToListAsync();
+
+            // 5. 成检到料：序号 + 到料日
+            var materialChecks = await _context.MaterialReceiveChecks.AsNoTracking()
+                .Where(m => ids.Contains(m.ProductionBatchId))
+                .Select(m => new { m.ProductionBatchId, m.SequenceNumber, m.ReceiveDate })
+                .ToListAsync();
+
+            // 6. 仓库入库：按批次号匹配，物料类型内存动态判定（有效投料&gt;0 需物料类型一致，排除次品入库）
+            var batchNos = batchMeta.Select(b => b.BatchNo).Where(n => n != null).Distinct().ToList();
+            var inboundByNo = (await _context.InventoryBatches.AsNoTracking()
+                .Where(ib => ib.ProductionBatchNo != null && batchNos.Contains(ib.ProductionBatchNo))
+                .Select(ib => new { ib.ProductionBatchNo, ib.MaterialType, ib.InboundDate })
+                .ToListAsync())
+                .GroupBy(ib => ib.ProductionBatchNo!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            var prodsByBatch = prods.GroupBy(r => r.ProductionBatchId).ToDictionary(g => g.Key, g => g.ToList());
+            var outByBatch = outsources.GroupBy(o => o.ProductionBatchId).ToDictionary(g => g.Key, g => g.ToList());
+            var pickByBatch = picklings.GroupBy(p => p.ProductionBatchId).ToDictionary(g => g.Key, g => g.ToList());
+            var inspByBatch = inspections.GroupBy(i => i.ProductionBatchId).ToDictionary(g => g.Key, g => g.ToList());
+            var mcByBatch = materialChecks.GroupBy(m => m.ProductionBatchId).ToDictionary(g => g.Key, g => g.ToList());
+
+            foreach (var meta in batchMeta)
+            {
+                var seqRecords = new List<(int Seq, DateTime Date)>();
+                foreach (var r in prodsByBatch.GetValueOrDefault(meta.Id) ?? new())
+                    seqRecords.Add((r.SequenceNumber, r.ExecDate));
+                foreach (var o in outByBatch.GetValueOrDefault(meta.Id) ?? new())
+                    seqRecords.Add((o.SequenceNumber, o.RecoveryCount > 0 && o.MaxRecoveryDate is { } rd ? rd : o.SendOutDate));
+                foreach (var p in pickByBatch.GetValueOrDefault(meta.Id) ?? new())
+                    seqRecords.Add((p.SequenceNumber, p.Status == PicklingStatus.Completed && p.MaxCompleteDate is { } cd ? cd : p.InDate));
+                foreach (var i in inspByBatch.GetValueOrDefault(meta.Id) ?? new())
+                    seqRecords.Add((i.SequenceNumber, i.InspectionDate));
+                foreach (var m in mcByBatch.GetValueOrDefault(meta.Id) ?? new())
+                    seqRecords.Add((m.SequenceNumber, m.ReceiveDate));
+
+                // 入库特判：有效投料&gt;0 时需物料类型一致
+                DateTime? inboundDate = null;
+                if (meta.BatchNo != null && inboundByNo.TryGetValue(meta.BatchNo, out var inbs))
+                {
+                    var matched = meta.CurrentValidWeight > 0
+                        ? inbs.Where(i => string.Equals(i.MaterialType, meta.ManufacturingItem, StringComparison.OrdinalIgnoreCase)).ToList()
+                        : inbs;
+                    if (matched.Count > 0)
+                        inboundDate = matched.Max(i => i.InboundDate);
+                }
+
+                map[meta.Id] = ComputeFlowJudgment(seqRecords, inboundDate);
+            }
+        }
+        return map;
+    }
+
+    /// <summary>
+    /// 单批次流转判定（纯内存计算，便于测试）：正常/疑问。入库特判：有入库则位置日期=InboundDate（终点覆盖）。
+    /// </summary>
+    private static string ComputeFlowJudgment(IReadOnlyList<(int Seq, DateTime Date)> seqRecords, DateTime? inboundDate)
+    {
+        bool hasWarehouse = inboundDate.HasValue;
+        bool hasAny = seqRecords.Count > 0 || hasWarehouse;
+        if (!hasAny) return "正常"; // 未产
+
+        // 6 表全量 max 日期（含入库）
+        DateTime? globalMax = null;
+        foreach (var r in seqRecords)
+            if (globalMax == null || r.Date > globalMax) globalMax = r.Date;
+        if (hasWarehouse && (globalMax == null || inboundDate!.Value > globalMax))
+            globalMax = inboundDate;
+
+        // 位置日期：有入库 → InboundDate；否则取最大执行序所在记录的最大日期
+        DateTime? positionDate;
+        if (hasWarehouse)
+        {
+            positionDate = inboundDate;
+        }
+        else
+        {
+            var maxSeq = seqRecords.Max(r => r.Seq);
+            positionDate = seqRecords.Where(r => r.Seq == maxSeq).Max(r => r.Date);
+        }
+
+        bool doubt = false;
+
+        // 规则1：位置日期 ≠ 全量 max → 疑问
+        if (positionDate != globalMax)
+            doubt = true;
+
+        // 规则2：最大执行序 N 存在，N-1/N-2 至少一个存在（允许一个无值，V5.12 放宽；补位≤0 跳过），两个都缺失 → 疑问
+        if (seqRecords.Count > 0)
+        {
+            var maxSeq = seqRecords.Max(r => r.Seq);
+            var seqSet = new HashSet<int>(seqRecords.Select(r => r.Seq));
+            var needed = new List<int> { maxSeq - 1, maxSeq - 2 }.Where(p => p > 0).ToList();
+            if (needed.Count > 0 && !needed.Any(p => seqSet.Contains(p)))
+                doubt = true;
+        }
+
+        return doubt ? "疑问" : "正常";
     }
 
     public async Task<byte[]> PrintBatchSelectedAsync(int[] ids, List<PrintColumnDef> columns)
@@ -2155,7 +2409,9 @@ public class BatchService : IBatchService
             throw new BusinessException("未找到选中的批次数据");
 
         var cols = columns?.Count > 0 ? columns : GetDefaultBatchPrintColumns();
-        var items = BuildBatchDictItems(entities, cols);
+        var summaryMap = await LoadScheduleStageMapAsync();
+        var flowJudgmentMap = await BuildFlowJudgmentMapAsync(entities.Select(b => b.Id).ToList());
+        var items = BuildBatchDictItems(entities, cols, summaryMap, flowJudgmentMap);
         return TablePrintHelper.GeneratePdf("生产批次列表", items, cols);
     }
 
@@ -2181,20 +2437,20 @@ public class BatchService : IBatchService
         new() { Key = "NextProcess", Label = "下一工序" }
     };
 
-    private static List<Dictionary<string, object>> BuildBatchDictItems(List<ProductionBatch> entities, List<PrintColumnDef> columns)
+    private static List<Dictionary<string, object>> BuildBatchDictItems(List<ProductionBatch> entities, List<PrintColumnDef> columns, Dictionary<string, int>? summaryMap = null, Dictionary<int, string>? flowJudgmentMap = null)
     {
         return entities.Select(b =>
         {
             var dict = new Dictionary<string, object>();
             foreach (var col in columns)
             {
-                dict[col.Key] = GetBatchFieldValue(b, col.Key);
+                dict[col.Key] = GetBatchFieldValue(b, col.Key, summaryMap, flowJudgmentMap);
             }
             return dict;
         }).ToList();
     }
 
-    private static object GetBatchFieldValue(ProductionBatch b, string key)
+    private static object GetBatchFieldValue(ProductionBatch b, string key, Dictionary<string, int>? summaryMap = null, Dictionary<int, string>? flowJudgmentMap = null)
     {
         // 使用 switch 表达式处理字段映射 + 枚举转换
         return (key switch
@@ -2295,9 +2551,31 @@ public class BatchService : IBatchService
             "SolutionParams" => (object?)b.SolutionParams ?? "",
             "QualityRemark" => (object?)b.QualityRemark ?? "",
 
+            // 关联工单状态（派生自工单执行状况读模型，与列表 DTO 显示口径一致）
+            "ScheduleStage" => BuildScheduleStagePrintDisplay(b, summaryMap),
+            "ExecutionMatch" => BuildExecutionMatchPrintDisplay(b, summaryMap),
+            "FlowJudgment" => flowJudgmentMap != null && flowJudgmentMap.TryGetValue(b.Id, out var fj) ? fj : "正常",
+
             // 默认
             _ => ""
         })!;
+    }
+
+    /// <summary>打印：工单关注显示（null=略、-1=无此工单、0~4=主号暂停/主号完成/原料锁定/生产执行/成品检验）</summary>
+    private static string BuildScheduleStagePrintDisplay(ProductionBatch b, Dictionary<string, int>? summaryMap)
+    {
+        if (b.WorkOrderNo == NotWorkOrder) return "略";
+        if (summaryMap != null && summaryMap.TryGetValue(b.WorkOrderNo, out var stage))
+            return IntStatusDisplayHelper.GetScheduleStageText(stage, "-");
+        return "无此工单";
+    }
+
+    /// <summary>打印：执行匹配显示（错误=无此工单，或主号完成但批次现执行状态≠完成；其余正常）</summary>
+    private static string BuildExecutionMatchPrintDisplay(ProductionBatch b, Dictionary<string, int>? summaryMap)
+    {
+        if (b.WorkOrderNo == NotWorkOrder) return "正常";
+        if (summaryMap == null || !summaryMap.TryGetValue(b.WorkOrderNo, out var stage)) return "错误";
+        return (stage == 1 && b.Status != BatchStatus.Completed) ? "错误" : "正常";
     }
 
     /// <summary>

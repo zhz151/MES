@@ -19,4 +19,16 @@ public class MaterialPlanLinkFilterDto
 
     /// <summary>是否待投料矩阵联动（排除「单一成品采购」工单）：成品采购计划量 &gt; 0 且其余 6 类计划量全部 ≤ 0 的工单排除，单数与重量与卡片待投料口径同步</summary>
     public bool ExcludeSingleFinishPurchase { get; set; }
+
+    /// <summary>
+    /// 「在产在检-错疑待料」卡片联动：主号-关注档位（1=主号完成 3=生产执行 4=成品检验）。
+    /// 与下方 HasMissingWeight/HasPendingInputWeight 组合生效；设置时忽略 Remark/Urgency/PurchaseOnly/ExcludeSingleFinishPurchase。
+    /// </summary>
+    public int? ScheduleStage { get; set; }
+
+    /// <summary>「在产在检-错疑待料」联动：要求 理论原料未至（TotalMissingWeight &gt; 0，3% 门槛口径）</summary>
+    public bool HasMissingWeight { get; set; }
+
+    /// <summary>「在产在检-错疑待料」联动：要求 工单到料未投（PendingInputWeight &gt; 0）</summary>
+    public bool HasPendingInputWeight { get; set; }
 }

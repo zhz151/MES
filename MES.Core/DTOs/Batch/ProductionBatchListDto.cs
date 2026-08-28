@@ -163,4 +163,21 @@ public class ProductionBatchListDto
     public int? TheoreticalOutputQty { get; set; }
     public int? TheoreticalOutputWeight { get; set; }
     public decimal? TheoreticalUnitWeight { get; set; }
+
+    // ========== 关联工单状态（派生字段，来自工单执行状况读模型 WorkOrderExecutionSummary，按批次.WorkOrderNo 关联） ==========
+
+    /// <summary>
+    /// 工单关注（"实时关注"组"主号-关注"档位）：0=主号暂停 1=主号完成 2=原料锁定 3=生产执行 4=成品检验；null=略（批次为非工单）；-1=无此工单（摘要表无该工单记录）
+    /// </summary>
+    public int? ScheduleStage { get; set; }
+
+    /// <summary>
+    /// 执行匹配：错误/正常。错误=工单关注为"无此工单"，或工单关注为"主号完成"但批次现执行状态≠完成
+    /// </summary>
+    public string? ExecutionMatch { get; set; }
+
+    /// <summary>
+    /// 流转判定：正常/疑问。疑问=规则1（现最大执行序对应日期 ≠ 6表全量最大日期）或规则2（最大执行序N存在时 N-1/N-2/N-3 任一缺失）；未产/入库特判 → 正常
+    /// </summary>
+    public string? FlowJudgment { get; set; }
 }

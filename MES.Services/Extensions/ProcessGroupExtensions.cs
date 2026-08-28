@@ -58,6 +58,47 @@ public static class ProcessGroupExtensions
     }
 
     /// <summary>
+    /// 将工段步骤号写回工序组对应列（<see cref="GetSectionSequence"/> 的逆操作）。
+    /// 入参先经 SectionKeys.ToKey 归一为稳定 Key，未知工段不写。
+    /// 供工序组工段步骤号连续化重排使用。
+    /// </summary>
+    public static void SetSectionNumber(this ProcessGroup pg, string? sectionName, int sequence)
+    {
+        var key = SectionKeys.ToKey(sectionName);
+        if (key == null) return;
+        switch (key)
+        {
+            case SectionKeys.ColdRollDraw: pg.ColdRollDraw = sequence; break;
+            case SectionKeys.OilPipeCut: pg.OilPipeCut = sequence; break;
+            case SectionKeys.Degrease: pg.Degrease = sequence; break;
+            case SectionKeys.EmulsionWash: pg.EmulsionWash = sequence; break;
+            case SectionKeys.UltrasonicWash: pg.UltrasonicWash = sequence; break;
+            case SectionKeys.ClothPolish: pg.ClothPolish = sequence; break;
+            case SectionKeys.BrightAnnealing: pg.BrightAnnealing = sequence; break;
+            case SectionKeys.Solution: pg.Solution = sequence; break;
+            case SectionKeys.Straighten: pg.Straighten = sequence; break;
+            case SectionKeys.Cut: pg.Cut = sequence; break;
+            case SectionKeys.ThicknessMeasure: pg.ThicknessMeasure = sequence; break;
+            case SectionKeys.Pickle: pg.Pickle = sequence; break;
+            case SectionKeys.OuterPolish: pg.OuterPolish = sequence; break;
+            case SectionKeys.InnerPolish: pg.InnerPolish = sequence; break;
+            case SectionKeys.InnerGrinding: pg.InnerGrinding = sequence; break;
+            case SectionKeys.OuterSpotGrinding: pg.OuterSpotGrinding = sequence; break;
+            case SectionKeys.SandBlasting: pg.SandBlasting = sequence; break;
+            case SectionKeys.ShotBlasting: pg.ShotBlasting = sequence; break;
+            case SectionKeys.Inspection: pg.Inspection = sequence; break;
+            case SectionKeys.WeldingHead: pg.WeldingHead = sequence; break;
+            case SectionKeys.Welding: pg.Welding = sequence; break;
+            case SectionKeys.Lubrication: pg.Lubrication = sequence; break;
+            case SectionKeys.Packing: pg.Packing = sequence; break;
+            case SectionKeys.Warehouse: pg.Warehouse = sequence; break;
+            case SectionKeys.Extra1: pg.Extra1 = sequence; break;
+            case SectionKeys.Extra2: pg.Extra2 = sequence; break;
+            default: break;
+        }
+    }
+
+    /// <summary>
     /// 获取工序组中所有非空工段（含序号），按执行顺序排序
     /// </summary>
     public static List<(string SectionName, int SequenceNumber)> GetNonEmptySections(this ProcessGroup pg)

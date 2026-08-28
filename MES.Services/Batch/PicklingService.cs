@@ -304,7 +304,7 @@ public class PicklingService : IPicklingService
             .FirstOrDefaultAsync(b => b.BatchNo == request.BatchNo)
             ?? throw new BusinessException($"批次不存在: {request.BatchNo}");
 
-        // 自动解析 ProcessGroupId 和 SequenceNumber
+        // 自动解析 ProcessGroupId 和 SequenceNumber（语义A：序号=工段步骤号，始终对齐工序组；工段不存在时下方抛错）
         var processGroupId = request.ProcessGroupId;
         var sequenceNumber = request.SequenceNumber;
         if (processGroupId == null || processGroupId == 0)
@@ -315,10 +315,10 @@ public class PicklingService : IPicklingService
                     && pg.ManufacturingSpec == request.ManufacturingSpec)
                 .FirstOrDefaultAsync();
             processGroupId = pg?.Id ?? 0;
-            if (pg != null && sequenceNumber == 0)
+            if (pg != null)
                 sequenceNumber = pg.GetSectionSequence(request.SectionName) ?? 0;
         }
-        else if (sequenceNumber == 0)
+        else
         {
             var pg = await _context.ProcessGroups.FindAsync(processGroupId.Value);
             if (pg != null)
@@ -566,10 +566,10 @@ public class PicklingService : IPicklingService
                 var matchedPg = pgByBatch.GetValueOrDefault(batchId)?
                     .FirstOrDefault(pg => pg.ProcessName == request.ProcessName && pg.ManufacturingSpec == request.ManufacturingSpec);
                 processGroupId = matchedPg?.Id;
-                if (matchedPg != null && sequenceNumber == 0)
+                if (matchedPg != null)
                     sequenceNumber = matchedPg.GetSectionSequence(request.SectionName) ?? 0;
             }
-            else if (sequenceNumber == 0)
+            else
             {
                 var pg = allProcessGroups.FirstOrDefault(p => p.Id == processGroupId.Value);
                 if (pg != null)
@@ -741,6 +741,16 @@ public class PicklingService : IPicklingService
             var pgList = await _context.ProcessGroups
                 .Where(pg => pg.ProductionBatchId == entity.ProductionBatchId)
                 .ToListAsync();
+
+            // 语义A：更新时重对齐序号 = 工段步骤号（工序组编辑后纠正漂移；工段不在工序组时保留原值）
+            var inPg = pgList.FirstOrDefault(pg => pg.Id == entity.ProcessGroupId);
+            if (inPg != null)
+            {
+                var inSeq = inPg.GetSectionSequence(entity.SectionName);
+                if (inSeq.HasValue)
+                    entity.SequenceNumber = inSeq.Value;
+            }
+
             entity.ProductStatus = ProductStatusHelper.Calculate(
                 entity.ProcessName, entity.ManufacturingSpec, entity.ProductionBatch.ManufacturingItem, pgList, entity.ProductionBatch.Specification);
 

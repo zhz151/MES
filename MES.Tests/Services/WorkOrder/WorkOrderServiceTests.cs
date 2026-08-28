@@ -17,6 +17,7 @@ using MES.Core.Models;
 using MES.Data.Entities;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.WorkOrder;
+using MES.Core.Helpers;
 using MES.Services.WorkOrder;
 using MES.Services.Order;
 using MES.Tests.Tests;
@@ -1055,5 +1056,107 @@ public class WorkOrderServiceTests : TestBase
         bytes.Should().NotBeNullOrEmpty();
         // PDF 魔数 %PDF
         System.Text.Encoding.ASCII.GetString(bytes.Take(4).ToArray()).Should().Be("%PDF");
+    }
+
+    // ==================== 在产在检-错疑待料卡片联动（ScheduleStage + 字段>0） ====================
+
+    [Fact]
+    public async Task GetPagedWithPlansAsync_在产在检错疑待料联动_按档位与字段筛选()
+    {
+        var ctx = CreateDbContext();
+        // 重置容差快照（防其它测试污染静态状态）
+        MaterialPlanToleranceProvider.Apply(0.03m);
+
+        // WO-A：ScheduleStage=3 生产执行，计划=200 现可=100 → 理论原料未至=100>0
+        var (_, _, woIdsA) = await SeedConfirmedOrderWithWorkOrdersAsync(ctx);
+        // WO-B：ScheduleStage=3 生产执行，计划=100 现可=100 → 无缺口（不匹配字段条件）
+        var (_, _, woIdsB) = await SeedConfirmedOrderWithWorkOrdersAsync(ctx);
+        // WO-C：ScheduleStage=4 成品检验，计划=200 现可=100 → 缺口=100>0（档位不同不匹配）
+        var (_, _, woIdsC) = await SeedConfirmedOrderWithWorkOrdersAsync(ctx);
+
+        var woA = await ctx.WorkOrders.FindAsync(woIdsA[0]);
+        var woB = await ctx.WorkOrders.FindAsync(woIdsB[0]);
+        var woC = await ctx.WorkOrders.FindAsync(woIdsC[0]);
+        await SeedWorkOrderListSummaryAsync(ctx, woA!);
+        await SeedWorkOrderListSummaryAsync(ctx, woB!);
+        await SeedWorkOrderListSummaryAsync(ctx, woC!);
+
+        ctx.Set<WorkOrderExecutionSummary>().AddRange(
+            SeedExecSummary(woA!, s => { s.ScheduleStage = 3; s.SemiPlanWeight = 200m; s.SemiInWeight = 100m; }),
+            SeedExecSummary(woB!, s => { s.ScheduleStage = 3; s.SemiPlanWeight = 100m; s.SemiInWeight = 100m; }),
+            SeedExecSummary(woC!, s => { s.ScheduleStage = 4; s.SemiPlanWeight = 200m; s.SemiInWeight = 100m; }));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        // 联动：生产执行(3) + 理论原料未至 → 仅 WO-A
+        var missingResult = await svc.GetPagedWithPlansAsync(new WorkOrderQueryParams { PageIndex = 1, PageSize = 20 },
+            new MaterialPlanLinkFilterDto { ScheduleStage = 3, HasMissingWeight = true });
+        missingResult.Items.Should().HaveCount(1);
+        missingResult.Items.Single().Id.Should().Be(woA!.Id);
+        missingResult.Items.Single().TotalMissingWeight.Should().Be(100m);
+
+        // 联动：生产执行(3) + 工单到料未投（现可>已投）→ WO-A（已投0）+ WO-B（已投0）均未投，WO-C 档位不符
+        var pendingResult = await svc.GetPagedWithPlansAsync(new WorkOrderQueryParams { PageIndex = 1, PageSize = 20 },
+            new MaterialPlanLinkFilterDto { ScheduleStage = 3, HasPendingInputWeight = true });
+        pendingResult.Items.Select(i => i.Id).Should().BeEquivalentTo(new[] { woA!.Id, woB!.Id });
+    }
+
+    private static WorkOrderExecutionSummary SeedExecSummary(MES.Data.Entities.WorkOrder.WorkOrder wo, Action<WorkOrderExecutionSummary> configure)
+    {
+        var s = new WorkOrderExecutionSummary
+        {
+            WorkOrderId = wo.Id,
+            WorkOrderNo = wo.WorkOrderNo,
+            Salesman = wo.Salesman,
+            CustomerName = "",
+            SignDate = wo.SignDate,
+            DeliveryDate = wo.DeliveryDate,
+            SettlementMethod = wo.SettlementMethod.ToString(),
+            SalesOrderNo = wo.SalesOrderNo,
+            ProductionMainNo = wo.ProductionMainNo,
+            ProductionSubNo = wo.ProductionSubNo,
+            MaterialName = wo.PipeManufacturingType.ToString(),
+            DeliveryState = wo.DeliveryState.ToString(),
+            PlantGrade = wo.PlantGrade,
+            Specification = wo.Specification,
+            LengthStatus = wo.LengthStatus.ToString(),
+            TotalQuantity = wo.TotalQuantity,
+            TotalWeight = wo.TotalWeight,
+            TotalItemCount = wo.TotalItemCount,
+            CreatedTime = DateTimeOffset.UtcNow,
+        };
+        configure(s);
+        return s;
+    }
+
+    private static async Task SeedWorkOrderListSummaryAsync(AppDbContext ctx, MES.Data.Entities.WorkOrder.WorkOrder wo)
+    {
+        ctx.Set<WorkOrderListSummary>().Add(new WorkOrderListSummary
+        {
+            WorkOrderId = wo.Id,
+            WorkOrderNo = wo.WorkOrderNo,
+            SalesOrderNo = wo.SalesOrderNo,
+            ProductionMainNo = wo.ProductionMainNo,
+            ProductionSubNo = wo.ProductionSubNo,
+            SignDate = wo.SignDate,
+            Salesman = wo.Salesman,
+            DeliveryDate = wo.DeliveryDate,
+            SettlementMethod = wo.SettlementMethod.ToString(),
+            MaterialName = wo.PipeManufacturingType.ToString(),
+            PlantGrade = wo.PlantGrade,
+            Specification = wo.Specification,
+            LengthStatus = wo.LengthStatus.ToString(),
+            MinLength = wo.MinLength,
+            MaxLength = wo.MaxLength,
+            TotalQuantity = wo.TotalQuantity,
+            TotalWeight = wo.TotalWeight,
+            TotalItemCount = wo.TotalItemCount,
+            TechnicalRequirements = "Normal",
+            Status = (int)wo.Status,
+            CreatedTime = DateTimeOffset.UtcNow,
+            DeliveryState = wo.DeliveryState.ToString()
+        });
+        await ctx.SaveChangesAsync();
     }
 }

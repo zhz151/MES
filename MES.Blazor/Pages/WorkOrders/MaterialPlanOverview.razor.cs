@@ -24,7 +24,7 @@ public partial class MaterialPlanOverview
     private MudTable<WorkOrderListDto>? table;
     private List<WorkOrderListDto> _pageItems = new();
     private Dictionary<string, string> _pageSums = new();
-    private static readonly HashSet<string> _summableColumnKeys = new() { "TotalWeight", "TotalItemCount", "TotalQuantity" };
+    private static readonly HashSet<string> _summableColumnKeys = new() { "TotalWeight", "TotalItemCount", "TotalQuantity", "TotalMissingWeight", "PendingInputWeight", "InputWeight" };
     private int _totalCount;
     private string errorMessage = string.Empty;
 
@@ -43,6 +43,11 @@ public partial class MaterialPlanOverview
     private int _errorDoubtDisplayCount = 5;             // 卡片显示行数（默认 5，防视觉污染）
     private static readonly int[] _errorDoubtDisplayOptions = { 5, 10, 15, 20 };
     private const string _errorDoubtNullFilter = "__EXCEL_FILTER_NULL__";   // ExcelFilter 空值占位符（与组件一致）
+
+    // ========== 在产在检-错疑待料卡片（工单执行状况读模型：主号-关注=主号完成/生产执行/成品检验 三档 × 理论原料未至/工单到料未投 的工单数+累计重量） ==========
+    private bool _showInProdInspectionCard;        // 卡片显隐（默认折叠）
+    private bool _inProdInspectionLoading;         // 防止并发重复加载
+    private List<InProductionInspectionDoubtItemDto>? _inProdInspectionItems;
 
     // ========== 卡片点击联动筛选（仿订单首页小表点击，覆盖式 + 提示条） ==========
     private MaterialPlanLinkFilterDto? _linkFilter;   // 联动筛选条件（null=未联动）
@@ -665,6 +670,45 @@ public partial class MaterialPlanOverview
         }
     }
 
+    // ========== 在产在检-错疑待料卡片（工单执行状况读模型：主号-关注=主号完成/生产执行/成品检验 三档 × 理论原料未至/工单到料未投） ==========
+
+    private void ToggleInProdInspectionCard()
+    {
+        _showInProdInspectionCard = !_showInProdInspectionCard;
+        if (_showInProdInspectionCard && _inProdInspectionItems == null && !_inProdInspectionLoading)
+            _ = LoadInProdInspectionAsync();
+    }
+
+    private async Task LoadInProdInspectionAsync()
+    {
+        _inProdInspectionLoading = true;
+        try
+        {
+            var result = await WorkOrderService.GetInProductionInspectionDoubtItemsAsync();
+            if (result.Success && result.Data != null)
+                _inProdInspectionItems = result.Data;
+            else
+                Snackbar.Add(result?.Message ?? "获取在产在检错疑待料失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"获取在产在检错疑待料失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _inProdInspectionLoading = false;
+            // fire-and-forget 加载完成后不会自动触发重新渲染，必须手动 StateHasChanged
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>「在产在检-错疑待料」卡片重量列显示（kg，G29 去零；0 不显示防视觉污染）</summary>
+    private static string FormatStageDoubtWeight(decimal v) => v == 0 ? string.Empty : ((int)v).ToString("G29");
+
+    /// <summary>卡片数据值显示：例「25单/8500Kg」；无数据 → "-"</summary>
+    private static string FormatStageDoubtCell(int count, decimal weight) =>
+        count > 0 ? $"{count}单/{((int)weight).ToString("G29")}Kg" : "-";
+
     /// <summary>卡片重量列显示（kg，G29 去零；0 不显示防视觉污染）</summary>
     private static string FormatErrorDoubtWeight(decimal v) => v == 0 ? string.Empty : ((int)v).ToString("G29");
 
@@ -831,6 +875,24 @@ public partial class MaterialPlanOverview
 
     // ========== 卡片点击联动筛选（仿订单首页小表点击，覆盖式 + 提示条） ==========
 
+    /// <summary>联动核心：设置条件、覆盖现有筛选、重载主表。由各卡片点击方法调用。</summary>
+    private async Task ApplyLinkCoreAsync()
+    {
+        // 覆盖现有搜索/签订日期/交货日期/列筛选/计划类型筛选
+        _searchKeyword = string.Empty;
+        _dateFrom = string.Empty;
+        _dateTo = string.Empty;
+        _deliveryDateFrom = string.Empty;
+        _deliveryDateTo = string.Empty;
+        _columnFilters.Clear();
+        includeSemi = includeFinish = includeInventory = includeRework = includePiercing = includeInProcessRework = includeInMainWorkOrder = true;
+        _resetToFirstPage = true;
+
+        await SavePageStateAsync();
+        if (table != null) await table.ReloadServerData();
+        Snackbar.Add($"已按「{_linkLabel}」联动筛选工单列表", Severity.Info);
+    }
+
     /// <summary>矩阵单元格/行/列点击：按备注×计划性联动筛选下方工单列表（严格限定原料锁定，后端 linkFilter 生效）。
     /// purchaseOnly=true 为成购矩阵联动（「包含」口径）；excludeSingleFinishPurchase=true 为待投料矩阵联动（排除「单一成品采购」工单）</summary>
     private async Task ApplyMatrixLink(string? remarkKey, string? urgencyKey, bool purchaseOnly = false, bool excludeSingleFinishPurchase = false)
@@ -865,19 +927,31 @@ public partial class MaterialPlanOverview
             ? string.Join("·", parts) + "(成购)"
             : string.Join("·", parts);
 
-        // 覆盖现有搜索/签订日期/交货日期/列筛选/计划类型筛选
-        _searchKeyword = string.Empty;
-        _dateFrom = string.Empty;
-        _dateTo = string.Empty;
-        _deliveryDateFrom = string.Empty;
-        _deliveryDateTo = string.Empty;
-        _columnFilters.Clear();
-        includeSemi = includeFinish = includeInventory = includeRework = includePiercing = includeInProcessRework = includeInMainWorkOrder = true;
-        _resetToFirstPage = true;
+        await ApplyLinkCoreAsync();
+    }
 
-        await SavePageStateAsync();
-        if (table != null) await table.ReloadServerData();
-        Snackbar.Add($"已按「{_linkLabel}」联动筛选工单列表", Severity.Info);
+    /// <summary>「在产在检-错疑待料」卡片单元格点击：按 主号-关注档位 + 字段&gt;0 联动筛选下方工单列表（后端 linkFilter 生效）。
+    /// hasMissing=理论原料未至（TotalMissingWeight&gt;0），hasPending=工单到料未投（PendingInputWeight&gt;0），二选一；该行该字段无数据不联动</summary>
+    private async Task ApplyStageDoubtLink(int scheduleStage, bool hasMissing, bool hasPending)
+    {
+        if (scheduleStage is not (1 or 3 or 4)) return;
+        var row = _inProdInspectionItems?.FirstOrDefault(x => x.ScheduleStage == scheduleStage);
+        if (row == null) return;
+        if (hasMissing && row.MissingOrderCount <= 0) return;
+        if (hasPending && row.PendingInputOrderCount <= 0) return;
+
+        _linkFilter = new MaterialPlanLinkFilterDto
+        {
+            ScheduleStage = scheduleStage,
+            HasMissingWeight = hasMissing,
+            HasPendingInputWeight = hasPending,
+        };
+
+        var stageText = IntStatusDisplayHelper.GetScheduleStageText(scheduleStage);
+        var fieldText = hasMissing ? "理论原料未至" : "工单到料未投";
+        _linkLabel = $"{stageText}·{fieldText}";
+
+        await ApplyLinkCoreAsync();
     }
 
     /// <summary>点击矩阵行（备注）：该行有数据才联动（待投料口径：排除「单一成品采购」工单）</summary>

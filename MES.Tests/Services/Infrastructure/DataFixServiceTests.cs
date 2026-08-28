@@ -134,12 +134,69 @@ public class DataFixServiceTests : TestBase
     }
 
     [Fact]
+    public async Task FixAllAsync_工序组连续化_中间缺号压缩为连续()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+
+        // 冷轧拔=1、矫直=3（缺 2）→ 连续化后矫直压缩为 2
+        var pg = new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            ColdRollDraw = 1,
+            Straighten = 3
+        };
+        ctx.Set<ProcessGroup>().Add(pg);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var report = await svc.FixAllAsync();
+
+        report.ProcessGroupSectionNumbersFixed.Should().Be(1);
+
+        var fixedPg = await ctx.Set<ProcessGroup>().FirstAsync();
+        fixedPg.ColdRollDraw.Should().Be(1);
+        fixedPg.Straighten.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task FixAllAsync_工序组连续化_已连续不改变()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+
+        var pg = new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            ColdRollDraw = 1,
+            Straighten = 2
+        };
+        ctx.Set<ProcessGroup>().Add(pg);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var report = await svc.FixAllAsync();
+
+        report.ProcessGroupSectionNumbersFixed.Should().Be(0);
+
+        var fixedPg = await ctx.Set<ProcessGroup>().FirstAsync();
+        fixedPg.ColdRollDraw.Should().Be(1);
+        fixedPg.Straighten.Should().Be(2);
+    }
+
+    [Fact]
     public async Task FixSequenceNumbersAsync_修复ProductionRecord序号和ProcessGroupId()
     {
         var ctx = CreateDbContext();
         var batch = await SeedBatchAsync(ctx);
 
-        // 创建两个工序组：一个冷轧拔=2，一个冷轧拔=5
+        // 创建两个工序组：一个冷轧拔=2，一个冷轧拔=5（缺 1/3/4 → 连续化压缩为 1/2）
         var pg1 = await SeedProcessGroupAsync(ctx, batch, "60冷轧", coldRollDraw: 2);
         var pg2 = await SeedProcessGroupAsync(ctx, batch, "60冷轧2", coldRollDraw: 5);
 
@@ -161,11 +218,13 @@ public class DataFixServiceTests : TestBase
         var report = await svc.FixAllAsync();
 
         report.SequenceNumbersFixed.Should().Be(1);
+        // 连续化：批次内两工段步骤号 2/5 → 1/2，共 2 处变更
+        report.ProcessGroupSectionNumbersFixed.Should().Be(2);
 
-        // 验证：记录被修复 → 指向 pg1，序号变为 2
+        // 验证：记录被修复 → 指向 pg1（按 ProcessName|ManufacturingSpec 匹配），序号 = 连续化后 pg1 的冷轧拔步骤号 1
         var fixedRecord = await ctx.Set<ProductionRecord>().FirstAsync();
         fixedRecord.ProcessGroupId.Should().Be(pg1.Id);
-        fixedRecord.SequenceNumber.Should().Be(2);
+        fixedRecord.SequenceNumber.Should().Be(1);
     }
 
     [Fact]
@@ -173,6 +232,7 @@ public class DataFixServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var batch = await SeedBatchAsync(ctx);
+        // 连续化：批次唯一工段冷轧拔=3（首号非1）→ 压缩为 1
         var pg = await SeedProcessGroupAsync(ctx, batch, "60冷轧", coldRollDraw: 3);
 
         var inspection = new ProcessInspection
@@ -192,7 +252,7 @@ public class DataFixServiceTests : TestBase
         await svc.FixAllAsync();
 
         var fixedInsp = await ctx.Set<ProcessInspection>().FirstAsync();
-        fixedInsp.SequenceNumber.Should().Be(3);
+        fixedInsp.SequenceNumber.Should().Be(1);
     }
 
     [Fact]
@@ -200,6 +260,7 @@ public class DataFixServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var batch = await SeedBatchAsync(ctx);
+        // 连续化：批次唯一工段冷轧拔=4（首号非1）→ 压缩为 1
         var pg = await SeedProcessGroupAsync(ctx, batch, "60冷轧", coldRollDraw: 4);
 
         var os = new SectionOutsource
@@ -221,7 +282,7 @@ public class DataFixServiceTests : TestBase
         await svc.FixAllAsync();
 
         var fixedOs = await ctx.Set<SectionOutsource>().FirstAsync();
-        fixedOs.SequenceNumber.Should().Be(4);
+        fixedOs.SequenceNumber.Should().Be(1);
     }
 
     [Fact]
@@ -401,6 +462,7 @@ public class DataFixServiceTests : TestBase
 
         // ===== Seed 数据供 FixSequenceNumbers 和 FixEquipmentTracking =====
         var batch = await SeedBatchAsync(ctx);
+        // 连续化：批次唯一工段冷轧拔=7（首号非1）→ 压缩为 1
         var pg = await SeedProcessGroupAsync(ctx, batch, "60冷轧", coldRollDraw: 7);
 
         var record = new ProductionRecord
@@ -457,12 +519,13 @@ public class DataFixServiceTests : TestBase
         var report = await svc.FixAllAsync();
 
         // ===== 验证 =====
+        report.ProcessGroupSectionNumbersFixed.Should().Be(1);  // 连续化：唯一工段 7 → 1
         report.SequenceNumbersFixed.Should().Be(1);
         report.BatchTrackingFixed.Should().Be(1);
         report.EquipmentFixed.Should().Be(1);
 
         var fixedRecord = await ctx.Set<ProductionRecord>().FirstAsync();
-        fixedRecord.SequenceNumber.Should().Be(7);
+        fixedRecord.SequenceNumber.Should().Be(1);
 
         var fixedEq = await ctx.Set<Equipment>().FirstAsync();
         fixedEq.LastInspectionDate.Should().Be(new DateTime(2026, 5, 15));

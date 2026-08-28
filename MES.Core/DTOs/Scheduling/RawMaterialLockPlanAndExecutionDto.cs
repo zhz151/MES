@@ -169,8 +169,17 @@ public class RawMaterialLockPlanAndExecutionDto
         + InventoryOutWeight + ReworkPlanInputWeight
         + InProcessReworkInputWeight + InMainInputWeight;
 
-    /// <summary>理论缺失总料重量(kg)：计划投料总重量 − 现可投料总重量</summary>
-    public decimal TotalMissingWeight => Math.Max(0m, TotalPlanWeight - TotalAvailableWeight);
+    /// <summary>理论缺失总料重量(kg)：计划投料总重量 − 现可投料总重量；
+    /// 仅当缺口 &gt; 计划投料总重×3%（InputConsistencyTolerance）才取值，否则为 0（小缺口降噪，与档5缺口率阈值同源）</summary>
+    public decimal TotalMissingWeight
+    {
+        get
+        {
+            var plan = TotalPlanWeight;
+            var missing = plan - TotalAvailableWeight;
+            return missing > plan * MaterialPlanToleranceProvider.InputConsistencyTolerance ? missing : 0m;
+        }
+    }
 
     /// <summary>实际已投料量(kg) = 投料总重量(InputWeight)</summary>
     public decimal ActualInputWeight => InputWeight;

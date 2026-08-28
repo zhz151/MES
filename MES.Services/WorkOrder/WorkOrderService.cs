@@ -1913,6 +1913,32 @@ public class WorkOrderService : IWorkOrderService
                         && e.InProcessReworkPlanWeight <= 0
                         && e.InMainPlanWeight <= 0))).Any());
         }
+        // ===== 应用「在产在检-错疑待料」卡片点击联动筛选（主号-关注档位 + 字段>0） =====
+        // 点击「生产执行/成品检验/主号完成 + 理论原料未至」→ ScheduleStage=X AND TotalMissingWeight>0（3% 门槛口径）
+        // 点击「生产执行/成品检验/主号完成 + 工单到料未投」→ ScheduleStage=X AND PendingInputWeight>0（Max(0, 现可投料总重−已投)）
+        if (linkFilter != null && linkFilter.ScheduleStage.HasValue)
+        {
+            var stage = linkFilter.ScheduleStage.Value;
+            // 理论原料未至 3% 门槛容差（与 WorkOrderExecutionSummaryDto.TotalMissingWeight 同口径；捕获局部变量供 SQL 参数化）
+            var stageMissingTol = MaterialPlanToleranceProvider.InputConsistencyTolerance;
+            summaryQuery = summaryQuery.Where(s =>
+                execSummary.Where(e => e.WorkOrderId == s.WorkOrderId
+                    && e.ScheduleStage == stage
+                    && (!linkFilter.HasMissingWeight || (
+                        e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
+                            + e.InventoryPlanWeight + e.ReworkPlanWeight
+                            + e.InProcessReworkPlanWeight + e.InMainPlanWeight
+                            - (e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                                + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                                + e.InProcessReworkInputWeight + e.InMainInputWeight)
+                        > (e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
+                            + e.InventoryPlanWeight + e.ReworkPlanWeight
+                            + e.InProcessReworkPlanWeight + e.InMainPlanWeight) * stageMissingTol))
+                    && (!linkFilter.HasPendingInputWeight || (
+                        e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
+                            + e.InventoryOutWeight + e.ReworkPlanInputWeight
+                            + e.InProcessReworkInputWeight + e.InMainInputWeight - e.InputWeight > 0m))).Any());
+        }
         summaryQuery = summaryQuery.ApplyFilters(remainingFilters);
 
         var totalCount = await summaryQuery.CountAsync();
@@ -1920,6 +1946,8 @@ public class WorkOrderService : IWorkOrderService
         // ===== 排序 =====
         // 跨表字段（WorkOrderExecutionSummary）排序需关联子查询（ApplySort 反射实体属性，无法处理跨表字段）
         var sortBy = query.SortBy ?? "CreatedTime";
+        // 理论缺失总料重容差（缺口 > 计划投料总重×3% 才取值）：与 WorkOrderExecutionSummaryDto.TotalMissingWeight 同口径（SQL 可翻译，捕获局部变量参数化）
+        var missingWeightTol = MaterialPlanToleranceProvider.InputConsistencyTolerance;
         if (sortBy is "ScheduleStage" or "RawMaterialLockRemark" or "UrgencyLevel" or "InputWeight" or "InputOutputRatio" or "InputStatus" or "PendingInputWeight" or "TotalMissingWeight")
         {
             switch (sortBy)
@@ -1976,7 +2004,7 @@ public class WorkOrderService : IWorkOrderService
                                     : 0m)).FirstOrDefault());
                     break;
                 case "TotalMissingWeight":
-                    // 理论缺失总料重 = Max(0, 计划投料总重 − 现可投料总重)，与 WorkOrderExecutionSummaryDto.TotalMissingWeight 同口径（SQL 可翻译内联三元）
+                    // 理论缺失总料重：缺口 > 计划投料总重×3% 才取值，否则为 0，与 WorkOrderExecutionSummaryDto.TotalMissingWeight 同口径（SQL 可翻译内联三元）
                     summaryQuery = query.IsDescending
                         ? summaryQuery.OrderByDescending(s => execSummary.Where(e => e.WorkOrderId == s.WorkOrderId)
                             .Select(e => (decimal?)(
@@ -1986,7 +2014,9 @@ public class WorkOrderService : IWorkOrderService
                                     - (e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
                                         + e.InventoryOutWeight + e.ReworkPlanInputWeight
                                         + e.InProcessReworkInputWeight + e.InMainInputWeight)
-                                    > 0m
+                                    > (e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
+                                        + e.InventoryPlanWeight + e.ReworkPlanWeight
+                                        + e.InProcessReworkPlanWeight + e.InMainPlanWeight) * missingWeightTol
                                 ? e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
                                     + e.InventoryPlanWeight + e.ReworkPlanWeight
                                     + e.InProcessReworkPlanWeight + e.InMainPlanWeight
@@ -2002,7 +2032,9 @@ public class WorkOrderService : IWorkOrderService
                                     - (e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
                                         + e.InventoryOutWeight + e.ReworkPlanInputWeight
                                         + e.InProcessReworkInputWeight + e.InMainInputWeight)
-                                    > 0m
+                                    > (e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
+                                        + e.InventoryPlanWeight + e.ReworkPlanWeight
+                                        + e.InProcessReworkPlanWeight + e.InMainPlanWeight) * missingWeightTol
                                 ? e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
                                     + e.InventoryPlanWeight + e.ReworkPlanWeight
                                     + e.InProcessReworkPlanWeight + e.InMainPlanWeight
@@ -2097,7 +2129,9 @@ public class WorkOrderService : IWorkOrderService
                             - (e.PiercingSubInWeight + e.SemiInWeight + e.FinishInWeight
                                 + e.InventoryOutWeight + e.ReworkPlanInputWeight
                                 + e.InProcessReworkInputWeight + e.InMainInputWeight)
-                            > 0m
+                            > (e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
+                                + e.InventoryPlanWeight + e.ReworkPlanWeight
+                                + e.InProcessReworkPlanWeight + e.InMainPlanWeight) * missingWeightTol
                         ? e.PiercingPlanWeight + e.SemiPlanWeight + e.FinishPlanWeight
                             + e.InventoryPlanWeight + e.ReworkPlanWeight
                             + e.InProcessReworkPlanWeight + e.InMainPlanWeight

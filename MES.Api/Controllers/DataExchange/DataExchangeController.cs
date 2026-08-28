@@ -113,6 +113,6 @@ public class DataExchangeController : ControllerBase
         var report = await _service.FixAllSystemFieldsAsync();
         _logger.LogInformation("全字段修复完成，总计 {Total} 条", report.Total);
         return Ok(ApiResponse<DataFixReport>.Ok(report,
-            $"修复完成：组内序号 {report.SequenceNumbersFixed} 条，工段委外状态 {report.OutsourceStatusFixed} 条，批次跟踪 {report.BatchTrackingFixed} 条，设备日期 {report.EquipmentFixed} 条"));
+            $"修复完成：工序组连续化 {report.ProcessGroupSectionNumbersFixed} 处，组内序号 {report.SequenceNumbersFixed} 条，工段委外状态 {report.OutsourceStatusFixed} 条，批次跟踪 {report.BatchTrackingFixed} 条，设备日期 {report.EquipmentFixed} 条"));
     }
 }

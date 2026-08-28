@@ -716,6 +716,34 @@ public class WorkOrderExecutionServiceTests : TestBase
         AssertConsistency(new WorkOrderExecutionSummaryDto { InputWeight = 0m }, 0); // 双零
     }
 
+    [Fact]
+    public void TotalMissingWeight_缺口超过计划3pct才取值否则为0()
+    {
+        // 新口径：理论缺失总料重 = 计划投料总重 − 现可投料总重，仅当缺口 > 计划投料总重×3%（InputConsistencyTolerance）才取值，否则为 0（小缺口降噪）
+        var original = MaterialPlanToleranceProvider.InputConsistencyTolerance;
+        try
+        {
+            MaterialPlanToleranceProvider.Apply(0.03m);
+            // 计划=100 → 阈值=3
+            new WorkOrderExecutionSummaryDto { PiercingPlanWeight = 100m, PiercingSubInWeight = 95m }
+                .TotalMissingWeight.Should().Be(5m); // 缺口5 > 3 → 取值
+            new WorkOrderExecutionSummaryDto { PiercingPlanWeight = 100m, PiercingSubInWeight = 96m }
+                .TotalMissingWeight.Should().Be(4m); // 缺口4 > 3 → 取值
+            new WorkOrderExecutionSummaryDto { PiercingPlanWeight = 100m, PiercingSubInWeight = 97m }
+                .TotalMissingWeight.Should().Be(0m); // 缺口3 = 阈值（不>）→ 0
+            new WorkOrderExecutionSummaryDto { PiercingPlanWeight = 100m, PiercingSubInWeight = 98m }
+                .TotalMissingWeight.Should().Be(0m); // 缺口2 < 3 → 0
+            new WorkOrderExecutionSummaryDto { PiercingPlanWeight = 100m, PiercingSubInWeight = 100m }
+                .TotalMissingWeight.Should().Be(0m); // 无缺口 → 0
+            new WorkOrderExecutionSummaryDto { PiercingPlanWeight = 100m, PiercingSubInWeight = 120m }
+                .TotalMissingWeight.Should().Be(0m); // 可投超计划（缺口为负）→ 0
+        }
+        finally
+        {
+            MaterialPlanToleranceProvider.Apply(original);
+        }
+    }
+
     private static void AssertConsistency(WorkOrderExecutionSummaryDto dto, int expected)
     {
         dto.PlanInputConsistency.Should().Be(expected);
@@ -3495,5 +3523,80 @@ public class WorkOrderExecutionServiceTests : TestBase
         w003.TotalAvailableWeight.Should().Be(100m);
         w003.ActualInputWeight.Should().Be(50m);
         w003.CutoffArrivalDate.Should().Be(DateTime.Today.AddDays(-1));
+    }
+
+    // ==================== GetInProductionInspectionDoubtItemsAsync（在产在检-错疑待料卡片） ====================
+
+    [Fact]
+    public async Task GetInProductionInspectionDoubtItemsAsync_按关注档位统计理论原料未至与到料未投()
+    {
+        using var ctx = CreateDbContext();
+        // 重置容差快照（防其它测试污染静态状态）
+        MaterialPlanToleranceProvider.Apply(0.03m);
+
+        // ScheduleStage=3 生产执行：WO101 计划=200 现可=100 已投=100 → 缺口=100>200×3% 取值、到料未投=0（已投满）；
+        //                        WO102 计划=100 现可=100 → 无缺口、到料未投=100（料到未投）
+        SeedComputedSummary(ctx, "WO101", e => { e.ScheduleStage = 3; e.SemiPlanWeight = 200m; e.SemiInWeight = 100m; e.InputWeight = 100m; });
+        SeedComputedSummary(ctx, "WO102", e => { e.ScheduleStage = 3; e.SemiPlanWeight = 100m; e.SemiInWeight = 100m; });
+        // ScheduleStage=4 成品检验：WO201 现可=150 已投=50 → 到料未投=100；WO202 现可=80 已投=100 → 未投=0
+        SeedComputedSummary(ctx, "WO201", e => { e.ScheduleStage = 4; e.SemiInWeight = 150m; e.InputWeight = 50m; });
+        SeedComputedSummary(ctx, "WO202", e => { e.ScheduleStage = 4; e.SemiInWeight = 80m; e.InputWeight = 100m; });
+        // ScheduleStage=1 主号完成：WO301 计划=50 现可=0 → 缺口=50；WO302 现可=40 已投=10 → 到料未投=30
+        SeedComputedSummary(ctx, "WO301", e => { e.ScheduleStage = 1; e.SemiPlanWeight = 50m; });
+        SeedComputedSummary(ctx, "WO302", e => { e.ScheduleStage = 1; e.SemiInWeight = 40m; e.InputWeight = 10m; });
+        // ScheduleStage=2 原料锁定（不在卡片统计域）与 ScheduleStage=0 主号暂停（不在卡片统计域）：不应出现
+        SeedComputedSummary(ctx, "WO400", e => { e.ScheduleStage = 2; e.SemiPlanWeight = 200m; });
+        SeedComputedSummary(ctx, "WO500", e => { e.InputWeight = 50m; });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var items = await svc.GetInProductionInspectionDoubtItemsAsync();
+
+        items.Should().HaveCount(3);
+        // 展示顺序：生产执行(3) → 成品检验(4) → 主号完成(1)
+        items.Select(i => i.ScheduleStage).Should().ContainInOrder(3, 4, 1);
+
+        var s3 = items.Single(i => i.ScheduleStage == 3);
+        s3.ScheduleStageText.Should().Be("生产执行");
+        s3.MissingOrderCount.Should().Be(1);          // 仅 WO101（缺口 100>200×3%）
+        s3.MissingWeight.Should().Be(100m);
+        s3.PendingInputOrderCount.Should().Be(1);     // 仅 WO102（现可100-已投0=100；WO101 已投满=0）
+        s3.PendingInputWeight.Should().Be(100m);
+
+        var s4 = items.Single(i => i.ScheduleStage == 4);
+        s4.ScheduleStageText.Should().Be("成品检验");
+        s4.MissingOrderCount.Should().Be(0);          // 计划=0，无缺口
+        s4.MissingWeight.Should().Be(0m);
+        s4.PendingInputOrderCount.Should().Be(1);     // 仅 WO201（现可150-已投50=100）
+        s4.PendingInputWeight.Should().Be(100m);
+
+        var s1 = items.Single(i => i.ScheduleStage == 1);
+        s1.ScheduleStageText.Should().Be("主号完成");
+        s1.MissingOrderCount.Should().Be(1);          // WO301（计划50-现可0=50）
+        s1.MissingWeight.Should().Be(50m);
+        s1.PendingInputOrderCount.Should().Be(1);     // WO302（现可40-已投10=30）
+        s1.PendingInputWeight.Should().Be(30m);
+    }
+
+    [Fact]
+    public async Task GetInProductionInspectionDoubtItemsAsync_理论原料未至走3pct门槛()
+    {
+        using var ctx = CreateDbContext();
+        MaterialPlanToleranceProvider.Apply(0.03m);
+
+        // WO601：计划=100 现可=97 → 缺口=3 = 计划×3%（≤ 门槛不取值）
+        SeedComputedSummary(ctx, "WO601", e => { e.ScheduleStage = 3; e.SemiPlanWeight = 100m; e.SemiInWeight = 97m; });
+        // WO602：计划=100 现可=95 → 缺口=5 > 3（> 门槛取值）
+        SeedComputedSummary(ctx, "WO602", e => { e.ScheduleStage = 3; e.SemiPlanWeight = 100m; e.SemiInWeight = 95m; });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var items = await svc.GetInProductionInspectionDoubtItemsAsync();
+
+        var s3 = items.Single(i => i.ScheduleStage == 3);
+        s3.MissingOrderCount.Should().Be(1);          // 仅 WO602（缺口 5 > 3）
+        s3.MissingWeight.Should().Be(5m);
+        s3.PendingInputOrderCount.Should().Be(2);     // 两单现可均>已投(0)
+        s3.PendingInputWeight.Should().Be(97m + 95m);
     }
 }
