@@ -245,35 +245,6 @@ public class SubcontractOrderService : ISubcontractOrderService
         };
     }
 
-    public async Task<List<SubcontractOrderDto>> GetAllListAsync()
-    {
-        var entityList = await _context.SubcontractOrders
-            .AsNoTracking()
-            .Include(s => s.ReturnItems.OrderBy(r => r.Sequence))
-            .OrderBy(s => s.OrderDate)
-            .ThenBy(s => s.OrderNo)
-            .ToListAsync();
-
-        var items = entityList.Select(ToDto).ToList();
-
-        // 退货量补充（委外单号级，各序号求和）
-        var orderNos = items.Select(i => i.OrderNo).ToList();
-        if (orderNos.Count > 0)
-        {
-            var returnSummary = await BuildReturnSummaryAsync(orderNos);
-            foreach (var item in items)
-            {
-                if (returnSummary.TryGetValue(item.OrderNo, out var rs))
-                {
-                    item.ReturnQuantity = rs.BySequence.Values.Sum(x => x.Quantity);
-                    item.ReturnWeight = rs.BySequence.Values.Sum(x => x.Weight);
-                }
-            }
-        }
-
-        return items;
-    }
-
     public async Task<SubcontractOrderDto> GetByIdAsync(int id)
     {
         var entity = await _context.SubcontractOrders

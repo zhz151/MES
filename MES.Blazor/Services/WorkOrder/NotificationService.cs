@@ -18,23 +18,6 @@ public class NotificationService
     }
 
     /// <summary>
-    /// 分页获取通知列表
-    /// </summary>
-    public async Task<ApiResponse<PagedResult<NotificationDto>>> GetPagedAsync(int pageIndex, int pageSize)
-    {
-        try
-        {
-            var url = $"{BaseUrl}/list?pageIndex={pageIndex}&pageSize={pageSize}";
-            var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<NotificationDto>>>(url);
-            return response ?? ApiResponse<PagedResult<NotificationDto>>.Fail("获取通知列表失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<PagedResult<NotificationDto>>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// 标记单条通知为已读
     /// </summary>
     public async Task<ApiResponse<object>> MarkAsReadAsync(int id)

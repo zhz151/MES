@@ -28,26 +28,6 @@ public class InspectionRecordService
         catch (Exception ex) { return ApiResponse<PagedResult<InspectionRecordListDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<InspectionRecordListDto>> GetByIdAsync(int id)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<InspectionRecordListDto>>($"{BaseUrl}/{id}")
-                   ?? ApiResponse<InspectionRecordListDto>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<InspectionRecordListDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<InspectionRecordListDto>> CreateAsync(CreateInspectionRecordRequest request)
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<CreateInspectionRecordRequest, ApiResponse<InspectionRecordListDto>>(BaseUrl, request)
-                   ?? ApiResponse<InspectionRecordListDto>.Fail("创建失败");
-        }
-        catch (Exception ex) { return ApiResponse<InspectionRecordListDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<List<InspectionRecordListDto>>> CreateBatchAsync(List<CreateInspectionRecordRequest> requests)
     {
         try

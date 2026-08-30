@@ -31,15 +31,6 @@ public class CertificatePrintColumnDefinitionController : ControllerBase
         return Ok(ApiResponse<List<CertificatePrintColumnDefinitionDto>>.Ok(result));
     }
 
-    /// <summary>配置映射：BlockKey|FieldKey → 配置 DTO（打印链路覆盖默认列定义用）</summary>
-    [HttpGet("config-map")]
-    [Authorize(Roles = Roles.Policies.QualityView)]
-    public async Task<ActionResult<ApiResponse<Dictionary<string, CertificatePrintColumnDefinitionDto>>>> GetConfigMap()
-    {
-        var result = await _service.GetConfigMapAsync();
-        return Ok(ApiResponse<Dictionary<string, CertificatePrintColumnDefinitionDto>>.Ok(result));
-    }
-
     /// <summary>批量新增/更新（锚点 BlockKey+FieldKey），返回写入行数</summary>
     [HttpPost("save-all")]
     [Authorize(Roles = Roles.Policies.QualityEdit)]

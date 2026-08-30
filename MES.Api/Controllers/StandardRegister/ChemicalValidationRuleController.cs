@@ -68,17 +68,6 @@ public class ChemicalValidationRuleController : ControllerBase
     }
 
     /// <summary>
-    /// 获取所有牌号验证规则（无分页）
-    /// </summary>
-    [HttpGet("all-list")]
-    [Authorize(Roles = Roles.Policies.StandardView)]
-    public async Task<ApiResponse<List<ChemicalValidationRuleDto>>> GetAllList()
-    {
-        var result = await _service.GetAllListAsync();
-        return ApiResponse<List<ChemicalValidationRuleDto>>.Ok(result);
-    }
-
-    /// <summary>
     /// 获取筛选上下文（各列的 DISTINCT 值）
     /// </summary>
     [HttpGet("filter-contexts")]

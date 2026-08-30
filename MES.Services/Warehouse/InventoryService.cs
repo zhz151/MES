@@ -139,14 +139,6 @@ public class InventoryService : IInventoryService
         };
     }
 
-    public async Task<List<InventoryBatchDto>> GetAllListAsync(InventoryQueryParams query)
-    {
-        var queryable = BuildInventoryQuery(query);
-
-        var entities = await queryable.ToListAsync();
-        return entities.Select(ToDto).ToList();
-    }
-
     private IQueryable<InventoryBatch> BuildInventoryQuery(InventoryQueryParams query)
     {
         var queryable = _context.InventoryBatches

@@ -7,7 +7,6 @@ namespace MES.Core.Interfaces.Materials;
 public interface ISubcontractOrderService
 {
     Task<PagedResult<SubcontractOrderDto>> GetPagedAsync(SubcontractQueryParams query);
-    Task<List<SubcontractOrderDto>> GetAllListAsync();
     Task<SubcontractOrderDto> GetByIdAsync(int id);
     Task<SubcontractOrderDto> CreateAsync(CreateSubcontractOrderRequest request);
     Task<SubcontractOrderDto> UpdateAsync(int id, UpdateSubcontractOrderRequest request);

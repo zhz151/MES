@@ -14,16 +14,6 @@ public class ProductionRecordService
 
     // ========== 内部生产记录 ==========
 
-    public async Task<ApiResponse<ProductionRecordDto>> CreateProductionRecordAsync(CreateProductionRecordRequest request)
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<CreateProductionRecordRequest, ApiResponse<ProductionRecordDto>>($"{BaseUrl}/record", request)
-                   ?? ApiResponse<ProductionRecordDto>.Fail("创建失败");
-        }
-        catch (Exception ex) { return ApiResponse<ProductionRecordDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<List<ProductionRecordDto>>> BatchCreateProductionRecordsAsync(List<CreateProductionRecordRequest> requests)
     {
         try

@@ -43,16 +43,6 @@ public class PurchaseOrderService
         catch (Exception ex) { return ApiResponse<PurchaseOrderDto>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<PurchaseOrderDto>> CreateAsync(CreatePurchaseOrderRequest request)
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<CreatePurchaseOrderRequest, ApiResponse<PurchaseOrderDto>>(BaseUrl, request)
-                   ?? ApiResponse<PurchaseOrderDto>.Fail("创建失败");
-        }
-        catch (Exception ex) { return ApiResponse<PurchaseOrderDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<List<PurchaseOrderDto>>> CreateBatchAsync(List<CreatePurchaseOrderRequest> requests)
     {
         try

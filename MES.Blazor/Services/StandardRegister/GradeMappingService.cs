@@ -61,22 +61,6 @@ public class GradeMappingService
     }
 
     /// <summary>
-    /// 根据ID获取牌号对照详情
-    /// </summary>
-    public async Task<ApiResponse<StandardGradeMappingDto>> GetByIdAsync(int id)
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<StandardGradeMappingDto>>($"{BaseUrl}/{id}");
-            return response ?? ApiResponse<StandardGradeMappingDto>.Fail("获取数据失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<StandardGradeMappingDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// 创建牌号对照
     /// </summary>
     public async Task<ApiResponse<StandardGradeMappingDto>> CreateAsync(CreateGradeMappingRequest request)

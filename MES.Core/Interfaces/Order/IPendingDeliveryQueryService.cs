@@ -9,14 +9,6 @@ namespace MES.Core.Interfaces.Order;
 public interface IPendingDeliveryQueryService
 {
     /// <summary>
-    /// 获取待发货订单成品列表（无分页，用于创建页引用）
-    /// </summary>
-    Task<List<PendingDeliveryItemDto>> GetPendingItemsAsync(
-        string? orderNo = null,
-        string? productStandard = null,
-        string? deliveryStatus = null);
-
-    /// <summary>
     /// 分页查询待发货订单成品（用于列表页）
     /// </summary>
     Task<PagedResult<PendingDeliveryItemDto>> GetPagedAsync(QueryParams query);
@@ -39,6 +31,4 @@ public interface IPendingDeliveryQueryService
     /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
     Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<MES.Core.DTOs.Shared.PrintColumnDef> columns);
 
-    /// <summary>打印全部（Mode A：前端已准备数据）</summary>
-    Task<byte[]> PrintAllFileAsync(string title, List<Dictionary<string, object>> items, List<MES.Core.DTOs.Shared.PrintColumnDef> columns);
 }

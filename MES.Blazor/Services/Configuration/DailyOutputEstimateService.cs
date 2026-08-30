@@ -37,19 +37,6 @@ public class DailyOutputEstimateService
         }
     }
 
-    public async Task<ApiResponse<DailyOutputEstimateDto>> GetByIdAsync(int id)
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<DailyOutputEstimateDto>>($"{BaseUrl}/{id}");
-            return response ?? ApiResponse<DailyOutputEstimateDto>.Fail("获取数据失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<DailyOutputEstimateDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     public async Task<ApiResponse<bool>> SaveAsync(DailyOutputEstimateDto dto)
     {
         try
@@ -76,16 +63,4 @@ public class DailyOutputEstimateService
         }
     }
 
-    public async Task<ApiResponse<List<DailyOutputEstimateDto>>> GetAllAsync()
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<DailyOutputEstimateDto>>>($"{BaseUrl}/all");
-            return response ?? ApiResponse<List<DailyOutputEstimateDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<List<DailyOutputEstimateDto>>.Fail($"网络错误: {ex.Message}");
-        }
-    }
 }

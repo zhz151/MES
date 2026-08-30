@@ -279,39 +279,6 @@ public class RepairOrderService : IRepairOrderService
         };
     }
 
-    public async Task<List<RepairOrderListDto>> GetAllListAsync()
-    {
-        var baseQuery = from r in _context.RepairOrders
-                        join e in _context.Equipment on r.EquipmentId equals e.Id
-                        orderby r.ReportTime descending
-                        select new RepairOrderListDto
-                        {
-                            Id = r.Id,
-                            RepairOrderNo = r.RepairOrderNo,
-                            EquipmentId = r.EquipmentId,
-                            EquipmentName = e.EquipmentName,
-                            EquipmentCode = e.EquipmentCode,
-                            EquipmentLocation = e.Location,
-                            FaultDescription = r.FaultDescription,
-                            FaultType = r.FaultType,
-                            Priority = Enum.Parse<RepairPriority>(r.Priority),
-                            RepairStatus = r.RepairStartTime != null
-                                ? (r.RepairEndTime != null ? RepairOrderStatus.Completed : RepairOrderStatus.InProgress)
-                                : RepairOrderStatus.Pending,
-                            ReportPerson = r.ReportPerson,
-                            ReportTime = r.ReportTime,
-                            RepairPerson = r.RepairPerson,
-                            RepairCategory = r.RepairCategory,
-                            RepairStartTime = r.RepairStartTime,
-                            RepairEndTime = r.RepairEndTime,
-                            RepairContent = r.RepairContent,
-                            SparePartUsed = r.SparePartUsed,
-                            OtherRepairPersons = r.OtherRepairPersons
-                        };
-
-        return await baseQuery.ToListAsync();
-    }
-
     public async Task<RepairOrderListDto> GetByIdAsync(int id)
     {
         var entity = await _context.RepairOrders

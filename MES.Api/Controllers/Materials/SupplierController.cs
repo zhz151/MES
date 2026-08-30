@@ -49,14 +49,6 @@ public class SupplierController : ControllerBase
         return Ok(ApiResponse<PagedResult<SupplierProfileDto>>.Ok(result, "查询成功"));
     }
 
-    [HttpGet("all")]
-    [Authorize(Roles = Roles.Policies.MaterialView)]
-    public async Task<ActionResult<ApiResponse<List<SupplierProfileDto>>>> GetAllList()
-    {
-        var result = await _service.GetAllListAsync();
-        return Ok(ApiResponse<List<SupplierProfileDto>>.Ok(result, "查询成功"));
-    }
-
     [HttpGet("{id}")]
     [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<SupplierProfileDto>>> GetById(int id)

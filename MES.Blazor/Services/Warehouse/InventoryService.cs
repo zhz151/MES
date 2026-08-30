@@ -57,19 +57,6 @@ public class InventoryService
         }
     }
 
-    public async Task<ApiResponse<InventoryBatchDto>> GetByIdAsync(int id)
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<InventoryBatchDto>>($"{BaseUrl}/{id}");
-            return response ?? ApiResponse<InventoryBatchDto>.Fail("获取批次详情失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<InventoryBatchDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     public async Task<ApiResponse<BatchInboundResult>> BatchInboundAsync(BatchInboundRequest request)
     {
         try

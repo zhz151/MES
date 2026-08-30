@@ -100,19 +100,6 @@ public class DictValueDefinitionService
         }
     }
 
-    public async Task<ApiResponse<DictValueDefinitionDto>> GetByIdAsync(int id)
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<DictValueDefinitionDto>>($"{BaseUrl}/{id}");
-            return response ?? ApiResponse<DictValueDefinitionDto>.Fail("获取数据失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<DictValueDefinitionDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     public async Task<ApiResponse<bool>> SaveAsync(DictValueDefinitionDto dto)
     {
         try

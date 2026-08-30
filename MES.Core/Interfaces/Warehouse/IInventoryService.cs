@@ -13,11 +13,6 @@ public interface IInventoryService
     Task<PagedResult<InventoryBatchDto>> GetPagedAsync(InventoryQueryParams query);
 
     /// <summary>
-    /// 全量查询库存批次（无分页，供前端 Items 模式使用）
-    /// </summary>
-    Task<List<InventoryBatchDto>> GetAllListAsync(InventoryQueryParams query);
-
-    /// <summary>
     /// 获取单个批次详情
     /// </summary>
     Task<InventoryBatchDto> GetByIdAsync(int id);

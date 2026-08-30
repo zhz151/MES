@@ -28,16 +28,6 @@ public class SupplierService
         catch (Exception ex) { return ApiResponse<PagedResult<SupplierProfileDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<SupplierProfileDto>> GetByIdAsync(int id)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<SupplierProfileDto>>($"{BaseUrl}/{id}")
-                   ?? ApiResponse<SupplierProfileDto>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<SupplierProfileDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<SupplierProfileDto>> CreateAsync(CreateSupplierRequest request)
     {
         try

@@ -75,16 +75,6 @@ public class BatchService
         catch (Exception ex) { return ApiResponse<ProductionBatchListDto>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<ProductionBatchDetailDto>> UpdateAsync(int id, UpdateProductionBatchRequest request)
-    {
-        try
-        {
-            return await _http.PutAsJsonAsync<UpdateProductionBatchRequest, ApiResponse<ProductionBatchDetailDto>>($"{BaseUrl}/{id}", request)
-                   ?? ApiResponse<ProductionBatchDetailDto>.Fail("更新失败");
-        }
-        catch (Exception ex) { return ApiResponse<ProductionBatchDetailDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<object>> UpdateStatusAsync(int id, UpdateBatchStatusRequest request)
     {
         try
@@ -222,22 +212,6 @@ public class BatchService
             return response ?? ApiResponse<List<OperationLogDto>>.Fail("获取失败");
         }
         catch (Exception ex) { return ApiResponse<List<OperationLogDto>>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    // ========== 通用查询（支持 hasInputChange） ==========
-
-    public async Task<ApiResponse<PagedResult<ProductionBatchListDto>>> GetAllAsync(int pageIndex, int pageSize, string? keyword, string? sortBy, bool isDescending, string? filters, string? hasInputChange)
-    {
-        try
-        {
-            var url = $"{BaseUrl}/list?pageIndex={pageIndex}&pageSize={pageSize}&sortBy={Uri.EscapeDataString(sortBy ?? ApiEndpoints.DefaultSortBy)}&isDescending={isDescending.ToString().ToLower()}";
-            if (!string.IsNullOrEmpty(keyword)) url += $"&keyword={Uri.EscapeDataString(keyword)}";
-            if (!string.IsNullOrEmpty(filters)) url += $"&filters={Uri.EscapeDataString(filters)}";
-            if (!string.IsNullOrEmpty(hasInputChange)) url += $"&hasInputChange={Uri.EscapeDataString(hasInputChange)}";
-            return await _http.GetFromJsonAsync<ApiResponse<PagedResult<ProductionBatchListDto>>>(url)
-                   ?? ApiResponse<PagedResult<ProductionBatchListDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<PagedResult<ProductionBatchListDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
     // ========== 筛选上下文 ==========

@@ -30,20 +30,4 @@ public class MaterialPlanProcessGroupService
         }
     }
 
-    /// <summary>
-    /// 保存用料计划工序组（全量替换）
-    /// </summary>
-    public async Task<ApiResponse<object>> SaveAsync(int planType, int planId, List<SavePlanProcessGroupItem> items)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<List<SavePlanProcessGroupItem>, ApiResponse<object>>(
-                $"{ApiEndpoints.MaterialPlan}/{planType}/process-groups/{planId}/save", items);
-            return response ?? ApiResponse<object>.Fail("保存失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
-        }
-    }
 }

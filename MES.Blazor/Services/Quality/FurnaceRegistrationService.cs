@@ -12,16 +12,6 @@ public class FurnaceRegistrationService
 
     public FurnaceRegistrationService(AuthHttpClient http) => _http = http;
 
-    public async Task<ApiResponse<FurnaceRegistrationDto>> GetByIdAsync(int id)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<FurnaceRegistrationDto>>($"{BaseUrl}/{id}")
-                   ?? ApiResponse<FurnaceRegistrationDto>.Fail("获取详情失败");
-        }
-        catch (Exception ex) { return ApiResponse<FurnaceRegistrationDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<PagedResult<FurnaceRegistrationDto>>> GetAllAsync(int pageIndex = 1, int pageSize = 20, string? keyword = null, string? sortBy = null, bool isDescending = true, DateTime? incomingDateFrom = null, DateTime? incomingDateTo = null, string? filters = null)
     {
         try

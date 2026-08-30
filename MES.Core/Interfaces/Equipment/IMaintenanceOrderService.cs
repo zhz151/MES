@@ -7,7 +7,6 @@ namespace MES.Core.Interfaces.Equipment;
 public interface IMaintenanceOrderService
 {
     Task<PagedResult<MaintenanceOrderListDto>> GetPagedAsync(MaintenanceOrderQueryParams query);
-    Task<List<MaintenanceOrderListDto>> GetAllListAsync();
     Task<MaintenanceOrderListDto> GetByIdAsync(int id);
     Task<MaintenanceOrderListDto> CreateAsync(CreateMaintenanceOrderRequest request);
     Task<List<MaintenanceOrderListDto>> CreateBatchAsync(List<CreateMaintenanceOrderRequest> requests);

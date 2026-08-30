@@ -33,19 +33,6 @@ public class ConfigParameterService
         }
     }
 
-    public async Task<ApiResponse<ConfigParameterDto>> GetByIdAsync(int id)
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<ConfigParameterDto>>($"{BaseUrl}/{id}");
-            return response ?? ApiResponse<ConfigParameterDto>.Fail("获取数据失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<ConfigParameterDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     public async Task<ApiResponse<bool>> SaveAsync(ConfigParameterDto dto)
     {
         try

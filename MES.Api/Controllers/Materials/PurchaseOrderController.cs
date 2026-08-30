@@ -59,14 +59,6 @@ public class PurchaseOrderController : ControllerBase
         return Ok(ApiResponse<PagedResult<PurchaseOrderDto>>.Ok(result, "查询成功"));
     }
 
-    [HttpGet("all")]
-    [Authorize(Roles = Roles.Policies.MaterialView)]
-    public async Task<ActionResult<ApiResponse<List<PurchaseOrderDto>>>> GetAllList()
-    {
-        var result = await _service.GetAllListAsync();
-        return Ok(ApiResponse<List<PurchaseOrderDto>>.Ok(result, "查询成功"));
-    }
-
     [HttpGet("{id}")]
     [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<PurchaseOrderDto>>> GetById(int id)

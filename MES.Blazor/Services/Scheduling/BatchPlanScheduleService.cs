@@ -15,13 +15,6 @@ public class BatchPlanScheduleService
         _http = http;
     }
 
-    public async Task<List<BatchPlanScheduleDto>> GetAllAsync()
-    {
-        var response = await _http.GetFromJsonAsync<ApiListResponse>(
-            $"{ApiEndpoints.BatchPlanSchedule}/all");
-        return response?.Data ?? new List<BatchPlanScheduleDto>();
-    }
-
     public async Task<bool> SaveAsync(BatchPlanScheduleDto dto)
     {
         var response = await _http.PostAsJsonAsync(

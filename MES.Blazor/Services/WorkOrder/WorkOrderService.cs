@@ -163,22 +163,6 @@ public class WorkOrderService
     }
 
     /// <summary>
-    /// 更新工单状态
-    /// </summary>
-    public async Task<ApiResponse<UpdateWorkOrderStatusResponseDto>> UpdateStatusAsync(int id, UpdateWorkOrderStatusRequest request)
-    {
-        try
-        {
-            var response = await _http.PutAsJsonAsync<UpdateWorkOrderStatusRequest, ApiResponse<UpdateWorkOrderStatusResponseDto>>($"{BaseUrl}/{id}/status", request);
-            return response ?? ApiResponse<UpdateWorkOrderStatusResponseDto>.Fail("更新状态失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<UpdateWorkOrderStatusResponseDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// 删除工单（物理删除）
     /// </summary>
     public async Task<ApiResponse<object>> DeleteAsync(int id)
@@ -316,22 +300,6 @@ public class WorkOrderService
         catch (Exception ex)
         {
             return ApiResponse<List<InProductionInspectionDoubtItemDto>>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 获取所有用料计划总览数据（无分页，客户端筛选排序）
-    /// </summary>
-    public async Task<ApiResponse<List<WorkOrderListDto>>> GetAllAsync()
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<WorkOrderListDto>>>($"{BaseUrl}/list-all");
-            return response ?? ApiResponse<List<WorkOrderListDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<List<WorkOrderListDto>>.Fail($"网络错误: {ex.Message}");
         }
     }
 

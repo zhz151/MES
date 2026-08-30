@@ -59,17 +59,6 @@ public class CustomerController : ControllerBase
     }
 
     /// <summary>
-    /// 获取所有客户列表（无分页，供客户端筛选排序）
-    /// </summary>
-    [HttpGet("list-all")]
-    [Authorize(Roles = Roles.Policies.OrderView)]
-    public async Task<ActionResult<ApiResponse<List<CustomerProfileDto>>>> GetAllList()
-    {
-        var result = await _customerService.GetAllListAsync();
-        return Ok(ApiResponse<List<CustomerProfileDto>>.Ok(result, "查询成功"));
-    }
-
-    /// <summary>
     /// 根据ID获取客户详情
     /// </summary>
     [HttpGet("{id}")]

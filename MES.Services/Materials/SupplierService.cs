@@ -124,41 +124,6 @@ public class SupplierService : ISupplierService
         };
     }
 
-    public async Task<List<SupplierProfileDto>> GetAllListAsync()
-    {
-        var items = await _context.SupplierProfiles
-            .AsNoTracking()
-            .OrderBy(s => s.SupplierCode)
-            .Select(s => new
-            {
-                s.Id,
-                s.SupplierCode,
-                s.SupplierName,
-                s.MaterialCategory,
-                s.ContactPerson,
-                s.ContactPhone,
-                s.Address,
-                s.IsActive,
-                s.Remark,
-                s.CreatedTime
-            })
-            .ToListAsync();
-
-        return items.Select(s => new SupplierProfileDto
-        {
-            Id = s.Id,
-            SupplierCode = s.SupplierCode,
-            SupplierName = s.SupplierName,
-            MaterialCategory = EnumHelper.TryParse<MaterialType>(s.MaterialCategory),
-            ContactPerson = s.ContactPerson,
-            ContactPhone = s.ContactPhone,
-            Address = s.Address,
-            IsActive = s.IsActive,
-            Remark = s.Remark,
-            CreatedTime = s.CreatedTime
-        }).ToList();
-    }
-
     public async Task<SupplierProfileDto> GetByIdAsync(int id)
     {
         var entity = await _context.SupplierProfiles

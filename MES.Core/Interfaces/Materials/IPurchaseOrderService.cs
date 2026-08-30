@@ -7,7 +7,6 @@ namespace MES.Core.Interfaces.Materials;
 public interface IPurchaseOrderService
 {
     Task<PagedResult<PurchaseOrderDto>> GetPagedAsync(PurchaseOrderQueryParams query);
-    Task<List<PurchaseOrderDto>> GetAllListAsync();
     Task<PurchaseOrderDto> GetByIdAsync(int id);
     Task<PurchaseOrderDto> CreateAsync(CreatePurchaseOrderRequest request);
     Task<List<PurchaseOrderDto>> CreateBatchAsync(List<CreatePurchaseOrderRequest> requests);

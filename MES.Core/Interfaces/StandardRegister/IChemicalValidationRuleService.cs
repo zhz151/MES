@@ -39,11 +39,6 @@ public interface IChemicalValidationRuleService
     Task<ChemicalValidationRuleDto?> GetByPlantGradeAsync(string plantGrade);
 
     /// <summary>
-    /// 获取所有牌号验证规则（无分页）
-    /// </summary>
-    Task<List<ChemicalValidationRuleDto>> GetAllListAsync();
-
-    /// <summary>
     /// 获取筛选上下文（各列的 DISTINCT 值，用于 ExcelFilter�?    /// </summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 

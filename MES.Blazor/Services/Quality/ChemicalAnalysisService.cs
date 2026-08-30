@@ -28,16 +28,6 @@ public class ChemicalAnalysisService
         catch (Exception ex) { return ApiResponse<PagedResult<ChemicalAnalysisDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<ChemicalAnalysisDto>> GetByIdAsync(int id)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<ChemicalAnalysisDto>>($"{BaseUrl}/{id}")
-                   ?? ApiResponse<ChemicalAnalysisDto>.Fail("获取详情失败");
-        }
-        catch (Exception ex) { return ApiResponse<ChemicalAnalysisDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<ChemicalAnalysisDto>> UpdateAsync(int id, UpdateChemicalAnalysisRequest request)
     {
         try

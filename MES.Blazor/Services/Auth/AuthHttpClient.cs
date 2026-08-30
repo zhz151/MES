@@ -186,12 +186,6 @@ public class AuthHttpClient
         => SendAndDeserializeAsync<TResponse>(() => _http.PutAsJsonAsync(url, data));
 
     /// <summary>
-    /// DELETE 请求
-    /// </summary>
-    public Task<HttpResponseMessage> DeleteAsync(string url)
-        => SendWithRefreshAsync(() => _http.DeleteAsync(url));
-
-    /// <summary>
     /// DELETE 请求并反序列化响应
     /// </summary>
     public Task<T?> DeleteFromJsonAsync<T>(string url)

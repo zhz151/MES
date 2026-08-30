@@ -28,26 +28,6 @@ public class MaintenanceOrderService
         catch (Exception ex) { return ApiResponse<PagedResult<MaintenanceOrderListDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<MaintenanceOrderListDto>> GetByIdAsync(int id)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<MaintenanceOrderListDto>>($"{BaseUrl}/{id}")
-                   ?? ApiResponse<MaintenanceOrderListDto>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<MaintenanceOrderListDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<MaintenanceOrderListDto>> CreateAsync(CreateMaintenanceOrderRequest request)
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<CreateMaintenanceOrderRequest, ApiResponse<MaintenanceOrderListDto>>(BaseUrl, request)
-                   ?? ApiResponse<MaintenanceOrderListDto>.Fail("创建失败");
-        }
-        catch (Exception ex) { return ApiResponse<MaintenanceOrderListDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<List<MaintenanceOrderListDto>>> CreateBatchAsync(List<CreateMaintenanceOrderRequest> requests)
     {
         try

@@ -38,16 +38,6 @@ public class RepairOrderService
         catch (Exception ex) { return ApiResponse<Dictionary<string, List<string>>>.Fail($"网络错误: {ex.Message}"); }
     }
 
-    public async Task<ApiResponse<RepairOrderListDto>> GetByIdAsync(int id)
-    {
-        try
-        {
-            return await _http.GetFromJsonAsync<ApiResponse<RepairOrderListDto>>($"{BaseUrl}/{id}")
-                   ?? ApiResponse<RepairOrderListDto>.Fail("获取数据失败");
-        }
-        catch (Exception ex) { return ApiResponse<RepairOrderListDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
     public async Task<ApiResponse<RepairOrderListDto>> CreateAsync(CreateRepairOrderRequest request)
     {
         try
@@ -56,16 +46,6 @@ public class RepairOrderService
                    ?? ApiResponse<RepairOrderListDto>.Fail("创建失败");
         }
         catch (Exception ex) { return ApiResponse<RepairOrderListDto>.Fail($"网络错误: {ex.Message}"); }
-    }
-
-    public async Task<ApiResponse<List<RepairOrderListDto>>> CreateBatchAsync(List<CreateRepairOrderRequest> requests)
-    {
-        try
-        {
-            return await _http.PostAsJsonAsync<List<CreateRepairOrderRequest>, ApiResponse<List<RepairOrderListDto>>>($"{BaseUrl}/batch", requests)
-                   ?? ApiResponse<List<RepairOrderListDto>>.Fail("批量创建失败");
-        }
-        catch (Exception ex) { return ApiResponse<List<RepairOrderListDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
     public async Task<ApiResponse<RepairOrderListDto>> UpdateAsync(int id, UpdateRepairOrderRequest request)

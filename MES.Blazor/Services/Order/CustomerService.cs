@@ -96,22 +96,6 @@ public class CustomerService
     }
 
     /// <summary>
-    /// 根据ID获取客户详情
-    /// </summary>
-    public async Task<ApiResponse<CustomerProfileDto>> GetByIdAsync(int id)
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<CustomerProfileDto>>($"{BaseUrl}/{id}");
-            return response ?? ApiResponse<CustomerProfileDto>.Fail("获取数据失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<CustomerProfileDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// 创建客户
     /// </summary>
     public async Task<ApiResponse<CustomerProfileDto>> CreateAsync(CreateCustomerRequest request)

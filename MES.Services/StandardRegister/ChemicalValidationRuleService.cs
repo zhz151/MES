@@ -227,52 +227,6 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
         return entity == null ? null : ToDto(entity);
     }
 
-    public async Task<List<ChemicalValidationRuleDto>> GetAllListAsync()
-    {
-        return await _context.ChemicalValidationRules
-            .AsNoTracking()
-            .OrderByDescending(x => x.Id)
-            .Select(x => new ChemicalValidationRuleDto
-            {
-                Id = x.Id,
-                PlantGrade = x.PlantGrade,
-                CMin = x.CMin,
-                CMax = x.CMax,
-                SiMin = x.SiMin,
-                SiMax = x.SiMax,
-                MnMin = x.MnMin,
-                MnMax = x.MnMax,
-                PMin = x.PMin,
-                PMax = x.PMax,
-                SMin = x.SMin,
-                SMax = x.SMax,
-                NiMin = x.NiMin,
-                NiMax = x.NiMax,
-                CrMin = x.CrMin,
-                CrMax = x.CrMax,
-                MoMin = x.MoMin,
-                MoMax = x.MoMax,
-                CuMin = x.CuMin,
-                CuMax = x.CuMax,
-                NMin = x.NMin,
-                NMax = x.NMax,
-                NbMin = x.NbMin,
-                NbMax = x.NbMax,
-                TiMin = x.TiMin,
-                TiMax = x.TiMax,
-                FeMin = x.FeMin,
-                FeMax = x.FeMax,
-                AlMin = x.AlMin,
-                AlMax = x.AlMax,
-                WMin = x.WMin,
-                WMax = x.WMax,
-                PRENMin = x.PRENMin,
-                CreatedTime = x.CreatedTime,
-                UpdatedTime = x.UpdatedTime
-            })
-            .ToListAsync();
-    }
-
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
         var all = await _context.ChemicalValidationRules

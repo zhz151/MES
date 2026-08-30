@@ -132,37 +132,6 @@ public class ChemicalCompositionService : IChemicalCompositionService
         };
     }
 
-    public async Task<List<ChemicalCompositionDto>> GetAllListAsync()
-    {
-        return await _context.ChemicalCompositions
-            .AsNoTracking()
-            .OrderByDescending(x => x.Id)
-            .Select(x => new ChemicalCompositionDto
-            {
-                Id = x.Id,
-                PlantGrade = x.PlantGrade,
-                Carbon = x.Carbon,
-                Silicon = x.Silicon,
-                Manganese = x.Manganese,
-                Phosphorus = x.Phosphorus,
-                Sulfur = x.Sulfur,
-                Nickel = x.Nickel,
-                Chromium = x.Chromium,
-                Molybdenum = x.Molybdenum,
-                Copper = x.Copper,
-                Nitrogen = x.Nitrogen,
-                Niobium = x.Niobium,
-                Titanium = x.Titanium,
-                Iron = x.Iron,
-                Aluminum = x.Aluminum,
-                Tungsten = x.Tungsten,
-                PREN = x.PREN,
-                CreatedTime = x.CreatedTime,
-                UpdatedTime = x.UpdatedTime
-            })
-            .ToListAsync();
-    }
-
     public async Task<List<ChemicalCompositionDto>> BatchCreateAsync(List<CreateChemicalCompositionRequest> requests)
     {
         if (requests.Count == 0)

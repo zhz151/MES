@@ -278,29 +278,6 @@ public class CustomerService : ICustomerService
         await _context.SaveChangesAsync();
     }
 
-    /// <summary>
-    /// 获取所有客户列表（无分页）
-    /// </summary>
-    public async Task<List<CustomerProfileDto>> GetAllListAsync()
-    {
-        return await _context.CustomerProfiles
-            .AsNoTracking()
-            .Select(c => new CustomerProfileDto
-            {
-                Id = c.Id,
-                CustomerCode = c.CustomerCode,
-                Salesman = c.Salesman,
-                CustomerUnit = c.CustomerUnit,
-                EndCustomer = c.EndCustomer,
-                ContactPerson = c.ContactPerson,
-                ContactPhone = c.ContactPhone,
-                Address = c.Address,
-                Status = c.Status,
-                Remark = c.Remark
-            })
-            .ToListAsync();
-    }
-
     public async Task<List<CustomerSelectDto>> GetSelectListAsync()
     {
         return await _context.CustomerProfiles

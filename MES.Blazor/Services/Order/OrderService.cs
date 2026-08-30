@@ -131,19 +131,6 @@ public class OrderService
         }
     }
 
-    public async Task<ApiResponse<object>> DeleteItemAsync(int orderId, int itemId)
-    {
-        try
-        {
-            var response = await _http.DeleteFromJsonAsync<ApiResponse<object>>($"{BaseUrl}/{orderId}/items/{itemId}");
-            return response ?? ApiResponse<object>.Fail("删除项次失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     public async Task<ApiResponse<SaveAllOrderResponse>> SaveAllAsync(int id, SaveAllOrderRequest request)
     {
         try
@@ -155,22 +142,6 @@ public class OrderService
         catch (Exception ex)
         {
             return ApiResponse<SaveAllOrderResponse>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 获取所有订单列表数据（无分页，供客户端筛选排序）
-    /// </summary>
-    public async Task<ApiResponse<List<SalesOrderListDto>>> GetAllAsync()
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<List<SalesOrderListDto>>>($"{BaseUrl}/list-all");
-            return response ?? ApiResponse<List<SalesOrderListDto>>.Fail("获取数据失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<List<SalesOrderListDto>>.Fail($"网络错误: {ex.Message}");
         }
     }
 

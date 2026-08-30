@@ -57,14 +57,6 @@ public class SubcontractOrderController : ControllerBase
         return Ok(ApiResponse<PagedResult<SubcontractOrderDto>>.Ok(result, "查询成功"));
     }
 
-    [HttpGet("all")]
-    [Authorize(Roles = Roles.Policies.MaterialView)]
-    public async Task<ActionResult<ApiResponse<List<SubcontractOrderDto>>>> GetAllList()
-    {
-        var result = await _service.GetAllListAsync();
-        return Ok(ApiResponse<List<SubcontractOrderDto>>.Ok(result, "查询成功"));
-    }
-
     [HttpGet("{id}")]
     [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<SubcontractOrderDto>>> GetById(int id)
@@ -215,14 +207,6 @@ public class SubcontractOrderController : ControllerBase
     }
 
     // ========== 打印 ==========
-
-    [HttpPost("{id}/print-file")]
-    [Authorize(Roles = Roles.Policies.MaterialView)]
-    public async Task<IActionResult> PrintOrderFile(int id)
-    {
-        var pdfBytes = await _service.PrintOrderAsync(id);
-        return File(pdfBytes, "application/pdf", $"委外单_{id}.pdf");
-    }
 
     [HttpPost("print-batch-file")]
     [Authorize(Roles = Roles.Policies.MaterialView)]

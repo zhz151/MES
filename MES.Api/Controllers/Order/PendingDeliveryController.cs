@@ -22,20 +22,6 @@ public class PendingDeliveryController : ControllerBase
     }
 
     /// <summary>
-    /// 获取待发货订单成品列表（无分页，用于质保书创建页引用）
-    /// </summary>
-    [HttpGet("list")]
-    [Authorize(Roles = Roles.Policies.PendingDeliveryView)]
-    public async Task<ActionResult<ApiResponse<List<PendingDeliveryItemDto>>>> GetPendingItems(
-        [FromQuery] string? orderNo = null,
-        [FromQuery] string? productStandard = null,
-        [FromQuery] string? deliveryStatus = null)
-    {
-        var result = await _service.GetPendingItemsAsync(orderNo, productStandard, deliveryStatus);
-        return Ok(ApiResponse<List<PendingDeliveryItemDto>>.Ok(result, "查询成功"));
-    }
-
-    /// <summary>
     /// 分页查询待发货订单成品（用于列表页）
     /// </summary>
     [HttpGet("all")]

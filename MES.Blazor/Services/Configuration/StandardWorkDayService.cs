@@ -63,19 +63,6 @@ public class StandardWorkDayService
         }
     }
 
-    public async Task<ApiResponse<StandardWorkDayDto>> GetByIdAsync(int id)
-    {
-        try
-        {
-            var response = await _http.GetFromJsonAsync<ApiResponse<StandardWorkDayDto>>($"{BaseUrl}/{id}");
-            return response ?? ApiResponse<StandardWorkDayDto>.Fail("获取数据失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<StandardWorkDayDto>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     public async Task<ApiResponse<bool>> SaveAsync(StandardWorkDayDto dto)
     {
         try

@@ -221,28 +221,6 @@ public class MaintenanceOrderService : IMaintenanceOrderService
         };
     }
 
-    public async Task<List<MaintenanceOrderListDto>> GetAllListAsync()
-    {
-        var baseQuery = from m in _context.MaintenanceOrders
-                        join e in _context.Equipment on m.EquipmentId equals e.Id
-                        orderby m.Id descending
-                        select new MaintenanceOrderListDto
-                        {
-                            Id = m.Id,
-                            MaintOrderNo = m.MaintOrderNo,
-                            EquipmentId = m.EquipmentId,
-                            EquipmentName = e.EquipmentName,
-                            EquipmentCode = e.EquipmentCode,
-                            Location = e.Location,
-                            ActualDate = m.ActualDate,
-                            Executor = m.Executor,
-                            ExecutionSummary = m.ExecutionSummary,
-                            Remark = m.Remark
-                        };
-
-        return await baseQuery.ToListAsync();
-    }
-
     public async Task<MaintenanceOrderListDto> GetByIdAsync(int id)
     {
         var entity = await _context.MaintenanceOrders

@@ -45,28 +45,6 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
         return Task.CompletedTask;
     }
 
-    public async Task<List<PendingDeliveryItemDto>> GetPendingItemsAsync(
-        string? orderNo = null,
-        string? productStandard = null,
-        string? deliveryStatus = null)
-    {
-        var dtos = await GetCachedDtosAsync();
-
-        // 订单号筛选（缓存已包含全部数据，内存过滤）
-        if (!string.IsNullOrEmpty(orderNo))
-            dtos = dtos.Where(d => string.Equals(d.SalesOrderNo, orderNo, StringComparison.OrdinalIgnoreCase)).ToList();
-
-        // 筛选：产品标准
-        if (!string.IsNullOrEmpty(productStandard))
-            dtos = dtos.Where(d => d.ProductStandard == productStandard).ToList();
-
-        // 筛选：交货状态
-        if (!string.IsNullOrEmpty(deliveryStatus))
-            dtos = dtos.Where(d => d.DeliveryStatus?.ToString() == deliveryStatus).ToList();
-
-        return dtos;
-    }
-
     public async Task<PagedResult<PendingDeliveryItemDto>> GetPagedAsync(QueryParams query)
     {
         // 1. 从缓存加载 DTO 列表
@@ -583,10 +561,4 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
         return Task.FromResult(pdfBytes);
     }
 
-    /// <summary>打印全部（Mode A：前端已准备数据）</summary>
-    public Task<byte[]> PrintAllFileAsync(string title, List<Dictionary<string, object>> items, List<MES.Core.DTOs.Shared.PrintColumnDef> columns)
-    {
-        var pdfBytes = PendingDeliveryPrintHelper.GeneratePdf(title, items, columns);
-        return Task.FromResult(pdfBytes);
-    }
 }

@@ -145,14 +145,6 @@ public class EquipmentService : IEquipmentService
         };
     }
 
-    public async Task<List<EquipmentListDto>> GetAllListAsync()
-    {
-        return await _context.Equipment
-            .AsNoTracking()
-            .Select(e => ToDto(e))
-            .ToListAsync();
-    }
-
     public async Task<List<EquipmentListDto>> GetAllAsync()
     {
         return await _context.Equipment

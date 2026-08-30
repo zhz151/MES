@@ -1666,41 +1666,6 @@ public class OrderService : IOrderService
         item.Remark = remark ?? item.Remark;
     }
 
-    private Task<OrderItemDto> MapToOrderItemDto(OrderItem orderItem)
-    {
-        return Task.FromResult(new OrderItemDto
-        {
-            Id = orderItem.Id,
-            Sequence = orderItem.Sequence,
-            DeliveryDate = orderItem.DeliveryDate,
-            DelayPenalty = orderItem.DelayPenalty,
-            SettlementMethod = orderItem.SettlementMethod,
-            PipeManufacturingType = orderItem.PipeManufacturingType,
-            StandardNo = orderItem.StandardNo ?? string.Empty,
-            DeliveryState = orderItem.DeliveryState,
-            StandardGrade = orderItem.StandardGrade,
-            PlantGrade = orderItem.PlantGrade,
-            Density = orderItem.Density,
-            OuterDiameter = orderItem.OuterDiameter,
-            WallThickness = orderItem.WallThickness,
-            Specification = orderItem.Specification,
-            OuterDiameterNegative = orderItem.OuterDiameterNegative,
-            OuterDiameterPositive = orderItem.OuterDiameterPositive,
-            WallThicknessNegative = orderItem.WallThicknessNegative,
-            WallThicknessPositive = orderItem.WallThicknessPositive,
-            LengthStatus = orderItem.LengthStatus,
-            MinLength = orderItem.MinLength,
-            MaxLength = orderItem.MaxLength,
-            Quantity = orderItem.Quantity,
-            Meters = orderItem.Meters,
-            ContractWeight = orderItem.ContractWeight,
-            TheoreticalWeight = orderItem.TheoreticalWeight,
-            Remark = orderItem.Remark,
-            CreatedTime = orderItem.CreatedTime,
-            UpdatedTime = orderItem.UpdatedTime
-        });
-    }
-
     /// <summary>
     /// 加载牌号映射表，用于从 StandardGradeMapping 取最新 PlantGrade/Density 覆盖 OrderItem 的冗余快照
     /// </summary>

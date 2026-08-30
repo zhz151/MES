@@ -55,17 +55,6 @@ public class ChemicalCompositionController : ControllerBase
     }
 
     /// <summary>
-    /// 获取所有牌号化学成分（无分页）
-    /// </summary>
-    [HttpGet("all-list")]
-    [Authorize(Roles = Roles.Policies.StandardView)]
-    public async Task<ActionResult<ApiResponse<List<ChemicalCompositionDto>>>> GetAllList()
-    {
-        var result = await _service.GetAllListAsync();
-        return Ok(ApiResponse<List<ChemicalCompositionDto>>.Ok(result));
-    }
-
-    /// <summary>
     /// 批量创建牌号化学成分
     /// </summary>
     [HttpPost("batch")]
@@ -178,12 +167,4 @@ public class ChemicalCompositionController : ControllerBase
         return File(pdfBytes, "application/pdf", "牌号化学成分-选中.pdf");
     }
 
-    /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.StandardView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] ChemicalCompositionPrintAllRequest request)
-    {
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
-        return File(pdfBytes, "application/pdf", "牌号化学成分-全部.pdf");
-    }
 }
