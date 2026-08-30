@@ -48,14 +48,6 @@ public class RepairOrderController : ControllerBase
         return Ok(ApiResponse<PagedResult<RepairOrderListDto>>.Ok(result, "查询成功"));
     }
 
-    [HttpGet("all-list")]
-    [Authorize(Roles = Roles.Policies.EquipmentView)]
-    public async Task<ActionResult<ApiResponse<List<RepairOrderListDto>>>> GetAllList()
-    {
-        var result = await _service.GetAllListAsync();
-        return Ok(ApiResponse<List<RepairOrderListDto>>.Ok(result, "查询成功"));
-    }
-
     [HttpGet("{id}")]
     [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<RepairOrderListDto>>> GetById(int id)
@@ -124,28 +116,6 @@ public class RepairOrderController : ControllerBase
 
         var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
         return File(pdfBytes, "application/pdf", "维修工单打印.pdf");
-    }
-
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.EquipmentView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] RepairOrderPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var query = new RepairOrderQueryParams
-        {
-            Keyword = request.Keyword,
-            SortBy = string.IsNullOrEmpty(request.SortBy) ? "ReportTime" : request.SortBy,
-            IsDescending = request.IsDescending,
-            EquipmentId = request.EquipmentId,
-            RepairStatus = request.RepairStatus,
-            Priority = request.Priority,
-            ReportTimeFrom = request.ReportTimeFrom,
-            ReportTimeTo = request.ReportTimeTo
-        };
-        var pdfBytes = await _service.PrintAllAsync(query, request.Columns);
-        return File(pdfBytes, "application/pdf", "维修工单列表.pdf");
     }
 
     /// <summary>

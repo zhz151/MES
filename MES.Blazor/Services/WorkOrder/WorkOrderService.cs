@@ -195,21 +195,6 @@ public class WorkOrderService
     }
 
     /// <summary>
-    /// 删除工单（用于"订单已取消-工单待删除"区域）
-    /// </summary>
-    public async Task<ApiResponse<object>> SoftDeleteAsync(int id)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<object, ApiResponse<object>>($"{BaseUrl}/{id}/soft-delete", new { });
-            return response ?? ApiResponse<object>.Fail("删除失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<object>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-    /// <summary>
     /// 获取订单的工单项次追溯关系（包含该订单下所有工单及其项次明细）
     /// </summary>
     public async Task<ApiResponse<OrderWorkOrderRelationDto>> GetOrderWorkOrderRelationAsync(string salesOrderNo)

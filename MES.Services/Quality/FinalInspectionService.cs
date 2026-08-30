@@ -590,149 +590,6 @@ public class FinalInspectionService : IFinalInspectionService
         };
     }
 
-    public async Task<List<FinalInspectionDto>> GetAllListAsync()
-    {
-        var raw = await _context.FinalInspections
-            .AsNoTracking()
-            .OrderByDescending(r => r.Id)
-            .Select(r => new
-            {
-                r.Id,
-                r.InspectionItem,
-                r.InspectionDate,
-                r.InspectionType,
-                r.BatchNo,
-                r.ProductionBatchId,
-                ManufacturingItem = r.ProductionBatch.ManufacturingItem,
-                TagNo = r.ProductionBatch.TagNo,
-                WorkOrderNo = r.ProductionBatch.WorkOrderNo,
-                SalesOrderNo = r.ProductionBatch.SalesOrderNo,
-                SourceUnit = r.ProductionBatch.SourceName,
-                FurnaceNo = r.ProductionBatch.SourceHeatNo,
-                PlantGrade = r.ProductionBatch.PlantGrade,
-                Specification = r.ProductionBatch.Specification,
-                ProductionType = r.ProductionBatch.ProductionType,
-                Salesman = r.ProductionBatch.Salesman,
-                LengthStatus = r.ProductionBatch.LengthStatus,
-                DeliveryState = r.ProductionBatch.DeliveryState,
-                ManufacturingStatus = r.ProductionBatch.ManufacturingStatus,
-                EndCustomer = r.ProductionBatch.EndCustomer,
-                ProductionCutQuantity = r.ProductionBatch.CutRequirement
-                    ? r.ProductionBatch.CutQuantity
-                    : r.ProductionBatch.TheoreticalOutputQty,
-                ProductionWeight = r.ProductionBatch.TheoreticalOutputWeight,
-                r.FixedLength,
-                r.CutLengthMatchType,
-                r.NonFixedLengthRange,
-                r.EquipmentName,
-                r.Shift,
-                r.Operator,
-                r.Quantity,
-                r.Weight,
-                r.QualifiedQuantity,
-                r.QualifiedWeight,
-                r.QualifiedConcessionQuantity,
-                r.ConcessionRemark,
-                r.DefectReworkQuantity,
-                r.DefectWarehouseQuantity,
-                r.DefectScrapQuantity,
-                r.DefectDescription,
-                r.DefectReworkWeight,
-                r.DefectWarehouseWeight,
-                r.DefectScrapWeight,
-                r.OuterDiameterRange,
-                r.WallThicknessRange,
-                r.LengthAllowanceRange,
-                r.Pressure,
-                r.HoldTime,
-                r.QualificationLevel,
-                r.InspectionStandard,
-                r.InspectionGrade,
-                r.InstrumentModel,
-                r.NdtMethod,
-                r.StandardSampleSize,
-                r.StandardSampleDefect,
-                r.ProbeType,
-                r.Couplant,
-                r.CalibrationFrequency,
-                r.DetectionFrequency,
-                r.DetectionSensitivity,
-                r.DetectionPhase,
-                r.DetectionSpeed,
-                r.Remark,
-                r.CreatedTime,
-                r.UpdatedTime
-            })
-            .ToListAsync();
-
-        return raw.Select(r => new FinalInspectionDto
-        {
-            Id = r.Id,
-            InspectionItem = r.InspectionItem,
-            InspectionDate = r.InspectionDate,
-            InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(r.InspectionType),
-            BatchNo = r.BatchNo,
-            ProductionBatchId = r.ProductionBatchId,
-            ManufacturingItem = EnumHelper.TryParse<MaterialType>(r.ManufacturingItem),
-            TagNo = r.TagNo,
-            WorkOrderNo = r.WorkOrderNo,
-            SalesOrderNo = r.SalesOrderNo,
-            SourceUnit = r.SourceUnit,
-            FurnaceNo = r.FurnaceNo,
-            PlantGrade = r.PlantGrade,
-            Specification = r.Specification,
-            ProductionType = EnumHelper.TryParse<MES.Core.Enums.ProductionType>(r.ProductionType),
-            Salesman = r.Salesman,
-            LengthStatus = EnumHelper.TryParse<MES.Core.Enums.LengthStatus>(r.LengthStatus),
-            DeliveryState = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(r.DeliveryState),
-            ManufacturingStatus = EnumHelper.TryParse<MES.Core.Enums.DeliveryState>(r.ManufacturingStatus),
-            EndCustomer = r.EndCustomer,
-            ProductionCutQuantity = r.ProductionCutQuantity,
-            ProductionWeight = r.ProductionWeight,
-            FixedLength = r.FixedLength,
-            CutLengthMatchType = EnumHelper.TryParse<CutLengthMatchType>(r.CutLengthMatchType),
-            NonFixedLengthRange = r.NonFixedLengthRange,
-            EquipmentName = r.EquipmentName,
-            Shift = r.Shift,
-            Operator = r.Operator,
-            Quantity = r.Quantity,
-            Weight = r.Weight,
-            QualifiedQuantity = r.QualifiedQuantity,
-            QualifiedWeight = r.QualifiedWeight,
-            QualifiedConcessionQuantity = r.QualifiedConcessionQuantity,
-            ConcessionRemark = r.ConcessionRemark,
-            DefectReworkQuantity = r.DefectReworkQuantity,
-            DefectWarehouseQuantity = r.DefectWarehouseQuantity,
-            DefectScrapQuantity = r.DefectScrapQuantity,
-            DefectDescription = r.DefectDescription,
-            DefectReworkWeight = r.DefectReworkWeight,
-            DefectWarehouseWeight = r.DefectWarehouseWeight,
-            DefectScrapWeight = r.DefectScrapWeight,
-            OuterDiameterRange = r.OuterDiameterRange,
-            WallThicknessRange = r.WallThicknessRange,
-            LengthAllowanceRange = r.LengthAllowanceRange,
-            Pressure = r.Pressure,
-            HoldTime = r.HoldTime,
-            QualificationLevel = r.QualificationLevel,
-            InspectionStandard = r.InspectionStandard,
-            InspectionGrade = r.InspectionGrade,
-            InstrumentModel = r.InstrumentModel,
-            NdtMethod = r.NdtMethod,
-            StandardSampleSize = r.StandardSampleSize,
-            StandardSampleDefect = r.StandardSampleDefect,
-            ProbeType = r.ProbeType,
-            Couplant = r.Couplant,
-            CalibrationFrequency = r.CalibrationFrequency,
-            DetectionFrequency = r.DetectionFrequency,
-            DetectionSensitivity = r.DetectionSensitivity,
-            DetectionPhase = r.DetectionPhase,
-            DetectionSpeed = r.DetectionSpeed,
-            Remark = r.Remark,
-            CreatedTime = r.CreatedTime,
-            UpdatedTime = r.UpdatedTime
-        }).ToList();
-    }
-
     public async Task<FinalInspectionDto> CreateAsync(CreateFinalInspectionRequest request)
     {
         // 如果ProductionBatchId为0，尝试根据BatchNo解析
@@ -1447,8 +1304,8 @@ public class FinalInspectionService : IFinalInspectionService
     public async Task<List<FinalInspectionSummaryRowDto>> GetRecentSummaryAsync()
     {
         var today = DateTime.Today;
-        var start = today.AddDays(-6);
-        var end = today.AddDays(1);
+        var start = today.AddDays(SummaryWindows.Last7DaysStartOffset);
+        var end = today.AddDays(SummaryWindows.EndExclusiveOffset);
 
         // ===== 1. 加载 [今天−6, 今天+1) 窗口内成品检验记录（投影仅取归行所需列） =====
         var inspections = await _context.Set<FinalInspection>()
@@ -1468,8 +1325,8 @@ public class FinalInspectionService : IFinalInspectionService
         void Accumulate(FinalInspectionSummaryRowDto row, DateTime date, decimal weight)
         {
             if (date >= today) row.TodayWeight += weight;
-            if (date >= today.AddDays(-3) && date < today) row.Last3DaysWeight += weight;
-            if (date >= today.AddDays(-6) && date < today) row.Last7DaysWeight += weight;
+            if (date >= today.AddDays(SummaryWindows.Last3DaysStartOffset) && date < today) row.Last3DaysWeight += weight;
+            if (date >= today.AddDays(SummaryWindows.Last7DaysStartOffset) && date < today) row.Last7DaysWeight += weight;
         }
 
         void Add(FinalInspectionSummaryRowDto row, DateTime date, decimal weight)
@@ -1590,9 +1447,9 @@ public class FinalInspectionService : IFinalInspectionService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("FinalInspectionService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.FinalInspectionFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var all = await _context.FinalInspections
                 .AsNoTracking()
@@ -1776,23 +1633,6 @@ public class FinalInspectionService : IFinalInspectionService
         var result = await GetAllAsync(query);
         var selected = result.Items.Where(i => ids.Contains(i.Id)).ToList();
         return FinalInspectionPrintHelper.GenerateBatchPdf(selected, columns);
-    }
-
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null, string? filters = null)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? null! : sortBy,
-            IsDescending = isDescending,
-            InspectionDateFrom = inspectionDateFrom,
-            InspectionDateTo = inspectionDateTo,
-            Filters = !string.IsNullOrEmpty(filters) ? System.Text.Json.JsonSerializer.Deserialize<List<FilterDescriptor>>(filters) : null
-        };
-        var result = await GetAllAsync(query);
-        return FinalInspectionPrintHelper.GenerateBatchPdf(result.Items, columns);
     }
 
     private static IQueryable<FinalInspection> ApplySorting(IQueryable<FinalInspection> queryable, string sortBy, bool isDescending)

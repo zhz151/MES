@@ -213,16 +213,16 @@ public partial class Index
     {
         return status switch
         {
-            "偏少" => Color.Error,
-            "过多" => Color.Warning,
-            "正常" => Color.Success,
+            SustainStatusKeys.Excessive => Color.Error,
+            SustainStatusKeys.Insufficient => Color.Warning,
+            SustainStatusKeys.Normal => Color.Success,
             _ => Color.Default
         };
     }
 
     private static Color FlowGetPlanFlowJudgmentColor(string? judgment)
     {
-        return judgment == "加速" ? Color.Warning : Color.Default;
+        return judgment == PlanFlowJudgmentKeys.Accelerate ? Color.Error : Color.Default;
     }
 
     private static string Card3StatText(int count, decimal weightTons)

@@ -55,6 +55,46 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
         _dailyOutputService = dailyOutputService;
     }
 
+    public async Task RefreshAllAsync()
+    {
+        // 全量订单号 = 工单涉及的所有 SalesOrderNo ∪ 读模型中残留的 SalesOrderNo（清理孤儿行）
+        var orderNos = await _context.WorkOrders
+            .AsNoTracking()
+            .Where(w => !string.IsNullOrEmpty(w.SalesOrderNo))
+            .Select(w => w.SalesOrderNo!)
+            .Distinct()
+            .ToListAsync();
+
+        var residualNos = await _context.Set<WorkOrderListSummary>()
+            .AsNoTracking()
+            .Select(s => s.SalesOrderNo)
+            .ToListAsync();
+
+        var allNos = orderNos
+            .Concat(residualNos)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        _logger.LogInformation("开始全量刷新用料计划总览读模型，订单数={Count}", allNos.Count);
+
+        var success = 0;
+        foreach (var no in allNos)
+        {
+            try
+            {
+                await RefreshBySalesOrderAsync(no);
+                success++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "全量刷新用料计划总览失败: SalesOrderNo={SalesOrderNo}", no);
+            }
+        }
+
+        _logger.LogInformation("全量刷新用料计划总览完成，共 {Total} 单，成功 {Success} 单", allNos.Count, success);
+    }
+
     public async Task RefreshBySalesOrderAsync(string salesOrderNo)
     {
         if (string.IsNullOrWhiteSpace(salesOrderNo))

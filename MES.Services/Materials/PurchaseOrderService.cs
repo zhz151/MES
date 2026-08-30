@@ -735,35 +735,6 @@ public class PurchaseOrderService : IPurchaseOrderService
             await TryRefreshExecutionSummaryAsync(woNo!);
     }
 
-    public async Task SyncSingleAsync(int id)
-    {
-        var order = await _context.PurchaseOrders
-            .FirstOrDefaultAsync(p => p.Id == id);
-        if (order == null) throw new BusinessException("采购单不存在");
-
-        var batches = await _context.InventoryBatches
-            .AsNoTracking()
-            .Where(b => b.SourceOrderNo == order.OrderNo)
-            .ToListAsync();
-
-        order.ReceivedQuantity = batches.Sum(b => b.InitialQuantity);
-        order.ReceivedWeight = batches.Sum(b => b.InitialWeight);
-        order.LastArrivalDate = batches.Count > 0 ? batches.Max(b => b.InboundDate) : null;
-
-        if (!order.IsForceCompleted)
-        {
-            var ratio = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteRatio", 0.965m);
-            var deviation = await GetConfigAsync("WarehouseThreshold", "PurchaseCompleteDeviation", 200m);
-            var overRatio = await GetConfigAsync("WarehouseThreshold", "PurchaseOverRatio", 1.05m);
-            var overDeviation = await GetConfigAsync("WarehouseThreshold", "PurchaseOverDeviation", 100m);
-            var retW = (await BuildReturnSummaryAsync(new[] { order.OrderNo })).GetValueOrDefault(order.OrderNo).Weight;
-            RecalcPurchaseStatus(order, ratio, deviation, overRatio, overDeviation, retW);
-        }
-
-        await _context.SaveChangesAsync();
-        await TryRefreshExecutionSummaryAsync(order.SourceWorkOrderNo);
-    }
-
     public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
     {
         var entity = await _context.PurchaseOrders
@@ -1509,9 +1480,9 @@ public class PurchaseOrderService : IPurchaseOrderService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("PurchaseOrderService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.PurchaseOrderFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var query = from p in _context.PurchaseOrders.AsNoTracking()
                         join w in _context.WorkOrders.AsNoTracking() on p.SourceWorkOrderNo equals w.WorkOrderNo into wj
@@ -1672,22 +1643,6 @@ public class PurchaseOrderService : IPurchaseOrderService
             d.ReturnWeight = rw;
         }
         return dtos;
-    }
-
-    public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, DateTime? dateFrom = null, DateTime? dateTo = null, List<PrintColumnDef>? columns = null)
-    {
-        var query = new PurchaseOrderQueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = sortBy ?? "CreatedTime",
-            IsDescending = isDescending,
-            DateFrom = dateFrom,
-            DateTo = dateTo
-        };
-        var paged = await GetPagedAsync(query);
-        return TablePrintHelper.GeneratePdf("采购订单列表", paged.Items.Select(ToPrintDict).ToList(), columns ?? []);
     }
 
     private static Dictionary<string, object> ToPrintDict(PurchaseOrderDto dto) => new()

@@ -112,17 +112,15 @@ builder.Services.AddScoped<ScanService>();
 // ========== Scheduling 上下文 ==========
 builder.Services.AddScoped<RawMaterialLockPlanAndExecutionService>();
 builder.Services.AddScoped<ProductionOverviewService>();
-builder.Services.AddScoped<MES.Blazor.Services.SectionFlowAnalysisService>();
 builder.Services.AddScoped<SectionParagraphFlowAnalysisService>();
-builder.Services.AddScoped<SectionFlowCategoryService>();
 builder.Services.AddScoped<SectionParagraphConfigService>();
-builder.Services.AddScoped<CombinationGroupService>();
 builder.Services.AddScoped<WorkOrderScheduleService>();
 builder.Services.AddScoped<BatchPlanService>();
 builder.Services.AddScoped<ColdRollPlanService>();
 builder.Services.AddScoped<ColdRollSpecScheduleService>();
 builder.Services.AddScoped<ColdRollCapacityService>();
 builder.Services.AddScoped<ColdRollMachineConfigService>();
+builder.Services.AddScoped<ColdRollMachineGroupConfigService>();
 builder.Services.AddScoped<BatchPlanScheduleService>();
 builder.Services.AddScoped<FinalInspectionPlanService>();
 

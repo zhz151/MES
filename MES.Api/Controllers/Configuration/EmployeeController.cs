@@ -104,11 +104,4 @@ public class EmployeeController : ControllerBase
         return File(pdfBytes, "application/pdf", "员工信息-选中.pdf");
     }
 
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.ScanView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] EmployeePrintAllRequest request)
-    {
-        var pdfBytes = await _employeeService.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
-        return File(pdfBytes, "application/pdf", "员工信息-全部.pdf");
-    }
 }

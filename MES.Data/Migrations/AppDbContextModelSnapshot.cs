@@ -1420,63 +1420,6 @@ namespace MES.Data.Migrations
                     b.ToTable("CertificatePrintSettings", (string)null);
                 });
 
-            modelBuilder.Entity("MES.Data.Entities.Configuration.CombinationGroup", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTimeOffset>("CreatedTime")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<int?>("FlowCategoryId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ParagraphName")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("ProcessGroupName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("ProductStatus")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<string>("SectionName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("UpdatedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTimeOffset>("UpdatedTime")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FlowCategoryId");
-
-                    b.HasIndex("ProcessGroupName", "SectionName", "ProductStatus")
-                        .IsUnique()
-                        .HasDatabaseName("UK_CG_ProcessGroupName_SectionName_ProductStatus");
-
-                    b.ToTable("CombinationGroups", (string)null);
-                });
-
             modelBuilder.Entity("MES.Data.Entities.Configuration.ConfigParameter", b =>
                 {
                     b.Property<int>("Id")
@@ -1987,56 +1930,6 @@ namespace MES.Data.Migrations
                     b.ToTable("ProcessDefinitions", (string)null);
                 });
 
-            modelBuilder.Entity("MES.Data.Entities.Configuration.SectionFlowCategorySetting", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CategoryName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTimeOffset>("CreatedTime")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<decimal?>("DailyProductionTarget")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("LowerLimitDays")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Remark")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("UpdatedBy")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTimeOffset>("UpdatedTime")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<decimal?>("UpperLimitDays")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("SectionFlowCategorySettings", (string)null);
-                });
-
             modelBuilder.Entity("MES.Data.Entities.Configuration.SectionParagraphConfig", b =>
                 {
                     b.Property<int>("Id")
@@ -2044,6 +1937,10 @@ namespace MES.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CategoryType")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("CreatedBy")
                         .IsRequired()
@@ -2061,6 +1958,10 @@ namespace MES.Data.Migrations
 
                     b.Property<decimal?>("LowerLimitDays")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ParagraphKey")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("ParagraphName")
                         .IsRequired()
@@ -2084,9 +1985,10 @@ namespace MES.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ParagraphName")
+                    b.HasIndex("CategoryType", "ParagraphKey")
                         .IsUnique()
-                        .HasDatabaseName("UK_SPC_ParagraphName");
+                        .HasDatabaseName("UK_SPC_CategoryType_ParagraphKey")
+                        .HasFilter("[CategoryType] IS NOT NULL AND [ParagraphKey] IS NOT NULL");
 
                     b.ToTable("SectionParagraphConfigs", (string)null);
                 });
@@ -6321,6 +6223,63 @@ namespace MES.Data.Migrations
                     b.ToTable("ColdRollMachineConfig", (string)null);
                 });
 
+            modelBuilder.Entity("MES.Data.Entities.Scheduling.ColdRollMachineGroupConfig", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("GroupKey")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ProcessKeys")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SupplyTargetGroupKey")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupKey")
+                        .IsUnique()
+                        .HasDatabaseName("UK_CRMG_GroupKey");
+
+                    b.ToTable("ColdRollMachineGroupConfig", (string)null);
+                });
+
             modelBuilder.Entity("MES.Data.Entities.Scheduling.ColdRollSpecSchedule", b =>
                 {
                     b.Property<int>("Id")
@@ -10489,16 +10448,6 @@ namespace MES.Data.Migrations
                     b.Navigation("ProcessGroup");
 
                     b.Navigation("ProductionBatch");
-                });
-
-            modelBuilder.Entity("MES.Data.Entities.Configuration.CombinationGroup", b =>
-                {
-                    b.HasOne("MES.Data.Entities.Configuration.SectionFlowCategorySetting", "FlowCategory")
-                        .WithMany()
-                        .HasForeignKey("FlowCategoryId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("FlowCategory");
                 });
 
             modelBuilder.Entity("MES.Data.Entities.Equipment.InspectionRecord", b =>

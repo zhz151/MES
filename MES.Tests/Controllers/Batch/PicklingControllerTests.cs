@@ -157,21 +157,6 @@ public class PicklingControllerTests : ControllerTestBase
     // ========== 完工记录 ==========
 
     [Fact]
-    public async Task GetOutRecordByInId_ReturnsOk()
-    {
-        // Arrange
-        var dto = new PicklingOutRecordDto { Id = 1, PicklingInRecordId = 1 };
-        _serviceMock.Setup(x => x.GetOutRecordByInIdAsync(1)).ReturnsAsync(dto);
-
-        // Act
-        var result = await _controller.GetOutRecordByInId(1);
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<PicklingOutRecordDto?>>(result);
-        Assert.Equal(1, response.Data?.PicklingInRecordId);
-    }
-
-    [Fact]
     public async Task GetOutRecordsPaged_ReturnsOk()
     {
         // Arrange

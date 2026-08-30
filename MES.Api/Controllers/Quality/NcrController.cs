@@ -54,15 +54,6 @@ public class NcrController : ControllerBase
         return Ok(ApiResponse<PagedResult<NcrDto>>.Ok(result));
     }
 
-    /// <summary>获取全部（无分页）</summary>
-    [HttpGet("all-list")]
-    [Authorize(Roles = Roles.Policies.QualityView)]
-    public async Task<ActionResult<ApiResponse<List<NcrDto>>>> GetAllList()
-    {
-        var result = await _ncrService.GetAllListAsync();
-        return Ok(ApiResponse<List<NcrDto>>.Ok(result));
-    }
-
     /// <summary>获取详情</summary>
     [HttpGet("{id}")]
     [Authorize(Roles = Roles.Policies.QualityView)]
@@ -166,14 +157,4 @@ public class NcrController : ControllerBase
         return File(pdfBytes, "application/pdf", "不合格报告列表.pdf");
     }
 
-    /// <summary>打印全部 NCR（生成 PDF）</summary>
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.QualityView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] NcrPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdf = await _ncrService.PrintAllAsync(request);
-        return File(pdf, "application/pdf", $"NCR_All_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
-    }
 }

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
@@ -158,9 +159,9 @@ public class GrainSizeTestService : IGrainSizeTestService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("GrainSizeTestService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.GrainSizeTestFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var all = await _context.GrainSizeTests
                 .AsNoTracking()
@@ -186,22 +187,6 @@ public class GrainSizeTestService : IGrainSizeTestService
         var result = await GetAllAsync(query);
         var selected = result.Items.Where(i => ids.Contains(i.Id)).ToList();
         return GrainSizeTestPrintHelper.GenerateBatchPdf(selected, columns);
-    }
-
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? null! : sortBy,
-            IsDescending = isDescending,
-            InspectionDateFrom = inspectionDateFrom,
-            InspectionDateTo = inspectionDateTo
-        };
-        var result = await GetAllAsync(query);
-        return GrainSizeTestPrintHelper.GenerateBatchPdf(result.Items, columns);
     }
 
     private static IQueryable<GrainSizeTest> ApplySorting(IQueryable<GrainSizeTest> queryable, string sortBy, bool isDescending)

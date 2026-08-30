@@ -12,7 +12,6 @@ public interface ISubcontractOrderService
     Task<SubcontractOrderDto> CreateAsync(CreateSubcontractOrderRequest request);
     Task<SubcontractOrderDto> UpdateAsync(int id, UpdateSubcontractOrderRequest request);
     Task SyncAllAsync();
-    Task SyncSingleAsync(int id);
     Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request);
     Task DeleteAsync(int id);
 
@@ -38,5 +37,4 @@ public interface ISubcontractOrderService
     Task<byte[]> PrintOrderAsync(int id);
     Task<byte[]> PrintOrderBatchAsync(int[] ids);
     Task<byte[]> PrintSubcontractOrderListAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns);
-    Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, DateTime? dateFrom = null, DateTime? dateTo = null);
 }

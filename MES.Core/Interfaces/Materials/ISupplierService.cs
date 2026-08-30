@@ -21,5 +21,4 @@ public interface ISupplierService
 
     // ========== 打印 ==========
     Task<byte[]> PrintSupplierBatchAsync(int[] ids, List<PrintColumnDef>? columns = null);
-    Task<byte[]> PrintSupplierAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, List<PrintColumnDef>? columns = null);
 }

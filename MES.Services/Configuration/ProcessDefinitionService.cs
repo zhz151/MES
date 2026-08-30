@@ -8,6 +8,7 @@ using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities.Configuration;
 using MES.Services.Helpers;
+using MES.Services.Scheduling;
 
 namespace MES.Services.Configuration;
 
@@ -18,7 +19,6 @@ namespace MES.Services.Configuration;
 public class ProcessDefinitionService : IProcessDefinitionService
 {
     private const string MapCacheKey = "ProcessNameDisplay:Map";
-    private const string ColdRollCacheKey = "ProcessDefinition:ColdRollKeys";
     private const string ColdRollOrDrawCacheKey = "ProcessDefinition:ColdRollOrDrawKeys";
 
     private readonly AppDbContext _context;
@@ -176,6 +176,34 @@ public class ProcessDefinitionService : IProcessDefinitionService
             _context.ProcessDefinitions.Add(entity);
         }
 
+        // 2026-08-29 Q2：工序禁用时自动删除其机台数配置记录，并从机台组配置中移除该工序
+        //（禁用工序不参与排程建议产能平衡与机台组归组；存量批次仍按冷轧/冷拔处理由 GetColdRollOrDrawKeysAsync 口径保障）
+        if (!dto.IsEnabled)
+        {
+            var machineConfigs = await _context.ColdRollMachineConfigs
+                .Where(c => c.ProcessType == dto.ProcessKey)
+                .ToListAsync();
+            if (machineConfigs.Count > 0)
+                _context.ColdRollMachineConfigs.RemoveRange(machineConfigs);
+
+            var groups = await _context.ColdRollMachineGroupConfigs.ToListAsync();
+            foreach (var group in groups)
+            {
+                if (string.IsNullOrWhiteSpace(group.ProcessKeys)) continue;
+                var parts = group.ProcessKeys.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(k => !k.Equals(dto.ProcessKey, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                var joined = parts.Count > 0 ? string.Join(",", parts) : null;
+                if (!string.Equals(group.ProcessKeys, joined ?? "", StringComparison.Ordinal))
+                    group.ProcessKeys = joined;
+            }
+
+            // 组配置/机台数配置变更 → 失效排机估算、排程建议、机台组三处引擎缓存
+            _cache.Remove(ColdRollPlanService.MachineGroupCacheKey);
+            _cache.Remove(ColdRollPlanService.MachineEstimateCacheKey);
+            _cache.Remove(ColdRollPlanService.ScheduleSuggestionCacheKey);
+        }
+
         await _context.SaveChangesAsync();
         InvalidateCaches();
         return true;
@@ -232,7 +260,7 @@ public class ProcessDefinitionService : IProcessDefinitionService
     {
         return (await _cache.GetOrCreateAsync(MapCacheKey, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -269,28 +297,11 @@ public class ProcessDefinitionService : IProcessDefinitionService
         return keyOrName;
     }
 
-    public Task<string?> ToKeyAsync(string? nameOrKey)
-        => Task.FromResult(ProcessKeys.ToKey(nameOrKey));
-
-    public async Task<HashSet<string>> GetColdRollKeysAsync()
-    {
-        return (await _cache.GetOrCreateAsync(ColdRollCacheKey, async entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
-            var keys = await _context.ProcessDefinitions
-                .AsNoTracking()
-                .Where(w => w.IsColdRoll)
-                .Select(w => w.ProcessKey)
-                .ToListAsync();
-            return new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
-        }))!;
-    }
-
     public async Task<HashSet<string>> GetColdRollOrDrawKeysAsync()
     {
         return (await _cache.GetOrCreateAsync(ColdRollOrDrawCacheKey, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
             var keys = await _context.ProcessDefinitions
                 .AsNoTracking()
                 .Where(w => w.IsColdRoll || w.IsColdDraw)
@@ -300,10 +311,44 @@ public class ProcessDefinitionService : IProcessDefinitionService
         }))!;
     }
 
+    /// <summary>
+    /// 获取冷轧或冷拔工序选项（仅 IsEnabled=true 的启用工序，禁用工序不参与机型下拉/工段 Tab/机台组归组），按 DisplayOrder 升序。
+    /// 2026-08-29 收紧：原不过滤 IsEnabled，用户决策改为仅启用工序可选（禁用工序无法归组/配置机台数/工段 Tab）。
+    /// </summary>
+    public async Task<List<ProcessInfoDto>> GetColdRollOrDrawOptionsAsync()
+    {
+        var rows = await _context.ProcessDefinitions
+            .AsNoTracking()
+            .Where(w => (w.IsColdRoll || w.IsColdDraw) && w.IsEnabled)
+            .OrderBy(w => w.DisplayOrder)
+            .Select(w => new
+            {
+                w.ProcessKey,
+                w.ProcessName,
+                w.DisplayOrder,
+                w.IsEnabled,
+                w.IsColdRoll,
+                w.IsColdDraw,
+                DefaultSectionsText = w.DefaultSections
+            })
+            .ToListAsync();
+
+        // 默认工段为 JSON 数组字符串，EF 无法翻译解析，采用 Hybrid 模式内存补充
+        return rows.Select(w => new ProcessInfoDto
+        {
+            ProcessKey = w.ProcessKey,
+            ProcessName = w.ProcessName,
+            DisplayOrder = w.DisplayOrder,
+            IsEnabled = w.IsEnabled,
+            IsColdRoll = w.IsColdRoll,
+            IsColdDraw = w.IsColdDraw,
+            DefaultSections = ParseDefaultSections(w.DefaultSectionsText)
+        }).ToList();
+    }
+
     private void InvalidateCaches()
     {
         _cache.Remove(MapCacheKey);
-        _cache.Remove(ColdRollCacheKey);
         _cache.Remove(ColdRollOrDrawCacheKey);
     }
 

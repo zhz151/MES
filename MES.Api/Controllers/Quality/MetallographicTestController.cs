@@ -98,11 +98,4 @@ public class MetallographicTestController : ControllerBase
         return File(pdfBytes, "application/pdf", "金相检验-选中.pdf");
     }
 
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.QualityView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] MetallographicTestPrintAllRequest request)
-    {
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.InspectionDateFrom, request.InspectionDateTo);
-        return File(pdfBytes, "application/pdf", "金相检验-全部.pdf");
-    }
 }

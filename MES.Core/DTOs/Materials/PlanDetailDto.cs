@@ -21,7 +21,6 @@ public class PlanDetailDto
     /// <summary>
     /// 物料分类中文名
     /// </summary>
-    public string? MaterialCategoryDisplay => MaterialCategory.HasValue ? EnumHelper.GetDisplayName(MaterialCategory.Value) : null;
 
     /// <summary>
     /// 工厂牌号

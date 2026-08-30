@@ -1,5 +1,4 @@
 using MES.Core.Enums;
-using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.WorkOrder;
 
@@ -10,7 +9,6 @@ public class NotificationDto
 {
     public int Id { get; set; }
     public NotificationType NotificationType { get; set; }
-    public string NotificationTypeDisplay => EnumHelper.GetDisplayName(NotificationType);
     public int? TargetId { get; set; }
     public string Title { get; set; } = null!;
     public string Content { get; set; } = null!;

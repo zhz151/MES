@@ -361,37 +361,6 @@ public class PicklingServiceTests : TestBase
     // ========== 完工记录 ==========
 
     [Fact]
-    public async Task GetOutRecordByInIdAsync_存在_返回记录()
-    {
-        var ctx = CreateDbContext();
-        var record = await SeedInRecordAsync(ctx);
-        ctx.PicklingOutRecords.Add(new PicklingOutRecord
-        {
-            PicklingInRecordId = record.Id,
-            CompleteDate = DateTime.Today,
-            ProductionBatchId = record.ProductionBatchId,
-            SectionName = record.SectionName
-        });
-        await ctx.SaveChangesAsync();
-        var svc = CreateService(ctx);
-
-        var result = await svc.GetOutRecordByInIdAsync(record.Id);
-
-        result.Should().NotBeNull();
-    }
-
-    [Fact]
-    public async Task GetOutRecordByInIdAsync_不存在_返回Null()
-    {
-        var ctx = CreateDbContext();
-        var svc = CreateService(ctx);
-
-        var result = await svc.GetOutRecordByInIdAsync(999);
-
-        result.Should().BeNull();
-    }
-
-    [Fact]
     public async Task GetOutRecordsPagedAsync_无数据_返回空列表()
     {
         var ctx = CreateDbContext();

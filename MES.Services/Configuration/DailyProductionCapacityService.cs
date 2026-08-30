@@ -36,10 +36,12 @@ namespace MES.Services.Configuration;
 public class DailyProductionCapacityService : IDailyProductionCapacityService
 {
     private readonly AppDbContext _context;
+    private readonly IColdRollMachineGroupConfigService _groupConfigService;
 
-    public DailyProductionCapacityService(AppDbContext context)
+    public DailyProductionCapacityService(AppDbContext context, IColdRollMachineGroupConfigService groupConfigService)
     {
         _context = context;
+        _groupConfigService = groupConfigService;
     }
 
     public async Task<PagedResult<DailyProductionCapacityDto>> GetPagedAsync(QueryParams query)
@@ -102,8 +104,15 @@ public class DailyProductionCapacityService : IDailyProductionCapacityService
 
     public async Task<bool> SaveAsync(DailyProductionCapacityDto dto)
     {
-        if (!ProductionOverviewRowKeys.IsKey(dto.ProcessName))
-            throw new BusinessException("工序名称不合法，仅支持预置行名");
+        if (string.IsNullOrWhiteSpace(dto.ProcessName))
+            throw new BusinessException("工序名称不能为空");
+        // 合法行名：荒管抛光（固定首行）或冷轧机台组 GroupKey（2026-08-30 起产能档案键=机台组 GroupKey）
+        if (dto.ProcessName != ProductionOverviewRowKeys.Polish)
+        {
+            var groups = await _groupConfigService.GetAllAsync();
+            if (!groups.Any(g => string.Equals(g.GroupKey, dto.ProcessName, StringComparison.OrdinalIgnoreCase)))
+                throw new BusinessException("工序名称不合法，仅支持荒管抛光或冷轧机台组");
+        }
 
         if (dto.Id > 0)
         {

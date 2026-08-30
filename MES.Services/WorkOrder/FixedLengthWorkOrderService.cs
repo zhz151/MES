@@ -82,9 +82,9 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
         // 结果缓存：全量聚合（6 次查询 + 2 处全表拉内存）较慢，5 分钟绝对过期，
         // 与 WorkOrderExecutionService 缓存模式一致。数据源（工单/批次/记录/入库）CRUD 无统一失效入口，
         // 采用短 TTL 保证新鲜度，兼顾重复打开页面时的加载性能。
-        return await _cache.GetOrCreateAsync("FixedLengthWorkOrderService:List", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.FixedLengthWorkOrderList, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
             return await GetListCoreAsync();
         }) ?? new List<FixedLengthWorkOrderListDto>();
     }

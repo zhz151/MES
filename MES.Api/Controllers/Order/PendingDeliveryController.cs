@@ -105,15 +105,4 @@ public class PendingDeliveryController : ControllerBase
         var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "订单成品(实时库存).pdf");
     }
-
-    /// <summary>
-    /// 打印全部（按当前筛选条件）
-    /// </summary>
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.OrderView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] PendingDeliveryPrintRequest request)
-    {
-        var pdfBytes = await _service.PrintAllFileAsync(request.Title, request.Items, request.Columns);
-        return File(pdfBytes, "application/pdf", "订单成品(实时库存)-全部.pdf");
-    }
 }

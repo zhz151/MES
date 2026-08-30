@@ -304,20 +304,6 @@ public class GradeMappingService : IGradeMappingService
         return TablePrintHelper.GeneratePdf("牌号对照列表", result.Select(ToPrintDict).ToList(), columns ?? []);
     }
 
-    public async Task<byte[]> PrintGradeMappingAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, List<PrintColumnDef>? columns = null)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = sortBy ?? "CreatedTime",
-            IsDescending = isDescending
-        };
-        var paged = await GetPagedAsync(query);
-        return TablePrintHelper.GeneratePdf("牌号对照列表", paged.Items.Select(ToPrintDict).ToList(), columns ?? []);
-    }
-
     private static Dictionary<string, object> ToPrintDict(StandardGradeMappingDto dto) => new()
     {
         ["StandardGrade"] = dto.StandardGrade,

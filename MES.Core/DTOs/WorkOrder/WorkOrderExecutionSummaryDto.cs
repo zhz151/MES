@@ -26,17 +26,14 @@ public class WorkOrderExecutionSummaryDto
     public DateTime DeliveryDate { get; set; }
     public bool DelayPenalty { get; set; }
     public SettlementMethod SettlementMethod { get; set; }
-    public string SettlementMethodDisplay => EnumHelper.GetDisplayName(SettlementMethod);
     public string SalesOrderNo { get; set; } = null!;
     public string ProductionMainNo { get; set; } = null!;
     public string? ProductionSubNo { get; set; }
     public string MaterialName { get; set; } = null!;
     public DeliveryState DeliveryState { get; set; }
-    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public LengthStatus LengthStatus { get; set; }
-    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
     public int TotalItemCount { get; set; }
@@ -47,14 +44,12 @@ public class WorkOrderExecutionSummaryDto
     // ========== Group 3: 用料计划及执行实况（G4~G11 的汇整，来自用料计划总览 WorkOrderListSummary） ==========
     /// <summary>工单计划状态(0=未计划 1=部分 2=满足 3=超量)</summary>
     public MaterialPlanStatus MaterialPlanStatus { get; set; }
-    public string MaterialPlanStatusDisplay => EnumHelper.GetDisplayName(MaterialPlanStatus);
 
     /// <summary>主号满足率(%)</summary>
     public decimal MainNoMaterialPlanRate { get; set; }
 
     /// <summary>主号计划状态</summary>
     public MaterialPlanStatus MainNoMaterialPlanStatus { get; set; }
-    public string MainNoMaterialPlanStatusDisplay => EnumHelper.GetDisplayName(MainNoMaterialPlanStatus);
 
     /// <summary>料态种数：4种料态中有做计划的种数(0-4)</summary>
     public int MaterialPlanCoveredCount { get; set; }

@@ -36,33 +36,6 @@ public class NotificationServiceTests : TestBase
         return n;
     }
 
-    // ========== GetUnreadCountAsync ==========
-
-    [Fact]
-    public async Task GetUnreadCountAsync_无通知_返回0()
-    {
-        var ctx = CreateDbContext();
-        var svc = CreateService(ctx);
-
-        var count = await svc.GetUnreadCountAsync();
-
-        count.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task GetUnreadCountAsync_有未读通知_返回数量()
-    {
-        var ctx = CreateDbContext();
-        await SeedNotificationAsync(ctx);
-        await SeedNotificationAsync(ctx);
-        await SeedNotificationAsync(ctx, isRead: true); // 已读不计入
-        var svc = CreateService(ctx);
-
-        var count = await svc.GetUnreadCountAsync();
-
-        count.Should().Be(2);
-    }
-
     // ========== GetPagedNotificationsAsync ==========
 
     [Fact]
@@ -164,32 +137,6 @@ public class NotificationServiceTests : TestBase
 
         // 不应抛出异常
         await svc.MarkAsReadAsync(999);
-    }
-
-    // ========== MarkAllAsReadAsync ==========
-
-    [Fact]
-    public async Task MarkAllAsReadAsync_全部标记已读()
-    {
-        var ctx = CreateDbContext();
-        await SeedNotificationAsync(ctx);
-        await SeedNotificationAsync(ctx);
-        await SeedNotificationAsync(ctx);
-        var svc = CreateService(ctx);
-
-        await svc.MarkAllAsReadAsync();
-
-        var unreadCount = await ctx.Notifications.CountAsync(n => !n.IsRead);
-        unreadCount.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task MarkAllAsReadAsync_无未读_不报错()
-    {
-        var ctx = CreateDbContext();
-        var svc = CreateService(ctx);
-
-        await svc.MarkAllAsReadAsync();
     }
 
     // ========== HasRecentItemChangedNotificationAsync ==========

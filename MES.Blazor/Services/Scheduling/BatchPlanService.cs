@@ -106,4 +106,17 @@ public class BatchPlanService
         }
     }
 
+    public async Task<List<BatchPlanSectionTabDto>> GetSectionTabOptionsAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<BatchPlanSectionTabDto>>>($"{BaseUrl}/section-tab-options");
+            return response?.Data ?? new List<BatchPlanSectionTabDto>();
+        }
+        catch
+        {
+            return new List<BatchPlanSectionTabDto>();
+        }
+    }
+
 }

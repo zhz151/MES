@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
@@ -156,9 +157,9 @@ public class FlatteningTestService : IFlatteningTestService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("FlatteningTestService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.FlatteningTestFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var all = await _context.FlatteningTests
                 .AsNoTracking()
@@ -184,22 +185,6 @@ public class FlatteningTestService : IFlatteningTestService
         var result = await GetAllAsync(query);
         var selected = result.Items.Where(i => ids.Contains(i.Id)).ToList();
         return FlatteningTestPrintHelper.GenerateBatchPdf(selected, columns);
-    }
-
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? null! : sortBy,
-            IsDescending = isDescending,
-            InspectionDateFrom = inspectionDateFrom,
-            InspectionDateTo = inspectionDateTo
-        };
-        var result = await GetAllAsync(query);
-        return FlatteningTestPrintHelper.GenerateBatchPdf(result.Items, columns);
     }
 
     private static IQueryable<FlatteningTest> ApplySorting(IQueryable<FlatteningTest> queryable, string sortBy, bool isDescending)

@@ -14,6 +14,7 @@ using MES.Services.Helpers;
 using MES.Services.Printing;
 using MES.Core.Helpers;
 using Microsoft.Extensions.Caching.Memory;
+using MES.Core.Constants;
 
 namespace MES.Services.Warehouse;
 
@@ -383,8 +384,8 @@ public class InventoryService : IInventoryService
     /// </summary>
     private void InvalidateFilterContexts()
     {
-        _cache.Remove("InventoryService:OutboundFilterContexts");
-        _cache.Remove("InventoryService:InventoryFilterContexts");
+        _cache.Remove(CacheKeys.InventoryOutboundFilterContexts);
+        _cache.Remove(CacheKeys.InventoryFilterContexts);
     }
 
     public async Task<InventoryBatchDto> InboundAsync(CreateInboundRequest request)
@@ -581,9 +582,6 @@ public class InventoryService : IInventoryService
     public async Task<SourceOrderValidationResult> ResolveLinkedWorkOrderAsync(int inventoryBatchId)
         => await _syncService.ResolveLinkedWorkOrderAsync(inventoryBatchId);
 
-    public async Task<List<string>> ValidateWarehouseWorkOrderNosAsync(int warehouseId)
-        => await _syncService.ValidateWarehouseWorkOrderNosAsync(warehouseId);
-
     public async Task<List<BatchWorkOrderMismatchDto>> GetMismatchedWorkOrderBatchesAsync(int? warehouseId = null)
         => await _syncService.GetMismatchedWorkOrderBatchesAsync(warehouseId);
 
@@ -594,26 +592,6 @@ public class InventoryService : IInventoryService
         => await _syncService.GetDistinctWorkOrderNosByWarehouseAsync(warehouseId);
 
     // ========== 打印 ==========
-
-    public async Task<byte[]> PrintStockAllAsync(InventoryPrintAllRequest request)
-    {
-        var query = new InventoryQueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = request.Keyword,
-            SortBy = request.SortBy ?? "inbounddate",
-            IsDescending = request.IsDescending,
-            WarehouseId = request.WarehouseId,
-            OnlyWithStock = true
-        };
-        var paged = await GetPagedAsync(query);
-        var resolvers = new Dictionary<string, Func<object?, string>>
-        {
-            ["LengthStatus"] = v => EnumHelper.GetDisplayName<LengthStatus>(v?.ToString())
-        };
-        return TablePrintHelper.GeneratePdf("仓 库 库 存 列 表", paged.Items, request.Columns, resolvers);
-    }
 
     public async Task<byte[]> PrintStockSelectedAsync(InventoryPrintSelectedRequest request)
     {
@@ -630,26 +608,6 @@ public class InventoryService : IInventoryService
         return TablePrintHelper.GeneratePdf("库 存 批 次 打 印", items, request.Columns, resolvers);
     }
 
-    public async Task<byte[]> PrintInboundAllAsync(InventoryPrintAllRequest request)
-    {
-        var query = new InventoryQueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = request.Keyword,
-            SortBy = request.SortBy ?? "inbounddate",
-            IsDescending = request.IsDescending,
-            WarehouseId = request.WarehouseId,
-            OnlyWithStock = false
-        };
-        var paged = await GetPagedAsync(query);
-        var resolvers = new Dictionary<string, Func<object?, string>>
-        {
-            ["LengthStatus"] = v => EnumHelper.GetDisplayName<LengthStatus>(v?.ToString())
-        };
-        return TablePrintHelper.GeneratePdf("入 库 历 史 列 表", paged.Items, request.Columns, resolvers);
-    }
-
     public async Task<byte[]> PrintInboundSelectedAsync(InventoryPrintSelectedRequest request)
     {
         var entities = await _context.InventoryBatches
@@ -663,22 +621,6 @@ public class InventoryService : IInventoryService
             ["LengthStatus"] = v => EnumHelper.GetDisplayName<LengthStatus>(v?.ToString())
         };
         return TablePrintHelper.GeneratePdf("入 库 批 次 打 印", items, request.Columns, resolvers);
-    }
-
-    public async Task<byte[]> PrintOutboundAllAsync(OutboundPrintAllRequest request)
-    {
-        var query = new OutboundQueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = request.Keyword,
-            SortBy = request.SortBy ?? "outbounddate",
-            IsDescending = request.IsDescending,
-            WarehouseId = request.WarehouseId
-        };
-        var paged = await GetOutboundRecordsAsync(query);
-        var resolvers = GetOutboundPrintResolvers();
-        return TablePrintHelper.GeneratePdf("出 库 历 史 列 表", paged.Items, request.Columns, resolvers);
     }
 
     public async Task<byte[]> PrintOutboundSelectedAsync(OutboundPrintSelectedRequest request)
@@ -712,9 +654,9 @@ public class InventoryService : IInventoryService
 
     public async Task<Dictionary<string, List<string>>> GetOutboundFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("InventoryService:OutboundFilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.InventoryOutboundFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var records = _context.OutboundRecords.AsNoTracking();
 
@@ -734,9 +676,9 @@ public class InventoryService : IInventoryService
 
     public async Task<Dictionary<string, List<string>>> GetInventoryFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("InventoryService:InventoryFilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.InventoryFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var results = await _context.InventoryBatches.AsNoTracking()
                 .Select(b => new

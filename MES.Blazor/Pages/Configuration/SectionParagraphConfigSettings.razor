@@ -1,12 +1,11 @@
 @page "/section-paragraph-config-settings"
 @using MES.Blazor.Services
 @using MES.Core.Models
-@using MES.Blazor.Shared
+@using MES.Blazor.Helpers
 @using MES.Core.DTOs.Configuration
 @using Microsoft.AspNetCore.Authorization
 @inject SectionParagraphConfigService Service
 @inject ISnackbar Snackbar
-@inject IDialogService DialogService
 @attribute [Authorize(Roles = Roles.Policies.ConfigurationView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
@@ -23,14 +22,6 @@
                     共 @_items.Count 个段落
                 </MudText>
                 <MudButton Variant="Variant.Filled"
-                           Color="Color.Success"
-                           Disabled="@_isLoading"
-                           OnClick="AddNewSetting"
-                           Class="mr-2">
-                    <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-1" />
-                    新增段落
-                </MudButton>
-                <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"
                            Disabled="@_isLoading"
                            OnClick="LoadDataAsync">
@@ -41,52 +32,45 @@
         </MudCardHeader>
 
         <MudCardContent>
+            <!-- 3 类筛选 Tab（段落由 3 类配置自动生成，仅参数可编辑，此处按类筛选查看） -->
+            <div class="d-flex flex-wrap align-center mb-2" style="gap: 4px 8px;">
+                @foreach (var tab in _categoryTabs)
+                {
+                    var isActive = (tab.Key == "" && _selectedCategory == null)
+                        || (tab.Key != "" && _selectedCategory == tab.Key);
+                    <MudButton Variant="@(isActive ? Variant.Filled : Variant.Outlined)"
+                               Color="@(isActive ? Color.Primary : Color.Default)"
+                               Size="Size.Small"
+                               Class="ma-0"
+                               OnClick="@(() => SetCategoryFilter(tab.Key == "" ? null : tab.Key))">
+                        @tab.Display
+                    </MudButton>
+                }
+            </div>
+
             <MudTable @ref="table"
                       T="SectionParagraphConfigDto"
-                      Items="@_items"
+                      Items="@_visibleItems"
                       Dense="true" Hover="true" Elevation="0" Class="auto-table"
                       RowsPerPage="25" RowsPerPageLabel="每页行数:">
                 <HeaderContent>
-                    <MudTh><span class="th-label">段落类别<span class="required-star">*</span></span></MudTh>
+                    <MudTh><span class="th-label">段落类别</span></MudTh>
+                    <MudTh><span class="th-label">类型</span></MudTh>
                     <MudTh Class="mud-table-cell--right"><span class="th-label">序号</span></MudTh>
                     <MudTh Class="mud-table-cell--right"><span class="th-label">日流转设定</span></MudTh>
                     <MudTh Class="mud-table-cell--right"><span class="th-label">偏少天数值</span></MudTh>
                     <MudTh Class="mud-table-cell--right"><span class="th-label">过多天数值</span></MudTh>
                     <MudTh><span class="th-label">备注</span></MudTh>
-                    <MudTh Style="width: 120px;">操作</MudTh>
+                    <MudTh Style="width: 90px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
                     @{
                         var rowEditing = _editingIds.Contains(item.Id);
                         var rowCache = rowEditing && _editCache.TryGetValue(item.Id, out var rc) ? rc : null;
                     }
-                    <MudTd>
-                        @if (rowEditing && rowCache != null)
-                        {
-                            <MudTextField T="string" Dense="true" Variant="Variant.Outlined"
-                                          Value="@rowCache.ParagraphName"
-                                          ValueChanged="@(v => rowCache.ParagraphName = v)"
-                                          Class="compact-input" />
-                        }
-                        else
-                        {
-                            @item.ParagraphName
-                        }
-                    </MudTd>
-                    <MudTd Class="mud-table-cell--right">
-                        @if (rowEditing && rowCache != null)
-                        {
-                            <MudNumericField T="int" Dense="true" Variant="Variant.Outlined"
-                                             HideSpinButtons="true"
-                                             Value="@rowCache.DisplayOrder"
-                                             ValueChanged="@(v => rowCache.DisplayOrder = v)"
-                                             Class="compact-input" Style="max-width:70px;" />
-                        }
-                        else
-                        {
-                            @item.DisplayOrder
-                        }
-                    </MudTd>
+                    <MudTd>@item.ParagraphName</MudTd>
+                    <MudTd>@DisplayHelper.GetParagraphCategoryTypeText(item.CategoryType)</MudTd>
+                    <MudTd Class="mud-table-cell--right">@item.DisplayOrder</MudTd>
                     <MudTd Class="mud-table-cell--right">
                         @if (rowEditing && rowCache != null)
                         {
@@ -142,7 +126,7 @@
                             @item.Remark
                         }
                     </MudTd>
-                    <MudTd Style="white-space: nowrap; width: 120px;" @onclick:stopPropagation>
+                    <MudTd Style="white-space: nowrap; width: 90px;" @onclick:stopPropagation>
                         @if (rowEditing)
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" OnClick="() => SaveEdit(item)" Disabled="@_isSaving" />
@@ -151,9 +135,6 @@
                         else
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
-                        <AuthorizeView Roles="@Roles.Policies.ConfigurationDelete">
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteSetting(item)" />
-                        </AuthorizeView>
                         }
                     </MudTd>
                 </RowTemplate>

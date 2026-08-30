@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using MES.Core.Enums;
-using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Quality;
 
@@ -22,7 +21,6 @@ public class ProcessInspectionDto
     public string? EquipmentName { get; set; }
     public string? Inspector { get; set; }
     public ShiftType? Shift { get; set; }
-    public string? ShiftDisplay => Shift.HasValue ? EnumHelper.GetDisplayName(Shift.Value) : null;
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
     public InspectionItem? InspectionItem { get; set; }

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using MES.Core.Constants;
 using MES.Core.DTOs.Configuration;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces.Configuration;
@@ -47,7 +48,7 @@ public class ProcessCardStyleDefinitionService : IProcessCardStyleDefinitionServ
     {
         return (await _cache.GetOrCreateAsync(MapCacheKey, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var rows = await GetAllAsync();
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

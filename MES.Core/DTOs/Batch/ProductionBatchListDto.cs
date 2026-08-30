@@ -19,9 +19,7 @@ public class ProductionBatchListDto
     public string? ProductionSubNo { get; set; }
     public ProductionType? ProductionType { get; set; }
     public MaterialType ManufacturingItem { get; set; }
-    public string ManufacturingItemDisplay => EnumHelper.GetDisplayName(ManufacturingItem);
     public BatchStatus Status { get; set; }
-    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
     public bool IsForceCompleted { get; set; }
     public int ProductionRatio { get; set; }
     public DateTime? CurrentExecDate { get; set; }
@@ -49,16 +47,13 @@ public class ProductionBatchListDto
     public bool DelayPenalty { get; set; }
     public string MaterialName { get; set; } = null!;
     public SettlementMethod SettlementMethod { get; set; }
-    public string SettlementMethodDisplay => EnumHelper.GetDisplayName(SettlementMethod);
     public string StandardCode { get; set; } = null!;
     public DeliveryState DeliveryState { get; set; }
-    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
     public DeliveryState? ManufacturingStatus { get; set; }
     public string? ManufacturingStatusDisplay => ManufacturingStatus.HasValue ? EnumHelper.GetDisplayName(ManufacturingStatus.Value) : null;
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public LengthStatus LengthStatus { get; set; }
-    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
     public decimal OuterDiameterNegative { get; set; }
     public decimal OuterDiameterPositive { get; set; }
     public decimal WallThicknessNegative { get; set; }
@@ -133,7 +128,6 @@ public class ProductionBatchListDto
 
     /// <summary>成切支数：断切生产记录 PostCutQuantity（切后支数）汇总；无→略</summary>
     public int? CutQuantity { get; set; }
-    public string? CutQuantityDisplay => CutQuantity.HasValue ? CutQuantity.Value.ToString() : "略";
 
     /// <summary>成切存疑：略/正常/疑问-数量/疑问-缺少（统一走 EnumHelper，与详情版 CutDoubtDisplay 同口径）</summary>
     public CutDoubtType? CutDoubt { get; set; }
@@ -155,7 +149,6 @@ public class ProductionBatchListDto
     public string? SourcePlantGrade { get; set; }
     public decimal? SourceUnitWeight { get; set; }
     public BatchInputType InputType { get; set; }
-    public string InputTypeDisplay => EnumHelper.GetDisplayName(InputType);
     public LengthStatus? SourceLengthStatus { get; set; }
     public string? SourceProductionNo { get; set; }
 
@@ -172,12 +165,12 @@ public class ProductionBatchListDto
     public int? ScheduleStage { get; set; }
 
     /// <summary>
-    /// 执行匹配：错误/正常。错误=工单关注为"无此工单"，或工单关注为"主号完成"但批次现执行状态≠完成
+    /// 执行匹配英文 Key（稳定值，前端转中文显示）：Normal/Error。Error=工单关注为"无此工单"，或工单关注为"主号完成"但批次现执行状态≠完成
     /// </summary>
     public string? ExecutionMatch { get; set; }
 
     /// <summary>
-    /// 流转判定：正常/疑问。疑问=规则1（现最大执行序对应日期 ≠ 6表全量最大日期）或规则2（最大执行序N存在时 N-1/N-2/N-3 任一缺失）；未产/入库特判 → 正常
+    /// 流转判定英文 Key（稳定值，前端转中文显示）：Normal/Doubt（复用 ProductionFlowKeys）。Doubt=规则1（现最大执行序对应日期 ≠ 6表全量最大日期）或规则2（最大执行序N存在时 N-1/N-2/N-3 任一缺失）；未产/入库特判 → Normal
     /// </summary>
     public string? FlowJudgment { get; set; }
 }

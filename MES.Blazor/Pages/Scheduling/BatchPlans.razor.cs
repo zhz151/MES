@@ -72,11 +72,32 @@ public partial class BatchPlans
     private string sortColumn = "BatchNo";
     private bool sortDescending = true;
 
-    // ========== 工段筛选 ==========
+    // ========== 工段筛选（配置驱动 Tab：冷轧冷拔工序 + 普通工段 + 固定检验） ==========
     private string? _selectedSection;
-    // 工段 Tab = "全部" + 共享工段列表（BatchPlanSectionTabs，与汇总表 GetSummaryAsync 归桶口径一致）
-    private static readonly string[] _sectionTabs =
-        new[] { "全部" }.Concat(BatchPlanSectionTabs.All).ToArray();
+    // Tab Key=筛选传值（冷轧=ProcessKey、普通=SectionKey、检验=固定中文）、Display=显示名
+    private List<BatchPlanSectionTabDto> _sectionTabs = new()
+    {
+        new BatchPlanSectionTabDto { Key = "", Display = "全部", Group = "fixed" }
+    };
+
+    /// <summary>
+    /// 加载配置驱动工段 Tab 选项（后端按 ProcessDefinitions 冷轧冷拔启用工序 + StandardWorkDays 启用工段
+    /// 扣除冷轧拔/检验/入库 + 固定荒管检/在制检 组装）；失败降级仅"全部"。
+    /// 同时校验持久化恢复的 _selectedSection 是否悬空（选项被删/禁用 → 置 null 回"全部"）。
+    /// </summary>
+    private async Task LoadSectionTabOptionsAsync()
+    {
+        var options = await BatchPlanSvc.GetSectionTabOptionsAsync();
+        var tabs = new List<BatchPlanSectionTabDto>
+        {
+            new BatchPlanSectionTabDto { Key = "", Display = "全部", Group = "fixed" }
+        };
+        if (options.Count > 0)
+            tabs.AddRange(options);
+        _sectionTabs = tabs;
+        if (_selectedSection != null && !_sectionTabs.Any(t => t.Key == _selectedSection))
+            _selectedSection = null;
+    }
 
     // ========== Tab 汇总数据 ==========
     private int _tabBatchCount;
@@ -100,11 +121,6 @@ public partial class BatchPlans
     private bool _showParagraphCard;
     private bool _isLoadingParagraph;
     private List<SectionParagraphFlowAnalysisDto> _paragraphRows = new();
-
-    // ========== 工段流转分析折叠查询（纯表，无可持续天数字段，懒加载） ==========
-    private bool _showFlowCard;
-    private bool _isLoadingFlow;
-    private List<SectionFlowAnalysisDto> _flowRows = new();
 
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
@@ -541,37 +557,6 @@ public partial class BatchPlans
         }
     }
 
-    private async Task ToggleFlowCard()
-    {
-        _showFlowCard = !_showFlowCard;
-        if (_showFlowCard && _flowRows.Count == 0)
-            await LoadFlowAsync();
-    }
-
-    private async Task LoadFlowAsync()
-    {
-        try
-        {
-            _isLoadingFlow = true;
-            StateHasChanged();
-            var result = await SectionFlowAnalysisSvc.GetAnalysisAsync();
-            _flowRows = result?.Success == true && result.Data != null
-                ? result.Data
-                : new List<SectionFlowAnalysisDto>();
-            if (result?.Success != true)
-                Snackbar.Add(result?.Message ?? "工段流转分析加载失败", Severity.Error);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"工段流转分析加载失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _isLoadingFlow = false;
-            StateHasChanged();
-        }
-    }
-
     // 纯表渲染辅助（与流转分析独立页口径一致）
     private static string RenderInt(decimal? val) => val.HasValue ? Math.Round(val.Value, 0).ToString() : "-";
 
@@ -581,13 +566,13 @@ public partial class BatchPlans
 
     private static Color GetStatusColor(string? status) => status switch
     {
-        "偏少" => Color.Error,
-        "过多" => Color.Warning,
-        "正常" => Color.Success,
+        SustainStatusKeys.Excessive => Color.Error,
+        SustainStatusKeys.Insufficient => Color.Warning,
+        SustainStatusKeys.Normal => Color.Success,
         _ => Color.Default
     };
 
-    private static Color GetPlanFlowJudgmentColor(string? judgment) => judgment == "加速" ? Color.Warning : Color.Default;
+    private static Color GetPlanFlowJudgmentColor(string? judgment) => judgment == PlanFlowJudgmentKeys.Accelerate ? Color.Error : Color.Default;
 
     // ========== 筛选上下文构建（内存数据驱动） ==========
 
@@ -1029,6 +1014,9 @@ public partial class BatchPlans
             }
         }
 
+        // 配置驱动工段 Tab 加载（置于 _selectedSection 恢复之后，内部含悬空校验）
+        await LoadSectionTabOptionsAsync();
+
         await LoadDataAsync();
         await LoadSummaryAsync();
     }
@@ -1327,7 +1315,7 @@ public partial class BatchPlans
                 builder.AddContent(0, item.DeliveryDate == default ? "" : item.DeliveryDate.ToString("yyyy-MM-dd"));
                 break;
             case "DeliveryState":
-                builder.AddContent(0, col.DisplayConverter?.Invoke(item.DeliveryState) as string ?? (item.DeliveryState.HasValue ? DisplayHelper.GetDeliveryStateText(item.DeliveryState.Value) : "-"));
+                builder.AddContent(0, col.DisplayConverter?.Invoke(item.DeliveryState) as string ?? DisplayHelper.GetDeliveryStateText(item.DeliveryState));
                 break;
             case "Specification":
                 builder.AddContent(0, item.Specification);
@@ -1878,46 +1866,6 @@ public partial class BatchPlans
                 Columns = printColumns
             };
             var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.SectionParagraphFlowAnalysis}/print-file";
-            var json = JsonSerializer.Serialize(request);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    /// <summary>打印「工段流转分析」折叠查询（后端 QuestPDF，无可持续天数列）</summary>
-    private async Task PrintFlowAnalysis()
-    {
-        try
-        {
-            var printColumns = new List<PrintColumnDef>
-            {
-                new() { Key = "Category",      Label = "流转类别" },
-                new() { Key = "PendingTotal",  Label = "待在产重量" },
-                new() { Key = "StatusJudgment",Label = "总况判定" },
-                new() { Key = "PlanFlowQuantity",Label = "计划流转量" },
-                new() { Key = "PlanFlowJudgment",Label = "计划流转判定" },
-                new() { Key = "PlanKeyWeight", Label = "特急批重量" },
-            };
-            var printItems = _flowRows.Select(item => new Dictionary<string, object>
-            {
-                ["Category"] = item.CategoryName,
-                ["PendingTotal"] = RenderInt(item.PendingTotal),
-                ["StatusJudgment"] = item.StatusJudgment ?? "-",
-                ["PlanFlowQuantity"] = RenderInt(item.PlanFlowQuantity),
-                ["PlanFlowJudgment"] = item.PlanFlowJudgment ?? "-",
-                ["PlanKeyWeight"] = RenderInt(item.PlanKeyWeight),
-            }).ToList();
-
-            var request = new SectionFlowAnalysisPrintRequest
-            {
-                Title = "工段流转分析",
-                Items = printItems,
-                Columns = printColumns
-            };
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.SectionFlowAnalysis}/print-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }

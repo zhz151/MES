@@ -118,14 +118,4 @@ public class WorkOrderExecutionController : ControllerBase
         return File(pdfBytes, "application/pdf", "工单执行状况.pdf");
     }
 
-    /// <summary>
-    /// 打印全部（按筛选条件）
-    /// </summary>
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] WorkOrderExecutionPrintAllRequest request)
-    {
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.SignDateFrom, request.SignDateTo, request.DeliveryDateStart, request.DeliveryDateEnd, request.Columns);
-        return File(pdfBytes, "application/pdf", "工单执行状况-全部.pdf");
-    }
 }

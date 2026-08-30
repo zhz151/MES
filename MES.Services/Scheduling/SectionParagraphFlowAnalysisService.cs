@@ -1,9 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using MES.Core.Constants;
+using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.Interfaces.Scheduling;
 using MES.Data;
-using MES.Data.Entities.Configuration;
+using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Batch;
 using MES.Services.Helpers;
@@ -14,8 +15,8 @@ namespace MES.Services.Scheduling;
 
 /// <summary>
 /// 生产段落流转量分析服务 — 按生产段落汇总待在产量数据。
-/// 段落包含的(工序组,工段,产类)组合由组合归类表 CombinationGroups 的「归属段落」承载：
-/// 同一段落下可含多个归属流转类别（如「切割」含 荒管平头/油断5060/断切5060 等），段落维度 = 组合行按归属段落上卷聚合。
+/// 段落由 3 类配置自动生成（冷轧拔=机台组显示名 / 普通工段=StandardWorkDays / 检验=固定），
+/// 聚合按段落类别直接匹配待在产三维行。
 /// </summary>
 public class SectionParagraphFlowAnalysisService : ISectionParagraphFlowAnalysisService
 {
@@ -42,84 +43,64 @@ public class SectionParagraphFlowAnalysisService : ISectionParagraphFlowAnalysis
         // 1. 获取生产工段待在产量数据（(工序组,工段,产类)三维，含每维度 All 汇总行）
         var statusData = await _statusService.GetStatusAsync();
 
-        // 2. 从段落配置服务加载段落 + 组合归类表（按「归属段落」分组）
+        // 2. 从段落配置服务加载段落（内部自动同步 3 类配置展开的期望段落集）+ 冷轧机台组工序集合
         var paragraphs = (await _paragraphService.GetSettingsAsync())
             .OrderBy(p => p.DisplayOrder)
             .ThenBy(p => p.Id)
             .ToList();
 
-        var combinationGroups = await _context.CombinationGroups.AsNoTracking().ToListAsync();
-        var groupsByParagraph = new Dictionary<string, List<CombinationGroup>>();
-        foreach (var c in combinationGroups)
+        var machineGroups = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+        var groupConfigs = await _context.ColdRollMachineGroupConfigs.AsNoTracking().ToListAsync();
+        foreach (var g in groupConfigs)
         {
-            if (string.IsNullOrEmpty(c.ParagraphName)) continue;
-            if (!groupsByParagraph.TryGetValue(c.ParagraphName, out var groupList))
-                groupsByParagraph[c.ParagraphName] = groupList = new List<CombinationGroup>();
-            groupList.Add(c);
+            machineGroups[g.GroupKey] = SplitProcessKeys(g.ProcessKeys);
         }
 
-        // 3. 逐段落计算：所有段落统一从组合归类表按归属段落聚合
+        // 3. 逐段落按 3 类规则匹配待在产三维行
         var results = paragraphs.Select(paragraph =>
         {
             decimal pendingTotal = 0;
-            decimal variationTotal = 0;
             decimal planFlowTotal = 0;
             decimal planKeyTotal = 0;
 
-            if (groupsByParagraph.TryGetValue(paragraph.ParagraphName, out var groupRows))
+            foreach (var match in statusData)
             {
-                foreach (var grp in groupRows)
-                {
-                    decimal baseAmount = 0;
-                    decimal planFlowAmount = 0;
-                    decimal planKeyAmount = 0;
-                    foreach (var match in statusData)
-                    {
-                        if (!Matches(grp, match.ProcessGroupName, match.SectionName, match.ProductStatus))
-                            continue;
-                        baseAmount += match.Total ?? 0m;
-                        planFlowAmount += match.PlanFlowQuantity ?? 0m;
-                        planKeyAmount += match.PlanKeyWeight ?? 0m;
-                    }
-                    if (baseAmount == 0) continue;
-                    pendingTotal += baseAmount;
-                    variationTotal += baseAmount;
-                    planFlowTotal += planFlowAmount;
-                    planKeyTotal += planKeyAmount;
-                }
+                if (!MatchesParagraph(paragraph, match.ProcessGroupName, match.SectionName, match.ProductStatus, machineGroups))
+                    continue;
+                pendingTotal += match.Total ?? 0m;
+                planFlowTotal += match.PlanFlowQuantity ?? 0m;
+                planKeyTotal += match.PlanKeyWeight ?? 0m;
             }
 
             // 精确吨值（DTO 存精确值：前端单行显示时取整、页脚汇总先精确求和再一次取整，消除逐行取整放大）
             var pendingTonsExact = pendingTotal / 1000m;
-            var variationTonsExact = variationTotal / 1000m;
             var planFlowTonsExact = planFlowTotal / 1000m;
             var planKeyTonsExact = planKeyTotal / 1000m;
 
             // 取整吨（仅用于非零门控/可持续天数/流转判定，保持既有判定口径；存储仍用精确值）
             var pendingTons = Math.Round(pendingTonsExact, 0);
-            var variationTons = Math.Round(variationTonsExact, 0);
             var planFlowTons = Math.Round(planFlowTonsExact, 0);
             var planKeyTons = Math.Round(planKeyTonsExact, 0);
 
             var sustainableDays = paragraph.DailyFlowTarget.HasValue && paragraph.DailyFlowTarget.Value > 0
-                ? Math.Round(variationTons / paragraph.DailyFlowTarget.Value, 1)
+                ? Math.Round(pendingTons / paragraph.DailyFlowTarget.Value, 1)
                 : (decimal?)null;
 
             string? status = null;
             if (sustainableDays.HasValue && paragraph.LowerLimitDays.HasValue && paragraph.UpperLimitDays.HasValue)
             {
                 if (sustainableDays.Value < paragraph.LowerLimitDays.Value)
-                    status = "偏少";
+                    status = SustainStatusKeys.Insufficient;
                 else if (sustainableDays.Value > paragraph.UpperLimitDays.Value)
-                    status = "过多";
+                    status = SustainStatusKeys.Excessive;
                 else
-                    status = "正常";
+                    status = SustainStatusKeys.Normal;
             }
 
             // 计划流转判定：计划流转量 > 日流转设定 → 加速，否则 -
             var planFlowJudgment = paragraph.DailyFlowTarget.HasValue && planFlowTons > paragraph.DailyFlowTarget.Value
-                ? "加速"
-                : "-";
+                ? PlanFlowJudgmentKeys.Accelerate
+                : PlanFlowJudgmentKeys.NormalDash;
 
             return new SectionParagraphFlowAnalysisDto
             {
@@ -127,7 +108,6 @@ public class SectionParagraphFlowAnalysisService : ISectionParagraphFlowAnalysis
                 ParagraphName = paragraph.ParagraphName,
                 DisplayOrder = paragraph.DisplayOrder,
                 PendingTotal = pendingTons > 0 ? pendingTonsExact : null,
-                VariationTotal = variationTons > 0 ? variationTonsExact : null,
                 DailyFlowTarget = paragraph.DailyFlowTarget,
                 SustainableDays = sustainableDays,
                 LowerLimitDays = paragraph.LowerLimitDays,
@@ -140,7 +120,7 @@ public class SectionParagraphFlowAnalysisService : ISectionParagraphFlowAnalysis
         }).ToList();
 
         // 4. 重点批次统计（按段落汇总批次计划中的重点批次计数和重量，单位：吨）
-        // 与待在产量聚合同源：批次按(待产工序组,待产工段,批次产类)匹配组合归类表三维行 → 上卷到归属段落
+        // 与待在产量聚合同源：批次按(待产工序组,待产工段,批次产类)按 3 类规则匹配 → 上卷到所属段落
         var batchQuery = _context.ProductionBatches.AsNoTracking()
             .Where(b => b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress);
         var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
@@ -222,16 +202,8 @@ public class SectionParagraphFlowAnalysisService : ISectionParagraphFlowAnalysis
             // 每个重点批次在同一段落维度下只计一次
             foreach (var paragraph in paragraphs)
             {
-                if (!groupsByParagraph.TryGetValue(paragraph.ParagraphName, out var groupRows)) continue;
-                var matched = false;
-                foreach (var grp in groupRows)
-                {
-                    if (!Matches(grp, pendingProcessKey, pendingSectionKey, productStatus))
-                        continue;
-                    matched = true;
-                    break;
-                }
-                if (!matched) continue;
+                if (!MatchesParagraph(paragraph, pendingProcessKey, pendingSectionKey, productStatus, machineGroups))
+                    continue;
                 var stats = keyBatchStats[paragraph.Id];
                 keyBatchStats[paragraph.Id] = (stats.count + 1, stats.weight + weightTons);
             }
@@ -250,23 +222,41 @@ public class SectionParagraphFlowAnalysisService : ISectionParagraphFlowAnalysis
     }
 
     /// <summary>
-    /// 组合归类行三维匹配：工序组/工段支持"全部"通配；产类 AllStatus=不限定，否则精确匹配。
+    /// 段落三维匹配（配置驱动 3 类规则，口径与批次计划汇总 Tab 对齐）：
+    /// 冷轧拔=工序组命中机台组内任一工序 且 工段=冷轧拔（机台组内非冷轧拔工序批次归普通工段，无双计不丢失）；
+    /// 普通工段=工段命中（不再排除冷轧工序——冷轧拔段落已按工段限定，天然互斥）；
+    /// 检验=检验工段按荒管/在制产类划分（荒管检=RoughTube、在制检=InProgress）。
     /// </summary>
-    private static bool Matches(CombinationGroup grp, string processKey, string sectionKey, string productStatus)
+    private static bool MatchesParagraph(SectionParagraphConfigDto paragraph, string processKey, string sectionKey, string productStatus,
+        IReadOnlyDictionary<string, string[]> machineGroups)
     {
-        if (!string.Equals(grp.ProcessGroupName, CombinationWildcards.All, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(grp.ProcessGroupName, processKey, StringComparison.OrdinalIgnoreCase))
-            return false;
+        switch (paragraph.CategoryType)
+        {
+            case ParagraphCategoryTypes.Cold:
+                return paragraph.ParagraphKey != null
+                    && machineGroups.TryGetValue(paragraph.ParagraphKey, out var keys)
+                    && keys.Contains(processKey, StringComparer.OrdinalIgnoreCase)
+                    && string.Equals(sectionKey, SectionKeys.ColdRollDraw, StringComparison.OrdinalIgnoreCase);
+            case ParagraphCategoryTypes.Section:
+                return string.Equals(paragraph.ParagraphKey, sectionKey, StringComparison.OrdinalIgnoreCase);
+            case ParagraphCategoryTypes.Fixed:
+                if (!string.Equals(sectionKey, SectionKeys.Inspection, StringComparison.OrdinalIgnoreCase))
+                    return false;
+                if (paragraph.ParagraphKey == BatchPlanSectionTabs.RoughTubeInspection)
+                    return string.Equals(productStatus, ProductStatuses.RoughTube, StringComparison.OrdinalIgnoreCase);
+                if (paragraph.ParagraphKey == BatchPlanSectionTabs.InProcessInspection)
+                    return string.Equals(productStatus, ProductStatuses.InProgress, StringComparison.OrdinalIgnoreCase);
+                return false;
+            default:
+                return false;
+        }
+    }
 
-        if (!string.Equals(grp.SectionName, CombinationWildcards.All, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(grp.SectionName, sectionKey, StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        if (!string.Equals(grp.ProductStatus, ProductStatuses.AllStatus, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(grp.ProductStatus, productStatus, StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        return true;
+    /// <summary>逗号分隔工序串切分（Trim + 去空），与 ColdRollPlanService.SplitProcessKeys 同构</summary>
+    private static string[] SplitProcessKeys(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return Array.Empty<string>();
+        return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
     /// <summary>打印选中行（Mode A：前端已准备数据）</summary>

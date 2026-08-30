@@ -13,7 +13,6 @@ public class PurchasePendingDto
 
     /// <summary>物料分类（MaterialType 枚举名）</summary>
     public MaterialType? MaterialCategory { get; set; }
-    public string? MaterialCategoryDisplay => MaterialCategory.HasValue ? EnumHelper.GetDisplayName(MaterialCategory.Value) : null;
 
     /// <summary>厂内钢种（组内多值合并）</summary>
     public string PlantGrade { get; set; } = "";

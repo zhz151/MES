@@ -276,14 +276,6 @@ public class EquipmentService : IEquipmentService
         return EquipmentPrintHelper.GenerateBatchPdf(selected, columns);
     }
 
-    public async Task<byte[]> PrintAllAsync(EquipmentQueryParams query, List<PrintColumnDef> columns)
-    {
-        query.PageIndex = 1;
-        query.PageSize = int.MaxValue;
-        var result = await GetPagedAsync(query);
-        return EquipmentPrintHelper.GenerateBatchPdf(result.Items, columns);
-    }
-
     private static EquipmentListDto ToDto(MES.Data.Entities.Equipment.Equipment e) => new()
     {
         Id = e.Id,

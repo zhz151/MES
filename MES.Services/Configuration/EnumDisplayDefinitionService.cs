@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using MES.Core.Constants;
 using MES.Core.DTOs.Configuration;
 using MES.Core.Exceptions;
 using MES.Core.Helpers;
@@ -127,7 +128,8 @@ public class EnumDisplayDefinitionService : IEnumDisplayDefinitionService
     {
         if (string.IsNullOrWhiteSpace(dto.EnumKey) || string.IsNullOrWhiteSpace(dto.Value) || string.IsNullOrWhiteSpace(dto.DisplayName))
             throw new BusinessException("枚举标识、枚举值与中文显示不能为空");
-        if (!ContainsChinese(dto.DisplayName))
+        // 中文显示须含汉字，但纯符号显示名（如 "不要求" 显示为 "-"）放行：含字母/数字才拦截，杜绝英文/数字当显示名
+        if (!ContainsChinese(dto.DisplayName) && dto.DisplayName.Any(char.IsLetterOrDigit))
             throw new BusinessException($"枚举「{dto.Value}」的中文显示「{dto.DisplayName}」必须包含汉字");
 
         if (dto.EnumKey.Length > 50 || dto.Value.Length > 50)
@@ -204,7 +206,7 @@ public class EnumDisplayDefinitionService : IEnumDisplayDefinitionService
     {
         return (await _cache.GetOrCreateAsync(MapCacheKey, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var map = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
 
@@ -248,7 +250,7 @@ public class EnumDisplayDefinitionService : IEnumDisplayDefinitionService
     {
         return (await _cache.GetOrCreateAsync(OptionsCacheKey, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var map = new Dictionary<string, List<EnumDisplayOptionDto>>(StringComparer.OrdinalIgnoreCase);
 

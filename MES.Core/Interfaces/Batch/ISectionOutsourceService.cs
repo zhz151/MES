@@ -44,11 +44,6 @@ public interface ISectionOutsourceService
     // ========== 委外回收 ==========
 
     /// <summary>
-    /// 获取指定委外发出的回收明细列表
-    /// </summary>
-    Task<List<OutsourceRecoveryDto>> GetRecoveriesAsync(int outsourceId);
-
-    /// <summary>
     /// 跨批次分页查询回收记录
     /// </summary>
     Task<PagedResult<OutsourceRecoveryDto>> GetRecoveriesPagedAsync(QueryParams query);
@@ -81,24 +76,9 @@ public interface ISectionOutsourceService
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
 
     /// <summary>
-    /// 按筛选条件打印全部委外发出
-    /// </summary>
-    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending,
-        DateTime? sendOutDateFrom, DateTime? sendOutDateTo,
-        DateTime? actualRecoveryDateFrom, DateTime? actualRecoveryDateTo,
-        List<PrintColumnDef> columns);
-
-    /// <summary>
     /// 批量打印回收记录（选中）
     /// </summary>
     Task<byte[]> PrintRecoveryBatchAsync(int[] ids, List<PrintColumnDef> columns);
-
-    /// <summary>
-    /// 按筛选条件打印全部回收记录
-    /// </summary>
-    Task<byte[]> PrintRecoveryAllAsync(string? keyword, string? sortBy, bool isDescending,
-        DateTime? recoveryDateFrom, DateTime? recoveryDateTo,
-        List<PrintColumnDef> columns);
 
     /// <summary>
     /// 获取委外回收筛选上下文（各列去重值），用于 ExcelFilter 下拉选项

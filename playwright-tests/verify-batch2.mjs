@@ -30,14 +30,9 @@ const RETEST_PAGES = [
   { url: '/employees', name: '员工管理', module: 'Config', hasPrint: true },
   { url: '/workstations', name: '工位管理', module: 'Config', hasPrint: true },
   { url: '/standard-work-days', name: '标准工时', module: 'Config', hasPrint: false },
-  { url: '/section-flow-category-settings', name: '工序类别', module: 'Config', hasPrint: false },
   { url: '/daily-production-capacities', name: '日产能', module: 'Config', hasPrint: false },
   { url: '/daily-output-estimates', name: '日产量预估', module: 'Config', hasPrint: false },
   { url: '/standard-work-day-delivery-states', name: '标准交期状态', module: 'Config', hasPrint: false },
-
-  // ---- Analysis ----
-  { url: '/section-flow-analysis', name: '工序流量分析', module: 'Analysis', hasPrint: false },
-  { url: '/section-production-status', name: '工序生产状态', module: 'Analysis', hasPrint: false },
 
   // ---- 其他 ----
   { url: '/admin/users', name: '用户管理', module: 'Admin', hasPrint: false },

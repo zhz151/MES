@@ -641,7 +641,7 @@ public partial class PurchaseOrders : IAsyncDisposable
                 builder.AddContent(0, DisplayHelper.GetYesNoText(item.WoDelayPenalty));
                 break;
             case "WoSettlementMethod":
-                builder.AddContent(0, item.WoSettlementMethod.HasValue ? DisplayHelper.GetSettlementMethodText(item.WoSettlementMethod.Value) : "-");
+                builder.AddContent(0, DisplayHelper.GetSettlementMethodText(item.WoSettlementMethod));
                 break;
             case "WoPlantGrade":
                 builder.AddContent(0, item.WoPlantGrade);
@@ -650,7 +650,7 @@ public partial class PurchaseOrders : IAsyncDisposable
                 builder.AddContent(0, item.WoSpecification);
                 break;
             case "WoLengthStatus":
-                builder.AddContent(0, item.WoLengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(item.WoLengthStatus.Value) : "-");
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.WoLengthStatus));
                 break;
             case "WoMaxLength":
                 builder.AddContent(0, item.WoMaxLength?.ToString("G29") ?? "-");
@@ -662,7 +662,7 @@ public partial class PurchaseOrders : IAsyncDisposable
                 builder.AddContent(0, item.WoTotalWeight.HasValue ? ((int)item.WoTotalWeight.Value).ToString() : "-");
                 break;
             case "WoDeliveryState":
-                builder.AddContent(0, item.WoDeliveryState.HasValue ? DisplayHelper.GetDeliveryStateText(item.WoDeliveryState.Value) : "-");
+                builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.WoDeliveryState));
                 break;
             case "WoTotalItemCount":
                 builder.AddContent(0, item.WoTotalItemCount);

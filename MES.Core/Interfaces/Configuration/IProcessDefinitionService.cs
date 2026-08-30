@@ -32,12 +32,12 @@ public interface IProcessDefinitionService
     /// <summary>归一为显示中文：Key → 中文；已是中文原样返回；未知返回 null</summary>
     Task<string?> ToDisplayAsync(string? keyOrName);
 
-    /// <summary>归一为稳定 Key：已是 Key 原样返回；中文反查；未知返回 null</summary>
-    Task<string?> ToKeyAsync(string? nameOrKey);
-
-    /// <summary>获取冷轧系列 Key 集合（IsColdRoll=true），IMemoryCache 5 分钟</summary>
-    Task<HashSet<string>> GetColdRollKeysAsync();
-
     /// <summary>获取冷轧或冷拔 Key 集合（IsColdRoll || IsColdDraw），IMemoryCache 5 分钟</summary>
     Task<HashSet<string>> GetColdRollOrDrawKeysAsync();
+
+    /// <summary>
+    /// 获取冷轧或冷拔工序选项（IsColdRoll || IsColdDraw，**且 IsEnabled=true 仅启用工序**，按 DisplayOrder 升序），
+    /// 机型下拉/工段 Tab/机台组配置工序多选动态化用；禁用工序不参与归组/机台数配置/工段 Tab。
+    /// </summary>
+    Task<List<ProcessInfoDto>> GetColdRollOrDrawOptionsAsync();
 }

@@ -51,7 +51,6 @@ const PAGES = [
   { name: 'DailyProductionCapacities',   path: '/daily-production-capacities',      type: 'LIST' },
   { name: 'StandardWorkDays',            path: '/standard-work-days',               type: 'LIST' },
   { name: 'StandardWorkDayDeliveryStates',path: '/standard-work-day-delivery-states',type: 'LIST' },
-  { name: 'SectionFlowCategorySettings', path: '/section-flow-category-settings',   type: 'LIST' },
 
   // ================ Equipment ================
   { name: 'Equipments',            path: '/equipment',              type: 'LIST' },
@@ -122,8 +121,6 @@ const PAGES = [
   { name: 'FinalInspectionPlan',      path: '/final-inspection-plan',         type: 'LIST' },
   { name: 'PlanOverview',             path: '/plan-overview',                 type: 'LIST' },
   { name: 'RawMaterialLockPlan',      path: '/raw-material-lock-plan',        type: 'LIST' },
-  { name: 'SectionFlowAnalysis',      path: '/section-flow-analysis',         type: 'LIST' },
-  { name: 'SectionProductionStatus',  path: '/section-production-status',     type: 'LIST' },
   { name: 'WorkOrderSchedules',       path: '/scheduling-plans',              type: 'LIST' },
 
   // ================ StandardRegister ================

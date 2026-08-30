@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
@@ -163,9 +164,9 @@ public class IntergranularCorrosionTestService : IIntergranularCorrosionTestServ
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("IntergranularCorrosionTestService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.IntergranularCorrosionTestFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var all = await _context.IntergranularCorrosionTests
                 .AsNoTracking()
@@ -191,22 +192,6 @@ public class IntergranularCorrosionTestService : IIntergranularCorrosionTestServ
         var result = await GetAllAsync(query);
         var selected = result.Items.Where(i => ids.Contains(i.Id)).ToList();
         return IntergranularCorrosionTestPrintHelper.GenerateBatchPdf(selected, columns);
-    }
-
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? null! : sortBy,
-            IsDescending = isDescending,
-            InspectionDateFrom = inspectionDateFrom,
-            InspectionDateTo = inspectionDateTo
-        };
-        var result = await GetAllAsync(query);
-        return IntergranularCorrosionTestPrintHelper.GenerateBatchPdf(result.Items, columns);
     }
 
     private static IQueryable<IntergranularCorrosionTest> ApplySorting(IQueryable<IntergranularCorrosionTest> queryable, string sortBy, bool isDescending)

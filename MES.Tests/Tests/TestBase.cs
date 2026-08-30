@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Core.Constants;
+using MES.Core.DTOs.Configuration;
 using MES.Core.Enums;
 using MES.Core.Interfaces.Configuration;
 using MES.Data.Entities.Batch;
@@ -162,6 +163,19 @@ public abstract class TestBase
     /// 创建 IProcessDefinitionService 统一 Mock：冷轧 Key 集合（预置 9 工序中 5 冷轧 + 冷拔）与 Key↔中文映射。
     /// </summary>
     protected static IProcessDefinitionService CreateProcessDefinitionServiceMock()
+        => CreateProcessDefinitionServiceMock(Array.Empty<string>());
+
+    /// <summary>
+    /// 同上，附加额外冷轧/冷拔 Key（集成测试模拟配置表新增工序用，如 ColdRoll75/ColdRoll55）。
+    /// </summary>
+    protected static IProcessDefinitionService CreateProcessDefinitionServiceMock(params string[] extraKeys)
+        => CreateProcessDefinitionServiceMock(extraKeys, Array.Empty<string>());
+
+    /// <summary>
+    /// 同上，可额外指定禁用工序 Key（disabledKeys 中的冷轧/冷拔工序 IsEnabled=false，
+    /// 用于「禁用工序无法归组」场景；GetColdRollOrDrawOptionsAsync 仅返回启用工序）。
+    /// </summary>
+    protected static IProcessDefinitionService CreateProcessDefinitionServiceMock(string[] extraKeys, string[] disabledKeys)
     {
         var mock = new Mock<IProcessDefinitionService>();
         var coldRollKeys = new HashSet<string>(
@@ -175,13 +189,44 @@ public abstract class TestBase
         {
             ProcessKeys.ColdDraw
         };
-        mock.Setup(x => x.GetColdRollKeysAsync()).ReturnsAsync(coldRollKeys);
+        foreach (var key in extraKeys)
+            coldRollOrDrawKeys.Add(key);
+
+        // 工序选项（仅启用的冷轧/冷拔工序）：禁用工序 IsEnabled=false 但保留在集合内，Options 过滤掉
+        var disabled = new HashSet<string>(disabledKeys, StringComparer.OrdinalIgnoreCase);
+        var options = coldRollOrDrawKeys
+            .Select((key, i) => new ProcessInfoDto
+            {
+                ProcessKey = key,
+                ProcessName = ProcessKeys.ToChinese(key) ?? key,
+                DisplayOrder = i,
+                IsEnabled = !disabled.Contains(key),
+                IsColdRoll = coldRollKeys.Contains(key),
+                IsColdDraw = key == ProcessKeys.ColdDraw,
+                DefaultSections = null,
+            })
+            .Where(o => o.IsEnabled)
+            .ToList();
+
         mock.Setup(x => x.GetColdRollOrDrawKeysAsync()).ReturnsAsync(coldRollOrDrawKeys);
+        mock.Setup(x => x.GetColdRollOrDrawOptionsAsync()).ReturnsAsync(options);
         mock.Setup(x => x.GetProcessNameMapAsync()).ReturnsAsync(ProcessKeys.KeyToChinese);
         mock.Setup(x => x.ToDisplayAsync(It.IsAny<string?>()))
             .ReturnsAsync((string? v) => ProcessKeys.ToChinese(v));
-        mock.Setup(x => x.ToKeyAsync(It.IsAny<string?>()))
-            .ReturnsAsync((string? v) => ProcessKeys.ToKey(v));
+        return mock.Object;
+    }
+
+    /// <summary>
+    /// 创建 IStandardWorkDayService 统一 Mock：默认返回空启用工段列表（消费方回退 SectionDefs 规范中文）。
+    /// 传入工段列表可模拟「工段工量天数」启用工段（普通工段 Tab/委外在产列配置驱动测试用）。
+    /// </summary>
+    protected static IStandardWorkDayService CreateStandardWorkDayServiceMock()
+        => CreateStandardWorkDayServiceMock(Array.Empty<SectionInfoDto>());
+
+    protected static IStandardWorkDayService CreateStandardWorkDayServiceMock(params SectionInfoDto[] sections)
+    {
+        var mock = new Mock<IStandardWorkDayService>();
+        mock.Setup(x => x.GetEnabledSectionsAsync()).ReturnsAsync(sections.ToList());
         return mock.Object;
     }
 

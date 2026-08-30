@@ -4,12 +4,17 @@ using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OfficeOpenXml;
 using MES.Core.Constants;
 using MES.Core.Exceptions;
 using MES.Core.Helpers;
 using MES.Core.Interfaces.DataExchange;
+using MES.Core.Interfaces.Configuration;
+using MES.Core.Interfaces.Order;
+using MES.Core.Interfaces.Quality;
+using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
@@ -28,6 +33,9 @@ public class DataImportService : IDataImportService
 {
     protected readonly AppDbContext _context;
     private readonly ILogger<DataImportService> _logger;
+
+    /// <summary>跨上下文读模型刷新懒解析（Excel 导入直写 DbContext 未走增量刷新路径，导入成功后全量兜底刷新）</summary>
+    private readonly IServiceScopeFactory? _scopeFactory;
 
     /// <summary>字典配置表反向映射（DictKey → DisplayName → Value），供导入 Excel 中文 → 英文 Key；可加值字典的加值项也能转回 Key</summary>
     private Dictionary<string, Dictionary<string, string>>? _dictReverseMaps;
@@ -56,10 +64,11 @@ public class DataImportService : IDataImportService
         return null;
     }
 
-    public DataImportService(AppDbContext context, ILogger<DataImportService> logger)
+    public DataImportService(AppDbContext context, ILogger<DataImportService> logger, IServiceScopeFactory? scopeFactory = null)
     {
         _context = context;
         _logger = logger;
+        _scopeFactory = scopeFactory;
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
     }
 
@@ -510,6 +519,9 @@ public class DataImportService : IDataImportService
                 _logger.LogInformation(
                     "导入 {Entity} 完成: 共 {Total} 行, 成功 {Success}, 失败 {Failed}",
                     entityKey, result.TotalRows, result.SuccessCount, result.FailedCount);
+
+                // 6. 提交成功后兜底全量刷新读模型（Excel 直写 DbContext 未走各服务增量刷新路径）
+                await TryRefreshReadModelsAfterImportAsync();
             }
             catch (Exception ex)
             {
@@ -528,6 +540,45 @@ public class DataImportService : IDataImportService
     #endregion
 
     #region 私有方法
+
+    /// <summary>
+    /// 导入提交成功后兜底全量刷新所有读模型（Excel 直写 DbContext 未走各服务增量刷新路径）。
+    /// 依赖懒解析（IServiceScopeFactory）避免与各读模型服务形成构造环；失败仅记日志不影响导入结果。
+    /// 顺序关键：工单执行 → 订单列表 → 用料计划总览 → 质量过程跟踪（前者是后者的数据源）。
+    /// </summary>
+    private async Task TryRefreshReadModelsAfterImportAsync()
+    {
+        if (_scopeFactory == null) return;
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var services = scope.ServiceProvider;
+
+            var execService = services.GetRequiredService<IWorkOrderExecutionService>();
+            await execService.RefreshAllAsync();
+
+            var orderService = services.GetRequiredService<IOrderService>();
+            await orderService.RefreshAllAsync();
+
+            var listSummaryService = services.GetRequiredService<IWorkOrderListSummaryRefreshService>();
+            await listSummaryService.RefreshAllAsync();
+
+            var qptService = services.GetRequiredService<IQualityProcessTrackingService>();
+            await qptService.RefreshAllAsync();
+
+            // 若导入内容含 MaterialPlanTolerance 类目，同步刷新静态容差快照（与 ConfigParameterService 写操作同口径），
+            // 使到料实投一致性容差导入后即生效，无需重启/再保存
+            var configService = services.GetRequiredService<IConfigParameterService>();
+            var toleranceMap = await configService.GetConfigMapAsync("MaterialPlanTolerance");
+            MaterialPlanToleranceProvider.Apply(toleranceMap.GetValueOrDefault("InputConsistencyTolerance"));
+
+            _logger.LogInformation("导入完成后读模型全量刷新完成");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "导入完成后读模型全量刷新失败（不影响导入结果）");
+        }
+    }
 
     private async Task<List<object>> QueryAllAsync(Type entityType)
     {

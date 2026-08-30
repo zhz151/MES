@@ -45,6 +45,13 @@ public interface IBatchPlanService
     /// </summary>
     Task<BatchPlanOutsourcePendingDto> GetOutsourcePendingAsync();
 
+    /// <summary>
+    /// 获取工段筛选 Tab 选项（配置驱动）：冷轧冷拔类 = ProcessDefinitions 启用工序，
+    /// 普通工段 = StandardWorkDays 启用工段（扣除冷轧拔/检验/入库），末尾固定「荒管检」「在制检」。
+    /// 前端 Tab 渲染与委外在产列排序（Display→序）共用。
+    /// </summary>
+    Task<List<BatchPlanSectionTabDto>> GetSectionTabOptionsAsync();
+
     /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
     Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<MES.Core.DTOs.Shared.PrintColumnDef> columns);
 }

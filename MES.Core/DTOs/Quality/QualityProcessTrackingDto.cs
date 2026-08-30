@@ -25,7 +25,6 @@ public class QualityProcessTrackingDto
     public string? IsDeliveryStatus { get; set; }
     public string? IsDeliveryStatusDisplay => IsFormalInspection ? IsDeliveryStatus : "-";
     public MaterialType? ManufacturingItem { get; set; }
-    public string? ManufacturingItemDisplay => ManufacturingItem.HasValue ? EnumHelper.GetDisplayName(ManufacturingItem.Value) : null;
     public string? TagNo { get; set; }
     public string? WorkOrderNo { get; set; }
     public string? SalesOrderNo { get; set; }
@@ -35,13 +34,10 @@ public class QualityProcessTrackingDto
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }
     public ProductionType? ProductionType { get; set; }
-    public string? ProductionTypeDisplay => ProductionType.HasValue ? EnumHelper.GetDisplayName(ProductionType.Value) : null;
     public LengthStatus? LengthStatus { get; set; }
-    public string? LengthStatusDisplay => LengthStatus.HasValue ? EnumHelper.GetDisplayName(LengthStatus.Value) : null;
     public decimal? ProductionWeight { get; set; }
     public DateTime ReceiveDate { get; set; }
     public ShiftType? Shift { get; set; }
-    public string? ShiftDisplay => Shift.HasValue ? EnumHelper.GetDisplayName(Shift.Value) : null;
     public string? Checker { get; set; }
     public string? Salesman { get; set; }
     public DeliveryState? ManufacturingStatus { get; set; }
@@ -49,7 +45,6 @@ public class QualityProcessTrackingDto
         ? "-"
         : ManufacturingStatus.HasValue ? EnumHelper.GetDisplayName(ManufacturingStatus.Value) : "-";
     public DeliveryState? DeliveryState { get; set; }
-    public string? DeliveryStateDisplay => DeliveryState.HasValue ? EnumHelper.GetDisplayName(DeliveryState.Value) : null;
     public string? EndCustomer { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
     public DateTimeOffset UpdatedTime { get; set; }

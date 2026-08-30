@@ -131,17 +131,6 @@ public class SupplierController : ControllerBase
         return File(pdfBytes, "application/pdf", $"供应商批量.pdf");
     }
 
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.MaterialView)]
-    public async Task<IActionResult> PrintSupplierAllFile([FromBody] OrderPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintSupplierAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
-        return File(pdfBytes, "application/pdf", $"供应商全部.pdf");
-    }
-
     [HttpGet("active")]
     [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<List<SupplierProfileDto>>>> GetActive()

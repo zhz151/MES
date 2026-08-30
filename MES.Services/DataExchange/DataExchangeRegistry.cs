@@ -1559,20 +1559,11 @@ public static class DataExchangeRegistry
             new("说明", "Remark", typeof(string), isRequired: false),
         }),
 
-        // === 流转类别日产配置(流转分析)（独立配置表，流转类别唯一；组合明细由组合归类表 CombinationGroups 承载，另行管理） ===
-        ["SectionFlowCategorySetting"] = new EntityDef("配置-流转类别日产配置(流转分析)", "配置-流转类别日产配置(流转分析)", typeof(MES.Data.Entities.Configuration.SectionFlowCategorySetting), 1, "CategoryName", new List<ColumnDef>
-        {
-            new("流转类别", "CategoryName"),
-            new("显示顺序", "DisplayOrder", typeof(int), isRequired: false),
-            new("日产设定", "DailyProductionTarget", typeof(decimal), isRequired: false),
-            new("偏少天数值", "LowerLimitDays", typeof(decimal), isRequired: false),
-            new("过多天数值", "UpperLimitDays", typeof(decimal), isRequired: false),
-            new("备注", "Remark", typeof(string), isRequired: false),
-        }),
-
-        // === 段落日产配置(段落流转)（独立配置表，段落类别唯一；组合明细由组合归类表「归属段落」承载，另行管理） ===
+        // === 段落日产配置(段落流转)（段落由 3 类配置自动生成，仅参数可编辑；标识列随导出保留供同步识别，参数批量编辑仍可用） ===
         ["SectionParagraphConfig"] = new EntityDef("配置-段落日产配置(段落流转)", "配置-段落日产配置(段落流转)", typeof(MES.Data.Entities.Configuration.SectionParagraphConfig), 1, "ParagraphName", new List<ColumnDef>
         {
+            new("类型", "CategoryType", typeof(string), isRequired: false),
+            new("段落Key", "ParagraphKey", typeof(string), isRequired: false),
             new("段落类别", "ParagraphName"),
             new("显示顺序", "DisplayOrder", typeof(int), isRequired: false),
             new("日流转设定", "DailyFlowTarget", typeof(decimal), isRequired: false),
@@ -1580,16 +1571,6 @@ public static class DataExchangeRegistry
             new("过多天数值", "UpperLimitDays", typeof(decimal), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
-
-        // === 组合段落归类(段落流转)表（工序组×工段×产类三维唯一归属；第4列归属流转类别由用户导出Excel填中文后上传建立FK，第5列归属段落=中文段落名直接存储） ===
-        ["CombinationGroup"] = new EntityDef("配置-组合段落归类(段落流转)", "配置-组合段落归类(段落流转)", typeof(MES.Data.Entities.Configuration.CombinationGroup), 1, null, new List<ColumnDef>
-        {
-            new("工序组", "ProcessGroupName"),
-            new("工段", "SectionName"),
-            new("产类", "ProductStatus"),
-            new("归属流转类别", null!) { IsFkColumn = true, FkEntityKey = "SectionFlowCategorySetting", FkLookupProperty = "CategoryName", FkTargetProperty = "FlowCategoryId" },
-            new("归属段落", "ParagraphName", typeof(string), isRequired: false),
-        }, compositeKeyColumns: ["ProcessGroupName", "SectionName", "ProductStatus"]),
     };
 
     public static readonly List<string> EntityOrder = new()
@@ -1608,7 +1589,7 @@ public static class DataExchangeRegistry
         "ConfigParameter",
         "StandardRegister", "StandardRegisterItem",
         "GradeChemicalComposition", "GradePhysicalProperty", "StandardInspectionRequirement", "FactoryInspectionRequirement", "SubStandardQuickView",
-        "StandardWorkDay", "StandardWorkDayDeliveryState", "DailyOutputEstimate", "DailyProductionCapacity", "SectionFlowCategorySetting", "SectionParagraphConfig", "CombinationGroup",
+        "StandardWorkDay", "StandardWorkDayDeliveryState", "DailyOutputEstimate", "DailyProductionCapacity", "SectionParagraphConfig",
     };
 
     /// <summary>

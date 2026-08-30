@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
@@ -628,48 +629,6 @@ public class SubcontractOrderService : ISubcontractOrderService
                 await TryRefreshExecutionSummaryAsync(item.SourceWorkOrderNo);
     }
 
-    public async Task SyncSingleAsync(int id)
-    {
-        var order = await _context.SubcontractOrders
-            .Include(s => s.ReturnItems)
-            .FirstOrDefaultAsync(s => s.Id == id);
-        if (order == null) throw new BusinessException("委外单不存在");
-
-        var batches = await _context.InventoryBatches
-            .AsNoTracking()
-            .Where(b => b.SourceOrderNo == order.OrderNo)
-            .ToListAsync();
-
-        order.InQuantity = batches.Sum(b => b.InitialQuantity);
-        order.InWeight = batches.Sum(b => b.InitialWeight);
-
-        // 委外超量回收配置（仿采购订单超量到货判定）
-        var overRatio = await GetConfigAsync("WarehouseThreshold", "SubcontractOverRatio", 1.05m);
-        var overDeviation = await GetConfigAsync("WarehouseThreshold", "SubcontractOverDeviation", 100m);
-
-        // 退货量（序号级）：状态判定按「净回收 = 回收 - 退货」
-        var returnSummary = await BuildReturnSummaryAsync(new[] { order.OrderNo });
-        var returnBySequence = returnSummary.TryGetValue(order.OrderNo, out var rs) ? rs.BySequence : null;
-        var orderReturnWeight = returnBySequence?.Values.Sum(x => x.Weight) ?? 0m;
-
-        // 同步每个 ReturnItem 的回收数据
-        foreach (var item in order.ReturnItems)
-        {
-            SubcontractHelper.SyncReturnItemFromBatches(item, batches, overRatio, overDeviation, returnBySequence);
-        }
-
-        // 主表强制完成 → 子表全部强制完成
-        if (order.IsForceCompleted)
-            ForceCompleteAllReturnItems(order);
-        else
-            await RecalcSubcontractStatusAsync(order, orderReturnWeight);
-
-        await _context.SaveChangesAsync();
-
-        foreach (var item in order.ReturnItems)
-            await TryRefreshExecutionSummaryAsync(item.SourceWorkOrderNo);
-    }
-
 public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
     {
         var entity = await _context.SubcontractOrders
@@ -814,9 +773,9 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("SubcontractOrderService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.SubcontractOrderFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var query = from s in _context.SubcontractOrders.AsNoTracking()
                         select new
@@ -1436,9 +1395,9 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
 
     public async Task<Dictionary<string, List<string>>> GetReturnItemFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("SubcontractOrderService:ReturnItemFilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.SubcontractOrderReturnItemFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var all = await _context.SubcontractReturnItems
                 .AsNoTracking()
@@ -1802,22 +1761,6 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
 
             return dto;
         }).ToList();
-    }
-
-    public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, DateTime? dateFrom = null, DateTime? dateTo = null)
-    {
-        var query = new SubcontractQueryParams
-        {
-            PageIndex = 1,
-            PageSize = 10000,
-            Keyword = keyword,
-            SortBy = sortBy ?? "CreatedTime",
-            IsDescending = isDescending,
-            DateFrom = dateFrom,
-            DateTo = dateTo
-        };
-        var result = await GetPagedAsync(query);
-        return SubcontractOrderPrintHelper.GenerateBatchPdf(result.Items);
     }
 
     // ========== 私有方法 ==========

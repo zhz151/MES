@@ -7,7 +7,7 @@ namespace MES.Blazor.Services;
 public class TensileTestService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/tensile-test";
+    private const string BaseUrl = ApiEndpoints.TensileTest;
 
     public TensileTestService(AuthHttpClient http) => _http = http;
 

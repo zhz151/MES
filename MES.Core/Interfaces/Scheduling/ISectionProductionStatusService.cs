@@ -11,7 +11,4 @@ public interface ISectionProductionStatusService
     /// 获取所有(工序组、工段)维度的生产待产现况汇总
     /// </summary>
     Task<List<SectionProductionStatusDto>> GetStatusAsync();
-
-    /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
-    Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<MES.Core.DTOs.Shared.PrintColumnDef> columns);
 }

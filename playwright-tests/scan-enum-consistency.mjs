@@ -72,7 +72,7 @@ function checkTC06() {
     'GetInputStatusText', 'GetFlowStatusText', 'GetValidMainNoStatusText',
     'GetScheduleStageText', 'GetNcrStatusText', 'GetSeverityLevelText',
     'GetDisposalMethodText', 'GetVerifyResultText', 'GetReportTypeText',
-    'GetPipeCategoryText', 'GetBatchStatusText', 'GetWorkOrderStatusText',
+    'GetBatchStatusText', 'GetWorkOrderStatusText',
     'GetDeliveryStateText', 'GetInspectionResultText',
   ];
 

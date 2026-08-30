@@ -209,7 +209,7 @@ public class DictValueDefinitionService : IDictValueDefinitionService
     {
         return (await _cache.GetOrCreateAsync(MapCacheKey, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var map = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
 

@@ -222,7 +222,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
     /// 缓存键 — 已组装 DTO 缓存（5min 滑动）
     /// InventoryService 在出库/入库操作后通过 Remove(CacheKey) 主动失效
     /// </summary>
-    public const string CacheKey = "PendingDeliveryQueryService:LoadDtos";
+    public const string CacheKey = CacheKeys.PendingDeliveryLoadDtos;
 
     /// <summary>
     /// C1: InventoryBatch 原始实体缓存键（10min 滑动）
@@ -241,7 +241,7 @@ public class PendingDeliveryQueryService : IPendingDeliveryQueryService
     {
         return await _cache.GetOrCreateAsync(CacheKey, async entry =>
         {
-            entry.SlidingExpiration = TimeSpan.FromMinutes(5);
+            entry.SlidingExpiration = CacheDefaults.MemoryCacheExpiry;
 
             var batches = await GetCachedInventoryBatchesAsync();
             if (batches.Count == 0)

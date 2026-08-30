@@ -7,7 +7,7 @@ namespace MES.Blazor.Services;
 public class MetallographicTestService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/metallographic-test";
+    private const string BaseUrl = ApiEndpoints.MetallographicTest;
 
     public MetallographicTestService(AuthHttpClient http) => _http = http;
 

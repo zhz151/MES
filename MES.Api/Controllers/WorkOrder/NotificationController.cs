@@ -23,16 +23,6 @@ public class NotificationController : ControllerBase
     }
 
     /// <summary>
-    /// 获取未读通知数量
-    /// </summary>
-    [HttpGet("unread-count")]
-    public async Task<ActionResult<ApiResponse<int>>> GetUnreadCount()
-    {
-        var count = await _notificationService.GetUnreadCountAsync();
-        return Ok(ApiResponse<int>.Ok(count));
-    }
-
-    /// <summary>
     /// 分页获取通知列表
     /// </summary>
     [HttpGet("list")]
@@ -52,16 +42,6 @@ public class NotificationController : ControllerBase
     {
         await _notificationService.MarkAsReadAsync(id);
         return Ok(ApiResponse.Ok("已标记为已读"));
-    }
-
-    /// <summary>
-    /// 标记所有通知为已读
-    /// </summary>
-    [HttpPost("read-all")]
-    public async Task<ActionResult<ApiResponse>> MarkAllAsRead()
-    {
-        await _notificationService.MarkAllAsReadAsync();
-        return Ok(ApiResponse.Ok("已全部标记为已读"));
     }
 
     /// <summary>

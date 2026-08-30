@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
@@ -295,9 +296,9 @@ public class SupplierService : ISupplierService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("SupplierService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.SupplierFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var query = _context.SupplierProfiles.AsNoTracking();
             return new Dictionary<string, List<string>>
@@ -327,20 +328,6 @@ public class SupplierService : ISupplierService
             catch (BusinessException) { /* 跳过不存在的供应商 */ }
         }
         return TablePrintHelper.GeneratePdf("供应商档案列表", result.Select(ToPrintDict).ToList(), columns ?? []);
-    }
-
-    public async Task<byte[]> PrintSupplierAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, List<PrintColumnDef>? columns = null)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = sortBy ?? "CreatedTime",
-            IsDescending = isDescending
-        };
-        var paged = await GetPagedAsync(query);
-        return TablePrintHelper.GeneratePdf("供应商档案列表", paged.Items.Select(ToPrintDict).ToList(), columns ?? []);
     }
 
     private static Dictionary<string, object> ToPrintDict(SupplierProfileDto dto) => new()

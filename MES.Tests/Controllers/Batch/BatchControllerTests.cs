@@ -234,21 +234,6 @@ public class BatchControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task DeleteProcessGroup_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.DeleteProcessGroupAsync(1)).Returns(Task.CompletedTask);
-
-        // Act
-        var result = await _controller.DeleteProcessGroup(1);
-
-        // Assert
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var response = Assert.IsType<ApiResponse>(okResult.Value);
-        Assert.True(response.Success);
-    }
-
-    [Fact]
     public async Task GetAvailableBatches_ReturnsOk()
     {
         // Arrange

@@ -9,6 +9,7 @@ using MES.Core.Models;
 using MES.Core.Constants;
 using MES.Core.Helpers;
 using MES.Core.DTOs.Configuration;
+using MES.Core.DTOs.Scheduling;
 
 namespace MES.Blazor.Pages.Configuration;
 
@@ -25,6 +26,9 @@ public partial class DailyProductionCapacities
     private int _pageSize = 10;
     private int _loadVersion;
     private bool _resetToFirstPage;
+
+    // 冷轧机台组选项（2026-08-30 起行名=机台组 GroupKey，显示名=组 DisplayName）
+    private List<ColdRollMachineGroupConfigDto> _groupOptions = new();
 
     // 排序状态
     private string sortColumn = "ProcessName";
@@ -164,6 +168,7 @@ public partial class DailyProductionCapacities
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
+        await LoadGroupOptionsAsync();
         var saved = await ColumnPrefs.LoadAsync("daily_production_capacities", null);
         if (saved.Count > 0)
         {
@@ -200,6 +205,26 @@ public partial class DailyProductionCapacities
 
         if (savedState != null && table != null)
             await table.ReloadServerData();
+    }
+
+    private async Task LoadGroupOptionsAsync()
+    {
+        try
+        {
+            var result = await GroupService.GetAllAsync();
+            if (result.Success) _groupOptions = result.Data ?? new();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载机台组失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string DisplayRowName(string key)
+    {
+        if (key == ProductionOverviewRowKeys.Polish)
+            return DictValueDisplayHelper.GetText(DictValueDefaults.ProductionOverviewRowKey, key) ?? key;
+        return _groupOptions.FirstOrDefault(g => string.Equals(g.GroupKey, key, StringComparison.OrdinalIgnoreCase))?.DisplayName ?? key;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -337,7 +362,7 @@ public partial class DailyProductionCapacities
 
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
         {
-            ["ContentText"] = $"确定要删除工序 \"{DictValueDisplayHelper.GetText(DictValueDefaults.ProductionOverviewRowKey,item.ProcessName)}\" 吗？",
+            ["ContentText"] = $"确定要删除工序 \"{DisplayRowName(item.ProcessName)}\" 吗？",
             ["ConfirmText"] = "确认删除",
             ["Color"] = Color.Error
         });

@@ -18,9 +18,6 @@ public interface IOrderDemandAdjustmentService
     /// <summary>获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项</summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
-    /// <summary>按筛选条件打印全部数据</summary>
-    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom, DateTime? signDateTo, DateTime? deliveryDateStart, DateTime? deliveryDateEnd, List<PrintColumnDef> columns);
-
     /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
     Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns);
 }

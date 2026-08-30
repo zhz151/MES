@@ -79,15 +79,6 @@ public class QualityProcessTrackingController : ControllerBase
         return File(pdfBytes, "application/pdf", "成检追踪-选中.pdf");
     }
 
-    /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.QualityView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] QualityProcessTrackingPrintAllRequest request)
-    {
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.ReceiveDateFrom, request.ReceiveDateTo, request.Filters);
-        return File(pdfBytes, "application/pdf", "成检追踪-全部.pdf");
-    }
-
     /// <summary>全量刷新所有物化行（聚合口径/唯一键变更后的存量重算）</summary>
     [HttpPost("refresh-all")]
     [Authorize(Roles = Roles.Policies.QualityEdit)]

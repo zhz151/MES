@@ -57,11 +57,6 @@ public class CustomerProfileDto
     public CustomerStatus Status { get; set; }
 
     /// <summary>
-    /// 客户状态中文显示
-    /// </summary>
-    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
-
-    /// <summary>
     /// 备注
     /// </summary>
     public string? Remark { get; set; }

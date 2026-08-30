@@ -132,12 +132,4 @@ public class ChemicalAnalysisController : ControllerBase
         return File(pdfBytes, "application/pdf", "化学检验-选中.pdf");
     }
 
-    /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.QualityView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] ChemicalAnalysisPrintAllRequest request)
-    {
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.InspectionDateFrom, request.InspectionDateTo);
-        return File(pdfBytes, "application/pdf", "化学检验-全部.pdf");
-    }
 }

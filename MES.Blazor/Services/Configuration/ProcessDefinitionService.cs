@@ -46,6 +46,20 @@ public class ProcessDefinitionService
         }
     }
 
+    /// <summary>冷轧/冷拔工序选项（仅启用的 IsEnabled=true），机型下拉/工段 Tab/机台组配置工序多选动态化用</summary>
+    public async Task<ApiResponse<List<ProcessInfoDto>>> GetColdRollOptionsAsync()
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<List<ProcessInfoDto>>>($"{BaseUrl}/cold-roll-options");
+            return response ?? ApiResponse<List<ProcessInfoDto>>.Fail("获取冷轧工序选项失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<ProcessInfoDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     /// <summary>
     /// 获取工序 Key → 显示中文 映射（配置表优先，兜底 ProcessNames）。
     /// 失败返回 null，调用方（MainLayout）保持 ProcessDisplayHelper.OverrideMap 为 null 即可回退。

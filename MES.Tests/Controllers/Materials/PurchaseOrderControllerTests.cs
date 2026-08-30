@@ -178,36 +178,6 @@ public class PurchaseOrderControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task SyncAll_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.SyncAllAsync()).Returns(Task.CompletedTask);
-
-        // Act
-        var result = await _controller.SyncAll();
-
-        // Assert
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var response = Assert.IsType<ApiResponse>(okResult.Value);
-        Assert.True(response.Success);
-    }
-
-    [Fact]
-    public async Task SyncSingle_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.SyncSingleAsync(1)).Returns(Task.CompletedTask);
-
-        // Act
-        var result = await _controller.SyncSingle(1);
-
-        // Assert
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var response = Assert.IsType<ApiResponse>(okResult.Value);
-        Assert.True(response.Success);
-    }
-
-    [Fact]
     public async Task UpdateStatus_ReturnsOk()
     {
         // Arrange

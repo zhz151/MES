@@ -32,7 +32,4 @@ public interface IChemicalAnalysisService
 
     /// <summary>批量打印选中记录</summary>
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
-
-    /// <summary>按条件打印全部记�?/summary>
-    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null);
 }

@@ -4,6 +4,7 @@ using MES.Core.Models;
 using MES.Shared.Constants;
 using MES.Core.DTOs.Infrastructure;
 using MES.Core.Interfaces.Infrastructure;
+using System.Collections.Generic;
 
 namespace MES.Api.Controllers.Infrastructure;
 
@@ -16,10 +17,15 @@ namespace MES.Api.Controllers.Infrastructure;
 public class ScanController : ControllerBase
 {
     private readonly IScanService _scanService;
+    private readonly IQrCodeService _qrCodeService;
 
-    public ScanController(IScanService scanService)
+    /// <summary>单次批量生成二维码的数量上限（打印标签场景足够，防超大请求拖垮生成）</summary>
+    private const int MaxQrCodesPerRequest = 200;
+
+    public ScanController(IScanService scanService, IQrCodeService qrCodeService)
     {
         _scanService = scanService;
+        _qrCodeService = qrCodeService;
     }
 
     /// <summary>
@@ -68,5 +74,21 @@ public class ScanController : ControllerBase
 
         var result = await _scanService.ResolveEquipmentAsync(code);
         return Ok(ApiResponse<ScanEquipmentResolveResultDto>.Ok(result, "解析成功"));
+    }
+
+    /// <summary>
+    /// 批量生成二维码 PNG（Base64），返回顺序与输入 codes 一致，供前端打印二维码标签
+    /// </summary>
+    [HttpPost("qr-codes")]
+    [Authorize]
+    public ActionResult<ApiResponse<List<string>>> GenerateQrCodes([FromBody] QrCodesRequest request)
+    {
+        if (request?.Codes == null || request.Codes.Count == 0)
+            return BadRequest(ApiResponse<List<string>>.Fail("二维码内容不能为空"));
+        if (request.Codes.Count > MaxQrCodesPerRequest)
+            return BadRequest(ApiResponse<List<string>>.Fail($"二维码数量过多（上限 {MaxQrCodesPerRequest} 个）"));
+
+        var result = _qrCodeService.GenerateQrPngBase64(request.Codes);
+        return Ok(ApiResponse<List<string>>.Ok(result, "生成成功"));
     }
 }

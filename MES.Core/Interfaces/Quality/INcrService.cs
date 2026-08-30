@@ -12,10 +12,6 @@ public interface INcrService
     /// <summary>分页查询</summary>
     Task<PagedResult<NcrDto>> GetAllAsync(QueryParams query);
 
-    /// <summary>获取全部（无分页）
-    /// </summary>
-    Task<List<NcrDto>> GetAllListAsync();
-
     /// <summary>获取详情</summary>
     Task<NcrDto?> GetByIdAsync(int id);
 
@@ -50,7 +46,4 @@ public interface INcrService
 
     /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
     Task<byte[]> PrintNcrListAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns);
-
-    /// <summary>打印全部 NCR（生成 PDF）</summary>
-    Task<byte[]> PrintAllAsync(NcrPrintAllRequest request);
 }

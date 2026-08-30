@@ -20,17 +20,14 @@ public class OrderDemandAdjustmentDto
     public DateTime DeliveryDate { get; set; }
     public bool DelayPenalty { get; set; }
     public SettlementMethod SettlementMethod { get; set; }
-    public string SettlementMethodDisplay => EnumHelper.GetDisplayName(SettlementMethod);
     public string SalesOrderNo { get; set; } = null!;
     public string ProductionMainNo { get; set; } = null!;
     public string? ProductionSubNo { get; set; }
     public string MaterialName { get; set; } = null!;
     public DeliveryState DeliveryState { get; set; }
-    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public LengthStatus LengthStatus { get; set; }
-    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
     public int TotalItemCount { get; set; }

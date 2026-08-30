@@ -130,20 +130,6 @@ public class CertificateController : ControllerBase
     }
 
     /// <summary>
-    /// 获取下一个质保书编号
-    /// </summary>
-    [HttpGet("next-no")]
-    [Authorize(Roles = Roles.Policies.QualityView)]
-    public async Task<ActionResult<ApiResponse<string>>> GetNextCertificateNo(
-        [FromQuery] string orderNo)
-    {
-        if (string.IsNullOrWhiteSpace(orderNo))
-            return BadRequest(ApiResponse<string>.Fail("订单号不能为空"));
-        var result = await _service.GetNextCertificateNoAsync(orderNo);
-        return Ok(ApiResponse<string>.Ok(result, "查询成功"));
-    }
-
-    /// <summary>
     /// 打印 PDF：按 Id 集合（详情页单张 / 列表页选中或全部）生成质量证明书 PDF
     /// </summary>
     [HttpPost("print-file")]

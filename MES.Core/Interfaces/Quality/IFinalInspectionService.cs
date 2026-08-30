@@ -15,11 +15,6 @@ public interface IFinalInspectionService
     Task<PagedResult<FinalInspectionDto>> GetAllAsync(QueryParams query);
 
     /// <summary>
-    /// 获取所有成品检验记录（无分页）
-    /// </summary>
-    Task<List<FinalInspectionDto>> GetAllListAsync();
-
-    /// <summary>
     /// 获取成品检验详情
     /// </summary>
     Task<FinalInspectionDto?> GetByIdAsync(int id);
@@ -56,10 +51,6 @@ public interface IFinalInspectionService
 
     /// <summary>批量打印选中记录</summary>
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
-
-    /// <summary>按条件打印全部记录
-    /// </summary>
-    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null, string? filters = null);
 
     /// <summary>
     /// 实时健康汇总（按当前筛选条件统计成检类型与成检到料不符的生产编号）

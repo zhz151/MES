@@ -12,11 +12,9 @@ public class ProductionBatchDetailDto
     public int Id { get; set; }
     public string BatchNo { get; set; } = null!;
     public BatchStatus Status { get; set; }
-    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
     public string? TagNo { get; set; }
     public ProductionType? ProductionType { get; set; }
     public MaterialType ManufacturingItem { get; set; }
-    public string ManufacturingItemDisplay => EnumHelper.GetDisplayName(ManufacturingItem);
     public int ProductionRatio { get; set; }
     public bool IsForceCompleted { get; set; }
     public string? QualityRemark { get; set; }
@@ -49,10 +47,8 @@ public class ProductionBatchDetailDto
     public bool DelayPenalty { get; set; }
     public string MaterialName { get; set; } = null!;
     public SettlementMethod SettlementMethod { get; set; }
-    public string SettlementMethodDisplay => EnumHelper.GetDisplayName(SettlementMethod);
     public string StandardCode { get; set; } = null!;
     public DeliveryState DeliveryState { get; set; }
-    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
     public DeliveryState? ManufacturingStatus { get; set; }
     public string? ManufacturingStatusDisplay => ManufacturingStatus.HasValue ? EnumHelper.GetDisplayName(ManufacturingStatus.Value) : null;
     public string PlantGrade { get; set; } = null!;
@@ -62,7 +58,6 @@ public class ProductionBatchDetailDto
     public decimal WallThicknessNegative { get; set; }
     public decimal WallThicknessPositive { get; set; }
     public LengthStatus LengthStatus { get; set; }
-    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
     public int TotalQuantity { get; set; }
@@ -81,7 +76,6 @@ public class ProductionBatchDetailDto
     // ========== 投料信息 ==========
     public string? SourceBatchNo { get; set; }
     public MaterialType? SourceMaterialType { get; set; }
-    public string? SourceMaterialTypeDisplay => SourceMaterialType.HasValue ? EnumHelper.GetDisplayName(SourceMaterialType.Value) : null;
     public string? SourceName { get; set; }
     public string? SourceHeatNo { get; set; }
     public string? SourcePlantGrade { get; set; }
@@ -103,11 +97,6 @@ public class ProductionBatchDetailDto
 
     /// <summary>成检附加：仅"成检"状态有效——PreInspection=预检，FormalInspection=终检；其余状态/无到料为 null（空）</summary>
     public string? InspectionStage { get; set; }
-    public string? InspectionStageDisplay => string.Equals(InspectionStage, nameof(InspectionType.PreInspection), StringComparison.OrdinalIgnoreCase)
-        ? "预检"
-        : string.Equals(InspectionStage, nameof(InspectionType.FormalInspection), StringComparison.OrdinalIgnoreCase)
-            ? "终检"
-            : "";
 
     // ========== 成切跟踪 ==========
 
@@ -117,15 +106,12 @@ public class ProductionBatchDetailDto
 
     /// <summary>成切执行：需求=否→略；成品工序组内已有断切生产记录→是；否则→否</summary>
     public bool? CutExecution { get; set; }
-    public string? CutExecutionDisplay => CutExecution switch { true => "是", false => "否", null => "略" };
 
     /// <summary>成切支数：断切生产记录 PostCutQuantity（切后支数）汇总；无→略</summary>
     public int? CutQuantity { get; set; }
-    public string? CutQuantityDisplay => CutQuantity.HasValue ? CutQuantity.Value.ToString() : "略";
 
     /// <summary>成切存疑：略/正常/疑问-数量/疑问-缺少</summary>
     public CutDoubtType? CutDoubt { get; set; }
-    public string? CutDoubtDisplay => CutDoubt.HasValue ? EnumHelper.GetDisplayName(CutDoubt.Value) : "略";
 
     // ========== 审计字段 ==========
     public DateTimeOffset CreatedTime { get; set; }

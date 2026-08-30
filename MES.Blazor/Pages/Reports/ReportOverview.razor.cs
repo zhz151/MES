@@ -606,12 +606,12 @@ public partial class ReportOverview
     private static string RenderInt(decimal? val) => val.HasValue ? Math.Round(val.Value, 0).ToString() : "-";
     private static Color GetStatusColor(string? status) => status switch
     {
-        "偏少" => Color.Error,
-        "过多" => Color.Warning,
-        "正常" => Color.Success,
+        SustainStatusKeys.Excessive => Color.Error,
+        SustainStatusKeys.Insufficient => Color.Warning,
+        SustainStatusKeys.Normal => Color.Success,
         _ => Color.Default
     };
-    private static Color GetPlanFlowJudgmentColor(string? judgment) => judgment == "加速" ? Color.Warning : Color.Default;
+    private static Color GetPlanFlowJudgmentColor(string? judgment) => judgment == PlanFlowJudgmentKeys.Accelerate ? Color.Error : Color.Default;
 
     // Tab3 待投料矩阵（单数 + 待投料吨）
     private static string FormatMatrixPending(int count, decimal weight)

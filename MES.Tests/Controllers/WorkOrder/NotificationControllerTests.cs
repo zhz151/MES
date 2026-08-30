@@ -20,20 +20,6 @@ public class NotificationControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task GetUnreadCount_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.GetUnreadCountAsync()).ReturnsAsync(5);
-
-        // Act
-        var result = await _controller.GetUnreadCount();
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<int>>(result);
-        Assert.Equal(5, response.Data);
-    }
-
-    [Fact]
     public async Task GetPaged_ReturnsOk()
     {
         // Arrange
@@ -63,21 +49,6 @@ public class NotificationControllerTests : ControllerTestBase
 
         // Act
         var result = await _controller.MarkAsRead(1);
-
-        // Assert
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var response = Assert.IsType<ApiResponse>(okResult.Value);
-        Assert.True(response.Success);
-    }
-
-    [Fact]
-    public async Task MarkAllAsRead_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.MarkAllAsReadAsync()).Returns(Task.CompletedTask);
-
-        // Act
-        var result = await _controller.MarkAllAsRead();
 
         // Assert
         var okResult = Assert.IsType<OkObjectResult>(result.Result);

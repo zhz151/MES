@@ -29,6 +29,7 @@ public class DataFixService : IDataFixService
     private readonly ILogger<DataFixService> _logger;
     private readonly IConfigParameterService _configService;
     private readonly IWorkOrderExecutionService _workOrderExecutionService;
+    private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
     public DataFixService(
@@ -38,7 +39,8 @@ public class DataFixService : IDataFixService
         ISubcontractOrderService subcontractOrderService,
         ILogger<DataFixService> logger,
         IConfigParameterService configService,
-        IWorkOrderExecutionService workOrderExecutionService)
+        IWorkOrderExecutionService workOrderExecutionService,
+        IWorkOrderListSummaryRefreshService? listSummaryService = null)
     {
         _context = context;
         _productionRecordService = productionRecordService;
@@ -47,6 +49,7 @@ public class DataFixService : IDataFixService
         _logger = logger;
         _configService = configService;
         _workOrderExecutionService = workOrderExecutionService;
+        _listSummaryService = listSummaryService;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -443,6 +446,19 @@ public class DataFixService : IDataFixService
     {
         _logger.LogInformation("开始刷新工单执行状况汇总");
         await _workOrderExecutionService.RefreshAllAsync();
+
+        // exec.RefreshAllAsync 级联 OrderListSummary 但不级联用料计划总览，数据修复改动源数据后需一并兜底重建
+        if (_listSummaryService != null)
+        {
+            try
+            {
+                await _listSummaryService.RefreshAllAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "用料计划总览全量刷新失败（不影响主流程）");
+            }
+        }
         _logger.LogInformation("工单执行状况汇总刷新完成");
     }
 

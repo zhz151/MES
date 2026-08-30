@@ -87,6 +87,14 @@ public class BatchPlanController : ControllerBase
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
     }
 
+    [HttpGet("section-tab-options")]
+    [Authorize(Roles = Roles.Policies.SchedulingView)]
+    public async Task<ActionResult<ApiResponse<List<BatchPlanSectionTabDto>>>> GetSectionTabOptions()
+    {
+        var result = await _service.GetSectionTabOptionsAsync();
+        return Ok(ApiResponse<List<BatchPlanSectionTabDto>>.Ok(result));
+    }
+
     [HttpPost("print-file")]
     [Authorize(Roles = Roles.Policies.SchedulingView)]
     public async Task<IActionResult> PrintFile([FromBody] BatchPlanPrintRequest request)

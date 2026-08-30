@@ -13,7 +13,6 @@ public class WorkOrderMaterialPlanDto
 
     /// <summary>用料计划状态</summary>
     public MaterialPlanStatus MaterialPlanStatus { get; set; }
-    public string MaterialPlanStatusDisplay => EnumHelper.GetDisplayName(MaterialPlanStatus);
 
     /// <summary>满足率(%)</summary>
     public decimal MaterialPlanRate { get; set; }
@@ -35,5 +34,4 @@ public class MaterialPlanItemDto
 
     /// <summary>该计划对工单总状态的贡献</summary>
     public MaterialPlanStatus Status { get; set; }
-    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
 }

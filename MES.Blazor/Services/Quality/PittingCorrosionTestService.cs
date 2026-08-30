@@ -1,12 +1,13 @@
 using MES.Core.Models;
 using MES.Core.DTOs.Quality;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Services;
 
 public class PittingCorrosionTestService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/pitting-corrosion-test";
+    private const string BaseUrl = ApiEndpoints.PittingCorrosionTest;
 
     public PittingCorrosionTestService(AuthHttpClient http) => _http = http;
 

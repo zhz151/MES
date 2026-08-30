@@ -19,22 +19,17 @@ public class WorkOrderListItemDto
     public DateTime DeliveryDate { get; set; }
     public bool DelayPenalty { get; set; }
     public SettlementMethod SettlementMethod { get; set; }
-    public string SettlementMethodDisplay => EnumHelper.GetDisplayName(SettlementMethod);
     public string PlantGrade { get; set; } = null!;
     public PipeManufacturingType PipeManufacturingType { get; set; }
-    public string PipeManufacturingTypeDisplay => EnumHelper.GetDisplayName(PipeManufacturingType);
     public string Specification { get; set; } = null!;
     public LengthStatus LengthStatus { get; set; }
-    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
     public int TotalQuantity { get; set; }
     public decimal TotalWeight { get; set; }
     public DeliveryState DeliveryState { get; set; }
-    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
     public int TotalItemCount { get; set; }
     public WorkOrderStatus Status { get; set; }
-    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
     public string CreatedBy { get; set; } = "";
     public DateTimeOffset CreatedTime { get; set; }
     public string UpdatedBy { get; set; } = "";

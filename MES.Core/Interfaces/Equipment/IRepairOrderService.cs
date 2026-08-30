@@ -15,9 +15,8 @@ public interface IRepairOrderService
     Task DeleteAsync(int id);
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
-    Task<byte[]> PrintAllAsync(RepairOrderQueryParams query, List<PrintColumnDef> columns);
 
-    /// <summary>获取指定设备的待处理维修工单（Pending/InProgress�?/summary>
+    /// <summary>获取指定设备的待处理维修工单（Pending/InProgress�?/summary>
     Task<List<RepairOrderListDto>> GetPendingByEquipmentAsync(int equipmentId);
 
     /// <summary>开始维修（设置维修人和开始时间）</summary>

@@ -30,30 +30,77 @@ function formatPrintDate(d) {
 }
 
 // 打印二维码标签（工位/设备/员工通用；二维码放大便于张贴，无标题/打印日期）
+// 2026-08-29 改为本地生成：POST 后端批量二维码端点（api/scan/qr-codes，QRCoder 生成 PNG），不再依赖外部在线二维码服务
 window.MES = window.MES || {};
 window.MES.printQrCodes = function (codes) {
     if (!codes || codes.length === 0) return;
 
-    var rows = codes.map(function (code) {
-        var encoded = encodeURIComponent(code);
-        return '<div style="display:inline-block; text-align:center; margin:10px; padding:10px; border:1px dashed #999;">' +
-            '<img src="https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=' + encoded + '" alt="' + code + '" style="width:480px;height:480px;" />' +
-            '<div style="margin-top:8px; font-size:14px; font-weight:bold;">' + code + '</div>' +
-            '</div>';
-    }).join('');
+    // 构造 API 基地址：优先 MES_API_URL（解决开发环境 Blazor 与 API 端口不一致），兜底当前 origin
+    var origin = window.location.origin;
+    var apiBase = window.MES_API_URL || origin;
+    var apiUrl = apiBase + '/api/scan/qr-codes';
 
-    var html = '<html><head>' +
-        '<style>' +
-        '@page{size:landscape;margin:10mm;}' +
-        'body{text-align:center;font-family:sans-serif;}' +
-        '</style></head><body>' +
-        '<div>' + rows + '</div>' +
-        '<script>window.onload=function(){window.print();}<' + '/script>' +
-        '</body></html>';
+    // 读取 JWT 令牌（与 AuthHttpClient 共用 localStorage，Blazored.LocalStorage 存的是 JSON 格式需 parse）
+    var raw = localStorage.getItem('authToken');
+    var token = null;
+    if (raw) {
+        try { token = JSON.parse(raw); } catch (e) { token = raw; }
+    }
+    var headers = { 'Content-Type': 'application/json' };
+    if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+    }
 
-    var w = window.open('', '_blank');
-    w.document.write(html);
-    w.document.close();
+    fetch(apiUrl, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({ Codes: codes })
+    })
+    .then(function (r) {
+        if (!r.ok) {
+            // 后端 BusinessException 返回 400 + ApiResponse<object>.message，解析出友好提示
+            return r.json().then(function (envelope) {
+                var msg = (envelope && envelope.message) ? envelope.message : ('HTTP ' + r.status);
+                throw new Error(msg);
+            }, function () {
+                throw new Error('HTTP ' + r.status);
+            });
+        }
+        return r.json().then(function (envelope) {
+            if (!envelope || !envelope.success || !envelope.data || envelope.data.length === 0) {
+                throw new Error(envelope && envelope.message || '响应格式异常');
+            }
+            var rows = envelope.data.map(function (base64, index) {
+                var code = codes[index] || '';
+                return '<div style="display:inline-block; text-align:center; margin:10px; padding:10px; border:1px dashed #999;">' +
+                    '<img src="data:image/png;base64,' + base64 + '" alt="' + code + '" style="width:480px;height:480px;" />' +
+                    '<div style="margin-top:8px; font-size:14px; font-weight:bold;">' + code + '</div>' +
+                    '</div>';
+            }).join('');
+
+            var html = '<html><head>' +
+                '<style>' +
+                '@page{size:landscape;margin:10mm;}' +
+                'body{text-align:center;font-family:sans-serif;}' +
+                '</style></head><body>' +
+                '<div>' + rows + '</div>' +
+                '<script>window.onload=function(){window.print();}<' + '/script>' +
+                '</body></html>';
+
+            var w = window.open('', '_blank');
+            if (!w) {
+                showPrintNotice('浏览器阻止了弹窗，请允许后重试', 'error');
+                return;
+            }
+            w.document.write(html);
+            w.document.close();
+        });
+    })
+    .catch(function (e) {
+        console.error('二维码生成失败:', e);
+        var msg = (e && e.message) ? e.message : '未知错误';
+        showPrintNotice('二维码生成失败：' + msg, 'error');
+    });
 };
 
 // 在新窗口中打开打印 HTML

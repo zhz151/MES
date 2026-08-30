@@ -403,21 +403,6 @@ public class MaterialPlanControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task RefreshStatus_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.UpdateMaterialPlanStatusAsync(1)).Returns(Task.CompletedTask);
-
-        // Act
-        var result = await _controller.RefreshStatus(1);
-
-        // Assert
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var response = Assert.IsType<ApiResponse>(okResult.Value);
-        Assert.True(response.Success);
-    }
-
-    [Fact]
     public async Task PrintBatch_ReturnsBadRequest_WhenModelInvalid()
     {
         // Arrange

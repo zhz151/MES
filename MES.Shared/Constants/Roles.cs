@@ -153,6 +153,18 @@ public static class Roles
         // ========== 跨域组合 ==========
         /// <summary>订单成品(实时库存)（订单 + 质量 数据源并集；list/header-options 供质保书创建页 Quality 角色调用）</summary>
         public const string PendingDeliveryView = "OrderViewer,OrderEditor,OrderFull,QualityViewer,QualityEditor,QualityFull,Admin";
+        /// <summary>冷轧机台数配置（参数表 Configuration 域 + 计划排程 Scheduling 域 并集：冷轧排程页内嵌维护，排程人员可随时改机台数/估算日产）</summary>
+        public const string ColdRollMachineConfigView = "ConfigurationViewer,ConfigurationEditor,ConfigurationFull,SchedulingViewer,SchedulingEditor,SchedulingFull,ReportViewer,ReportEditor,ReportFull,Admin";
+        /// <summary>冷轧机台数配置新增/更新（ConfigurationEditor/Full + SchedulingEditor/Full）</summary>
+        public const string ColdRollMachineConfigEdit = "ConfigurationEditor,ConfigurationFull,SchedulingEditor,SchedulingFull,Admin";
+        /// <summary>冷轧机台数配置删除（ConfigurationFull + SchedulingFull）</summary>
+        public const string ColdRollMachineConfigDelete = "ConfigurationFull,SchedulingFull,Admin";
+        /// <summary>冷轧机台组配置查看（参数表 Configuration 域 + 计划排程 Scheduling 域 + 报表 并集：冷轧排程引擎归组配置，排程人员可维护工序归组）</summary>
+        public const string ColdRollMachineGroupConfigView = "ConfigurationViewer,ConfigurationEditor,ConfigurationFull,SchedulingViewer,SchedulingEditor,SchedulingFull,ReportViewer,ReportEditor,ReportFull,Admin";
+        /// <summary>冷轧机台组配置新增/更新（ConfigurationEditor/Full + SchedulingEditor/Full）</summary>
+        public const string ColdRollMachineGroupConfigEdit = "ConfigurationEditor,ConfigurationFull,SchedulingEditor,SchedulingFull,Admin";
+        /// <summary>冷轧机台组配置删除（ConfigurationFull + SchedulingFull）</summary>
+        public const string ColdRollMachineGroupConfigDelete = "ConfigurationFull,SchedulingFull,Admin";
         /// <summary>批次计划汇总/月度/委外在产（批次域生产记录+工段委外页 + 排程批次计划页 + 报表总览）</summary>
         public const string BatchPlanSummaryView = "BatchViewer,BatchEditor,BatchFull,SchedulingViewer,SchedulingEditor,SchedulingFull,ReportViewer,ReportEditor,ReportFull,Admin";
     }

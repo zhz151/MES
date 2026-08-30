@@ -44,7 +44,6 @@ public class WorkOrderDetailDto
     /// 工单状态
     /// </summary>
     public WorkOrderStatus Status { get; set; }
-    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
 
     /// <summary>
     /// 签订日期
@@ -75,13 +74,11 @@ public class WorkOrderDetailDto
     /// 钢管制造类别
     /// </summary>
     public PipeManufacturingType PipeManufacturingType { get; set; }
-    public string PipeManufacturingTypeDisplay => EnumHelper.GetDisplayName(PipeManufacturingType);
 
     /// <summary>
     /// 结算方式
     /// </summary>
     public SettlementMethod SettlementMethod { get; set; }
-    public string SettlementMethodDisplay => EnumHelper.GetDisplayName(SettlementMethod);
 
     /// <summary>
     /// 产品标准编码
@@ -92,7 +89,6 @@ public class WorkOrderDetailDto
     /// 交货状态
     /// </summary>
     public DeliveryState DeliveryState { get; set; }
-    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
 
     /// <summary>
     /// 工厂牌号
@@ -128,7 +124,6 @@ public class WorkOrderDetailDto
     /// 长度状态
     /// </summary>
     public LengthStatus LengthStatus { get; set; }
-    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
 
     /// <summary>
     /// 最小长度
@@ -179,7 +174,6 @@ public class WorkOrderDetailDto
     /// 用料计划状态
     /// </summary>
     public MaterialPlanStatus MaterialPlanStatus { get; set; }
-    public string MaterialPlanStatusDisplay => EnumHelper.GetDisplayName(MaterialPlanStatus);
 
     /// <summary>
     /// 用料计划满足率(%)

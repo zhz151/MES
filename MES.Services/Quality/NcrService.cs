@@ -142,15 +142,6 @@ public class NcrService : INcrService
         };
     }
 
-    public async Task<List<NcrDto>> GetAllListAsync()
-    {
-        return await _context.Ncrs
-            .AsNoTracking()
-            .OrderByDescending(r => r.Id)
-            .Select(ToDto())
-            .ToListAsync();
-    }
-
     public async Task<NcrDto> CreateAsync(CreateNcrRequest request)
     {
         // 尝试根据 BatchNo 填充冗余字段
@@ -368,9 +359,9 @@ public class NcrService : INcrService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("NcrService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.NcrFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var queryable = _context.Ncrs.AsNoTracking();
 
@@ -760,29 +751,6 @@ public class NcrService : INcrService
         var pdfBytes = TablePrintHelper.GeneratePdf(title, items, columns,
             autoWidth: true, alignCenter: true, headerMaxLines: 0);
         return Task.FromResult(pdfBytes);
-    }
-
-    public async Task<byte[]> PrintAllAsync(NcrPrintAllRequest request)
-    {
-        var queryable = _context.Ncrs.AsNoTracking().AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(request.Keyword))
-        {
-            var kw = request.Keyword;
-            queryable = queryable.Where(r =>
-                r.BatchNo.Contains(kw) ||
-                (r.WorkOrderNo != null && r.WorkOrderNo.Contains(kw)) ||
-                (r.PlantGrade != null && r.PlantGrade.Contains(kw)) ||
-                (r.Specification != null && r.Specification.Contains(kw)) ||
-                (r.ReportDepartment != null && r.ReportDepartment.Contains(kw)) ||
-                (r.Reporter != null && r.Reporter.Contains(kw)));
-        }
-
-        var entities = await queryable
-            .OrderByDescending(n => n.CreatedTime)
-            .ToListAsync();
-
-        return NcrPrintHelper.GeneratePdf(entities);
     }
 
     /// <summary>

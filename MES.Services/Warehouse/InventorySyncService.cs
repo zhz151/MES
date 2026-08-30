@@ -77,7 +77,7 @@ public class InventorySyncService : IInventorySyncService
         var cacheKey = $"InventoryService:ConfigMap:{category}";
         var map = await _cache.GetOrCreateAsync(cacheKey, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
             return await _configService.GetConfigMapAsync(category);
         });
         return map?.GetValueOrDefault(key, defaultValue) ?? defaultValue;
@@ -269,31 +269,6 @@ public class InventorySyncService : IInventorySyncService
             IsValid = false,
             Warnings = { $"入库来源「{batch.InboundSource}」暂不支持关联工单匹配" }
         };
-    }
-
-    public async Task<List<string>> ValidateWarehouseWorkOrderNosAsync(int warehouseId)
-    {
-        var workOrderNos = await _context.InventoryBatches
-            .AsNoTracking()
-            .Where(b => b.WarehouseId == warehouseId
-                     && b.WorkOrderNo != null
-                     && b.WorkOrderNo != string.Empty)
-            .Select(b => b.WorkOrderNo!)
-            .Distinct()
-            .ToListAsync();
-
-        if (workOrderNos.Count == 0)
-            return new List<string>();
-
-        var existingWorkOrderNos = await _context.WorkOrders
-            .AsNoTracking()
-            .Where(w => workOrderNos.Contains(w.WorkOrderNo))
-            .Select(w => w.WorkOrderNo)
-            .ToListAsync();
-
-        var existingSet = existingWorkOrderNos.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        return workOrderNos.Where(woNo => !existingSet.Contains(woNo)).ToList();
     }
 
     public async Task<List<BatchWorkOrderMismatchDto>> GetMismatchedWorkOrderBatchesAsync(int? warehouseId = null)

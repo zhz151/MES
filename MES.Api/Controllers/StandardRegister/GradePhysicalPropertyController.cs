@@ -88,13 +88,4 @@ public class GradePhysicalPropertyController : ControllerBase
         var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
         return File(pdfBytes, "application/pdf", "牌号物性-选中.pdf");
     }
-
-    /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.StandardView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] GradePhysicalPropertyPrintAllRequest request)
-    {
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
-        return File(pdfBytes, "application/pdf", "牌号物性-全部.pdf");
-    }
 }

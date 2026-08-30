@@ -26,28 +26,6 @@ public class WorkOrderControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task GetOrderWorkOrderStatus_ReturnsOk()
-    {
-        // Arrange
-        var pagedResult = new PagedResult<OrderWorkOrderStatusDto>
-        {
-            Items = new List<OrderWorkOrderStatusDto> { new() { SalesOrderId = 1, OrderNumber = "SO001" } },
-            TotalCount = 1,
-            PageIndex = 1,
-            PageSize = 20
-        };
-        _serviceMock.Setup(x => x.GetOrderWorkOrderStatusPageAsync(It.IsAny<WorkOrderQueryParams>())).ReturnsAsync(pagedResult);
-
-        // Act
-        var result = await _controller.GetOrderWorkOrderStatus(pageIndex: 1, pageSize: 20);
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<PagedResult<OrderWorkOrderStatusDto>>>(result);
-        Assert.True(response.Success);
-        Assert.Single(response.Data!.Items);
-    }
-
-    [Fact]
     public async Task GetOrderItemsForWorkOrder_ReturnsOk()
     {
         // Arrange
@@ -252,21 +230,6 @@ public class WorkOrderControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task CheckAllOrderChange_ReturnsOk()
-    {
-        // Arrange
-        _serviceMock.Setup(x => x.CheckAllOrdersChangeAsync()).Returns(Task.CompletedTask);
-
-        // Act
-        var result = await _controller.CheckAllOrderChange();
-
-        // Assert
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var response = Assert.IsType<ApiResponse>(okResult.Value);
-        Assert.True(response.Success);
-    }
-
-    [Fact]
     public async Task GetOrderWorkOrderRelation_ReturnsOk()
     {
         // Arrange
@@ -351,43 +314,6 @@ public class WorkOrderControllerTests : ControllerTestBase
         var filtersJson = "[{\"Field\":\"Status\",\"Operator\":\"equals\",\"Value\":\"Confirmed\"}]";
         await _controller.GetList(filters: filtersJson);
         _serviceMock.Verify(x => x.GetPagedAsync(It.Is<WorkOrderQueryParams>(q => q.Filters != null && q.Filters.Count > 0)), Times.Once);
-    }
-
-    [Fact]
-    public async Task GetOrderWorkOrderStatus_LimitsPageSize()
-    {
-        _serviceMock.Setup(x => x.GetOrderWorkOrderStatusPageAsync(It.IsAny<WorkOrderQueryParams>()))
-            .ReturnsAsync(new PagedResult<OrderWorkOrderStatusDto> { Items = new List<OrderWorkOrderStatusDto>() });
-        var result = await _controller.GetOrderWorkOrderStatus(pageSize: 9999);
-        _serviceMock.Verify(x => x.GetOrderWorkOrderStatusPageAsync(It.Is<WorkOrderQueryParams>(q => q.PageSize == 5000)), Times.Once);
-    }
-
-    [Fact]
-    public async Task GetOrderWorkOrderStatus_PassesKeyword_ToService()
-    {
-        _serviceMock.Setup(x => x.GetOrderWorkOrderStatusPageAsync(It.IsAny<WorkOrderQueryParams>()))
-            .ReturnsAsync(new PagedResult<OrderWorkOrderStatusDto> { Items = new List<OrderWorkOrderStatusDto>() });
-        await _controller.GetOrderWorkOrderStatus(keyword: "测试");
-        _serviceMock.Verify(x => x.GetOrderWorkOrderStatusPageAsync(It.Is<WorkOrderQueryParams>(q => q.Keyword == "测试")), Times.Once);
-    }
-
-    [Fact]
-    public async Task GetOrderWorkOrderStatus_PassesSortBy_ToService()
-    {
-        _serviceMock.Setup(x => x.GetOrderWorkOrderStatusPageAsync(It.IsAny<WorkOrderQueryParams>()))
-            .ReturnsAsync(new PagedResult<OrderWorkOrderStatusDto> { Items = new List<OrderWorkOrderStatusDto>() });
-        await _controller.GetOrderWorkOrderStatus(sortBy: "OrderNumber");
-        _serviceMock.Verify(x => x.GetOrderWorkOrderStatusPageAsync(It.Is<WorkOrderQueryParams>(q => q.SortBy == "OrderNumber")), Times.Once);
-    }
-
-    [Fact]
-    public async Task GetOrderWorkOrderStatus_PassesFilters_ToService()
-    {
-        _serviceMock.Setup(x => x.GetOrderWorkOrderStatusPageAsync(It.IsAny<WorkOrderQueryParams>()))
-            .ReturnsAsync(new PagedResult<OrderWorkOrderStatusDto> { Items = new List<OrderWorkOrderStatusDto>() });
-        var filtersJson = "[{\"Field\":\"Status\",\"Operator\":\"equals\",\"Value\":\"Confirmed\"}]";
-        await _controller.GetOrderWorkOrderStatus(filters: filtersJson);
-        _serviceMock.Verify(x => x.GetOrderWorkOrderStatusPageAsync(It.Is<WorkOrderQueryParams>(q => q.Filters != null && q.Filters.Count > 0)), Times.Once);
     }
 
     [Fact]

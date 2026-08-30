@@ -433,14 +433,6 @@ public class MaterialPlanController : ControllerBase
         return Ok(ApiResponse<WorkOrderMaterialPlanDto>.Ok(result, "查询成功"));
     }
 
-    [HttpPost("refresh-status/{workOrderId}")]
-    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
-    public async Task<ActionResult<ApiResponse>> RefreshStatus(int workOrderId)
-    {
-        await _materialPlanService.UpdateMaterialPlanStatusAsync(workOrderId);
-        return Ok(ApiResponse.Ok("状态已刷新"));
-    }
-
     #endregion
 
     #region 打印

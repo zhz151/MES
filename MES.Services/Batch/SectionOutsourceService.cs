@@ -704,28 +704,6 @@ public class SectionOutsourceService : ISectionOutsourceService
 
     // ========== 委外回收 ==========
 
-    public async Task<List<OutsourceRecoveryDto>> GetRecoveriesAsync(int outsourceId)
-    {
-        return await _context.OutsourceRecoveries
-            .AsNoTracking()
-            .Where(r => r.SectionOutsourceId == outsourceId)
-            .OrderBy(r => r.RecoveryDate)
-            .Select(r => new OutsourceRecoveryDto
-            {
-                Id = r.Id,
-                SectionOutsourceId = r.SectionOutsourceId,
-                RecoveryDate = r.RecoveryDate,
-                RecoveryQuantity = r.RecoveryQuantity,
-                RecoveryWeight = r.RecoveryWeight,
-                UnprocessedQuantity = r.UnprocessedQuantity,
-                UnprocessedWeight = r.UnprocessedWeight,
-                Remark = r.Remark,
-                CreatedTime = r.CreatedTime,
-                UpdatedTime = r.UpdatedTime
-            })
-            .ToListAsync();
-    }
-
     public async Task<PagedResult<OutsourceRecoveryDto>> GetRecoveriesPagedAsync(QueryParams query)
     {
         var queryable = _context.OutsourceRecoveries
@@ -1182,63 +1160,6 @@ public class SectionOutsourceService : ISectionOutsourceService
         return TablePrintHelper.GeneratePdf("工段委外列表", data, columns);
     }
 
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending,
-        DateTime? sendOutDateFrom, DateTime? sendOutDateTo,
-        DateTime? actualRecoveryDateFrom, DateTime? actualRecoveryDateTo,
-        List<PrintColumnDef> columns)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = sortBy ?? "createdtime",
-            IsDescending = isDescending,
-            SendOutDateFrom = sendOutDateFrom,
-            SendOutDateTo = sendOutDateTo,
-            ActualRecoveryDateFrom = actualRecoveryDateFrom,
-            ActualRecoveryDateTo = actualRecoveryDateTo
-        };
-        var paged = await GetPagedAsync(query);
-        var sectionNameMap = await _sectionNameDisplay.GetSectionNameMapAsync();
-        var processNameMap = await _processDefService.GetProcessNameMapAsync();
-
-        var data = paged.Items.Select(s => new Dictionary<string, object>
-        {
-            ["BatchNo"] = s.BatchNo,
-            ["WorkOrderNo"] = s.WorkOrderNo ?? "",
-            ["SalesOrderNo"] = s.SalesOrderNo ?? "",
-            ["ProductionMainNo"] = s.ProductionMainNo ?? "",
-            ["ProcessName"] = ProcessDisplayText(s.ProcessName, processNameMap),
-            ["ManufacturingSpec"] = s.ManufacturingSpec ?? "",
-            ["SectionName"] = SectionDisplayText(s.SectionName, sectionNameMap),
-            ["SequenceNumber"] = s.SequenceNumber,
-            ["OutsourceVendor"] = s.OutsourceVendor,
-            ["IsInternal"] = s.IsInternal ? "是" : "否",
-            ["SendOutDate"] = s.SendOutDate.ToString("yyyy-MM-dd"),
-            ["SendQuantity"] = (object)(s.SendQuantity ?? (object?)DBNull.Value)!,
-            ["SendWeight"] = (object)(s.SendWeight ?? (object?)DBNull.Value)!,
-            ["Status"] = EnumHelper.GetDisplayName(s.Status),
-            ["TagNo"] = s.TagNo ?? "",
-            ["PlantGrade"] = s.PlantGrade ?? "",
-            ["OutsourceSpec"] = s.OutsourceSpec ?? "",
-            ["ExpectedReturnDate"] = s.ExpectedReturnDate?.ToString("yyyy-MM-dd") ?? "",
-            ["IsUrgent"] = s.IsUrgent ? "是" : "否",
-            ["Remark"] = s.Remark ?? "",
-            ["ProductStatus"] = DictValueDisplayHelper.GetText(DictValueDefaults.ProductStatus, s.ProductStatus) ?? "在制",
-            ["TotalRecoveredQuantity"] = s.TotalRecoveredQuantity ?? 0,
-            ["TotalRecoveredWeight"] = s.TotalRecoveredWeight ?? 0,
-            ["TotalUnprocessedQuantity"] = s.TotalUnprocessedQuantity ?? 0,
-            ["TotalUnprocessedWeight"] = s.TotalUnprocessedWeight ?? 0,
-            ["ActualRecoveryDate"] = s.ActualRecoveryDate?.ToString("yyyy-MM-dd") ?? "",
-            ["RecoveryRemark"] = s.RecoveryRemark ?? "",
-            ["DataSource"] = s.DataSource ?? "",
-            ["UpdatedTime"] = s.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
-        }).ToList();
-
-        return TablePrintHelper.GeneratePdf("工段委外列表", data, columns);
-    }
-
     public async Task<byte[]> PrintRecoveryBatchAsync(int[] ids, List<PrintColumnDef> columns)
     {
         var items = await _context.OutsourceRecoveries
@@ -1278,49 +1199,6 @@ public class SectionOutsourceService : ISectionOutsourceService
         return TablePrintHelper.GeneratePdf("委外回收列表", data, columns);
     }
 
-    public async Task<byte[]> PrintRecoveryAllAsync(string? keyword, string? sortBy, bool isDescending,
-        DateTime? recoveryDateFrom, DateTime? recoveryDateTo,
-        List<PrintColumnDef> columns)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = sortBy ?? "recoverydate",
-            IsDescending = isDescending,
-            RecoveryDateFrom = recoveryDateFrom,
-            RecoveryDateTo = recoveryDateTo
-        };
-        var paged = await GetRecoveriesPagedAsync(query);
-        var sectionNameMap = await _sectionNameDisplay.GetSectionNameMapAsync();
-        var processNameMap = await _processDefService.GetProcessNameMapAsync();
-
-        var data = paged.Items.Select(r => new Dictionary<string, object>
-        {
-            ["RecoveryDate"] = r.RecoveryDate.ToString("yyyy-MM-dd"),
-            ["BatchNo"] = r.BatchNo ?? "",
-            ["OutsourceVendor"] = r.OutsourceVendor ?? "",
-            ["ProcessName"] = ProcessDisplayText(r.ProcessName, processNameMap),
-            ["SectionName"] = SectionDisplayText(r.SectionName, sectionNameMap),
-            ["ManufacturingSpec"] = r.ManufacturingSpec ?? "",
-            ["OutsourceSpec"] = r.OutsourceSpec ?? "",
-            ["SendQuantity"] = r.SendQuantity ?? 0,
-            ["SendWeight"] = r.SendWeight ?? 0,
-            ["TagNo"] = r.TagNo ?? "",
-            ["PlantGrade"] = r.PlantGrade ?? "",
-            ["RecoveryQuantity"] = r.RecoveryQuantity ?? 0,
-            ["RecoveryWeight"] = r.RecoveryWeight ?? 0,
-            ["UnprocessedQuantity"] = r.UnprocessedQuantity ?? 0,
-            ["UnprocessedWeight"] = r.UnprocessedWeight ?? 0,
-            ["Remark"] = r.Remark ?? "",
-            ["DataSource"] = r.DataSource ?? "",
-            ["UpdatedTime"] = r.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
-        }).ToList();
-
-        return TablePrintHelper.GeneratePdf("委外回收列表", data, columns);
-    }
-
     /// <summary>工段 Key/中文 → 打印显示中文（配置表优先，SectionKeys 兜底）</summary>
     private static string SectionDisplayText(string? keyOrName, IReadOnlyDictionary<string, string>? sectionNameMap)
     {
@@ -1341,9 +1219,9 @@ public class SectionOutsourceService : ISectionOutsourceService
 
     public async Task<Dictionary<string, List<string>>> GetOutsourceRecoveryFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("SectionOutsourceService:RecoveryFilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.SectionOutsourceRecoveryFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
             var results = await _context.OutsourceRecoveries
                 .AsNoTracking()
                 .Include(r => r.SectionOutsource)
@@ -1388,9 +1266,9 @@ public class SectionOutsourceService : ISectionOutsourceService
     /// </summary>
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("SectionOutsourceService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.SectionOutsourceFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
             var query = _context.SectionOutsources
                 .AsNoTracking()
                 .Include(s => s.ProductionBatch)

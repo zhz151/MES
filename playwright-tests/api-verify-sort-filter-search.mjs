@@ -36,7 +36,6 @@ const CONTROLLERS = [
   { name: 'DailyProductionCapacity',       route: 'api/daily-production-capacity',     listPath: 'list' },
   { name: 'StandardWorkDay',               route: 'api/standard-work-day',              listPath: 'list' },
   { name: 'StandardWorkDayDeliveryState',  route: 'api/standard-work-day-delivery-state', listPath: 'list' },
-  { name: 'SectionFlowCategorySettings',   route: 'api/section-flow-category-settings', listPath: '' }, // [HttpGet] GetAll，无分页
 
   // ========== Equipment (4 controllers, 4 端点) ==========
   { name: 'Equipment',                     route: 'api/equipment',            listPath: 'list',      fcPath: 'filter-contexts' },
@@ -65,7 +64,7 @@ const CONTROLLERS = [
   { name: 'FinalInspection',               route: 'api/final-inspection',     listPath: 'all',       fcPath: 'filter-contexts' },
   { name: 'FlaringTest',                   route: 'api/flaring-test',         listPath: 'all',       fcPath: 'filter-contexts' },
   { name: 'FlatteningTest',                route: 'api/flattening-test',      listPath: 'all',       fcPath: 'filter-contexts' },
-  { name: 'FurnaceRegistration',           route: 'api/furnace-registration', listPath: 'all-list',  fcPath: 'filter-contexts' },
+  { name: 'FurnaceRegistration',           route: 'api/furnace-registration', listPath: 'all',      fcPath: 'filter-contexts' },
   { name: 'GrainSizeTest',                 route: 'api/grain-size-test',      listPath: 'all',       fcPath: 'filter-contexts' },
   { name: 'HardnessTest',                  route: 'api/hardness-test',        listPath: 'all',       fcPath: 'filter-contexts' },
   { name: 'IntergranularCorrosionTest',    route: 'api/intergranular-corrosion-test', listPath: 'all', fcPath: 'filter-contexts' },
@@ -82,7 +81,7 @@ const CONTROLLERS = [
   { name: 'WorkOrderSchedule',             route: 'api/workorder-schedule',    listPath: 'list',      fcPath: 'filter-contexts' },
   { name: 'RawMaterialLockPlan',           route: 'api/raw-material-lock-plan', listPath: 'list' },
   // BatchPlanSchedule, BatchPlanTarget, ColdRollPlan, ColdRollSpecSchedule, FinalInspectionPlan,
-  // ProductionOverview, SectionFlowAnalysis, SectionProductionStatus — 无标准列表端点
+  // ProductionOverview — 无标准列表端点
 
   // ========== StandardRegister (8 controllers, 8 端点) ==========
   { name: 'StandardRegister',              route: 'api/standard-register',    listPath: 'list',      fcPath: 'filter-contexts' },
@@ -201,9 +200,7 @@ const SORT_KEYS = {
 // ============================================================
 // 跳过测试的控制器（无标准列表端点）
 // ============================================================
-const SKIP_LIST_TEST = new Set([
-  'SectionFlowCategorySettings',
-]);
+const SKIP_LIST_TEST = new Set();
 
 // ============================================================
 // HTTP 辅助函数

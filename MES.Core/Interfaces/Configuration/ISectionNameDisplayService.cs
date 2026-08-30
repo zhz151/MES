@@ -12,7 +12,4 @@ public interface ISectionNameDisplayService
 
     /// <summary>归一为显示中文：Key → 中文；已是中文（迁移前存量）原样返回；未知返回 null</summary>
     Task<string?> ToDisplayAsync(string? keyOrName);
-
-    /// <summary>归一为稳定 Key：已是 Key 原样返回；中文/别名反查；未知返回 null</summary>
-    Task<string?> ToKeyAsync(string? nameOrKey);
 }

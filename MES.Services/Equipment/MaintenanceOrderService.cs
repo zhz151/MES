@@ -406,14 +406,6 @@ public class MaintenanceOrderService : IMaintenanceOrderService
         return MaintenanceOrderPrintHelper.GenerateBatchPdf(selected, columns);
     }
 
-    public async Task<byte[]> PrintAllAsync(MaintenanceOrderQueryParams query, List<PrintColumnDef> columns)
-    {
-        query.PageIndex = 1;
-        query.PageSize = int.MaxValue;
-        var result = await GetPagedAsync(query);
-        return MaintenanceOrderPrintHelper.GenerateBatchPdf(result.Items, columns);
-    }
-
     private async Task<string> GenerateOrderNoAsync(string prefix)
     {
         var today = DateTime.Now.ToString("yyyyMMdd");

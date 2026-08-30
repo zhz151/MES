@@ -57,17 +57,6 @@ public class ProcessInspectionController : ControllerBase
     }
 
     /// <summary>
-    /// 获取所有过程检验记录（无分页）
-    /// </summary>
-    [HttpGet("all-list")]
-    [Authorize(Roles = Roles.Policies.QualityView)]
-    public async Task<ApiResponse<List<ProcessInspectionDto>>> GetAllList()
-    {
-        var result = await _service.GetAllListAsync();
-        return ApiResponse<List<ProcessInspectionDto>>.Ok(result);
-    }
-
-    /// <summary>
     /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("filter-contexts")]
@@ -130,12 +119,4 @@ public class ProcessInspectionController : ControllerBase
         return File(pdfBytes, "application/pdf", "过程检验-选中.pdf");
     }
 
-    /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.QualityView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] ProcessInspectionPrintAllRequest request)
-    {
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.InspectionDateFrom, request.InspectionDateTo);
-        return File(pdfBytes, "application/pdf", "过程检验-全部.pdf");
-    }
 }

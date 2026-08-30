@@ -105,33 +105,6 @@ public class ProductionRecordController : ControllerBase
 
     // ========== 工段委外 ==========
 
-    /// <summary>
-    /// 获取批次的工段委外列表（分页）
-    /// </summary>
-    [HttpGet("{batchId}/outsources")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<PagedResult<SectionOutsourceDto>>>> GetSectionOutsources(
-        int batchId,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
-    {
-        if (pageSize > 5000) pageSize = 5000;
-        var query = new QueryParams { PageIndex = pageIndex, PageSize = pageSize };
-        var result = await _service.GetSectionOutsourcesAsync(batchId, query);
-        return Ok(ApiResponse<PagedResult<SectionOutsourceDto>>.Ok(result, "查询成功"));
-    }
-
-    /// <summary>
-    /// 刷新批次跟踪字段
-    /// </summary>
-    [HttpPost("{batchId}/refresh-tracking")]
-    [Authorize(Roles = Roles.Policies.BatchEdit)]
-    public async Task<ActionResult<ApiResponse>> RefreshBatchTracking(int batchId)
-    {
-        await _service.RefreshBatchTrackingFieldsAsync(batchId);
-        return Ok(ApiResponse.Ok("跟踪字段已刷新"));
-    }
-
     // ========== 跨批次查询（用于独立页面） ==========
 
     /// <summary>
@@ -172,83 +145,6 @@ public class ProductionRecordController : ControllerBase
     }
 
     /// <summary>
-    /// 获取所有内部生产记录列表（不含分页，用于 ProductionRecords 页面）
-    /// </summary>
-    [HttpGet("all-list")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ApiResponse<List<ProductionRecordDto>>> GetAllProductionRecordList()
-    {
-        var result = await _service.GetAllProductionRecordListAsync();
-        return ApiResponse<List<ProductionRecordDto>>.Ok(result);
-    }
-
-    /// <summary>
-    /// 跨批次查询所有工段委外记录（分页）
-    /// </summary>
-    [HttpGet("all/outsources")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<PagedResult<SectionOutsourceDto>>>> GetAllSectionOutsources(
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20,
-        [FromQuery] string? keyword = null,
-        [FromQuery] string? sortBy = null,
-        [FromQuery] bool isDescending = true,
-        [FromQuery] string? filters = null)
-    {
-        if (pageSize > 5000) pageSize = 5000;
-        var query = new QueryParams { PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword, SortBy = sortBy ?? "createdtime", IsDescending = isDescending };
-        if (!string.IsNullOrEmpty(filters))
-            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
-            catch { }
-        var result = await _service.GetAllSectionOutsourcesAsync(query);
-        return Ok(ApiResponse<PagedResult<SectionOutsourceDto>>.Ok(result, "查询成功"));
-    }
-
-    /// <summary>
-    /// 跨批次查询所有委外回收记录（分页）
-    /// </summary>
-    [HttpGet("all/recoveries")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<PagedResult<OutsourceRecoveryDto>>>> GetAllOutsourceRecoveries(
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20,
-        [FromQuery] string? keyword = null,
-        [FromQuery] string? sortBy = null,
-        [FromQuery] bool isDescending = true,
-        [FromQuery] string? filters = null)
-    {
-        if (pageSize > 5000) pageSize = 5000;
-        var query = new QueryParams { PageIndex = pageIndex, PageSize = pageSize, Keyword = keyword, SortBy = sortBy ?? "createdtime", IsDescending = isDescending };
-        if (!string.IsNullOrEmpty(filters))
-            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
-            catch { }
-        var result = await _service.GetAllOutsourceRecoveriesAsync(query);
-        return Ok(ApiResponse<PagedResult<OutsourceRecoveryDto>>.Ok(result, "查询成功"));
-    }
-
-    /// <summary>
-    /// 获取所有工段委外记录列表（不含分页，用于 SectionOutsources 页面）
-    /// </summary>
-    [HttpGet("section-outsources/all-list")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ApiResponse<List<SectionOutsourceDto>>> GetAllSectionOutsourceList()
-    {
-        var result = await _service.GetAllSectionOutsourceListAsync();
-        return ApiResponse<List<SectionOutsourceDto>>.Ok(result);
-    }
-
-    /// <summary>
-    /// 获取所有委外回收记录列表（不含分页，用于 OutsourceRecoveries 页面）
-    /// </summary>
-    [HttpGet("outsource-recoveries/all-list")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ApiResponse<List<OutsourceRecoveryDto>>> GetAllOutsourceRecoveryList()
-    {
-        var result = await _service.GetAllOutsourceRecoveryListAsync();
-        return ApiResponse<List<OutsourceRecoveryDto>>.Ok(result);
-    }
-
-    /// <summary>
     /// 批量打印生产记录（直接返回 PDF 文件）
     /// </summary>
     [HttpPost("print-batch-file")]
@@ -261,13 +157,4 @@ public class ProductionRecordController : ControllerBase
         return File(pdfBytes, "application/pdf", "生产记录打印.pdf");
     }
 
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<IActionResult> PrintProductionRecordAllFile([FromBody] ProductionRecordPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintProductionRecordAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.ExecDateFrom, request.ExecDateTo);
-        return File(pdfBytes, "application/pdf", "生产记录列表.pdf");
-    }
 }

@@ -227,20 +227,6 @@ public class StandardInspectionRequirementService : IStandardInspectionRequireme
         return StandardInspectionRequirementPrintHelper.GenerateBatchPdf(selected, columns);
     }
 
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? null! : sortBy,
-            IsDescending = isDescending
-        };
-        var result = await GetPagedAsync(query);
-        return StandardInspectionRequirementPrintHelper.GenerateBatchPdf(result.Items, columns);
-    }
-
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
         var all = await _context.StandardInspectionRequirements

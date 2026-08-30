@@ -225,7 +225,7 @@ public class ProductionRecordService : IProductionRecordService
         var cacheKey = $"ProductionRecordService:ConfigMap:{category}";
         var map = await _cache.GetOrCreateAsync(cacheKey, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
             return await _configService.GetConfigMapAsync(category);
         });
         return map?.GetValueOrDefault(key, defaultValue) ?? defaultValue;
@@ -1044,54 +1044,6 @@ public class ProductionRecordService : IProductionRecordService
         }
     }
 
-    // ========== 工段委外 ==========
-
-    public async Task<PagedResult<SectionOutsourceDto>> GetSectionOutsourcesAsync(int batchId, QueryParams query)
-    {
-        var queryable = _context.SectionOutsources
-            .AsNoTracking()
-            .Where(s => s.ProductionBatchId == batchId);
-
-        var totalCount = await queryable.CountAsync();
-
-        var items = await queryable
-            .OrderBy(s => s.SequenceNumber)
-            .ThenBy(s => s.SendOutDate)
-            .Skip(query.Skip)
-            .Take(query.PageSize)
-            .Select(s => new SectionOutsourceDto
-            {
-                Id = s.Id,
-                ProductionBatchId = s.ProductionBatchId,
-                ProcessGroupId = s.ProcessGroupId,
-                ProcessName = s.ProcessName,
-                ManufacturingSpec = s.ManufacturingSpec,
-                SectionName = s.SectionName,
-                SequenceNumber = s.SequenceNumber,
-                OutsourceVendor = s.OutsourceVendor,
-                SendOutDate = s.SendOutDate,
-                SendQuantity = s.SendQuantity,
-                SendWeight = s.SendWeight,
-                Status = s.Status,
-                TagNo = s.TagNo,
-                PlantGrade = s.PlantGrade,
-                OutsourceSpec = s.OutsourceSpec,
-                ExpectedReturnDate = s.ExpectedReturnDate,
-                IsUrgent = s.IsUrgent,
-                Remark = s.Remark,
-                TotalRecoveredQuantity = s.OutsourceRecoveries.Sum(r => r.RecoveryQuantity)
-            })
-            .ToListAsync();
-
-        return new PagedResult<SectionOutsourceDto>
-        {
-            Items = items,
-            TotalCount = totalCount,
-            PageIndex = query.PageIndex,
-            PageSize = query.PageSize
-        };
-    }
-
     // ========== 批次跟踪字段刷新 ==========
 
     public async Task RefreshBatchTrackingFieldsAsync(int batchId)
@@ -1493,6 +1445,8 @@ public class ProductionRecordService : IProductionRecordService
     {
         var coldRollCompleteRatio = await GetConfigAsync("ProductionThreshold", "ColdRollCompleteRatio", 0.95m);
         var groupDiscountRate = await GetConfigAsync("ProcessingDiscount", "GroupDiscountRate", 0.025m);
+        var processInspectionNeedAdjustRatio = await GetConfigAsync("ProductionThreshold", "ProcessInspectionNeedAdjustRatio", 0.03m);
+        var cutDoubtRatio = await GetConfigAsync("ProductionThreshold", "CutDoubtRatio", 0.05m);
 
         var batch = await _context.ProductionBatches
             .Include(b => b.ProcessGroups)
@@ -1681,8 +1635,8 @@ public class ProductionRecordService : IProductionRecordService
             batch.InspectionStage = batch.Status == BatchStatus.InFinalInspection
                 ? ComputeInspectionStage(materialChecks)
                 : null;
-            ComputeCutTracking(batch, productionRecords);
-            ComputeProcessInspectionFields(batch, processInspections);
+            ComputeCutTracking(batch, productionRecords, cutDoubtRatio);
+            ComputeProcessInspectionFields(batch, processInspections, processInspectionNeedAdjustRatio);
             ComputeProductUnitWeight(batch);
 
             _context.ProductionBatches.Update(batch);
@@ -1775,7 +1729,7 @@ public class ProductionRecordService : IProductionRecordService
     ///     状态=成检 且 成检附加=预检（仅预成检流程）→ 正常（正式切割留待正式成检，非缺失）
     ///     强制完成 → 略（人控短路）
     /// </summary>
-    private static void ComputeCutTracking(ProductionBatch batch, List<ProductionRecord> productionRecords)
+    private static void ComputeCutTracking(ProductionBatch batch, List<ProductionRecord> productionRecords, decimal cutDoubtRatio)
     {
         // 成品关联的工序：ManufacturingSpec == 成品规格(batch.Specification) 的工序组（可能多个）
         var finishedPgIds = batch.ProcessGroups?
@@ -1841,7 +1795,7 @@ public class ProductionRecordService : IProductionRecordService
         {
             var diff = Math.Abs(batch.CutQuantity.Value - batch.TheoreticalOutputQty.Value);
             var ratio = (decimal)diff / batch.TheoreticalOutputQty.Value;
-            batch.CutDoubt = ratio > 0.05m ? CutDoubtType.QuantityMismatch : CutDoubtType.Normal;
+            batch.CutDoubt = ratio > cutDoubtRatio ? CutDoubtType.QuantityMismatch : CutDoubtType.Normal;
         }
         else
         {
@@ -1858,9 +1812,9 @@ public class ProductionRecordService : IProductionRecordService
     ///   缺陷-纯次品量 = 全部过程检验 理论报废重+理论入库重 求和（彻底退出正常流）
     ///   过程检合格支/合格量 = 当前执行工序组（CurrentGroupName 匹配）全部检验 合格支/合格量 求和；无 → null
     ///   过程检理论成品支 = Round(合格量 ÷ 合格支 ÷ 成品的理论单支重, AwayFromZero) × 合格支（重量口径折算）
-    ///   需调整 = 批次状态为 成检/完成 时固定 null；其余 过程检理论成品支 与 当前理论成品支 偏差 &gt; 3% → true；否则/无数据 → null
+    ///   需调整 = 批次状态为 成检/完成 时固定 null；其余 过程检理论成品支 与 当前理论成品支 偏差 &gt; 配置阈值 ProcessInspectionNeedAdjustRatio（默认 3%）→ true；否则/无数据 → null
     /// </summary>
-    private static void ComputeProcessInspectionFields(ProductionBatch batch, List<ProcessInspection> processInspections)
+    private static void ComputeProcessInspectionFields(ProductionBatch batch, List<ProcessInspection> processInspections, decimal processInspectionNeedAdjustRatio)
     {
         // 缺陷量：全量累计（不限工序组）
         batch.ProcessInspectionReworkWeight = processInspections.Sum(p => p.TheoreticalReworkWeight ?? 0);
@@ -1893,7 +1847,7 @@ public class ProductionRecordService : IProductionRecordService
         batch.ProcessInspectionNeedAdjust =
             batch.Status != BatchStatus.InFinalInspection && batch.Status != BatchStatus.Completed
             && theoQty is { } tq && batch.TheoreticalOutputQty is { } toq && toq > 0
-                ? Math.Abs(tq - toq) / (decimal)toq > 0.03m
+                ? Math.Abs(tq - toq) / (decimal)toq > processInspectionNeedAdjustRatio
                 : (bool?)null;
     }
 
@@ -1920,6 +1874,8 @@ public class ProductionRecordService : IProductionRecordService
 
         var coldRollCompleteRatio = await GetConfigAsync("ProductionThreshold", "ColdRollCompleteRatio", 0.95m);
         var groupDiscountRate = await GetConfigAsync("ProcessingDiscount", "GroupDiscountRate", 0.025m);
+        var processInspectionNeedAdjustRatio = await GetConfigAsync("ProductionThreshold", "ProcessInspectionNeedAdjustRatio", 0.03m);
+        var cutDoubtRatio = await GetConfigAsync("ProductionThreshold", "CutDoubtRatio", 0.05m);
 
         // 1. 加载所有批次 + ProcessGroups
         var batchDict = await _context.ProductionBatches
@@ -1997,9 +1953,9 @@ public class ProductionRecordService : IProductionRecordService
                     ? ComputeInspectionStage(materialCheckLookup.GetValueOrDefault(b.Id) ?? new())
                     : null;
                 // 强制完成批次不判疑问-缺少（IsForceCompleted 短路），无需成检类型
-                ComputeCutTracking(b, fcRecordsByBatch.GetValueOrDefault(b.Id) ?? new());
+                ComputeCutTracking(b, fcRecordsByBatch.GetValueOrDefault(b.Id) ?? new(), cutDoubtRatio);
                 // 过程检字段（强制完成批次不重算活跃跟踪，但过程检缺陷/合格聚合独立于工段跟踪）
-                ComputeProcessInspectionFields(b, fcInspectionsByBatch.GetValueOrDefault(b.Id) ?? new());
+                ComputeProcessInspectionFields(b, fcInspectionsByBatch.GetValueOrDefault(b.Id) ?? new(), processInspectionNeedAdjustRatio);
                 // 产品单支量（依赖批次自身 TotalWeight/TotalQuantity/LengthStatus）
                 ComputeProductUnitWeight(b);
             }
@@ -2201,8 +2157,8 @@ public class ProductionRecordService : IProductionRecordService
             batch.InspectionStage = batch.Status == BatchStatus.InFinalInspection
                 ? ComputeInspectionStage(batchMaterialChecks)
                 : null;
-            ComputeCutTracking(batch, productionRecords);
-            ComputeProcessInspectionFields(batch, processInspections);
+            ComputeCutTracking(batch, productionRecords, cutDoubtRatio);
+            ComputeProcessInspectionFields(batch, processInspections, processInspectionNeedAdjustRatio);
             ComputeProductUnitWeight(batch);
         }
 
@@ -3074,30 +3030,14 @@ public class ProductionRecordService : IProductionRecordService
         return ProductionRecordPrintHelper.GenerateBatchPdf(items, columns, await _sectionNameDisplay.GetSectionNameMapAsync(), await _processDefService.GetProcessNameMapAsync());
     }
 
-    public async Task<byte[]> PrintProductionRecordAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? execDateFrom, DateTime? execDateTo)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = sortBy ?? "createdtime",
-            IsDescending = isDescending,
-            ExecDateFrom = execDateFrom,
-            ExecDateTo = execDateTo
-        };
-        var paged = await GetAllProductionRecordsAsync(query);
-        return ProductionRecordPrintHelper.GenerateBatchPdf(paged.Items, columns, await _sectionNameDisplay.GetSectionNameMapAsync(), await _processDefService.GetProcessNameMapAsync());
-    }
-
     /// <summary>
     /// 获取生产记录筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("ProductionRecordService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.ProductionRecordFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
             var query = from r in _context.ProductionRecords
                         join pb in _context.ProductionBatches on r.ProductionBatchId equals pb.Id
                         select new

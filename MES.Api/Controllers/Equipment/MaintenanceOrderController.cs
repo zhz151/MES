@@ -48,14 +48,6 @@ public class MaintenanceOrderController : ControllerBase
         return Ok(ApiResponse<PagedResult<MaintenanceOrderListDto>>.Ok(result, "查询成功"));
     }
 
-    [HttpGet("all-list")]
-    [Authorize(Roles = Roles.Policies.EquipmentView)]
-    public async Task<ActionResult<ApiResponse<List<MaintenanceOrderListDto>>>> GetAllList()
-    {
-        var result = await _service.GetAllListAsync();
-        return Ok(ApiResponse<List<MaintenanceOrderListDto>>.Ok(result, "查询成功"));
-    }
-
     [HttpGet("{id}")]
     [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<MaintenanceOrderListDto>>> GetById(int id)
@@ -126,21 +118,4 @@ public class MaintenanceOrderController : ControllerBase
         return File(pdfBytes, "application/pdf", "保养工单打印.pdf");
     }
 
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.EquipmentView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] MaintenanceOrderPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var query = new MaintenanceOrderQueryParams
-        {
-            Keyword = request.Keyword,
-            SortBy = string.IsNullOrEmpty(request.SortBy) ? "Id" : request.SortBy,
-            IsDescending = request.IsDescending,
-            EquipmentId = request.EquipmentId
-        };
-        var pdfBytes = await _service.PrintAllAsync(query, request.Columns);
-        return File(pdfBytes, "application/pdf", "保养工单列表.pdf");
-    }
 }

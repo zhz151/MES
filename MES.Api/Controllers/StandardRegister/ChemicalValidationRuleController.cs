@@ -90,18 +90,6 @@ public class ChemicalValidationRuleController : ControllerBase
     }
 
     /// <summary>
-    /// 根据工厂牌号获取验证规则
-    /// </summary>
-    [HttpGet("by-plant-grade")]
-    [Authorize(Roles = Roles.Policies.StandardView)]
-    public async Task<ActionResult<ApiResponse<ChemicalValidationRuleDto?>>> GetByPlantGrade(
-        [FromQuery] string plantGrade)
-    {
-        var result = await _service.GetByPlantGradeAsync(plantGrade);
-        return Ok(ApiResponse<ChemicalValidationRuleDto?>.Ok(result, "查询成功"));
-    }
-
-    /// <summary>
     /// 批量创建牌号验证规则
     /// </summary>
     [HttpPost("batch")]
@@ -151,14 +139,5 @@ public class ChemicalValidationRuleController : ControllerBase
             return BadRequest(ApiResponse<object>.Fail("请至少选择一条记录"));
         var pdfBytes = await _service.PrintBatchAsync(request.Ids, request.Columns);
         return File(pdfBytes, "application/pdf", "牌号验证规则-选中.pdf");
-    }
-
-    /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.StandardView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] ChemicalValidationRulePrintAllRequest request)
-    {
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
-        return File(pdfBytes, "application/pdf", "牌号验证规则-全部.pdf");
     }
 }

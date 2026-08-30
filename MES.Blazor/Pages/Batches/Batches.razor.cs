@@ -122,7 +122,7 @@ public partial class Batches
                 new("略", "略"), new("-1", "无此工单")
             } },
         new() { Key = "ExecutionMatch", Label = "执行匹配", SortKey = "ExecutionMatch", FilterType = "enum", Width = "100", GroupKey = 2, GroupName = "关联工单状态",
-            EnumOptions = new() { new("错误", "错误"), new("正常", "正常") } },
+            EnumOptions = new() { new("Error", "错误"), new(ProductionFlowKeys.Normal, "正常") } },
 
         // ===== G3: 现执行状态 =====
         new() { Key = "Status",             Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "现执行状态",
@@ -134,7 +134,7 @@ public partial class Batches
 
         // ===== G4: 流转判定 =====
         new() { Key = "FlowJudgment", Label = "流转判定", SortKey = "FlowJudgment", FilterType = "enum", Width = "90", GroupKey = 4, GroupName = "流转判定",
-            EnumOptions = new() { new("正常", "正常"), new("疑问", "疑问") } },
+            EnumOptions = new() { new(ProductionFlowKeys.Normal, "正常"), new(ProductionFlowKeys.Doubt, "疑问") } },
 
         // ===== G5: 有效投料变更 =====
         new() { Key = "ProcessInspectionQualifiedQty",    Label = "过程检合格支", SortKey = null, Width = "100", GroupKey = 5, GroupName = "有效投料变更", Visible = false },
@@ -523,8 +523,8 @@ public partial class Batches
     {
         HashSet<string> values = item.DoubtType switch
         {
-            BatchDoubtExecutionType.MatchOrder => new() { "错误" },
-            BatchDoubtExecutionType.FlowDoubt => new() { "疑问" },
+            BatchDoubtExecutionType.MatchOrder => new() { "Error" },
+            BatchDoubtExecutionType.FlowDoubt => new() { ProductionFlowKeys.Doubt },
             BatchDoubtExecutionType.NeedAdjust => new() { "True" },
             BatchDoubtExecutionType.CutDoubt => new() { "QuantityMismatch", "MissingRecords" },
             _ => new()
@@ -990,8 +990,8 @@ public partial class Batches
             -1 => "无此工单",
             int s => DisplayHelper.GetScheduleStageText(s)
         },
-        "ExecutionMatch" => item.ExecutionMatch ?? "",
-        "FlowJudgment" => item.FlowJudgment ?? "",
+        "ExecutionMatch" => item.ExecutionMatch == "Error" ? "错误" : "正常",
+        "FlowJudgment" => item.FlowJudgment == ProductionFlowKeys.Doubt ? "疑问" : "正常",
         "UpdatedBy" => item.UpdatedBy ?? "",
         "CreatedBy" => item.CreatedBy,
         _ => ""
@@ -1145,7 +1145,7 @@ public partial class Batches
                 }
                 break;
             case "ExecutionMatch":
-                if (item.ExecutionMatch == "错误")
+                if (item.ExecutionMatch == "Error")
                 {
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
@@ -1155,11 +1155,11 @@ public partial class Batches
                 }
                 else
                 {
-                    builder.AddContent(0, item.ExecutionMatch ?? "");
+                    builder.AddContent(0, item.ExecutionMatch == "Error" ? "错误" : "正常");
                 }
                 break;
             case "FlowJudgment":
-                if (item.FlowJudgment == "疑问")
+                if (item.FlowJudgment == ProductionFlowKeys.Doubt)
                 {
                     builder.OpenComponent<MudChip>(0);
                     builder.AddAttribute(1, "Size", Size.Small);
@@ -1169,7 +1169,7 @@ public partial class Batches
                 }
                 else
                 {
-                    builder.AddContent(0, item.FlowJudgment ?? "");
+                    builder.AddContent(0, item.FlowJudgment == ProductionFlowKeys.Doubt ? "疑问" : "正常");
                 }
                 break;
             case "CurrentExecDate":

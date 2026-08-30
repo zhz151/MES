@@ -39,11 +39,6 @@ public interface IPicklingService
     // ========== 完工记录 ==========
 
     /// <summary>
-    /// 获取指定入缸的完工记录
-    /// </summary>
-    Task<PicklingOutRecordDto?> GetOutRecordByInIdAsync(int picklingInRecordId);
-
-    /// <summary>
     /// 跨批次分页查询完工记录
     /// </summary>
     Task<PagedResult<PicklingOutRecordDto>> GetOutRecordsPagedAsync(QueryParams query);
@@ -71,24 +66,9 @@ public interface IPicklingService
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
 
     /// <summary>
-    /// 按筛选条件打印全部入缸记录
-    /// </summary>
-    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending,
-        DateTime? inDateFrom, DateTime? inDateTo,
-        DateTime? completeDateFrom, DateTime? completeDateTo,
-        List<PrintColumnDef> columns);
-
-    /// <summary>
     /// 批量打印完工记录（选中）
     /// </summary>
     Task<byte[]> PrintOutBatchAsync(int[] ids, List<PrintColumnDef> columns);
-
-    /// <summary>
-    /// 按筛选条件打印全部完工记录
-    /// </summary>
-    Task<byte[]> PrintOutAllAsync(string? keyword, string? sortBy, bool isDescending,
-        DateTime? completeDateFrom, DateTime? completeDateTo,
-        List<PrintColumnDef> columns);
 
     // ========== 筛选上下文 ==========
 

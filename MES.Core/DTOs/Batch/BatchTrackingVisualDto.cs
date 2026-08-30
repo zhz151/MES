@@ -75,7 +75,6 @@ public class SectionVisualDto
 
     /// <summary>状态: Completed / InProgress / Outsource / Next / Pending</summary>
     public SectionStatus Status { get; set; } = SectionStatus.Pending;
-    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
 
     // ===== 若有生产记录 =====
     public DateTime? ExecDate { get; set; }

@@ -259,97 +259,11 @@ public class ProcessInspectionService : IProcessInspectionService
         };
     }
 
-    public async Task<List<ProcessInspectionDto>> GetAllListAsync()
-    {
-        var raw = await _context.ProcessInspections
-            .AsNoTracking()
-            .OrderByDescending(pi => pi.Id)
-            .Select(pi => new
-            {
-                pi.Id,
-                pi.InspectionDate,
-                pi.ProductionBatchId,
-                pi.BatchNo,
-                WorkOrderNo = pi.ProductionBatch.WorkOrderNo,
-                SalesOrderNo = pi.ProductionBatch.SalesOrderNo,
-                ProductionMainNo = pi.ProductionBatch.ProductionMainNo,
-                pi.ProcessName,
-                pi.ManufacturingSpec,
-                pi.SectionName,
-                pi.SequenceNumber,
-                pi.EquipmentName,
-                pi.Inspector,
-                pi.Shift,
-                pi.Quantity,
-                pi.Weight,
-                pi.InspectionItem,
-                pi.QualifiedQuantity,
-                pi.QualifiedWeight,
-                pi.QualifiedConcessionQuantity,
-                pi.ConcessionRemark,
-                pi.DefectReworkQuantity,
-                pi.DefectWarehouseQuantity,
-                pi.DefectScrapQuantity,
-                pi.TheoreticalReworkWeight,
-                pi.TheoreticalWarehouseWeight,
-                pi.TheoreticalScrapWeight,
-                pi.DefectDescription,
-                pi.SourceUnit,
-                pi.TagNo,
-                pi.PlantGrade,
-                pi.Remark,
-                pi.CreatedTime,
-                pi.UpdatedTime,
-                pi.ProductStatus
-            })
-            .ToListAsync();
-
-        return raw.Select(pi => new ProcessInspectionDto
-        {
-            Id = pi.Id,
-            InspectionDate = pi.InspectionDate,
-            ProductionBatchId = pi.ProductionBatchId,
-            BatchNo = pi.BatchNo!,
-            WorkOrderNo = pi.WorkOrderNo,
-            SalesOrderNo = pi.SalesOrderNo,
-            ProductionMainNo = pi.ProductionMainNo,
-            ProcessName = pi.ProcessName,
-            ManufacturingSpec = pi.ManufacturingSpec,
-            SectionName = pi.SectionName,
-            SequenceNumber = pi.SequenceNumber,
-            EquipmentName = pi.EquipmentName,
-            Inspector = pi.Inspector,
-            Shift = EnumHelper.TryParse<ShiftType>(pi.Shift),
-            Quantity = pi.Quantity,
-            Weight = pi.Weight,
-            InspectionItem = EnumHelper.TryParse<MES.Core.Enums.InspectionItem>(pi.InspectionItem),
-            QualifiedQuantity = pi.QualifiedQuantity,
-            QualifiedWeight = pi.QualifiedWeight,
-            QualifiedConcessionQuantity = pi.QualifiedConcessionQuantity,
-            ConcessionRemark = pi.ConcessionRemark,
-            DefectReworkQuantity = pi.DefectReworkQuantity,
-            DefectWarehouseQuantity = pi.DefectWarehouseQuantity,
-            DefectScrapQuantity = pi.DefectScrapQuantity,
-            TheoreticalReworkWeight = pi.TheoreticalReworkWeight,
-            TheoreticalWarehouseWeight = pi.TheoreticalWarehouseWeight,
-            TheoreticalScrapWeight = pi.TheoreticalScrapWeight,
-            DefectDescription = pi.DefectDescription,
-            SourceUnit = pi.SourceUnit,
-            TagNo = pi.TagNo,
-            PlantGrade = pi.PlantGrade,
-            Remark = pi.Remark,
-            CreatedTime = pi.CreatedTime,
-            UpdatedTime = pi.UpdatedTime,
-            ProductStatus = pi.ProductStatus
-        }).ToList();
-    }
-
-
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("ProcessInspectionService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.ProcessInspectionFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             // 顺序执行各列 DISTINCT 查询（DbContext 非线程安全，禁止并行）
             var batchNos = await _context.ProcessInspections.Where(r => r.BatchNo != null).Select(r => r.BatchNo!).Distinct().OrderBy(v => v).ToListAsync();
@@ -798,22 +712,6 @@ public class ProcessInspectionService : IProcessInspectionService
         var result = await GetAllAsync(query);
         var selected = result.Items.Where(i => ids.Contains(i.Id)).ToList();
         return ProcessInspectionPrintHelper.GenerateBatchPdf(selected, columns, await _processDefService.GetProcessNameMapAsync());
-    }
-
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? inspectionDateFrom = null, DateTime? inspectionDateTo = null)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? null! : sortBy,
-            IsDescending = isDescending,
-            InspectionDateFrom = inspectionDateFrom,
-            InspectionDateTo = inspectionDateTo
-        };
-        var result = await GetAllAsync(query);
-        return ProcessInspectionPrintHelper.GenerateBatchPdf(result.Items, columns, await _processDefService.GetProcessNameMapAsync());
     }
 
     private static int? ComputeTheoreticalWeight(decimal? weight, int? quantity, int? defectQuantity)

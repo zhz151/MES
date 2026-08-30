@@ -62,6 +62,14 @@
                            OnClick="ToggleMachineEstimate">
                     排机估算
                 </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           Color="@(_showMachineConfig ? Color.Secondary : Color.Default)"
+                           StartIcon="@(_showMachineConfig ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.SettingsInputComponent)"
+                           Class="crp-print-hide"
+                           OnClick="ToggleMachineConfig">
+                    机台数配置
+                </MudButton>
                 @if (_scheduleUpdatedTime.HasValue)
                 {
                     <MudText Typo="Typo.body2" Class="ml-4 mr-2">
@@ -75,14 +83,14 @@
         <div class="d-flex flex-wrap align-center gap-2 mb-2 crp-print-hide" style="gap: 4px;">
             @foreach (var sec in _sectionTabs)
             {
-                var isActive = (sec == "全部" && _selectedSection == null)
-                    || (sec != "全部" && _selectedSection == sec);
+                var isActive = (sec.Key == "" && _selectedSection == null)
+                    || (sec.Key != "" && _selectedSection == sec.Key);
                 <MudButton Variant="@(isActive ? Variant.Filled : Variant.Outlined)"
                            Color="@(isActive ? Color.Primary : Color.Default)"
                            Size="Size.Small"
                            Class="ma-0"
-                           OnClick="@(() => OnSectionTabChanged(sec == "全部" ? null : sec))">
-                    @sec
+                           OnClick="@(() => OnSectionTabChanged(sec.Key == "" ? null : sec.Key))">
+                    @sec.Display
                 </MudButton>
             }
         </div>
@@ -168,6 +176,162 @@
         </MudCard>
     }
 
+    @* 冷轧机台数配置 — 折叠卡片：排程人员随时维护机台数参数（新建/内联编辑/删除，改动后自动刷新排机估算与排程建议） *@
+    @if (_showMachineConfig)
+    {
+        <MudCard Class="mb-3 crp-print-hide summary-card" Elevation="0">
+            <MudCardContent>
+                <div class="d-flex justify-space-between align-center mb-2">
+                    <MudText Typo="Typo.subtitle2">
+                        <b>冷轧机台数配置</b>
+                        <span class="ml-2 text-hint" style="font-size: 0.8rem; font-weight: normal;">排程建议产能平衡输入，保存后自动刷新排机估算/排程建议</span>
+                    </MudText>
+                    <AuthorizeView Roles="@Roles.Policies.SchedulingEdit">
+                        <MudButton Variant="Variant.Filled" Size="Size.Small" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Add" OnClick="AddMachineConfigNew"
+                                   Disabled="@_machineConfigSaving">新建</MudButton>
+                    </AuthorizeView>
+                </div>
+                @if (_machineConfigLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                }
+                else if (!_machineConfigRows.Any())
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Default">暂无机台数配置（点击「新建」添加）</MudText>
+                }
+                else
+                {
+                    <div id="crp-machine-config-table">
+                    <table class="summary-flow-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 140px;">机型</th>
+                                <th style="width: 90px;">本厂数量</th>
+                                <th style="width: 90px;">最小机台数</th>
+                                <th style="width: 90px;">最大机台数</th>
+                                <th style="width: 140px;">估算单机日产(kg/天)</th>
+                                <th>备注</th>
+                                <th style="width: 110px;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in _machineConfigRows)
+                            {
+                                var rowEditing = _machineConfigEditingIds.Contains(item.Id);
+                                var rowCache = rowEditing && _machineConfigCache.TryGetValue(item.Id, out var rc) ? rc : null;
+                                <tr>
+                                    <td>
+                                        @if (rowEditing && rowCache != null)
+                                        {
+                                            <MudSelect T="string" Value="@rowCache.ProcessType"
+                                                       ValueChanged="@(v => rowCache.ProcessType = v)"
+                                                       Dense="true" Variant="Variant.Outlined" Class="compact-select">
+                                                @foreach (var opt in _machineTypeOptions)
+                                                {
+                                                    <MudSelectItem Value="@opt.ProcessKey">@ProcessDisplayHelper.GetProcessNameText(opt.ProcessKey)</MudSelectItem>
+                                                }
+                                            </MudSelect>
+                                        }
+                                        else
+                                        {
+                                            <b>@ProcessDisplayHelper.GetProcessNameText(item.ProcessType)</b>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (rowEditing && rowCache != null)
+                                        {
+                                            <MudNumericField T="int" Value="@rowCache.OwnedCount"
+                                                             ValueChanged="@(v => rowCache.OwnedCount = v)"
+                                                             HideSpinButtons="true" Min="0"
+                                                             Dense="true" Variant="Variant.Outlined" Class="compact-input" />
+                                        }
+                                        else
+                                        {
+                                            @item.OwnedCount
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (rowEditing && rowCache != null)
+                                        {
+                                            <MudNumericField T="int" Value="@rowCache.MinMachines"
+                                                             ValueChanged="@(v => rowCache.MinMachines = v)"
+                                                             HideSpinButtons="true" Min="0"
+                                                             Dense="true" Variant="Variant.Outlined" Class="compact-input" />
+                                        }
+                                        else
+                                        {
+                                            @item.MinMachines
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (rowEditing && rowCache != null)
+                                        {
+                                            <MudNumericField T="int" Value="@rowCache.MaxMachines"
+                                                             ValueChanged="@(v => rowCache.MaxMachines = v)"
+                                                             HideSpinButtons="true" Min="0"
+                                                             Dense="true" Variant="Variant.Outlined" Class="compact-input" />
+                                        }
+                                        else
+                                        {
+                                            @item.MaxMachines
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (rowEditing && rowCache != null)
+                                        {
+                                            <MudNumericField T="decimal?" Value="@rowCache.EstimatedDailyOutput"
+                                                             ValueChanged="@(v => rowCache.EstimatedDailyOutput = v)"
+                                                             HideSpinButtons="true" Min="0" Format="G29"
+                                                             Dense="true" Variant="Variant.Outlined" Class="compact-input" />
+                                        }
+                                        else
+                                        {
+                                            @(item.EstimatedDailyOutput?.ToString("G29") ?? "-")
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (rowEditing && rowCache != null)
+                                        {
+                                            <MudTextField T="string" Value="@rowCache.Remark"
+                                                          ValueChanged="@(v => rowCache.Remark = v)"
+                                                          Dense="true" Variant="Variant.Outlined" Class="compact-input" />
+                                        }
+                                        else
+                                        {
+                                            @item.Remark
+                                        }
+                                    </td>
+                                    <td style="white-space: nowrap;">
+                                        @if (rowEditing)
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small"
+                                                           OnClick="() => SaveMachineConfigEdit(item)" Disabled="@_machineConfigSaving" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Default" Size="Size.Small"
+                                                           OnClick="() => CancelMachineConfigEdit(item)" />
+                                        }
+                                        else
+                                        {
+                                            <AuthorizeView Roles="@Roles.Policies.SchedulingEdit">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small"
+                                                               OnClick="() => StartMachineConfigEdit(item)" />
+                                            </AuthorizeView>
+                                            <AuthorizeView Roles="@Roles.Policies.SchedulingDelete">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                               OnClick="() => DeleteMachineConfigEdit(item)" />
+                                            </AuthorizeView>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                    </div>
+                }
+            </MudCardContent>
+        </MudCard>
+    }
+
     @* 冷轧排程建议 — 折叠汇总卡片（标题行右上角按钮展开）：特急锁定 → 流转保底 → 产能平衡 三步决策 *@
     @if (_showSuggestion)
     {
@@ -205,10 +369,10 @@
                                 <MudText Typo="Typo.body2" Class="mb-1">
                                     可流转量，<b>@TonsText(group.FlowTotalWeight)</b> 吨；本次计划流转量，<b>@TonsText(group.PlannedFlowWeight)</b> 吨；计划机台数，<b>@group.MachineCount</b> 台；流转档：<b>@SuggestionTierDisplay(group)</b>
                                 </MudText>
-                                @if (group.FlowState?.Role == "Supplier")
+                                @if (!string.IsNullOrEmpty(group.FlowState?.TargetGroupDisplay))
                                 {
                                     <MudText Typo="Typo.body2">
-                                        后流转（2030量：<b>@TonsText(group.FlowState.TotalWeight)</b> 吨，预算机台：<b>@group.FlowState.SupplyMachines</b> 台）
+                                        后流转（@(group.FlowState.TargetGroupDisplay)量：<b>@TonsText(group.FlowState.SupplyToTargetWeight)</b> 吨，预算机台：<b>@group.FlowState.SupplyToTargetMachines</b> 台）
                                     </MudText>
                                 }
 

@@ -140,22 +140,6 @@ public class NcrServiceTests : TestBase
         result.Items.Should().BeEmpty();
     }
 
-    // ========== GetAllListAsync ==========
-
-    [Fact]
-    public async Task GetAllListAsync_返回全部数据()
-    {
-        var ctx = CreateDbContext();
-        await SeedNcrAsync(ctx);
-        ctx.Ncrs.Add(new Ncr { ReportDate = DateTime.Today, BatchNo = "BATCH002", PipeCategory = MaterialType.OrderFinished, Status = NcrStatus.Processing });
-        await ctx.SaveChangesAsync();
-        var svc = CreateService(ctx);
-
-        var result = await svc.GetAllListAsync();
-
-        result.Should().HaveCount(2);
-    }
-
     // ========== GetByIdAsync ==========
 
     [Fact]

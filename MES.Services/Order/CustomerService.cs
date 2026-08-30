@@ -1,5 +1,6 @@
 // 文件路径: MES.Services/CustomerService.cs
 using Microsoft.EntityFrameworkCore;
+using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
@@ -317,9 +318,9 @@ public class CustomerService : ICustomerService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("CustomerService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.CustomerFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             // 注意：枚举列（Status）不在此处返回，
             // 由前端 EnumOptions fallback 直接提供带中文 Display 的选项，避免映射丢失。
@@ -367,20 +368,6 @@ public class CustomerService : ICustomerService
             catch (BusinessException) { /* 跳过不存在的客户 */ }
         }
         return TablePrintHelper.GeneratePdf("客户档案列表", result, columns ?? []);
-    }
-
-    public async Task<byte[]> PrintCustomerAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, List<PrintColumnDef>? columns = null)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = sortBy ?? "CreatedTime",
-            IsDescending = isDescending
-        };
-        var paged = await GetPagedAsync(query);
-        return TablePrintHelper.GeneratePdf("客户档案列表", paged.Items, columns ?? []);
     }
 
     private static CustomerProfileDto ToDto(CustomerProfile entity) => new()

@@ -9,6 +9,7 @@
 @using MES.Core.DTOs.Configuration
 @using System.Text.Json
 @inject DailyProductionCapacityService Service
+@inject ColdRollMachineGroupConfigService GroupService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -107,15 +108,16 @@
                                            Value="@rowCache.ProcessName"
                                            ValueChanged="@(v => rowCache.ProcessName = v)"
                                            Class="compact-input">
-                                    @foreach (var kv in ProductionOverviewRowKeys.KeyToChinese)
+                                    <MudSelectItem T="string" Value="@ProductionOverviewRowKeys.Polish">@ProductionOverviewRowKeys.ToChinese(ProductionOverviewRowKeys.Polish)</MudSelectItem>
+                                    @foreach (var g in _groupOptions)
                                     {
-                                        <MudSelectItem T="string" Value="@kv.Key">@kv.Value</MudSelectItem>
+                                        <MudSelectItem T="string" Value="@g.GroupKey">@g.DisplayName</MudSelectItem>
                                     }
                                 </MudSelect>
                             }
                             else
                             {
-                                <span class="font-weight-bold">@DictValueDisplayHelper.GetText(DictValueDefaults.ProductionOverviewRowKey,item.ProcessName)</span>
+                                <span class="font-weight-bold">@DisplayRowName(item.ProcessName)</span>
                             }
                         }
                         else if (col.Key == "DailyCapacity")

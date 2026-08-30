@@ -47,7 +47,6 @@ public class SectionOutsourceDto
     public bool IsInternal { get; set; }
     /// <summary>状态（PendingRecovery=待回收, Recovered=已回收, Virtual=略）</summary>
     public SectionOutsourceStatus Status { get; set; }
-    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
     /// <summary>挂牌号</summary>
     public string? TagNo { get; set; }
     /// <summary>工厂牌号</summary>

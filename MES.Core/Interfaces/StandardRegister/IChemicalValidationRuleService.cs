@@ -15,7 +15,7 @@ public interface IChemicalValidationRuleService
     Task<ChemicalValidationRuleDto?> GetByIdAsync(int id);
 
     /// <summary>
-    /// 查询所有牌号验证规则（分页�?    /// </summary>
+    /// 查询所有牌号验证规则（分页�?    /// </summary>
     Task<PagedResult<ChemicalValidationRuleDto>> GetAllAsync(QueryParams query);
 
     /// <summary>
@@ -44,12 +44,9 @@ public interface IChemicalValidationRuleService
     Task<List<ChemicalValidationRuleDto>> GetAllListAsync();
 
     /// <summary>
-    /// 获取筛选上下文（各列的 DISTINCT 值，用于 ExcelFilter�?    /// </summary>
+    /// 获取筛选上下文（各列的 DISTINCT 值，用于 ExcelFilter�?    /// </summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
     /// <summary>批量打印选中记录</summary>
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
-
-    /// <summary>按条件打印全部记�?/summary>
-    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns);
 }

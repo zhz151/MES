@@ -22,9 +22,6 @@ public interface IStandardRegisterService
     /// <summary>批量打印选中记录</summary>
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
 
-    /// <summary>按条件打印全部记录</summary>
-    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns);
-
     // 子项目
     Task<List<StandardRegisterItemDto>> GetItemsAsync(int standardRegisterId);
     /// <summary>保存子项目，返回 Id（0 表示失败）</summary>

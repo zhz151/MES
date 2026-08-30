@@ -161,7 +161,7 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                      x.b.NextProcess != null && x.b.NextProcess.Contains(sectionTab) &&
                      x.b.NextSectionName == SectionKeys.ColdRollDraw));
             }
-            else if (sectionTab == "过程检验" || sectionTab == "成品检验" || sectionTab == "荒管检" || sectionTab == "在制检")
+            else if (sectionTab == "过程检验" || sectionTab == "成品检验" || sectionTab == BatchPlanSectionTabs.RoughTubeInspection || sectionTab == BatchPlanSectionTabs.InProcessInspection)
             {
                 if (sectionTab == "成品检验")
                 {
@@ -205,13 +205,13 @@ public class BatchPlanScheduleService : IBatchPlanScheduleService
                              .FirstOrDefault()));
 
                     // 荒管检/在制检：额外按工序名过滤
-                    if (sectionTab == "荒管检")
+                    if (sectionTab == BatchPlanSectionTabs.RoughTubeInspection)
                     {
                         joined = joined.Where(x =>
                             (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessKeys.RoughTubeProcessing) ||
                             (x.b.CurrentSectionCompleted != false && x.b.NextProcess == ProcessKeys.RoughTubeProcessing));
                     }
-                    else if (sectionTab == "在制检")
+                    else if (sectionTab == BatchPlanSectionTabs.InProcessInspection)
                     {
                         joined = joined.Where(x =>
                             (x.b.CurrentSectionCompleted == false && x.b.CurrentGroupName == ProcessKeys.InProcessRepair) ||

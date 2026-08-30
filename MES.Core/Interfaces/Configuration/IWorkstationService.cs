@@ -28,7 +28,4 @@ public interface IWorkstationService
 
     /// <summary>批量打印（按ID）</summary>
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
-
-    /// <summary>按条件打印全部</summary>
-    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns);
 }

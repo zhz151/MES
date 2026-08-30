@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MES.Core.Constants;
 using MES.Core.DTOs.Auth;
 using MES.Core.DTOs.Batch;
 using MES.Core.DTOs.Configuration;
@@ -108,55 +109,6 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
             CreatedTime = r.CreatedTime,
             UpdatedTime = r.UpdatedTime
         };
-    }
-
-    public async Task<List<FurnaceRegistrationDto>> GetAllListAsync()
-    {
-        var raw = await _context.FurnaceRegistrations
-            .AsNoTracking()
-            .OrderByDescending(x => x.Id)
-            .Select(x => new
-            {
-                x.Id, x.IncomingDate, x.RawMaterialUnit, RawMaterialTypeStr = x.RawMaterialType,
-                x.RegisteredGrade, x.RelatedPlantGrade, x.FurnaceNumber, x.Specification,
-                x.Quantity, x.Weight, x.Carbon, x.Silicon, x.Manganese, x.Phosphorus, x.Sulfur,
-                x.Nickel, x.Chromium, x.Molybdenum, x.Copper, x.Nitrogen, x.Niobium, x.Titanium,
-                x.Iron, x.Aluminum, x.Tungsten, x.PREN, x.Remark, x.CreatedTime, x.UpdatedTime
-            })
-            .ToListAsync();
-
-        return raw.Select(x => new FurnaceRegistrationDto
-        {
-            Id = x.Id,
-            IncomingDate = x.IncomingDate,
-            RawMaterialUnit = x.RawMaterialUnit,
-            RawMaterialType = Enum.TryParse<MaterialType>(x.RawMaterialTypeStr, out var xTmp) ? xTmp : default,
-            RegisteredGrade = x.RegisteredGrade,
-            RelatedPlantGrade = x.RelatedPlantGrade,
-            FurnaceNumber = x.FurnaceNumber,
-            Specification = x.Specification,
-            Quantity = x.Quantity,
-            Weight = x.Weight,
-            Carbon = x.Carbon,
-            Silicon = x.Silicon,
-            Manganese = x.Manganese,
-            Phosphorus = x.Phosphorus,
-            Sulfur = x.Sulfur,
-            Nickel = x.Nickel,
-            Chromium = x.Chromium,
-            Molybdenum = x.Molybdenum,
-            Copper = x.Copper,
-            Nitrogen = x.Nitrogen,
-            Niobium = x.Niobium,
-            Titanium = x.Titanium,
-            Iron = x.Iron,
-            Aluminum = x.Aluminum,
-            Tungsten = x.Tungsten,
-            PREN = x.PREN,
-            Remark = x.Remark,
-            CreatedTime = x.CreatedTime,
-            UpdatedTime = x.UpdatedTime
-        }).ToList();
     }
 
     public async Task<PagedResult<FurnaceRegistrationDto>> GetAllAsync(QueryParams query)
@@ -439,9 +391,9 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("FurnaceRegistrationService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.FurnaceRegistrationFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var all = await _context.FurnaceRegistrations
                 .AsNoTracking()
@@ -593,22 +545,6 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
         var result = await GetAllAsync(query);
         var selected = result.Items.Where(i => ids.Contains(i.Id)).ToList();
         return FurnaceRegistrationPrintHelper.GenerateBatchPdf(selected, columns);
-    }
-
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? incomingDateFrom = null, DateTime? incomingDateTo = null)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? null! : sortBy,
-            IsDescending = isDescending,
-            IncomingDateFrom = incomingDateFrom,
-            IncomingDateTo = incomingDateTo
-        };
-        var result = await GetAllAsync(query);
-        return FurnaceRegistrationPrintHelper.GenerateBatchPdf(result.Items, columns);
     }
 
     private static IQueryable<FurnaceRegistration> ApplySorting(IQueryable<FurnaceRegistration> queryable, string sortBy, bool isDescending)

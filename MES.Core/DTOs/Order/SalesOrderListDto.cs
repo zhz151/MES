@@ -69,11 +69,6 @@ public class SalesOrderListDto
     public SalesOrderStatus Status { get; set; }
 
     /// <summary>
-    /// 订单状态中文显示
-    /// </summary>
-    public string StatusDisplay => EnumHelper.GetDisplayName(Status);
-
-    /// <summary>
     /// 乐观并发控制版本号
     /// </summary>
     public byte[] RowVersion { get; set; } = null!;

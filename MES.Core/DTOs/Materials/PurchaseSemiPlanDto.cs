@@ -1,5 +1,4 @@
 using MES.Core.Enums;
-using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Materials;
 
@@ -67,7 +66,6 @@ public class PurchaseSemiPlanDto
     /// 原料类型
     /// </summary>
     public MaterialType RawMaterialType { get; set; }
-    public string RawMaterialTypeDisplay => EnumHelper.GetDisplayName(RawMaterialType);
 
     /// <summary>
     /// 原料规格

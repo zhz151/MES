@@ -1,0 +1,245 @@
+@page "/cold-roll-machine-group-configs"
+@using MES.Blazor.Services
+@using MES.Core.Models
+@using MES.Core.DTOs.Scheduling
+@using MES.Core.DTOs.Configuration
+@using MES.Blazor.Helpers
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@using System.Text.Json
+@inject MES.Blazor.Services.ColdRollMachineGroupConfigService Service
+@inject MES.Blazor.Services.ProcessDefinitionService ProcessDefSvc
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
+@inject PageStateService PageState
+@attribute [Authorize(Roles = Roles.Policies.ColdRollMachineGroupConfigView)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Groups" Class="mr-2" Color="Color.Primary" />
+                    冷轧机台组配置
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudText Typo="Typo.body2" Color="Color.Default" Class="mr-2">冷轧工序归组（排机估算/排程建议机台类型归并输入，工序全局唯一归属一组）</MudText>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="AddNew">
+                    新建
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <!-- 搜索栏 -->
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField T="string"
+                                  Label="模糊搜索 - 组Key/组显示名/备注"
+                                  Value="_searchKeyword" ValueExpression="@(() => _searchKeyword)"
+                                  ValueChanged="@OnSearchChanged"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+            </MudGrid>
+
+            <!-- 数据表格 -->
+            <div id="cold-roll-machine-group-configs-list-table">
+            <MudTable @ref="table"
+                      T="ColdRollMachineGroupConfigDto"
+                      ServerData="@LoadDataFromServer"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-4 auto-table"
+                      Elevation="0"
+                      RowsPerPage="@_pageSize"
+                      RowsPerPageLabel="每页行数:">
+                <ToolBarContent>
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                    <MudSpacer />
+                    <MudText Typo="Typo.body2" Class="ml-auto">
+                        共 @_totalCount 条记录
+                    </MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTh>
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
+                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label@if (col.IsRequired) {<span class="required-star">*</span>} @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
+                            </div>
+                        </MudTh>
+                    }
+                    <MudTh Style="width: 110px;">操作</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    @{
+                        var rowEditing = _editingIds.Contains(item.Id);
+                        var rowCache = rowEditing && _editCache.TryGetValue(item.Id, out var rc) ? rc : null;
+                    }
+                    @foreach (var col in _visibleColumns)
+                    {
+                        <MudTd>
+                        @if (col.Key == "GroupKey")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.GroupKey"
+                                              ValueChanged="@(v => rowCache.GroupKey = v)"
+                                              Class="compact-input" />
+                            }
+                            else
+                            {
+                                <b>@item.GroupKey</b>
+                            }
+                        }
+                        else if (col.Key == "DisplayName")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.DisplayName"
+                                              ValueChanged="@(v => rowCache.DisplayName = v)"
+                                              Class="compact-input" />
+                            }
+                            else
+                            {
+                                @item.DisplayName
+                            }
+                        }
+                        else if (col.Key == "ProcessKeys")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudSelect T="string"
+                                           Dense="true"
+                                           Variant="Variant.Outlined"
+                                           MultiSelection="true"
+                                           SelectedValues="@rowCache.ProcessKeys"
+                                           SelectedValuesChanged="@(v => rowCache.ProcessKeys = v?.ToList() ?? new List<string>())"
+                                           Label="选择组内工序"
+                                           Class="compact-select">
+                                    @foreach (var opt in _machineTypeOptions)
+                                    {
+                                        <MudSelectItem Value="@opt.ProcessKey">@ProcessDisplayHelper.GetProcessNameText(opt.ProcessKey)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            }
+                            else
+                            {
+                                @GetProcessKeysText(item)
+                            }
+                        }
+                        else if (col.Key == "DisplayOrder")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudNumericField T="int"
+                                                 Dense="true"
+                                                 Variant="Variant.Outlined"
+                                                 HideSpinButtons="true"
+                                                 Value="@rowCache.DisplayOrder"
+                                                 ValueChanged="@(v => rowCache.DisplayOrder = v)"
+                                                 Class="compact-input"
+                                                 Min="0" />
+                            }
+                            else
+                            {
+                                @item.DisplayOrder
+                            }
+                        }
+                        else if (col.Key == "SupplyTargetGroupKey")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudSelect T="string"
+                                           Dense="true"
+                                           Variant="Variant.Outlined"
+                                           Value="@rowCache.SupplyTargetGroupKey"
+                                           ValueChanged="@(v => rowCache.SupplyTargetGroupKey = v)"
+                                           Clearable="true"
+                                           Label="选择供给目标组"
+                                           Class="compact-input">
+                                    @foreach (var g in _groupOptions.Where(x => x.Id != item.Id))
+                                    {
+                                        <MudSelectItem Value="@g.GroupKey">@g.DisplayName</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            }
+                            else
+                            {
+                                @GetSupplyTargetText(item.SupplyTargetGroupKey)
+                            }
+                        }
+                        else if (col.Key == "Remark")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudTextField T="string"
+                                              Dense="true"
+                                              Variant="Variant.Outlined"
+                                              Value="@rowCache.Remark"
+                                              ValueChanged="@(v => rowCache.Remark = v)"
+                                              Class="compact-input" />
+                            }
+                            else
+                            {
+                                @item.Remark
+                            }
+                        }
+                        else if (col.Key == "UpdatedTime")
+                        {
+                            @item.UpdatedTime.ToString("yyyy-MM-dd HH:mm")
+                        }
+                        else
+                        {
+                            @("")
+                        }
+                        </MudTd>
+                    }
+                    <MudTd Style="white-space: nowrap; width: 110px;">
+                        @if (rowEditing)
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" OnClick="() => SaveEdit(item)" Disabled="@_isSaving" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Default" Size="Size.Small" OnClick="() => CancelEdit(item)" />
+                        }
+                        else
+                        {
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
+                        <AuthorizeView Roles="@Roles.Policies.ColdRollMachineGroupConfigDelete">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItem(item)" />
+                        </AuthorizeView>
+                        }
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
+                </PagerContent>
+            </MudTable>
+            </div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>

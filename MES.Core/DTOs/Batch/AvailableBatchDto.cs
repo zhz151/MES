@@ -1,5 +1,4 @@
 using MES.Core.Enums;
-using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Batch;
 
@@ -18,9 +17,7 @@ public class AvailableBatchDto
     public int WarehouseId { get; set; }
     public string? WarehouseName { get; set; }
     public MaterialType? MaterialType { get; set; }
-    public string? MaterialTypeDisplay => MaterialType.HasValue ? EnumHelper.GetDisplayName(MaterialType.Value) : null;
     public InboundSource? InboundSource { get; set; }
-    public string? InboundSourceDisplay => InboundSource.HasValue ? EnumHelper.GetDisplayName(InboundSource.Value) : null;
     public string? SourceName { get; set; }
     public DateTime? InboundDate { get; set; }
     public string? HeatNo { get; set; }

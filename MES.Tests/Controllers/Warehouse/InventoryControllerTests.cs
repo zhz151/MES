@@ -246,21 +246,6 @@ public class InventoryControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task ValidateWorkOrderNos_ReturnsOk()
-    {
-        // Arrange
-        var list = new List<string> { "WO001" };
-        _serviceMock.Setup(x => x.ValidateWarehouseWorkOrderNosAsync(1)).ReturnsAsync(list);
-
-        // Act
-        var result = await _controller.ValidateWorkOrderNos(1);
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<List<string>>>(result);
-        Assert.Single(response.Data!);
-    }
-
-    [Fact]
     public async Task BatchInbound_ReturnsOk()
     {
         // Arrange

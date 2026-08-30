@@ -87,21 +87,6 @@ public class ChemicalValidationRuleControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task GetByPlantGrade_ReturnsOk()
-    {
-        // Arrange
-        var dto = new ChemicalValidationRuleDto { Id = 1, PlantGrade = "304" };
-        _serviceMock.Setup(x => x.GetByPlantGradeAsync("304")).ReturnsAsync(dto);
-
-        // Act
-        var result = await _controller.GetByPlantGrade("304");
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<ChemicalValidationRuleDto?>>(result);
-        Assert.Equal("304", response.Data?.PlantGrade);
-    }
-
-    [Fact]
     public async Task BatchCreate_ReturnsOk()
     {
         // Arrange

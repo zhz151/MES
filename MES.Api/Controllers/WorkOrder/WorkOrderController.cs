@@ -30,72 +30,6 @@ public class WorkOrderController : ControllerBase
 
     #region 工单首页（订单状态监控）
 
-    [HttpGet("order-status")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<ActionResult<ApiResponse<PagedResult<OrderWorkOrderStatusDto>>>> GetOrderWorkOrderStatus(
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20,
-        [FromQuery] string? keyword = null,
-        [FromQuery] string? sortBy = null,
-        [FromQuery] bool isDescending = true,
-        [FromQuery] string? salesOrderNo = null,
-        [FromQuery] string? productionMainNo = null,
-        [FromQuery] string? productionSubNo = null,
-        [FromQuery] int? status = null,
-        [FromQuery] string? workOrderStatus = null,
-        [FromQuery] string? pipeManufacturingType = null,
-        [FromQuery] string? specification = null,
-        [FromQuery] DateTime? deliveryDateStart = null,
-        [FromQuery] DateTime? deliveryDateEnd = null,
-        [FromQuery] string? salesman = null,
-        [FromQuery] string? endCustomer = null,
-        [FromQuery] string? plantGrade = null,
-        [FromQuery] int? materialPlanStatus = null,
-        [FromQuery] int? mainNoMaterialPlanStatus = null,
-        [FromQuery] int? orderMaterialPlanStatus = null,
-        [FromQuery] string? planTypeFilter = null,
-        [FromQuery] string? filters = null)
-    {
-        if (pageSize > 5000) pageSize = 5000;
-        WorkOrderQueryParams query = new()
-        {
-            PageIndex = pageIndex,
-            PageSize = pageSize,
-            Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
-            IsDescending = isDescending,
-            SalesOrderNo = salesOrderNo,
-            ProductionMainNo = productionMainNo,
-            ProductionSubNo = productionSubNo,
-            Status = status,
-            WorkOrderStatus = workOrderStatus,
-            MaterialName = pipeManufacturingType,
-            Specification = specification,
-            DeliveryDateStart = deliveryDateStart,
-            DeliveryDateEnd = deliveryDateEnd,
-            Salesman = salesman,
-            EndCustomer = endCustomer,
-            PlantGrade = plantGrade,
-            MaterialPlanStatus = materialPlanStatus,
-            MainNoMaterialPlanStatus = mainNoMaterialPlanStatus,
-            OrderMaterialPlanStatus = orderMaterialPlanStatus,
-            PlanTypeFilter = planTypeFilter
-        };
-        if (!string.IsNullOrEmpty(filters))
-            try { query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filters, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
-            catch { }
-        var result = await _workOrderService.GetOrderWorkOrderStatusPageAsync(query);
-        return Ok(ApiResponse<PagedResult<OrderWorkOrderStatusDto>>.Ok(result, "查询成功"));
-    }
-
-    [HttpGet("order-status-all")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<ActionResult<ApiResponse<List<OrderWorkOrderStatusDto>>>> GetAllOrderStatusList()
-    {
-        var result = await _workOrderService.GetAllOrderStatusListAsync();
-        return Ok(ApiResponse<List<OrderWorkOrderStatusDto>>.Ok(result, "查询成功"));
-    }
-
     [HttpGet("pending-orders")]
     [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<ActionResult<ApiResponse<List<WorkOrderListItemDto>>>> GetPendingOrders()
@@ -314,17 +248,6 @@ public class WorkOrderController : ControllerBase
         return File(bytes, "application/pdf", $"工单_{id}.pdf");
     }
 
-    [HttpPost("order-print-file")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<IActionResult> PrintWorkOrdersByOrderFile([FromBody] string salesOrderNo)
-    {
-        if (string.IsNullOrWhiteSpace(salesOrderNo))
-            return BadRequest(ApiResponse<string>.Fail("订单号不能为空"));
-
-        var bytes = await _workOrderService.PrintWorkOrdersByOrderAsync(salesOrderNo);
-        return File(bytes, "application/pdf", $"工单_{salesOrderNo}.pdf");
-    }
-
     [HttpPost("order-print-batch-file")]
     [Authorize(Roles = Roles.Policies.WorkOrderView)]
     public async Task<IActionResult> PrintWorkOrdersByOrderBatchFile([FromBody] string[] salesOrderNos)
@@ -334,14 +257,6 @@ public class WorkOrderController : ControllerBase
 
         var bytes = await _workOrderService.PrintWorkOrdersByOrderBatchAsync(salesOrderNos);
         return File(bytes, "application/pdf", "工单批量打印.pdf");
-    }
-
-    [HttpPost("order-print-all-file")]
-    [Authorize(Roles = Roles.Policies.WorkOrderView)]
-    public async Task<IActionResult> PrintWorkOrdersByOrderAllFile([FromBody] WorkOrderQueryParams query)
-    {
-        var bytes = await _workOrderService.PrintWorkOrdersByOrderAllAsync(query);
-        return File(bytes, "application/pdf", "工单列表.pdf");
     }
 
     [HttpPost("order-print-list-file")]
@@ -355,22 +270,6 @@ public class WorkOrderController : ControllerBase
     #endregion
 
     #region 定时任务接口
-
-    [HttpPost("check-all-order-change")]
-    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
-    public async Task<ActionResult<ApiResponse>> CheckAllOrderChange()
-    {
-        await _workOrderService.CheckAllOrdersChangeAsync();
-        return Ok(ApiResponse.Ok("全部检测完成"));
-    }
-
-    [HttpPost("refresh-material-plan-readmodel")]
-    [Authorize(Roles = Roles.Policies.WorkOrderEdit)]
-    public async Task<ActionResult<ApiResponse>> RefreshMaterialPlanReadModel()
-    {
-        await _workOrderService.RefreshMaterialPlanReadModelAsync();
-        return Ok(ApiResponse.Ok("用料计划总览读模型刷新完成"));
-    }
 
     // ========== 筛选上下文 ==========
 

@@ -144,28 +144,6 @@ public class OrderController : ControllerBase
 
     #region 项次管理
 
-    [HttpPost("{id}/items")]
-    [Authorize(Roles = Roles.Policies.OrderEdit)]
-    public async Task<ActionResult<ApiResponse<OrderItemDto>>> AddItem(int id, [FromBody] AddOrderItemRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<OrderItemDto>.Fail("请求参数无效"));
-
-        var result = await _orderService.AddItemAsync(id, request);
-        return Ok(ApiResponse<OrderItemDto>.Ok(result, "添加成功"));
-    }
-
-    [HttpPut("{id}/items/{itemId}")]
-    [Authorize(Roles = Roles.Policies.OrderEdit)]
-    public async Task<ActionResult<ApiResponse<OrderItemDto>>> UpdateItem(int id, int itemId, [FromBody] UpdateOrderItemRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<OrderItemDto>.Fail("请求参数无效"));
-
-        var result = await _orderService.UpdateItemAsync(id, itemId, request);
-        return Ok(ApiResponse<OrderItemDto>.Ok(result, "更新成功"));
-    }
-
     [HttpDelete("{id}/items/{itemId}")]
     [Authorize(Roles = Roles.Policies.OrderDelete)]
     public async Task<ActionResult<ApiResponse>> DeleteItem(int id, int itemId)
@@ -197,14 +175,6 @@ public class OrderController : ControllerBase
         return File(pdfBytes, "application/pdf", "订单打印.pdf");
     }
 
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.OrderView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] OrderPrintAllRequest request)
-    {
-        var pdfBytes = await _orderService.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.DateFrom, request.DateTo);
-        return File(pdfBytes, "application/pdf", "订单列表.pdf");
-    }
-
     [HttpPost("print-list-file")]
     [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<IActionResult> PrintListFile([FromBody] OrderPrintListRequest request)
@@ -219,21 +189,6 @@ public class OrderController : ControllerBase
     {
         var pdfBytes = await _orderService.PrintOrderRequirementsAsync(orderId);
         return File(pdfBytes, "application/pdf", $"技术要求_{orderId}.pdf");
-    }
-
-    #endregion
-
-    #region 读模型刷新
-
-    /// <summary>
-    /// 刷新全部订单读模型（从源表重新聚合 OrderListSummary）
-    /// </summary>
-    [HttpPost("refresh")]
-    [Authorize(Roles = Roles.Policies.OrderEdit)]
-    public async Task<ActionResult<ApiResponse>> Refresh()
-    {
-        await _orderService.RefreshAllAsync();
-        return Ok(ApiResponse.Ok("读模型刷新成功"));
     }
 
     #endregion

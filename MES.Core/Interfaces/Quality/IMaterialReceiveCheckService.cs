@@ -64,9 +64,4 @@ public interface IMaterialReceiveCheckService
     /// 批量打印检验到料
     /// </summary>
     Task<byte[]> PrintMaterialCheckBatchAsync(int[] ids, List<PrintColumnDef> columns);
-
-    /// <summary>
-    /// 按筛选条件打印全部检验到料
-    /// </summary>
-    Task<byte[]> PrintMaterialCheckAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? receiveDateFrom, DateTime? receiveDateTo, string? filters = null);
 }

@@ -55,8 +55,6 @@ const APPLYFILTER_SERVICES = new Set([
 const NO_APPLYFILTER_SERVICES = new Set([
   'CertificateService',        // 手写 hand-rolled 筛选
   'FinalInspectionPlanService',  // 客户端内存筛选（Kanban 看板页）
-  'SectionFlowAnalysisService',  // 客户端内存筛选（分析报表页）
-  'SectionProductionStatusService', // 客户端内存筛选（汇总报表页）
 ]);
 
 // ============================================================
@@ -114,8 +112,6 @@ const PAGE_SERVICE_MAP = {
   'FinalInspectionPlan': 'FinalInspectionPlanService',
   'RawMaterialLockPlanAndExecution': 'RawMaterialLockPlanAndExecutionService',
   'WorkOrderSchedules': 'WorkOrderScheduleService',
-  'SectionFlowAnalysis': 'SectionFlowAnalysisService',
-  'SectionProductionStatus': 'SectionProductionStatusService',
   // StandardRegister
   'ChemicalCompositions': 'ChemicalCompositionService',
   'ChemicalValidationRules': 'ChemicalValidationRuleService',

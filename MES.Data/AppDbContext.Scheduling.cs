@@ -94,17 +94,21 @@ public partial class AppDbContext
                 .HasDatabaseName("UK_CRMC_ProcessType");
         });
     }
-    private static void ConfigureSectionFlowCategorySetting(ModelBuilder builder)
+    private static void ConfigureColdRollMachineGroupConfig(ModelBuilder builder)
     {
-        builder.Entity<SectionFlowCategorySetting>(entity =>
+        builder.Entity<ColdRollMachineGroupConfig>(entity =>
         {
-            entity.ToTable("SectionFlowCategorySettings");
+            entity.ToTable("ColdRollMachineGroupConfig");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.CategoryName).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.DailyProductionTarget).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.LowerLimitDays).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.UpperLimitDays).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.GroupKey).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DisplayName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ProcessKeys).HasMaxLength(500);
             entity.Property(e => e.Remark).HasMaxLength(200);
+
+            // 唯一索引：组 Key 唯一
+            entity.HasIndex(e => e.GroupKey)
+                .IsUnique()
+                .HasDatabaseName("UK_CRMG_GroupKey");
         });
     }
     private static void ConfigureBatchPlanSchedule(ModelBuilder builder)

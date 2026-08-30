@@ -813,7 +813,7 @@ public partial class FinalInspectionPlan
                 builder.AddContent(0, item.Specification ?? "-");
                 break;
             case "LengthStatus":
-                builder.AddContent(0, item.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(item.LengthStatus.Value) : "-");
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
                 break;
             case "ProductionCutQuantity":
                 builder.AddContent(0, item.ProductionCutQuantity > 0 ? item.ProductionCutQuantity.ToString() : "-");

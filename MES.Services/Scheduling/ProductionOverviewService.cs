@@ -51,7 +51,6 @@ public class ProductionOverviewService : IProductionOverviewService
     private readonly AppDbContext _context;
     private readonly IConfigParameterService _configService;
     private readonly IDailyProductionCapacityService _dailyCapacityService;
-    private readonly IProcessDefinitionService _processDefService;
     private readonly IFinalInspectionPlanService _finalInspectionPlanService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
 
@@ -59,13 +58,11 @@ public class ProductionOverviewService : IProductionOverviewService
         AppDbContext context,
         IConfigParameterService configService,
         IDailyProductionCapacityService dailyCapacityService,
-        IProcessDefinitionService processDefService,
         IFinalInspectionPlanService finalInspectionPlanService)
     {
         _context = context;
         _configService = configService;
         _dailyCapacityService = dailyCapacityService;
-        _processDefService = processDefService;
         _finalInspectionPlanService = finalInspectionPlanService;
     }
 
@@ -81,9 +78,6 @@ public class ProductionOverviewService : IProductionOverviewService
 
     public async Task<ProductionOverviewDto> GetOverviewAsync()
     {
-        // 预加载冷轧类 Key 集合（配置表驱动，替代硬编码 IsColdRoll）
-        var coldRollKeys = await _processDefService.GetColdRollKeysAsync();
-
         var now = DateTime.Today;
         var bucket1 = (int)await GetConfigAsync("DateBucket", "Bucket1", 7m);
         var bucket2 = (int)await GetConfigAsync("DateBucket", "Bucket2", 15m);
@@ -284,29 +278,44 @@ public class ProductionOverviewService : IProductionOverviewService
             IsSummary = true
         });
 
-        // ========== 行 5-9: 各生产工段 ==========
+        // ========== 行 5-N: 各生产工段（荒管抛光固定首行 + 冷轧/冷拔机台组动态遍历） ==========
         var capacities = await _dailyCapacityService.GetAllAsync();
-        var capacityMap = capacities.ToDictionary(c => c.ProcessName, c => c.DailyCapacity);
-        var dailyPolish = capacityMap.GetValueOrDefault(ProductionOverviewRowKeys.Polish, 12m);
-        var dailyMill50_60 = capacityMap.GetValueOrDefault(ProductionOverviewRowKeys.Mill50_60, 11m);
-        var dailyMill20_30 = capacityMap.GetValueOrDefault(ProductionOverviewRowKeys.Mill20_30, 9m);
-        var dailyThreeRoll = capacityMap.GetValueOrDefault(ProductionOverviewRowKeys.ThreeRollMill, 0.5m);
-        var dailyDrawBench = capacityMap.GetValueOrDefault(ProductionOverviewRowKeys.DrawBench, 3m);
-        // 行名显示：DictValueDefinitions 配置表（DictKey=ProductionOverviewRowKey）优先，未配置回退 KeyToChinese 规范中文；
-        // "[累]" 为投料-在产行固定口径前缀（与配置表行名本体分离），改配置表即可改前端行名。
+        var capacityMap = capacities.ToDictionary(c => c.ProcessName, c => c.DailyCapacity, StringComparer.OrdinalIgnoreCase);
+        var dailyPolish = capacityMap.GetValueOrDefault(ProductionOverviewRowKeys.Polish, 0m);
+        // 行名显示：荒管抛光行走 DictValueDefinitions 配置表（DictKey=ProductionOverviewRowKey）优先，未配置回退规范中文；
+        // 机台组行显示名直接取组 DisplayName（2026-08-30 用户决策：组显示名联动）；
+        // "[累]" 为投料-在产行固定口径前缀（与行名本体分离）。
         string RowDisplay(string key) => "[累]" + (DictValueDisplayHelper.GetText(DictValueDefaults.ProductionOverviewRowKey, key) ?? key);
-        var sections = new[]
+
+        // 完全遍历机台组配置（含全部组）：行 Key=组 GroupKey、显示名=组 DisplayName、行序=DisplayOrder、
+        // 日产能档案键=组 Key（DailyProductionCapacities.ProcessName 存组 Key，2026-08-30 用户决策）。
+        var machineGroups = await _context.ColdRollMachineGroupConfigs
+            .AsNoTracking()
+            .OrderBy(g => g.DisplayOrder)
+            .ThenBy(g => g.Id)
+            .ToListAsync();
+
+        var sections = new List<(int Seq, int RowNo, string Key, string Section, decimal DailyCapacity, string[] ProcessKeys)>
         {
-            (Seq: 5, RowNo: 1, Key: ProductionOverviewRowKeys.Polish, Section: RowDisplay(ProductionOverviewRowKeys.Polish), DailyCapacity: dailyPolish),
-            (Seq: 6, RowNo: 2, Key: ProductionOverviewRowKeys.Mill50_60, Section: RowDisplay(ProductionOverviewRowKeys.Mill50_60), DailyCapacity: dailyMill50_60),
-            (Seq: 7, RowNo: 3, Key: ProductionOverviewRowKeys.Mill20_30, Section: RowDisplay(ProductionOverviewRowKeys.Mill20_30), DailyCapacity: dailyMill20_30),
-            (Seq: 8, RowNo: 4, Key: ProductionOverviewRowKeys.ThreeRollMill, Section: RowDisplay(ProductionOverviewRowKeys.ThreeRollMill), DailyCapacity: dailyThreeRoll),
-            (Seq: 9, RowNo: 5, Key: ProductionOverviewRowKeys.DrawBench, Section: RowDisplay(ProductionOverviewRowKeys.DrawBench), DailyCapacity: dailyDrawBench),
+            // 荒管抛光固定首行（不在机台组体系）
+            (Seq: 5, RowNo: 1, Key: ProductionOverviewRowKeys.Polish,
+             Section: RowDisplay(ProductionOverviewRowKeys.Polish), DailyCapacity: dailyPolish,
+             ProcessKeys: Array.Empty<string>()),
         };
+        var prodSeq = 6;
+        var prodRowNo = 2;
+        foreach (var g in machineGroups)
+        {
+            var groupKeys = SplitProcessKeys(g.ProcessKeys);
+            var groupCapacity = capacityMap.GetValueOrDefault(g.GroupKey, 0m);
+            sections.Add((prodSeq++, prodRowNo++, g.GroupKey, "[累]" + g.DisplayName, groupCapacity, groupKeys));
+        }
+        // 生产工段行之后的汇总/成检/整体完工/延期行 Seq 起点（动态跟随机台组数量）
+        var nextSeq = 5 + sections.Count;
 
         int maxProdEstDays = 0;
 
-        foreach (var (seq, rowNo, sectionKey, sectionName, dailyCapacity) in sections)
+        foreach (var (seq, rowNo, sectionKey, sectionName, dailyCapacity, groupProcessKeys) in sections)
         {
             decimal totalPending = 0;
             decimal inProgressPending = 0;
@@ -326,7 +335,7 @@ public class ProductionOverviewService : IProductionOverviewService
                 {
                     var pg = pgs[i];
 
-                    if (!ClassifySection(pg, sectionKey, coldRollKeys)) continue;
+                    if (!ClassifySection(pg, sectionKey, groupProcessKeys)) continue;
 
                     // 判断是否尚未到达此工段
                     // 荒管抛光使用工段级比较（不依赖 CurrentSectionCompleted）
@@ -406,7 +415,7 @@ public class ProductionOverviewService : IProductionOverviewService
 
         rows.Add(new OverviewRowDto
         {
-            Seq = 10,
+            Seq = nextSeq,
             Category = "投料-在产",
             Section = "汇总",
             InProcurementTons = null,
@@ -431,7 +440,7 @@ public class ProductionOverviewService : IProductionOverviewService
         var row8BucketTons = buckets.Select(_ => 0m).ToList();
         rows.Add(new OverviewRowDto
         {
-            Seq = 11,
+            Seq = nextSeq + 1,
             Category = "投料-成检",
             Section = "",
             CategoryNo = 3,
@@ -446,7 +455,7 @@ public class ProductionOverviewService : IProductionOverviewService
         // ========== 行 12: 成检汇总（成检仅 1 行，汇总=自身） ==========
         rows.Add(new OverviewRowDto
         {
-            Seq = 12,
+            Seq = nextSeq + 2,
             Category = "投料-成检",
             Section = "汇总",
             InProcurementTons = null,
@@ -462,14 +471,16 @@ public class ProductionOverviewService : IProductionOverviewService
         var rawPendingTons = row1Remaining > 0
             ? row1Remaining / 1000m
             : 0m;
-        var extraDays = dailyMill20_30 > 0
-            ? (int)Math.Ceiling(rawPendingTons / dailyMill20_30)
+        // 原料待产量 ÷ 2030 机台组日产能（2026-08-30 起产能档案键=机台组 GroupKey；无运行时兜底，未配置→0）
+        var daily2030 = capacityMap.GetValueOrDefault("2030", 0m);
+        var extraDays = daily2030 > 0
+            ? (int)Math.Ceiling(rawPendingTons / daily2030)
             : 0;
         var totalEstDays = maxProdEstDays + extraDays + 2;
 
         rows.Add(new OverviewRowDto
         {
-            Seq = 13,
+            Seq = nextSeq + 3,
             Category = "整体完工预计",
             Section = "",
             InProcurementTons = null,
@@ -501,7 +512,7 @@ public class ProductionOverviewService : IProductionOverviewService
 
         rows.Add(new OverviewRowDto
         {
-            Seq = 15,
+            Seq = nextSeq + 4,
             Category = "订单交期负荷",
             Section = "订单延期-原料",
             InProcurementTons = null,
@@ -544,7 +555,7 @@ public class ProductionOverviewService : IProductionOverviewService
 
         rows.Add(new OverviewRowDto
         {
-            Seq = 16,
+            Seq = nextSeq + 5,
             Category = "订单交期负荷",
             Section = "订单延期-在产",
             InProcurementTons = null,
@@ -586,7 +597,7 @@ public class ProductionOverviewService : IProductionOverviewService
 
         rows.Add(new OverviewRowDto
         {
-            Seq = 17,
+            Seq = nextSeq + 6,
             Category = "订单交期负荷",
             Section = "订单延期-成检",
             InProcurementTons = null,
@@ -600,11 +611,13 @@ public class ProductionOverviewService : IProductionOverviewService
         });
 
         // ========== 行序重排（2026-08-23 用户决策）：订单交期负荷 3 行置顶（延期-原料/在产/成检），原料→生产→成检随后，整体完工预计最后 ==========
-        // 构建顺序（列表位置 1-16）：完善计划→执行计划→外购成品→原料汇总→生产工段5行→生产汇总→成检→成检汇总→整体完工预计→延期-原料/在产/成检；
-        // 展示顺序（新 Seq 1-16）：延期-原料/在产/成检/完善计划/执行计划/外购成品/原料汇总/生产工段5行/生产汇总/成检/成检汇总/整体完工预计。
+        // 生产工段行数随机台组配置动态变化（2026-08-30 起完全遍历机台组），故用分类排序替代固定索引数组。
         // （2026-08-23 删除订单延期量/订单延期量[预计完结]/订单非延期 3 行；前 3 行日期桶格仅显示副值）
-        var reorderSeq = new[] { 14, 15, 16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 };
-        rows = reorderSeq.Select(oldSeq => rows[oldSeq - 1]).ToList();
+        rows = rows
+            .OrderBy(r => r.Category == "订单交期负荷" ? 0 : 1)
+            .ThenBy(r => r.Category == "整体完工预计" ? 1 : 0)
+            .ThenBy(r => r.Seq)
+            .ToList();
         for (int i = 0; i < rows.Count; i++) rows[i].Seq = i + 1;
 
         return new ProductionOverviewDto
@@ -675,31 +688,29 @@ public class ProductionOverviewService : IProductionOverviewService
     }
 
     /// <summary>
-    /// 判定工序组是否属于指定工段
-    /// 荒管抛光：工序名称为"荒管处理"且带有抛光工段（OuterPolish 有值）
-    /// 冷轧已细分为 60冷轧/50冷轧/30冷轧/20冷轧/三辊冷轧，无需解析 OD
+    /// 解析机台组 ProcessKeys 逗号串为 Key 数组（Trim + 去空）。
     /// </summary>
-    private static bool ClassifySection(ProcessGroupInfo pg, string sectionName, HashSet<string> coldRollKeys)
+    private static string[] SplitProcessKeys(string? processKeys)
+    {
+        if (string.IsNullOrWhiteSpace(processKeys)) return Array.Empty<string>();
+        return processKeys.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    /// <summary>
+    /// 判定工序组是否属于指定生产总览行。
+    /// 荒管抛光：工序名称为"荒管处理"且带有抛光工段（OuterPolish 有值）；
+    /// 冷轧/冷拔机台组：组内工序 ProcessKeys 包含该工序（配置表驱动，2026-08-30 起无硬编码工序 Key，
+    /// 工序全局唯一归属一组，服务层已校验跨组不重叠）。
+    /// </summary>
+    private static bool ClassifySection(ProcessGroupInfo pg, string sectionKey, string[] groupProcessKeys)
     {
         // 荒管抛光
-        if (sectionName == ProductionOverviewRowKeys.Polish)
+        if (sectionKey == ProductionOverviewRowKeys.Polish)
             return pg.ProcessName == ProcessKeys.RoughTubeProcessing && pg.OuterPolish.HasValue;
 
-        // 拉机
-        if (sectionName == ProductionOverviewRowKeys.DrawBench)
-            return pg.ProcessName == ProcessKeys.ColdDraw && pg.ColdRollDraw.HasValue;
-
-        // 以下仅适用于冷轧（配置表 IsColdRoll 判定）
+        // 机台组：按组内工序集合匹配（含冷轧与冷拔）
         var key = ProcessKeys.ToKey(pg.ProcessName) ?? pg.ProcessName;
-        if (!coldRollKeys.Contains(key)) return false;
-
-        return sectionName switch
-        {
-            ProductionOverviewRowKeys.Mill50_60 => key is ProcessKeys.ColdRoll50 or ProcessKeys.ColdRoll60,
-            ProductionOverviewRowKeys.Mill20_30 => key is ProcessKeys.ColdRoll20 or ProcessKeys.ColdRoll30,
-            ProductionOverviewRowKeys.ThreeRollMill => key == ProcessKeys.ThreeRollColdRoll,
-            _ => false
-        };
+        return groupProcessKeys.Length > 0 && groupProcessKeys.Contains(key, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>

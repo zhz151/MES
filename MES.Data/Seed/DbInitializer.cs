@@ -14,6 +14,7 @@ using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.WorkOrder;
 using MES.Shared.Constants;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MES.Core.Enums;
 using MES.Core.Constants;
@@ -43,6 +44,15 @@ public static class DbInitializer
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+
+        // 默认管理员密码：优先读配置 Seed:AdminPassword（部署时应通过环境变量/占位符注入），缺失回退内置默认并告警
+        var adminPassword = configuration["Seed:AdminPassword"];
+        if (string.IsNullOrWhiteSpace(adminPassword))
+        {
+            adminPassword = "Admin@123";
+            Console.WriteLine("[DbInitializer] 未配置 Seed:AdminPassword，使用默认管理员密码 Admin@123，生产环境请务必通过配置注入！");
+        }
 
         // ========== 1. Initialize Roles ==========
         foreach (var role in Roles.GetAllRoles())
@@ -66,7 +76,7 @@ public static class DbInitializer
                 EmailConfirmed = true,
                 IsActive = true
             };
-            var result = await userManager.CreateAsync(adminUser, "Admin@123");
+            var result = await userManager.CreateAsync(adminUser, adminPassword);
             if (result.Succeeded)
             {
                 await userManager.AddToRoleAsync(adminUser, Roles.Admin);
@@ -370,6 +380,27 @@ public static class DbInitializer
             }
         }
 
+        // ========== 8d. Initialize ColdRollMachineGroupConfig（冷轧机台组配置）——幂等 ==========
+        // 预置 4 组（5060 供给目标=2030 / 2030 / 三辊 / 冷拔），与 ColdRollMachineGroupKeys.Groups 规范定义源一致。
+        // 引擎归组运行时读本表；新增冷轧工序可经配置归入现有组或新建组（勿改代码）。
+        // 供需链：5060 组 SupplyTargetGroupKey='2030'（2026-08-29 方案 A，允许多链/多级链，组角色字段已移除）。
+        if (!context.ColdRollMachineGroupConfigs.Any())
+        {
+            var groupConfigs = ColdRollMachineGroupKeys.Groups
+                .Select((g, i) => new ColdRollMachineGroupConfig
+                {
+                    GroupKey = g.Key,
+                    DisplayName = g.Display,
+                    ProcessKeys = string.Join(",", g.Keys),
+                    DisplayOrder = i + 1,
+                    SupplyTargetGroupKey = g.SupplyTargetGroupKey,
+                    Remark = null,
+                })
+                .ToList();
+            await context.ColdRollMachineGroupConfigs.AddRangeAsync(groupConfigs);
+            await context.SaveChangesAsync();
+        }
+
         // ========== 8e. Initialize Enum Display Definitions（枚举显示配置，41 枚举）——幂等 ==========
         if (!context.EnumDisplayDefinitions.Any())
         {
@@ -560,86 +591,24 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
-        // ========== 11. Initialize Section Flow Analysis Category Settings ==========
-        // 类别表（流转类别日产配置）：仅空表时种子预设 14 类；已有数据（含用户数据工具上传）则跳过
-        if (!context.SectionFlowCategorySettings.Any())
-        {
-            var settings = new List<SectionFlowCategorySetting>
-            {
-                new() { DisplayOrder = 1,  CategoryName = "外抛光" },
-                new() { DisplayOrder = 2,  CategoryName = "内修磨" },
-                new() { DisplayOrder = 3,  CategoryName = "外点磨" },
-                new() { DisplayOrder = 4,  CategoryName = "荒管检" },
-                new() { DisplayOrder = 5,  CategoryName = "在制检" },
-                new() { DisplayOrder = 6,  CategoryName = "固溶" },
-                new() { DisplayOrder = 7,  CategoryName = "矫直" },
-                new() { DisplayOrder = 8,  CategoryName = "切割" },
-                new() { DisplayOrder = 9,  CategoryName = "去油" },
-                new() { DisplayOrder = 10, CategoryName = "酸洗" },
-                new() { DisplayOrder = 11, CategoryName = "大轧" },
-                new() { DisplayOrder = 12, CategoryName = "小轧" },
-                new() { DisplayOrder = 13, CategoryName = "冷拔" },
-                new() { DisplayOrder = 14, CategoryName = "成品待检" },
-            };
-
-            context.SectionFlowCategorySettings.AddRange(settings);
-            await context.SaveChangesAsync();
-        }
-
-        // 组合归类表：(工序组, 工段, 产类) 三维全覆盖（启用工序组 × 启用工段 × 3 产类），
-        // 仅空表时生成骨架（归属流转类别留空）；已有数据（含用户下载后上传更新）则跳过，防止重复生成违反唯一索引；
-        // 归属由用户通过数据工具 Excel 下载 → 填写 → 上传建立 FK
-        if (!context.CombinationGroups.Any())
-        {
-            var processes = await context.ProcessDefinitions
-                .Where(x => x.IsEnabled)
-                .Select(x => x.ProcessKey)
-                .Distinct()
-                .OrderBy(x => x)
-                .ToListAsync();
-            var sections = await context.StandardWorkDays
-                .Where(x => x.IsEnabled && x.SectionKey != SectionKeys.Warehouse)
-                .Select(x => x.SectionKey)
-                .Distinct()
-                .OrderBy(x => x)
-                .ToListAsync();
-            var statuses = new[] { ProductStatuses.RoughTube, ProductStatuses.InProgress, ProductStatuses.Finished };
-
-            var combinations = new List<CombinationGroup>(processes.Count * sections.Count * statuses.Length);
-
-            foreach (var p in processes)
-                foreach (var s in sections)
-                    foreach (var st in statuses)
-                        combinations.Add(new CombinationGroup
-                        {
-                            ProcessGroupName = p,
-                            SectionName = s ?? "",
-                            ProductStatus = st,
-                            FlowCategoryId = null,
-                        });
-
-            await context.CombinationGroups.AddRangeAsync(combinations);
-            await context.SaveChangesAsync();
-        }
-
-        // ========== 11.5 Initialize Section Paragraph Config ==========
-        // 段落日产配置（生产段落）：仅空表时种子预设 11 段；已有数据（含用户数据工具上传）则跳过。
-        // 段落的(工序组,工段,产类)组合由组合归类表 CombinationGroups 的「归属段落」承载（用户数据工具填写）。
+        // ========== 11. Initialize Section Paragraph Config ==========
+        // 段落日产配置：段落由 3 类配置自动生成（冷轧拔=机台组显示名 / 普通工段=StandardWorkDays / 检验=固定），
+        // 服务层 GetSettingsAsync 每次同步期望段落集。此处仅空表时种子预置带初始参数的段落（无参数段落由同步补齐）。
         if (!context.SectionParagraphConfigs.Any())
         {
             var paragraphs = new List<SectionParagraphConfig>
             {
-                new() { DisplayOrder = 1,  ParagraphName = "荒管抛光", DailyFlowTarget = 14m, LowerLimitDays = 3m,  UpperLimitDays = 5m },
-                new() { DisplayOrder = 2,  ParagraphName = "荒管修检", DailyFlowTarget = 14m, LowerLimitDays = 1m,  UpperLimitDays = 3m },
-                new() { DisplayOrder = 3,  ParagraphName = "在制修检", DailyFlowTarget = 13m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
-                new() { DisplayOrder = 4,  ParagraphName = "固溶",     DailyFlowTarget = 25m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
-                new() { DisplayOrder = 5,  ParagraphName = "矫直",     DailyFlowTarget = 35m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
-                new() { DisplayOrder = 6,  ParagraphName = "切割",     DailyFlowTarget = 50m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
-                new() { DisplayOrder = 7,  ParagraphName = "去油",     DailyFlowTarget = 30m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
-                new() { DisplayOrder = 8,  ParagraphName = "酸洗",     DailyFlowTarget = 40m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
-                new() { DisplayOrder = 9,  ParagraphName = "冷轧5060", DailyFlowTarget = 13m, LowerLimitDays = 3m,  UpperLimitDays = 6m },
-                new() { DisplayOrder = 10, ParagraphName = "冷轧2030", DailyFlowTarget = 12m, LowerLimitDays = 3m,  UpperLimitDays = 6m },
-                new() { DisplayOrder = 11, ParagraphName = "成品待检", DailyFlowTarget = 12m, LowerLimitDays = 0m,  UpperLimitDays = 2m },
+                // 冷轧拔：ParagraphKey=机台组 GroupKey、ParagraphName=机台组显示名
+                new() { CategoryType = ParagraphCategoryTypes.Cold,    ParagraphKey = ColdRollMachineGroupKeys.Roll5060,    ParagraphName = ColdRollMachineGroupKeys.Roll5060Display,    DisplayOrder = 1,  DailyFlowTarget = 13m, LowerLimitDays = 3m,  UpperLimitDays = 6m },
+                new() { CategoryType = ParagraphCategoryTypes.Cold,    ParagraphKey = ColdRollMachineGroupKeys.Roll2030,    ParagraphName = ColdRollMachineGroupKeys.Roll2030Display,    DisplayOrder = 2,  DailyFlowTarget = 12m, LowerLimitDays = 3m,  UpperLimitDays = 6m },
+                new() { CategoryType = ParagraphCategoryTypes.Cold,    ParagraphKey = ColdRollMachineGroupKeys.ThreeRoll,   ParagraphName = ColdRollMachineGroupKeys.ThreeRollDisplay,   DisplayOrder = 3 },
+                new() { CategoryType = ParagraphCategoryTypes.Cold,    ParagraphKey = ColdRollMachineGroupKeys.Draw,        ParagraphName = ColdRollMachineGroupKeys.DrawDisplay,        DisplayOrder = 4 },
+                // 普通工段：ParagraphKey=SectionKey、ParagraphName=工段中文名（断切对应旧"切割"语义）
+                new() { CategoryType = ParagraphCategoryTypes.Section, ParagraphKey = nameof(SectionDefs.Solution),        ParagraphName = SectionDefs.Solution,        DisplayOrder = 5,  DailyFlowTarget = 25m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
+                new() { CategoryType = ParagraphCategoryTypes.Section, ParagraphKey = nameof(SectionDefs.Straighten),      ParagraphName = SectionDefs.Straighten,      DisplayOrder = 6,  DailyFlowTarget = 35m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
+                new() { CategoryType = ParagraphCategoryTypes.Section, ParagraphKey = nameof(SectionDefs.Cut),            ParagraphName = SectionDefs.Cut,            DisplayOrder = 7,  DailyFlowTarget = 50m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
+                new() { CategoryType = ParagraphCategoryTypes.Section, ParagraphKey = nameof(SectionDefs.Degrease),       ParagraphName = SectionDefs.Degrease,       DisplayOrder = 8,  DailyFlowTarget = 30m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
+                new() { CategoryType = ParagraphCategoryTypes.Section, ParagraphKey = nameof(SectionDefs.Pickle),         ParagraphName = SectionDefs.Pickle,         DisplayOrder = 9,  DailyFlowTarget = 40m, LowerLimitDays = 0.5m, UpperLimitDays = 2m },
             };
 
             context.SectionParagraphConfigs.AddRange(paragraphs);
@@ -647,16 +616,23 @@ public static class DbInitializer
         }
 
         // ========== 12. Initialize Daily Production Capacities ==========
+        // 荒管抛光固定首行 + 冷轧机台组遍历（2026-08-30 起产能档案键=机台组 GroupKey，
+        // 完全遍历机台组含 110；新增组无默认值时落 0，需在日产能配置页补录）
         if (!context.DailyProductionCapacities.Any())
         {
             var capacities = new List<DailyProductionCapacity>
             {
-                new() { ProcessName = ProductionOverviewRowKeys.Polish, DailyCapacity = 15m, Remark = "荒管抛光日产能(吨)" },
-                new() { ProcessName = ProductionOverviewRowKeys.Mill50_60, DailyCapacity = 11m, Remark = "50,60轧机日产能(吨)" },
-                new() { ProcessName = ProductionOverviewRowKeys.Mill20_30, DailyCapacity = 9m, Remark = "20,30轧机日产能(吨)" },
-                new() { ProcessName = ProductionOverviewRowKeys.ThreeRollMill, DailyCapacity = 0.5m, Remark = "三辊轧机日产能(吨)" },
-                new() { ProcessName = ProductionOverviewRowKeys.DrawBench, DailyCapacity = 3m, Remark = "拉机日产能(吨)" },
+                new() { ProcessName = ProductionOverviewRowKeys.Polish, DailyCapacity = ProductionOverviewDefaults.Polish, Remark = "荒管抛光日产能(吨)" },
             };
+            foreach (var g in context.ColdRollMachineGroupConfigs.OrderBy(x => x.DisplayOrder))
+            {
+                capacities.Add(new DailyProductionCapacity
+                {
+                    ProcessName = g.GroupKey,
+                    DailyCapacity = ProductionOverviewDefaults.ForGroup.GetValueOrDefault(g.GroupKey, 0m),
+                    Remark = $"{g.DisplayName}日产能(吨)",
+                });
+            }
             context.DailyProductionCapacities.AddRange(capacities);
             await context.SaveChangesAsync();
         }

@@ -15,7 +15,6 @@ public class WorkstationDto
     /// <summary>工段英文 Key（成检到料/成品检验工位选填可空）</summary>
     public string? SectionName { get; set; }
     public ReportTemplateType ReportType { get; set; }
-    public string ReportTypeDisplay => EnumHelper.GetDisplayName(ReportType);
 
     /// <summary>成品检验项目（仅 ReportType=FinalInspection 时非空）</summary>
     public InspectionItem? InspectionItem { get; set; }

@@ -1,8 +1,10 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using MES.Core.Constants;
+using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.Enums;
+using MES.Core.Interfaces.Configuration;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities;
@@ -20,7 +22,9 @@ namespace MES.Tests.Services.Scheduling;
 /// </summary>
 public class BatchPlanServiceTests : TestBase
 {
-    private BatchPlanService CreateService(AppDbContext ctx) => new(ctx, CreateProcessDefinitionServiceMock());
+    private BatchPlanService CreateService(AppDbContext ctx) => new(ctx, CreateProcessDefinitionServiceMock(), CreateStandardWorkDayServiceMock());
+
+    private BatchPlanService CreateService(AppDbContext ctx, IStandardWorkDayService standardWorkDayService) => new(ctx, CreateProcessDefinitionServiceMock(), standardWorkDayService);
 
     private ProductionBatch CreateBatch(AppDbContext ctx, string batchNo, string workOrderNo,
         BatchStatus status = BatchStatus.InProgress,
@@ -285,6 +289,70 @@ public class BatchPlanServiceTests : TestBase
             Filters = new List<FilterDescriptor>
             {
                 new() { Field = "__SectionTab", Value = "断切" }
+            }
+        });
+
+        result.Items.Should().HaveCount(1);
+        result.Items.Single().BatchNo.Should().Be("B001");
+    }
+
+    [Fact]
+    public async Task GetSectionTabOptionsAsync_配置驱动组装_冷轧含新增110_普通去重_固定检验()
+    {
+        using var ctx = CreateDbContext();
+        // 冷轧工序含新增 110（extraKeys）；普通工段启用 冷轧拔/断切/内抛/检验/入库 → 剔除冷轧拔/检验/入库后仅剩断切/内抛
+        var svc = new BatchPlanService(ctx,
+            CreateProcessDefinitionServiceMock(new[] { "ColdRoll110" }),
+            CreateStandardWorkDayServiceMock(
+                new SectionInfoDto { SectionKey = SectionKeys.ColdRollDraw, SectionName = "冷轧拔", DisplayOrder = 1, IsEnabled = true },
+                new SectionInfoDto { SectionKey = SectionKeys.Cut, SectionName = "断切", DisplayOrder = 2, IsEnabled = true },
+                new SectionInfoDto { SectionKey = SectionKeys.InnerPolish, SectionName = "内抛", DisplayOrder = 3, IsEnabled = true },
+                new SectionInfoDto { SectionKey = SectionKeys.Inspection, SectionName = "检验", DisplayOrder = 4, IsEnabled = true },
+                new SectionInfoDto { SectionKey = SectionKeys.Warehouse, SectionName = "入库", DisplayOrder = 5, IsEnabled = true }));
+
+        var tabs = await svc.GetSectionTabOptionsAsync();
+
+        // 冷轧冷拔工序（含新增 110）：60/50/30/20/三辊/冷拔/110
+        tabs.Take(7).Select(t => t.Key).Should().Equal(
+            ProcessKeys.ColdRoll60, ProcessKeys.ColdRoll50, ProcessKeys.ColdRoll30,
+            ProcessKeys.ColdRoll20, ProcessKeys.ThreeRollColdRoll, ProcessKeys.ColdDraw, "ColdRoll110");
+        tabs.Take(7).Should().OnlyContain(t => t.Group == "cold");
+        // 普通工段：剔除冷轧拔/检验/入库 → 仅 断切/内抛
+        tabs.Skip(7).Take(2).Select(t => t.Key).Should().Equal(SectionKeys.Cut, SectionKeys.InnerPolish);
+        tabs.Skip(7).Take(2).Should().OnlyContain(t => t.Group == "section");
+        // 末尾固定检验
+        tabs.Skip(9).Select(t => t.Key).Should().Equal(BatchPlanSectionTabs.RoughTubeInspection, BatchPlanSectionTabs.InProcessInspection);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_工段筛选冷轧110_配置驱动新增工序()
+    {
+        using var ctx = CreateDbContext();
+        // 110冷轧批次（CurrentGroupName 存英文 Key "ColdRoll110"），冷轧拔工段未完成
+        var batch = CreateBatch(ctx, "B001", "WO001",
+            currentGroupName: "ColdRoll110",
+            currentSectionName: SectionKeys.ColdRollDraw,
+            currentSectionCompleted: false);
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            ProcessName = "ColdRoll110",
+            SequenceNumber = 1,
+            ColdRollDraw = 1,
+        });
+        await ctx.SaveChangesAsync();
+
+        // 前端配置驱动传英文 Key "ColdRoll110"（不在 ProcessKeys 常量内，靠配置驱动冷轧集合识别）
+        var svc = new BatchPlanService(ctx,
+            CreateProcessDefinitionServiceMock(new[] { "ColdRoll110" }),
+            CreateStandardWorkDayServiceMock());
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            Filters = new List<FilterDescriptor>
+            {
+                new() { Field = "__SectionTab", Value = "ColdRoll110" }
             }
         });
 
@@ -1892,7 +1960,10 @@ public class BatchPlanServiceTests : TestBase
         CreateBatch(ctx, "B5", "WO5", currentGroupName: ProcessKeys.RoughTubeProcessing, currentSectionName: SectionKeys.Cut);
         await ctx.SaveChangesAsync();
 
-        var svc = CreateService(ctx);
+        // 断切/酸洗为普通工段，需配置工段工量天数启用工段才归列
+        var svc = CreateService(ctx, CreateStandardWorkDayServiceMock(
+            new SectionInfoDto { SectionKey = SectionKeys.Cut, SectionName = "断切", DisplayOrder = 1, IsEnabled = true },
+            new SectionInfoDto { SectionKey = SectionKeys.Pickle, SectionName = "酸洗", DisplayOrder = 2, IsEnabled = true }));
         var dto = await svc.GetOutsourcePendingAsync();
 
         var rowA = OutsourceUnitRow(dto, "单位A");
@@ -1912,30 +1983,35 @@ public class BatchPlanServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GetOutsourcePendingAsync_冷轧按工序分化_内抛内修磨合并_列BatchPlanSectionTabs序()
+    public async Task GetOutsourcePendingAsync_冷轧按工序分化_内抛内修磨拆分_列配置驱动序()
     {
         using var ctx = CreateDbContext();
         // 60冷轧：车间一两个在产批次 3000+2000 → 列 60冷轧
         CreateOutsourceBatch(ctx, "B1", "车间一", ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, 3000);
         CreateOutsourceBatch(ctx, "B2", "车间一", ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, 2000);
-        // 内抛+内修磨：车间二两批次合并 → 列 内抛+内修磨
+        // 内抛/内修磨：车间二各一批 → 独立列（不再合并）
         CreateOutsourceBatch(ctx, "B3", "车间二", ProcessKeys.RoughTubeProcessing, SectionKeys.InnerPolish, 1000);
         CreateOutsourceBatch(ctx, "B4", "车间二", ProcessKeys.RoughTubeProcessing, SectionKeys.InnerGrinding, 500);
         // 断切：车间一 400
         CreateOutsourceBatch(ctx, "B5", "车间一", ProcessKeys.RoughTubeProcessing, SectionKeys.Cut, 400);
         await ctx.SaveChangesAsync();
 
-        var svc = CreateService(ctx);
+        // 工段工量天数启用工段：断切/内抛/内修磨（配置驱动，普通工段列序按此返回序）
+        var svc = CreateService(ctx, CreateStandardWorkDayServiceMock(
+            new SectionInfoDto { SectionKey = SectionKeys.Cut, SectionName = "断切", DisplayOrder = 1, IsEnabled = true },
+            new SectionInfoDto { SectionKey = SectionKeys.InnerPolish, SectionName = "内抛", DisplayOrder = 2, IsEnabled = true },
+            new SectionInfoDto { SectionKey = SectionKeys.InnerGrinding, SectionName = "内修磨", DisplayOrder = 3, IsEnabled = true }));
         var dto = await svc.GetOutsourcePendingAsync();
 
-        // BatchPlanSectionTabs.All 序：60冷轧(index0) < 断切(index8) < 内抛+内修磨(index13)
-        dto.Sections.Should().Equal("60冷轧", "断切", "内抛+内修磨");
+        // 配置驱动 Tab 序：冷轧工序(60冷轧 index0) → 普通工段(断切/内抛/内修磨) → 固定检验(荒管检/在制检)
+        dto.Sections.Should().Equal("60冷轧", "断切", "内抛", "内修磨");
         var r1 = OutsourceUnitRow(dto, "车间一");
         r1.Cells["60冷轧"].Total.Should().Be(5000m);             // 3000+2000
         r1.Cells["断切"].Total.Should().Be(400m);
         r1.TotalCell.Total.Should().Be(5400m);
         var r2 = OutsourceUnitRow(dto, "车间二");
-        r2.Cells["内抛+内修磨"].Total.Should().Be(1500m);        // 1000+500 合并
+        r2.Cells["内抛"].Total.Should().Be(1000m);               // 独立列
+        r2.Cells["内修磨"].Total.Should().Be(500m);
         r2.TotalCell.Total.Should().Be(1500m);
     }
 

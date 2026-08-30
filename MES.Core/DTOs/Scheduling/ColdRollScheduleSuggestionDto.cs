@@ -132,6 +132,15 @@ public class FlowStateDto
     /// <summary>流转是否平衡（SupplyMachines >= NeedMachines）</summary>
     public bool Balanced { get; set; }
 
+    /// <summary>供给目标组显示名（下游组，Both/Supplier 填；Demander/无下游空 = 未配置供给目标组）</summary>
+    public string TargetGroupDisplay { get; set; } = "";
+
+    /// <summary>供给下游折算机台数（本组→目标组流入，Both/Supplier 填；无下游 0）</summary>
+    public int SupplyToTargetMachines { get; set; }
+
+    /// <summary>供给下游折算重量（kg，本组→目标组流入，Both/Supplier 填；无下游 0）</summary>
+    public decimal SupplyToTargetWeight { get; set; }
+
     /// <summary>中文说明（前端直接显示）</summary>
     public string Text { get; set; } = "";
 }

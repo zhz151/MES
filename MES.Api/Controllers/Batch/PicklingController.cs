@@ -131,17 +131,6 @@ public class PicklingController : ControllerBase
     // ========== 完工记录 ==========
 
     /// <summary>
-    /// 获取指定入缸的完工记录
-    /// </summary>
-    [HttpGet("{picklingInRecordId}/out-record")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<PicklingOutRecordDto?>>> GetOutRecordByInId(int picklingInRecordId)
-    {
-        var result = await _service.GetOutRecordByInIdAsync(picklingInRecordId);
-        return Ok(ApiResponse<PicklingOutRecordDto?>.Ok(result, "查询成功"));
-    }
-
-    /// <summary>
     /// 跨批次分页查询完工记录
     /// </summary>
     [HttpGet("out-records/list")]
@@ -228,23 +217,6 @@ public class PicklingController : ControllerBase
         return File(pdfBytes, "application/pdf", "酸洗入缸记录打印.pdf");
     }
 
-    /// <summary>
-    /// 按筛选条件打印全部入缸记录（直接返回 PDF 文件）
-    /// </summary>
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] PicklingInRecordPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending,
-            request.InDateFrom, request.InDateTo,
-            request.CompleteDateFrom, request.CompleteDateTo,
-            request.Columns);
-        return File(pdfBytes, "application/pdf", "酸洗入缸记录列表.pdf");
-    }
-
     // ========== 完工记录打印 ==========
 
     /// <summary>
@@ -259,22 +231,6 @@ public class PicklingController : ControllerBase
 
         var pdfBytes = await _service.PrintOutBatchAsync(request.Ids, request.Columns);
         return File(pdfBytes, "application/pdf", "酸洗完工记录打印.pdf");
-    }
-
-    /// <summary>
-    /// 按筛选条件打印全部完工记录（直接返回 PDF 文件）
-    /// </summary>
-    [HttpPost("out-records/print-all-file")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<IActionResult> PrintOutAllFile([FromBody] PicklingOutRecordPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintOutAllAsync(request.Keyword, request.SortBy, request.IsDescending,
-            request.CompleteDateFrom, request.CompleteDateTo,
-            request.Columns);
-        return File(pdfBytes, "application/pdf", "酸洗完工记录列表.pdf");
     }
 
     // ========== 筛选上下文 ==========

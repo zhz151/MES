@@ -113,17 +113,6 @@ public class CustomerController : ControllerBase
     }
 
     /// <summary>
-    /// 获取客户下拉列表（轻量，仅含级联选择所需字段）
-    /// </summary>
-    [HttpGet("select-list")]
-    [Authorize(Roles = Roles.Policies.OrderView)]
-    public async Task<ActionResult<ApiResponse<List<CustomerSelectDto>>>> GetSelectList()
-    {
-        var result = await _customerService.GetSelectListAsync();
-        return Ok(ApiResponse<List<CustomerSelectDto>>.Ok(result, "查询成功"));
-    }
-
-    /// <summary>
     /// 获取筛选上下文（各列去重值），用于 ExcelFilter 下拉选项
     /// </summary>
     [HttpGet("filter-contexts")]
@@ -148,20 +137,6 @@ public class CustomerController : ControllerBase
 
         var pdfBytes = await _customerService.PrintCustomerBatchAsync(request.Ids, request.Columns);
         return File(pdfBytes, "application/pdf", "客户打印.pdf");
-    }
-
-    /// <summary>
-    /// 按筛选条件打印全部客户（直接返回 PDF 文件）
-    /// </summary>
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.OrderView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] OrderPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _customerService.PrintCustomerAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
-        return File(pdfBytes, "application/pdf", "客户列表.pdf");
     }
 
     /// <summary>

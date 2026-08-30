@@ -818,63 +818,6 @@ public class PicklingService : IPicklingService
 
     // ========== 完工记录 ==========
 
-    public async Task<PicklingOutRecordDto?> GetOutRecordByInIdAsync(int picklingInRecordId)
-    {
-        var raw = await _context.PicklingOutRecords
-            .AsNoTracking()
-            .Where(r => r.PicklingInRecordId == picklingInRecordId)
-            .Select(r => new
-            {
-                Id = r.Id,
-                PicklingInRecordId = r.PicklingInRecordId,
-                CompleteDate = r.CompleteDate,
-                Remark = r.Remark,
-                DataSource = r.DataSource,
-                CreatedTime = r.CreatedTime,
-                UpdatedTime = r.UpdatedTime,
-                ProductionBatchId = r.ProductionBatchId,
-                BatchNo = r.BatchNo,
-                ProcessName = r.ProcessName,
-                ManufacturingSpec = r.ManufacturingSpec,
-                SectionName = r.SectionName,
-                TagNo = r.TagNo,
-                PlantGrade = r.PlantGrade,
-                EquipmentName = r.EquipmentName,
-                Operator = r.Operator,
-                Shift = r.Shift,
-                Quantity = r.Quantity,
-                Weight = r.Weight,
-                ProductStatus = r.ProductStatus
-            })
-            .FirstOrDefaultAsync();
-
-        if (raw == null) return null;
-
-        return new PicklingOutRecordDto
-        {
-            Id = raw.Id,
-            PicklingInRecordId = raw.PicklingInRecordId,
-            CompleteDate = raw.CompleteDate,
-            Remark = raw.Remark,
-            DataSource = raw.DataSource,
-            CreatedTime = raw.CreatedTime,
-            UpdatedTime = raw.UpdatedTime,
-            ProductionBatchId = raw.ProductionBatchId,
-            BatchNo = raw.BatchNo,
-            ProcessName = raw.ProcessName,
-            ManufacturingSpec = raw.ManufacturingSpec,
-            SectionName = raw.SectionName,
-            TagNo = raw.TagNo,
-            PlantGrade = raw.PlantGrade,
-            EquipmentName = raw.EquipmentName,
-            Operator = raw.Operator,
-            Shift = EnumHelper.TryParse<ShiftType>(raw.Shift),
-            Quantity = raw.Quantity,
-            Weight = raw.Weight,
-            ProductStatus = raw.ProductStatus
-        };
-    }
-
     public async Task<PagedResult<PicklingOutRecordDto>> GetOutRecordsPagedAsync(QueryParams query)
     {
         var queryable = _context.PicklingOutRecords
@@ -1179,58 +1122,6 @@ public class PicklingService : IPicklingService
         return TablePrintHelper.GeneratePdf("去油/酸洗入缸记录", data, columns);
     }
 
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending,
-        DateTime? inDateFrom, DateTime? inDateTo,
-        DateTime? completeDateFrom, DateTime? completeDateTo,
-        List<PrintColumnDef> columns)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = sortBy ?? "createdtime",
-            IsDescending = isDescending,
-            InDateFrom = inDateFrom,
-            InDateTo = inDateTo,
-            CompleteDateFrom = completeDateFrom,
-            CompleteDateTo = completeDateTo
-        };
-        var paged = await GetPagedAsync(query);
-        var sectionNameMap = await _sectionNameDisplay.GetSectionNameMapAsync();
-        var processNameMap = await _processDefService.GetProcessNameMapAsync();
-
-        var data = paged.Items.Select(s => new Dictionary<string, object>
-        {
-            ["BatchNo"] = s.BatchNo,
-            ["WorkOrderNo"] = s.WorkOrderNo ?? "",
-            ["SalesOrderNo"] = s.SalesOrderNo ?? "",
-            ["ProductionMainNo"] = s.ProductionMainNo ?? "",
-            ["ProcessName"] = ProcessDisplayText(s.ProcessName, processNameMap),
-            ["ManufacturingSpec"] = s.ManufacturingSpec ?? "",
-            ["SequenceNumber"] = s.SequenceNumber,
-            ["InDate"] = s.InDate.ToString("yyyy-MM-dd"),
-            ["SectionName"] = SectionDisplayText(s.SectionName, sectionNameMap),
-            ["EquipmentName"] = s.EquipmentName ?? "",
-            ["Operator"] = s.Operator ?? "",
-            ["Shift"] = s.Shift.HasValue ? EnumHelper.GetDisplayName(s.Shift.Value) : "",
-            ["Quantity"] = s.Quantity ?? 0,
-            ["Weight"] = s.Weight ?? 0,
-            ["ProductStatus"] = DictValueDisplayHelper.GetText(DictValueDefaults.ProductStatus, s.ProductStatus) ?? "在制",
-            ["TagNo"] = s.TagNo ?? "",
-            ["PlantGrade"] = s.PlantGrade ?? "",
-            ["Status"] = EnumHelper.GetDisplayName(s.Status),
-            ["CompleteDate"] = s.CompleteDate?.ToString("yyyy-MM-dd") ?? "",
-            ["CompleteShift"] = s.CompleteShift.HasValue ? EnumHelper.GetDisplayName(s.CompleteShift.Value) : "",
-            ["CompleteOperator"] = s.CompleteOperator ?? "",
-            ["Remark"] = s.Remark ?? "",
-            ["DataSource"] = StringEnumDisplayHelper.GetDataSourceText(s.DataSource),
-            ["UpdatedTime"] = s.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
-        }).ToList();
-
-        return TablePrintHelper.GeneratePdf("去油/酸洗入缸记录", data, columns);
-    }
-
     // ========== 完工记录打印 ==========
 
     public async Task<byte[]> PrintOutBatchAsync(int[] ids, List<PrintColumnDef> columns)
@@ -1242,73 +1133,6 @@ public class PicklingService : IPicklingService
 
         if (items.Count == 0)
             throw new BusinessException("未找到选中的数据");
-
-        var sectionNameMap = await _sectionNameDisplay.GetSectionNameMapAsync();
-        var processNameMap = await _processDefService.GetProcessNameMapAsync();
-        var data = items.Select(s => new Dictionary<string, object>
-        {
-            ["BatchNo"] = s.BatchNo ?? "",
-            ["ProcessName"] = ProcessDisplayText(s.ProcessName, processNameMap),
-            ["SectionName"] = SectionDisplayText(s.SectionName, sectionNameMap),
-            ["ManufacturingSpec"] = s.ManufacturingSpec ?? "",
-            ["CompleteDate"] = s.CompleteDate.ToString("yyyy-MM-dd"),
-            ["EquipmentName"] = s.EquipmentName ?? "",
-            ["Operator"] = s.Operator ?? "",
-            ["Shift"] = EnumHelper.GetDisplayName<ShiftType>(s.Shift),
-            ["Quantity"] = s.Quantity ?? 0,
-            ["Weight"] = s.Weight ?? 0,
-            ["ProductStatus"] = DictValueDisplayHelper.GetText(DictValueDefaults.ProductStatus, s.ProductStatus) ?? "在制",
-            ["TagNo"] = s.TagNo ?? "",
-            ["PlantGrade"] = s.PlantGrade ?? "",
-            ["Remark"] = s.Remark ?? "",
-            ["DataSource"] = StringEnumDisplayHelper.GetDataSourceText(s.DataSource),
-            ["UpdatedTime"] = s.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
-        }).ToList();
-
-        return TablePrintHelper.GeneratePdf("去油/酸洗完工记录", data, columns);
-    }
-
-    public async Task<byte[]> PrintOutAllAsync(string? keyword, string? sortBy, bool isDescending,
-        DateTime? completeDateFrom, DateTime? completeDateTo,
-        List<PrintColumnDef> columns)
-    {
-        var queryable = _context.PicklingOutRecords
-            .AsNoTracking()
-            .AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            var kw = keyword;
-            queryable = queryable.Where(s =>
-                (s.BatchNo != null && s.BatchNo.Contains(kw)) ||
-                (s.ProcessName != null && s.ProcessName.Contains(kw)) ||
-                s.SectionName.Contains(kw) ||
-                (s.Remark != null && s.Remark.Contains(kw)));
-        }
-        if (completeDateFrom.HasValue)
-        {
-            var from = completeDateFrom.Value.Date;
-            queryable = queryable.Where(s => s.CompleteDate >= from);
-        }
-        if (completeDateTo.HasValue)
-        {
-            var to = completeDateTo.Value.Date.AddDays(1);
-            queryable = queryable.Where(s => s.CompleteDate < to);
-        }
-
-        queryable = (sortBy?.ToLower(), isDescending) switch
-        {
-            ("completedate", false) => queryable.OrderBy(s => s.CompleteDate),
-            ("completedate", true) => queryable.OrderByDescending(s => s.CompleteDate),
-            _ => isDescending
-                ? queryable.OrderByDescending(s => s.CreatedTime)
-                : queryable.OrderBy(s => s.CreatedTime)
-        };
-
-        var items = await queryable.ToListAsync();
-
-        if (items.Count == 0)
-            throw new BusinessException("未找到数据");
 
         var sectionNameMap = await _sectionNameDisplay.GetSectionNameMapAsync();
         var processNameMap = await _processDefService.GetProcessNameMapAsync();
@@ -1353,9 +1177,9 @@ public class PicklingService : IPicklingService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("PicklingService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.PicklingFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
             var dict = new Dictionary<string, List<string>>();
 
             // 从入缸记录获取各列去重值
@@ -1565,9 +1389,9 @@ public class PicklingService : IPicklingService
 
     public async Task<Dictionary<string, List<string>>> GetOutRecordFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("PicklingService:OutRecordFilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.PicklingOutRecordFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
             var dict = new Dictionary<string, List<string>>();
 
             var processNames = await _context.PicklingOutRecords

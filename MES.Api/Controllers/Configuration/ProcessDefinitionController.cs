@@ -46,6 +46,14 @@ public class ProcessDefinitionController : ControllerBase
         return Ok(ApiResponse<List<ProcessInfoDto>>.Ok(result));
     }
 
+    /// <summary>冷轧/冷拔工序选项（仅启用的 IsEnabled=true），机型下拉/工段 Tab/机台组配置工序多选动态化用</summary>
+    [HttpGet("cold-roll-options")]
+    public async Task<ActionResult<ApiResponse<List<ProcessInfoDto>>>> GetColdRollOptions()
+    {
+        var result = await _service.GetColdRollOrDrawOptionsAsync();
+        return Ok(ApiResponse<List<ProcessInfoDto>>.Ok(result));
+    }
+
     /// <summary>Key → 显示中文 映射（配置表优先，兜底 ProcessNames），前端显示层用</summary>
     [HttpGet("process-name-map")]
     public async Task<ActionResult<ApiResponse<Dictionary<string, string>>>> GetProcessNameMap()

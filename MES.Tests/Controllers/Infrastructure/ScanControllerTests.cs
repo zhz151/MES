@@ -11,12 +11,14 @@ namespace MES.Tests.Controllers;
 public class ScanControllerTests : ControllerTestBase
 {
     private readonly Mock<IScanService> _serviceMock;
+    private readonly Mock<IQrCodeService> _qrCodeServiceMock;
     private readonly ScanController _controller;
 
     public ScanControllerTests()
     {
         _serviceMock = new Mock<IScanService>();
-        _controller = new ScanController(_serviceMock.Object);
+        _qrCodeServiceMock = new Mock<IQrCodeService>();
+        _controller = new ScanController(_serviceMock.Object, _qrCodeServiceMock.Object);
     }
 
     [Fact]

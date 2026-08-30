@@ -394,14 +394,6 @@ public class InspectionRecordService : IInspectionRecordService
         return InspectionRecordPrintHelper.GenerateBatchPdf(selected, columns);
     }
 
-    public async Task<byte[]> PrintAllAsync(InspectionRecordQueryParams query, List<PrintColumnDef> columns)
-    {
-        query.PageIndex = 1;
-        query.PageSize = int.MaxValue;
-        var result = await GetPagedAsync(query);
-        return InspectionRecordPrintHelper.GenerateBatchPdf(result.Items, columns);
-    }
-
     private async Task<string> GenerateRecordNoAsync(string prefix)
     {
         var today = DateTime.Now.ToString("yyyyMMdd");

@@ -1,7 +1,7 @@
 namespace MES.Core.DTOs.Scheduling;
 
 /// <summary>
-/// 生产段落流转量分析 DTO — 按生产段落汇总（组合归类表「归属段落」三维行上卷）
+/// 生产段落流转量分析 DTO — 按生产段落汇总（3 类配置驱动匹配待在产三维行）
 /// </summary>
 public class SectionParagraphFlowAnalysisDto
 {
@@ -16,9 +16,6 @@ public class SectionParagraphFlowAnalysisDto
 
     /// <summary>待在产重量（计算值，吨）</summary>
     public decimal? PendingTotal { get; set; }
-
-    /// <summary>变异量总量（计算值）</summary>
-    public decimal? VariationTotal { get; set; }
 
     /// <summary>日流转设定（可编辑）</summary>
     public decimal? DailyFlowTarget { get; set; }
@@ -35,7 +32,7 @@ public class SectionParagraphFlowAnalysisDto
     /// <summary>状态判定：偏少/正常/过多（计算值，前端显示名"总况判定"）</summary>
     public string? StatusJudgment { get; set; }
 
-    /// <summary>重点批次计数（来自批次计划，按(待产工序组, 工段, 产类)匹配组合归类「归属段落」上卷）</summary>
+    /// <summary>重点批次计数（来自批次计划，按(待产工序组, 工段, 产类)匹配段落 3 类规则上卷）</summary>
     public int KeyBatchCount { get; set; }
 
     /// <summary>重点批次重量（来自批次计划）</summary>

@@ -121,10 +121,10 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     // ========== Scheduling 上下文 ==========
     public DbSet<RawMaterialLockPreExecution> RawMaterialLockPreExecutions { get; set; } = null!;
     public DbSet<WorkOrderPlan> WorkOrderPlans { get; set; } = null!;
-    public DbSet<SectionFlowCategorySetting> SectionFlowCategorySettings { get; set; } = null!;
     public DbSet<ColdRollSpecSchedule> ColdRollSpecSchedules { get; set; } = null!;
     public DbSet<ColdRollCapacity> ColdRollCapacities { get; set; } = null!;
     public DbSet<ColdRollMachineConfig> ColdRollMachineConfigs { get; set; } = null!;
+    public DbSet<ColdRollMachineGroupConfig> ColdRollMachineGroupConfigs { get; set; } = null!;
     public DbSet<BatchPlanSchedule> BatchPlanSchedules { get; set; } = null!;
 
     // ========== Configuration 上下文 ==========
@@ -142,7 +142,6 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<DailyProductionCapacity> DailyProductionCapacities { get; set; } = null!;
     public DbSet<Workstation> Workstations { get; set; } = null!;
     public DbSet<Employee> Employees { get; set; } = null!;
-    public DbSet<CombinationGroup> CombinationGroups { get; set; } = null!;
     public DbSet<SectionParagraphConfig> SectionParagraphConfigs { get; set; } = null!;
 
     // ========== StandardRegister 上下文 ==========
@@ -244,14 +243,13 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         // ========== Scheduling 上下文 ==========
         ConfigureRawMaterialLockPreExecution(builder);
         ConfigureWorkOrderPlan(builder);
-        ConfigureSectionFlowCategorySetting(builder);
         ConfigureColdRollSpecSchedule(builder);
         ConfigureColdRollCapacity(builder);
         ConfigureColdRollMachineConfig(builder);
+        ConfigureColdRollMachineGroupConfig(builder);
         ConfigureBatchPlanSchedule(builder);
 
         // ========== Configuration 上下文 ==========
-        ConfigureCombinationGroup(builder);
         ConfigureSectionParagraphConfig(builder);
         ConfigureStandardWorkDay(builder);
         ConfigureStandardWorkDayDeliveryState(builder);

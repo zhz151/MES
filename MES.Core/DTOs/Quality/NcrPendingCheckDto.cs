@@ -1,5 +1,4 @@
 using MES.Core.Enums;
-using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Quality;
 
@@ -44,7 +43,6 @@ public class NcrPendingCheckDto
 
     /// <summary>处置方式：Rework / WarehouseEntry / Scrap</summary>
     public DisposalMethod DisposalMethod { get; set; }
-    public string DisposalMethodDisplay => EnumHelper.GetDisplayName(DisposalMethod);
 
     /// <summary>次品支数（触发条件的次品数量）</summary>
     public int DefectQuantity { get; set; }

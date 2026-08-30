@@ -39,7 +39,6 @@ public class FinalInspectionPlanDto
     public string? PlantGrade { get; set; }                   // 工厂牌号
     public string? Specification { get; set; }                // 规格
     public LengthStatus? LengthStatus { get; set; }           // 长度状态
-    public string? LengthStatusDisplay => LengthStatus.HasValue ? EnumHelper.GetDisplayName(LengthStatus.Value) : null;
     public int ProductionCutQuantity { get; set; }            // 生产支数
     public decimal? ProductionWeight { get; set; }            // 生产重量(kg)
     public string? SourceHeatNo { get; set; }                 // 炉号（来源炉号）

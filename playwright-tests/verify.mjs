@@ -102,14 +102,11 @@ const LIST_PAGES = [
   { url: '/employees',          name: '员工管理',         module: 'Config', hasPrint: true, hasSearch: true },
   { url: '/workstations',       name: '工位管理',         module: 'Config', hasPrint: true, hasSearch: true },
   { url: '/standard-work-days', name: '标准工时',         module: 'Config', hasPrint: false, hasSearch: true },
-  { url: '/section-flow-category-settings', name: '工序类别', module: 'Config', hasPrint: false, hasSearch: true },
   { url: '/daily-production-capacities', name: '日产能',  module: 'Config', hasPrint: false, hasSearch: true },
   { url: '/daily-output-estimates', name: '日产量预估',   module: 'Config', hasPrint: false, hasSearch: true },
   { url: '/standard-work-day-delivery-states', name: '标准交期状态', module: 'Config', hasPrint: false, hasSearch: true },
 
   // ---- 其他 ----
-  { url: '/section-flow-analysis', name: '工序流量分析',   module: 'Analysis', hasPrint: false, hasSearch: true },
-  { url: '/section-production-status', name: '工序生产状态', module: 'Analysis', hasPrint: false, hasSearch: true },
   { url: '/admin/users',        name: '用户管理',         module: 'Admin', hasPrint: false, hasSearch: true },
   { url: '/data-exchange',      name: '数据交换',         module: 'Tools', hasPrint: false, hasSearch: true },
 

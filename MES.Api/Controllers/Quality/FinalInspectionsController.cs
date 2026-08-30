@@ -116,17 +116,6 @@ public class FinalInspectionsController : ControllerBase
     }
 
     /// <summary>
-    /// 获取所有成品检验记录（无分页）
-    /// </summary>
-    [HttpGet("all-list")]
-    [Authorize(Roles = Roles.Policies.QualityView)]
-    public async Task<ApiResponse<List<FinalInspectionDto>>> GetAllList()
-    {
-        var result = await _service.GetAllListAsync();
-        return ApiResponse<List<FinalInspectionDto>>.Ok(result);
-    }
-
-    /// <summary>
     /// 创建成品检验记录
     /// </summary>
     [HttpPost]
@@ -217,12 +206,4 @@ public class FinalInspectionsController : ControllerBase
         return File(pdfBytes, "application/pdf", "成品检验-选中.pdf");
     }
 
-    /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.QualityView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] FinalInspectionPrintAllRequest request)
-    {
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.InspectionDateFrom, request.InspectionDateTo, request.Filters);
-        return File(pdfBytes, "application/pdf", "成品检验-全部.pdf");
-    }
 }

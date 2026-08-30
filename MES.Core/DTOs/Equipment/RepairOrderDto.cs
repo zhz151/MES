@@ -1,6 +1,5 @@
 using MES.Core.DTOs.Shared;
 using MES.Core.Enums;
-using MES.Core.Helpers;
 namespace MES.Core.DTOs.Equipment;
 
 /// <summary>
@@ -17,9 +16,7 @@ public class RepairOrderListDto
     public string FaultDescription { get; set; } = null!;
     public string? FaultType { get; set; }
     public RepairPriority Priority { get; set; }
-    public string PriorityDisplay => EnumHelper.GetDisplayName(Priority);
     public RepairOrderStatus RepairStatus { get; set; } // 动态计算
-    public string RepairStatusDisplay => EnumHelper.GetDisplayName(RepairStatus);
     public string ReportPerson { get; set; } = null!;
     public DateTime ReportTime { get; set; }
     public string? RepairPerson { get; set; }
@@ -59,7 +56,6 @@ public class UpdateRepairOrderRequest
     public string? FaultDescription { get; set; }
     public string? FaultType { get; set; }
     public RepairPriority? Priority { get; set; }
-    public string? PriorityDisplay => Priority.HasValue ? EnumHelper.GetDisplayName(Priority.Value) : null;
     public string? ReportPerson { get; set; }
     public DateTime? ReportTime { get; set; }
     public string? RepairPerson { get; set; }
@@ -104,21 +100,5 @@ public class CompleteRepairRequest
 public class RepairOrderPrintBatchRequest
 {
     public int[] Ids { get; set; } = Array.Empty<int>();
-    public List<PrintColumnDef> Columns { get; set; } = new();
-}
-
-/// <summary>
-/// 维修工单打印请求（全部）
-/// </summary>
-public class RepairOrderPrintAllRequest
-{
-    public string? Keyword { get; set; }
-    public string? SortBy { get; set; }
-    public bool IsDescending { get; set; }
-    public int? EquipmentId { get; set; }
-    public RepairOrderStatus? RepairStatus { get; set; }
-    public RepairPriority? Priority { get; set; }
-    public DateTime? ReportTimeFrom { get; set; }
-    public DateTime? ReportTimeTo { get; set; }
     public List<PrintColumnDef> Columns { get; set; } = new();
 }

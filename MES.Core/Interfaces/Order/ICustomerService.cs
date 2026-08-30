@@ -28,5 +28,4 @@ public interface ICustomerService
 
     // ========== 打印 ==========
     Task<byte[]> PrintCustomerBatchAsync(int[] ids, List<PrintColumnDef>? columns = null);
-    Task<byte[]> PrintCustomerAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, List<PrintColumnDef>? columns = null);
 }

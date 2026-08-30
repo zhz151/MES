@@ -23,17 +23,14 @@ public class RawMaterialLockPlanAndExecutionDto
     public DateTime DeliveryDate { get; set; }
     public bool DelayPenalty { get; set; }
     public SettlementMethod SettlementMethod { get; set; }
-    public string SettlementMethodDisplay => EnumHelper.GetDisplayName(SettlementMethod);
     public string SalesOrderNo { get; set; } = null!;
     public string ProductionMainNo { get; set; } = null!;
     public string? ProductionSubNo { get; set; }
     public string MaterialName { get; set; } = null!;
     public DeliveryState DeliveryState { get; set; }
-    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public LengthStatus LengthStatus { get; set; }
-    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
     public int TotalItemCount { get; set; }
@@ -43,10 +40,8 @@ public class RawMaterialLockPlanAndExecutionDto
 
     // ========== G4: 用料计划及执行实况 ==========
     public MaterialPlanStatus MaterialPlanStatus { get; set; }
-    public string MaterialPlanStatusDisplay => EnumHelper.GetDisplayName(MaterialPlanStatus);
     public decimal MainNoMaterialPlanRate { get; set; }
     public MaterialPlanStatus MainNoMaterialPlanStatus { get; set; }
-    public string MainNoMaterialPlanStatusDisplay => EnumHelper.GetDisplayName(MainNoMaterialPlanStatus);
 
     /// <summary>主号计划执行状态(0=无计划 1=未执行 2=执行中 3=计划落实)</summary>
     public int MainNoPlanExecutionStatus { get; set; }
@@ -227,7 +222,6 @@ public class RawMaterialLockPlanAndExecutionDto
     public string InventoryOutStatusText => PlanExecutionStatusText(InventoryOutStatus);
     public string ReworkPlanInputStatusText => PlanExecutionStatusText(ReworkPlanInputStatus);
     public string InProcessReworkInputStatusText => PlanExecutionStatusText(InProcessReworkInputStatus);
-    public string InMainInputStatusText => PlanExecutionStatusText(InMainInputStatus);
 
     private static string PlanExecutionStatusText(int status) => IntStatusDisplayHelper.GetPlanExecutionStatusText(status);
 
@@ -235,6 +229,4 @@ public class RawMaterialLockPlanAndExecutionDto
     public string DelayPenaltyText => DelayPenalty ? "是" : "否";
     public string ScheduleStageText => IntStatusDisplayHelper.GetScheduleStageText(ScheduleStage);
     public string UrgingText => IsUrging ? "是" : "否";
-    public string IsPreInputText => IsPreInput ? "是" : "否";
-    public string BudgetInputDateText => BudgetInputDate?.ToString("yyyy-MM-dd") ?? "-";
 }

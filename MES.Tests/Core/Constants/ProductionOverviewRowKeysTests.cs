@@ -11,36 +11,28 @@ public class ProductionOverviewRowKeysTests
     // ========== All / KeyToChinese ==========
 
     [Fact]
-    public void All_包含5个行名Key()
+    public void All_仅含荒管抛光固定行()
     {
-        ProductionOverviewRowKeys.All.Should().HaveCount(5);
+        // 冷轧/冷拔行由机台组配置表 ColdRollMachineGroupConfig 动态驱动（2026-08-30 起），常量仅保留荒管抛光
+        ProductionOverviewRowKeys.All.Should().HaveCount(1);
         ProductionOverviewRowKeys.All.Should().BeEquivalentTo(new[]
         {
-            ProductionOverviewRowKeys.Polish, ProductionOverviewRowKeys.Mill50_60,
-            ProductionOverviewRowKeys.Mill20_30, ProductionOverviewRowKeys.ThreeRollMill,
-            ProductionOverviewRowKeys.DrawBench
+            ProductionOverviewRowKeys.Polish
         }, options => options.WithStrictOrdering());
     }
 
     [Fact]
-    public void KeyToChinese_覆盖全部5键_值为规范中文()
+    public void KeyToChinese_覆盖荒管抛光_值为规范中文()
     {
-        ProductionOverviewRowKeys.KeyToChinese.Should().HaveCount(5);
+        ProductionOverviewRowKeys.KeyToChinese.Should().HaveCount(1);
         ProductionOverviewRowKeys.KeyToChinese[ProductionOverviewRowKeys.Polish].Should().Be("荒管抛光");
-        ProductionOverviewRowKeys.KeyToChinese[ProductionOverviewRowKeys.Mill50_60].Should().Be("50,60轧机");
-        ProductionOverviewRowKeys.KeyToChinese[ProductionOverviewRowKeys.Mill20_30].Should().Be("20,30轧机");
-        ProductionOverviewRowKeys.KeyToChinese[ProductionOverviewRowKeys.ThreeRollMill].Should().Be("三辊轧机");
-        ProductionOverviewRowKeys.KeyToChinese[ProductionOverviewRowKeys.DrawBench].Should().Be("拉机");
     }
 
     // ========== IsKey ==========
 
     [Theory]
     [InlineData("Polish", true)]
-    [InlineData("Mill50_60", true)]
-    [InlineData("Mill20_30", true)]
-    [InlineData("ThreeRollMill", true)]
-    [InlineData("DrawBench", true)]
+    [InlineData("5060", false)]          // 机台组 Key 由配置表动态校验，常量仅识荒管抛光
     [InlineData("polish", false)]        // 大小写敏感
     [InlineData("荒管抛光", false)]       // 中文非 Key
     [InlineData("", false)]
@@ -56,17 +48,12 @@ public class ProductionOverviewRowKeysTests
     public void ToChinese_Key转中文()
     {
         ProductionOverviewRowKeys.ToChinese("Polish").Should().Be("荒管抛光");
-        ProductionOverviewRowKeys.ToChinese("Mill50_60").Should().Be("50,60轧机");
-        ProductionOverviewRowKeys.ToChinese("Mill20_30").Should().Be("20,30轧机");
-        ProductionOverviewRowKeys.ToChinese("ThreeRollMill").Should().Be("三辊轧机");
-        ProductionOverviewRowKeys.ToChinese("DrawBench").Should().Be("拉机");
     }
 
     [Fact]
     public void ToChinese_中文原样返回()
     {
         ProductionOverviewRowKeys.ToChinese("荒管抛光").Should().Be("荒管抛光");
-        ProductionOverviewRowKeys.ToChinese("拉机").Should().Be("拉机");
     }
 
     [Fact]

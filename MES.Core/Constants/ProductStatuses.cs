@@ -17,9 +17,6 @@ public static class ProductStatuses
     /// <summary>成品</summary>
     public const string Finished = "Finished";
 
-    /// <summary>组合配置哨兵：不限定产类（组合行对全部产类生效）</summary>
-    public const string AllStatus = "All";
-
     /// <summary>所有产类 Key 的有序列表</summary>
     public static readonly string[] All =
     [

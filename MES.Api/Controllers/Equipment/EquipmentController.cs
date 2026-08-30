@@ -63,14 +63,6 @@ public class EquipmentController : ControllerBase
         return Ok(ApiResponse<PagedResult<EquipmentListDto>>.Ok(result, "查询成功"));
     }
 
-    [HttpGet("all-list")]
-    [Authorize(Roles = Roles.Policies.EquipmentView)]
-    public async Task<ActionResult<ApiResponse<List<EquipmentListDto>>>> GetAllList()
-    {
-        var result = await _service.GetAllListAsync();
-        return Ok(ApiResponse<List<EquipmentListDto>>.Ok(result, "查询成功"));
-    }
-
     [HttpGet("all")]
     [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<List<EquipmentListDto>>>> GetAll()
@@ -140,27 +132,4 @@ public class EquipmentController : ControllerBase
         return File(pdfBytes, "application/pdf", "设备台账打印.pdf");
     }
 
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.EquipmentView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] EquipmentPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var query = new EquipmentQueryParams
-        {
-            Keyword = request.Keyword,
-            SortBy = string.IsNullOrEmpty(request.SortBy) ? "CreatedTime" : request.SortBy,
-            IsDescending = request.IsDescending,
-            LifecycleStatus = request.LifecycleStatus,
-            UsageType = request.UsageType,
-            RunningStatus = request.RunningStatus,
-            InspectionStatus = request.InspectionStatus,
-            MaintStatus = request.MaintStatus,
-            Location = request.Location,
-            RelatedSection = request.RelatedSection
-        };
-        var pdfBytes = await _service.PrintAllAsync(query, request.Columns);
-        return File(pdfBytes, "application/pdf", "设备台账列表.pdf");
-    }
 }

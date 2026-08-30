@@ -54,6 +54,9 @@ public class BatchService : IBatchService
     /// <summary>无对应工单时的工单号占位符（统一引用公共哨兵常量）</summary>
     private const string NotWorkOrder = WorkOrderNoSentinel.NotWorkOrder;
 
+    /// <summary>执行匹配派生字段：错误 Key（正常复用 ProductionFlowKeys.Normal，与前端筛选/显示契约一致）</summary>
+    private const string ExecutionMatchError = "Error";
+
     private readonly AppDbContext _context;
     private readonly ILogger<BatchService> _logger;
     private readonly IProductionRecordService _productionRecordService;
@@ -269,8 +272,8 @@ public class BatchService : IBatchService
         if (derivedMatchFilter != null && derivedMatchFilter.Operator == "in" && derivedMatchFilter.Values?.Count > 0)
         {
             query.Filters!.Remove(derivedMatchFilter);
-            var hasError = derivedMatchFilter.Values.Contains("错误", StringComparer.Ordinal);
-            var hasNormal = derivedMatchFilter.Values.Contains("正常", StringComparer.Ordinal);
+            var hasError = derivedMatchFilter.Values.Contains(ExecutionMatchError, StringComparer.Ordinal);
+            var hasNormal = derivedMatchFilter.Values.Contains(ProductionFlowKeys.Normal, StringComparer.Ordinal);
             queryable = queryable.Where(b =>
                 (hasError && (
                     (b.WorkOrderNo != NotWorkOrder && !exec.Where(e => e.WorkOrderNo == b.WorkOrderNo).Any())
@@ -331,7 +334,7 @@ public class BatchService : IBatchService
             {
                 var flowValues = flowFilter!.Values!;
                 allItems = allItems
-                    .Where(b => flowValues.Contains(flowMap.GetValueOrDefault(b.Id, "正常"), StringComparer.OrdinalIgnoreCase))
+                    .Where(b => flowValues.Contains(flowMap.GetValueOrDefault(b.Id, ProductionFlowKeys.Normal), StringComparer.OrdinalIgnoreCase))
                     .ToList();
             }
 
@@ -339,8 +342,8 @@ public class BatchService : IBatchService
             {
                 // 疑问在前（0）正常在后（1），与执行匹配同向；同档按 Id 稳定
                 allItems = query.IsDescending
-                    ? allItems.OrderByDescending(b => flowMap.GetValueOrDefault(b.Id, "正常") == "疑问" ? 0 : 1).ThenByDescending(b => b.Id).ToList()
-                    : allItems.OrderBy(b => flowMap.GetValueOrDefault(b.Id, "正常") == "疑问" ? 0 : 1).ThenBy(b => b.Id).ToList();
+                    ? allItems.OrderByDescending(b => flowMap.GetValueOrDefault(b.Id, ProductionFlowKeys.Normal) == ProductionFlowKeys.Doubt ? 0 : 1).ThenByDescending(b => b.Id).ToList()
+                    : allItems.OrderBy(b => flowMap.GetValueOrDefault(b.Id, ProductionFlowKeys.Normal) == ProductionFlowKeys.Doubt ? 0 : 1).ThenBy(b => b.Id).ToList();
             }
 
             var totalCountFlow = allItems.Count;
@@ -477,9 +480,9 @@ public class BatchService : IBatchService
             TheoreticalUnitWeight = b.TheoreticalUnitWeight,
             ScheduleStage = b.WorkOrderNo == NotWorkOrder ? null
                 : summaryMap.TryGetValue(b.WorkOrderNo, out var batchStage) ? batchStage : -1,
-            ExecutionMatch = b.WorkOrderNo == NotWorkOrder ? "正常"
-                : (!summaryMap.TryGetValue(b.WorkOrderNo, out var matchStage) || (matchStage == 1 && b.Status != BatchStatus.Completed)) ? "错误" : "正常",
-            FlowJudgment = flowJudgmentMap.GetValueOrDefault(b.Id, "正常")
+            ExecutionMatch = b.WorkOrderNo == NotWorkOrder ? ProductionFlowKeys.Normal
+                : (!summaryMap.TryGetValue(b.WorkOrderNo, out var matchStage) || (matchStage == 1 && b.Status != BatchStatus.Completed)) ? ExecutionMatchError : ProductionFlowKeys.Normal,
+            FlowJudgment = flowJudgmentMap.GetValueOrDefault(b.Id, ProductionFlowKeys.Normal)
         }).ToList();
     }
 
@@ -524,8 +527,8 @@ public class BatchService : IBatchService
     {
         IEnumerable<ProductionBatchListDto> matched = type switch
         {
-            BatchDoubtExecutionType.MatchOrder => all.Where(d => string.Equals(d.ExecutionMatch, "错误", StringComparison.Ordinal)),
-            BatchDoubtExecutionType.FlowDoubt => all.Where(d => string.Equals(d.FlowJudgment, "疑问", StringComparison.Ordinal)),
+            BatchDoubtExecutionType.MatchOrder => all.Where(d => string.Equals(d.ExecutionMatch, ExecutionMatchError, StringComparison.Ordinal)),
+            BatchDoubtExecutionType.FlowDoubt => all.Where(d => string.Equals(d.FlowJudgment, ProductionFlowKeys.Doubt, StringComparison.Ordinal)),
             BatchDoubtExecutionType.NeedAdjust => all.Where(d => d.ProcessInspectionNeedAdjust == true),
             BatchDoubtExecutionType.CutDoubt => all.Where(d => d.CutDoubt is CutDoubtType.QuantityMismatch or CutDoubtType.MissingRecords),
             _ => Enumerable.Empty<ProductionBatchListDto>()
@@ -1832,39 +1835,12 @@ public class BatchService : IBatchService
         // 工序组变更影响工段解析，刷新批次跟踪字段
         await _productionRecordService.BatchUpdateBatchTrackingAsync(new[] { batchId });
 
+        // 有效工序组数影响已完成批次有效产出折扣（产能工量），补刷用料计划总览读模型
+        await TryRefreshListSummaryAsync(batch.SalesOrderNo);
+
         _logger.LogInformation("添加工序组 {ProcessName} → 批次 {BatchId}", request.ProcessName, batchId);
 
         return ToGroupDto(entity);
-    }
-
-    public async Task DeleteProcessGroupAsync(int groupId)
-    {
-        var entity = await _context.ProcessGroups.FindAsync(groupId);
-        if (entity == null)
-            throw new BusinessException($"工序组不存在 (Id={groupId})");
-
-        var batchId = entity.ProductionBatchId;
-
-        // 检查是否有生产记录或委外记录引用
-        var hasRecord = await _context.ProductionRecords.AnyAsync(r => r.ProcessGroupId == groupId);
-        if (hasRecord)
-            throw new BusinessException($"工序组 (Id={groupId}) 已被生产记录引用，无法删除。请先删除相关生产记录后再试。");
-
-        var hasOutsource = await _context.SectionOutsources.AnyAsync(s => s.ProcessGroupId == groupId);
-        if (hasOutsource)
-            throw new BusinessException($"工序组 (Id={groupId}) 已被委外发出记录引用，无法删除。请先删除相关委外记录后再试。");
-
-        var hasPicklingInRecord = await _context.PicklingInRecords.AnyAsync(p => p.ProcessGroupId == groupId);
-        if (hasPicklingInRecord)
-            throw new BusinessException($"工序组 (Id={groupId}) 已被酸洗记录引用，无法删除。请先删除相关酸洗记录后再试。");
-
-        _context.ProcessGroups.Remove(entity);
-        await _context.SaveChangesAsync();
-
-        // 工序组变更影响工段解析，刷新批次跟踪字段
-        await _productionRecordService.BatchUpdateBatchTrackingAsync(new[] { batchId });
-
-        _logger.LogInformation("删除工序组 (Id={GroupId})", groupId);
     }
 
     // ========== 查询 ==========
@@ -2150,84 +2126,6 @@ public class BatchService : IBatchService
         return ProcessKeys.ToChinese(keyOrName) ?? "";
     }
 
-    public async Task<byte[]> PrintBatchAllAsync(BatchPrintAllRequest request)
-    {
-        var queryable = _context.ProductionBatches.AsNoTracking().AsQueryable();
-
-        if (!string.IsNullOrEmpty(request.Keyword))
-        {
-            var kw = request.Keyword;
-            queryable = queryable.Where(b =>
-                b.BatchNo.Contains(kw) ||
-                b.WorkOrderNo.Contains(kw) ||
-                b.SalesOrderNo.Contains(kw) ||
-                b.ProductionMainNo.Contains(kw) ||
-                (b.ProductionSubNo != null && b.ProductionSubNo.Contains(kw)) ||
-                (b.TagNo != null && b.TagNo.Contains(kw)) ||
-                b.CreatedBy.Contains(kw) ||
-                (b.CurrentGroupName != null && b.CurrentGroupName.Contains(kw)) ||
-                (b.CurrentSectionName != null && b.CurrentSectionName.Contains(kw)) ||
-                (b.CurrentEquipmentName != null && b.CurrentEquipmentName.Contains(kw)) ||
-                (b.CurrentOutsource != null && b.CurrentOutsource.Contains(kw)) ||
-                (b.CurrentSpec != null && b.CurrentSpec.Contains(kw)) ||
-                (b.NextSectionName != null && b.NextSectionName.Contains(kw)) ||
-                (b.CorrespondingSpec != null && b.CorrespondingSpec.Contains(kw)) ||
-                (b.NextProcess != null && b.NextProcess.Contains(kw)) ||
-                b.ManufacturingItem.Contains(kw) ||
-                (b.ProductionType != null && b.ProductionType.Contains(kw)) ||
-                b.Salesman.Contains(kw) ||
-                (b.EndCustomer != null && b.EndCustomer.Contains(kw)) ||
-                b.MaterialName.Contains(kw) ||
-                b.SettlementMethod.Contains(kw) ||
-                b.StandardCode.Contains(kw) ||
-                b.DeliveryState.Contains(kw) ||
-                b.PlantGrade.Contains(kw) ||
-                b.Specification.Contains(kw) ||
-                b.LengthStatus.Contains(kw) ||
-                b.TechnicalRequirements.Contains(kw) ||
-                (b.ItemDetails != null && b.ItemDetails.Contains(kw)) ||
-                (b.Remark != null && b.Remark.Contains(kw)) ||
-                (b.QualityRemark != null && b.QualityRemark.Contains(kw)) ||
-                (b.SourceHeatNo != null && b.SourceHeatNo.Contains(kw)) ||
-                (b.SourceName != null && b.SourceName.Contains(kw)) ||
-                (b.SourceBatchNo != null && b.SourceBatchNo.Contains(kw)) ||
-                (b.SourceSpecification != null && b.SourceSpecification.Contains(kw)) ||
-                (b.SourceMaterialType != null && b.SourceMaterialType.Contains(kw)) ||
-                (b.SourceLengthStatus != null && b.SourceLengthStatus.Contains(kw)) ||
-                (b.SolutionParams != null && b.SolutionParams.Contains(kw)) ||
-                (b.UpdatedBy != null && b.UpdatedBy.Contains(kw)) ||
-                (b.SourcePlantGrade != null && b.SourcePlantGrade.Contains(kw)) ||
-                (b.SourceProductionNo != null && b.SourceProductionNo.Contains(kw)) ||
-                (b.ManufacturingStatus != null && b.ManufacturingStatus.Contains(kw)) ||
-                (b.SourceRemark != null && b.SourceRemark.Contains(kw)) ||
-                (b.OrderItemIds != null && b.OrderItemIds.Contains(kw)));
-        }
-        if (!string.IsNullOrEmpty(request.WorkOrderNo))
-            queryable = queryable.Where(b => b.WorkOrderNo.Contains(request.WorkOrderNo));
-        if (!string.IsNullOrEmpty(request.Status) && Enum.TryParse<BatchStatus>(request.Status, out var batchStatus))
-            queryable = queryable.Where(b => b.Status == batchStatus);
-        if (!string.IsNullOrEmpty(request.TagNo))
-            queryable = queryable.Where(b => b.TagNo != null && b.TagNo.Contains(request.TagNo));
-        if (!string.IsNullOrEmpty(request.BatchNo))
-            queryable = queryable.Where(b => b.BatchNo.Contains(request.BatchNo));
-        if (!string.IsNullOrEmpty(request.SalesOrderNo))
-            queryable = queryable.Where(b => b.SalesOrderNo.Contains(request.SalesOrderNo));
-        if (!string.IsNullOrEmpty(request.ProductionMainNo))
-            queryable = queryable.Where(b => b.ProductionMainNo.Contains(request.ProductionMainNo));
-        if (!string.IsNullOrEmpty(request.ProductionSubNo))
-            queryable = queryable.Where(b => b.ProductionSubNo != null && b.ProductionSubNo.Contains(request.ProductionSubNo));
-
-        var entities = await queryable
-            .OrderByDescending(b => b.CreatedTime)
-            .ToListAsync();
-
-        var columns = request.Columns?.Count > 0 ? request.Columns : GetDefaultBatchPrintColumns();
-        var summaryMap = await LoadScheduleStageMapAsync();
-        var flowJudgmentMap = await BuildFlowJudgmentMapAsync(entities.Select(b => b.Id).ToList());
-        var items = BuildBatchDictItems(entities, columns, summaryMap, flowJudgmentMap);
-        return TablePrintHelper.GeneratePdf("生产批次列表", items, columns);
-    }
-
     /// <summary>
     /// 关联工单状态映射源：一次加载全量 WorkOrderNo→ScheduleStage（同一工单号摘要仅一条）
     /// </summary>
@@ -2357,7 +2255,7 @@ public class BatchService : IBatchService
     {
         bool hasWarehouse = inboundDate.HasValue;
         bool hasAny = seqRecords.Count > 0 || hasWarehouse;
-        if (!hasAny) return "正常"; // 未产
+        if (!hasAny) return ProductionFlowKeys.Normal; // 未产
 
         // 6 表全量 max 日期（含入库）
         DateTime? globalMax = null;
@@ -2394,7 +2292,7 @@ public class BatchService : IBatchService
                 doubt = true;
         }
 
-        return doubt ? "疑问" : "正常";
+        return doubt ? ProductionFlowKeys.Doubt : ProductionFlowKeys.Normal;
     }
 
     public async Task<byte[]> PrintBatchSelectedAsync(int[] ids, List<PrintColumnDef> columns)
@@ -2554,7 +2452,7 @@ public class BatchService : IBatchService
             // 关联工单状态（派生自工单执行状况读模型，与列表 DTO 显示口径一致）
             "ScheduleStage" => BuildScheduleStagePrintDisplay(b, summaryMap),
             "ExecutionMatch" => BuildExecutionMatchPrintDisplay(b, summaryMap),
-            "FlowJudgment" => flowJudgmentMap != null && flowJudgmentMap.TryGetValue(b.Id, out var fj) ? fj : "正常",
+            "FlowJudgment" => flowJudgmentMap != null && flowJudgmentMap.TryGetValue(b.Id, out var fj) ? ProductionFlowKeys.ToChinese(fj) ?? "正常" : "正常",
 
             // 默认
             _ => ""
@@ -2669,9 +2567,9 @@ public class BatchService : IBatchService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("BatchService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.BatchFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             // 注意：枚举列（ProductionType/Status/MaterialName 等）不在此处返回，
             // 由前端 EnumOptions fallback 直接提供带中文 Display 的选项，避免映射丢失。
@@ -2852,6 +2750,9 @@ public class BatchService : IBatchService
 
     public async Task<List<DefectRateBatchDto>> GetDefectRateAlertsAsync()
     {
+        // 缺陷率预警阈值（配置化，默认 3%）
+        var defectRateAlarmRatio = await GetConfigAsync("ProductionThreshold", "DefectRateAlarmRatio", 0.03m);
+
         // 过程检验按批次分组，聚合次品支数和检验支数，取最新检验时间
         var defectGroups = await _context.ProcessInspections
             .AsNoTracking()
@@ -2867,7 +2768,7 @@ public class BatchService : IBatchService
                 MaxInspectionTime = g.Max(p => (DateTimeOffset?)p.CreatedTime)
             })
             .Where(x => x.TotalInspectionQty > 0
-                     && (decimal)x.TotalDefectQty / (decimal)x.TotalInspectionQty > 0.03m)
+                     && (decimal)x.TotalDefectQty / (decimal)x.TotalInspectionQty > defectRateAlarmRatio)
             .ToListAsync();
 
         if (defectGroups.Count == 0)

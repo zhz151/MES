@@ -6,25 +6,6 @@ namespace MES.Data;
 
 public partial class AppDbContext
 {
-    private static void ConfigureCombinationGroup(ModelBuilder builder)
-    {
-        builder.Entity<CombinationGroup>(entity =>
-        {
-            entity.ToTable("CombinationGroups");
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.ProcessGroupName).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.ProductStatus).IsRequired().HasMaxLength(20);
-            entity.HasOne(e => e.FlowCategory)
-                .WithMany()
-                .HasForeignKey(e => e.FlowCategoryId)
-                .OnDelete(DeleteBehavior.SetNull);
-            entity.Property(e => e.ParagraphName).HasMaxLength(50);
-            entity.HasIndex(e => new { e.ProcessGroupName, e.SectionName, e.ProductStatus })
-                .IsUnique()
-                .HasDatabaseName("UK_CG_ProcessGroupName_SectionName_ProductStatus");
-        });
-    }
     private static void ConfigureSectionParagraphConfig(ModelBuilder builder)
     {
         builder.Entity<SectionParagraphConfig>(entity =>
@@ -32,13 +13,16 @@ public partial class AppDbContext
             entity.ToTable("SectionParagraphConfigs");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.ParagraphName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ParagraphKey).HasMaxLength(50);
+            entity.Property(e => e.CategoryType).HasMaxLength(20);
             entity.Property(e => e.DailyFlowTarget).HasColumnType("decimal(18,2)");
             entity.Property(e => e.LowerLimitDays).HasColumnType("decimal(18,2)");
             entity.Property(e => e.UpperLimitDays).HasColumnType("decimal(18,2)");
             entity.Property(e => e.Remark).HasMaxLength(200);
-            entity.HasIndex(e => e.ParagraphName)
+            // 段落身份由 (CategoryType, ParagraphKey) 唯一标识（段落名是配置派生的显示名，不再唯一约束）
+            entity.HasIndex(e => new { e.CategoryType, e.ParagraphKey })
                 .IsUnique()
-                .HasDatabaseName("UK_SPC_ParagraphName");
+                .HasDatabaseName("UK_SPC_CategoryType_ParagraphKey");
         });
     }
     private static void ConfigureStandardWorkDay(ModelBuilder builder)

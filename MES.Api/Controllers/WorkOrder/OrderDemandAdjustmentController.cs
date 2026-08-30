@@ -64,11 +64,4 @@ public class OrderDemandAdjustmentController : ControllerBase
         var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "工单需求调整.pdf");
     }
-
-    [HttpPost("print-all-file")]
-    public async Task<IActionResult> PrintAllFile([FromBody] DemandAdjustmentPrintAllRequest request)
-    {
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.SignDateFrom, request.SignDateTo, request.DeliveryDateStart, request.DeliveryDateEnd, request.Columns);
-        return File(pdfBytes, "application/pdf", "工单需求调整-全部.pdf");
-    }
 }

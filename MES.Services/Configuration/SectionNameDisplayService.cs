@@ -14,7 +14,7 @@ namespace MES.Services.Configuration;
 /// </summary>
 public class SectionNameDisplayService : ISectionNameDisplayService
 {
-    private const string CacheKey = "SectionNameDisplay:Map";
+    private const string CacheKey = CacheKeys.SectionNameDisplayMap;
 
     private readonly AppDbContext _context;
     private readonly IMemoryCache _cache;
@@ -29,7 +29,7 @@ public class SectionNameDisplayService : ISectionNameDisplayService
     {
         return (await _cache.GetOrCreateAsync(CacheKey, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             // 分组按 OrdinalIgnoreCase，map 也必须一致（SectionKey 大小写变体视为同 Key）
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -75,7 +75,4 @@ public class SectionNameDisplayService : ISectionNameDisplayService
         // 已是中文（迁移前存量/别名）原样返回
         return keyOrName;
     }
-
-    public Task<string?> ToKeyAsync(string? nameOrKey)
-        => Task.FromResult(SectionKeys.ToKey(nameOrKey));
 }

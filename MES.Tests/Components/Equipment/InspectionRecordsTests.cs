@@ -1,6 +1,5 @@
 using Bunit;
 using FluentAssertions;
-using MES.Core.DTOs;
 using MES.Core.Models;
 using MES.Blazor.Pages.Equipment;
 using MES.Blazor.Services;

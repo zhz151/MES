@@ -57,21 +57,6 @@ public class NcrControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task GetAllList_ReturnsOk()
-    {
-        // Arrange
-        var list = new List<NcrDto> { new() { Id = 1, BatchNo = "BATCH001", PipeCategory = MaterialType.OrderFinished } };
-        _serviceMock.Setup(x => x.GetAllListAsync()).ReturnsAsync(list);
-
-        // Act
-        var result = await _controller.GetAllList();
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<List<NcrDto>>>(result);
-        Assert.Single(response.Data!);
-    }
-
-    [Fact]
     public async Task GetById_ReturnsOk()
     {
         // Arrange

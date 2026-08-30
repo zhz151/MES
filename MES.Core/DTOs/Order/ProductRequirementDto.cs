@@ -1,6 +1,5 @@
 // 文件路径: MES.Core/DTOs/ProductRequirementDto.cs
 using MES.Core.Enums;
-using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Order;
 
@@ -12,8 +11,6 @@ public class ProductRequirementDto
     public int Id { get; set; }
     public int OrderItemId { get; set; }
     public RequirementType RequirementType { get; set; }
-    public string RequirementTypeDisplay => EnumHelper.GetDisplayName(RequirementType);
-    public string RequirementTypeText => RequirementType.ToString();
     public bool ChemicalComposition { get; set; }
     public InspectionRequirementStage PmiInspection { get; set; } = InspectionRequirementStage.FinalOnly;
     public InspectionRequirementStage SurfaceInspection { get; set; } = InspectionRequirementStage.FinalOnly;

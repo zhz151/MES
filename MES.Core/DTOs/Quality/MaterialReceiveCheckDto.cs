@@ -16,7 +16,6 @@ public class MaterialReceiveCheckDto
     public int ProductionBatchId { get; set; }
     public DateTime ReceiveDate { get; set; }
     public ShiftType? Shift { get; set; }
-    public string? ShiftDisplay => Shift.HasValue ? EnumHelper.GetDisplayName(Shift.Value) : null;
     public string? Checker { get; set; }
     public string? Remark { get; set; }
     public string? DataSource { get; set; }
@@ -24,7 +23,6 @@ public class MaterialReceiveCheckDto
     // ========== 批次冗余字段 ==========
     public string? BatchNo { get; set; }
     public MaterialType? ManufacturingItem { get; set; }
-    public string? ManufacturingItemDisplay => ManufacturingItem.HasValue ? EnumHelper.GetDisplayName(ManufacturingItem.Value) : null;
     public string? TagNo { get; set; }
     public string? WorkOrderNo { get; set; }
     public string? SalesOrderNo { get; set; }
@@ -34,7 +32,6 @@ public class MaterialReceiveCheckDto
     public string? PlantGrade { get; set; }
     public string? Specification { get; set; }
     public ProductionType? ProductionType { get; set; }
-    public string? ProductionTypeDisplay => ProductionType.HasValue ? EnumHelper.GetDisplayName(ProductionType.Value) : null;
 
     // ========== 工序关联 ==========
     public int ProcessGroupId { get; set; }
@@ -81,12 +78,10 @@ public class MaterialReceiveCheckDto
 
     // ========== 批次冗余字段 ==========
     public LengthStatus? LengthStatus { get; set; }
-    public string? LengthStatusDisplay => LengthStatus.HasValue ? EnumHelper.GetDisplayName(LengthStatus.Value) : null;
 
     // ========== 工单冗余字段 ==========
     public string? Salesman { get; set; }
     public DeliveryState? DeliveryState { get; set; }
-    public string? DeliveryStateDisplay => DeliveryState.HasValue ? EnumHelper.GetDisplayName(DeliveryState.Value) : null;
 
     /// <summary>制造状态（批次执行的实际制造状态，与交货状态同枚举）</summary>
     public DeliveryState? ManufacturingStatus { get; set; }

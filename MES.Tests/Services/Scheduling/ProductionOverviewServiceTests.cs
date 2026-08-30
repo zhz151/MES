@@ -8,6 +8,7 @@ using MES.Core.Interfaces.Scheduling;
 using MES.Data;
 using MES.Data.Entities;
 using MES.Data.Entities.Batch;
+using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.WorkOrder;
 using MES.Services.Scheduling;
 using MES.Tests.Tests;
@@ -25,6 +26,9 @@ public class ProductionOverviewServiceTests : TestBase
 {
     private ProductionOverviewService CreateService(AppDbContext ctx, List<FinalInspectionPlanDto>? kanban = null)
     {
+        // 冷轧/冷拔生产工段行由机台组配置表动态驱动（2026-08-30 起），内存库必须预置组种子；
+        // 4 组（5060/2030/三辊/拉机，DisplayOrder 1-4）行序与既有断言索引保持一致（Rows[7]=Polish、[8]=5060、[9]=2030、[10]=三辊、[11]=拉机）。
+        SeedMachineGroupConfigs(ctx);
         var configMock = new Mock<IConfigParameterService>();
         configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
             .ReturnsAsync(new Dictionary<string, decimal>());
@@ -34,8 +38,18 @@ public class ProductionOverviewServiceTests : TestBase
         var fiMock = new Mock<IFinalInspectionPlanService>();
         fiMock.Setup(x => x.GetKanbanAsync())
             .ReturnsAsync(kanban ?? new List<FinalInspectionPlanDto>());
-        return new ProductionOverviewService(ctx, configMock.Object, capacityMock.Object,
-            CreateProcessDefinitionServiceMock(), fiMock.Object);
+        return new ProductionOverviewService(ctx, configMock.Object, capacityMock.Object, fiMock.Object);
+    }
+
+    private static void SeedMachineGroupConfigs(AppDbContext ctx)
+    {
+        if (ctx.ColdRollMachineGroupConfigs.Any()) return;
+        ctx.ColdRollMachineGroupConfigs.AddRange(
+            new ColdRollMachineGroupConfig { GroupKey = "5060", DisplayName = "5060组", ProcessKeys = "ColdRoll50,ColdRoll60", DisplayOrder = 1 },
+            new ColdRollMachineGroupConfig { GroupKey = "2030", DisplayName = "2030组", ProcessKeys = "ColdRoll20,ColdRoll30", DisplayOrder = 2 },
+            new ColdRollMachineGroupConfig { GroupKey = "ThreeRoll", DisplayName = "三辊组", ProcessKeys = "ThreeRollColdRoll", DisplayOrder = 3 },
+            new ColdRollMachineGroupConfig { GroupKey = "Draw", DisplayName = "拉机组", ProcessKeys = "ColdDraw", DisplayOrder = 4 });
+        ctx.SaveChanges();
     }
 
     private static WorkOrderExecutionSummary SeedSummary(AppDbContext ctx, string workOrderNo,
@@ -698,5 +712,35 @@ public class ProductionOverviewServiceTests : TestBase
         row.DateBucketSubTons[0].Should().Be(2m);
         row.DateBucketTons[1].Should().Be(0m);
         row.DateBucketSubTons[1].Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task GetOverviewAsync_含110机台组_动态出行且按DisplayOrder排最前()
+    {
+        using var ctx = CreateDbContext();
+        // 批次 1000kg：工序 荒管(1)→冷轧110(2)，未开始生产 → 110 组行应计入 1 吨
+        var batch = SeedBatch(ctx, "B1", BatchStatus.InProgress, 1000, DateTime.Today);
+        await ctx.SaveChangesAsync();
+        SeedProcessGroup(ctx, batch, 1, ProcessKeys.RoughTubeProcessing, outerPolish: 1);
+        SeedProcessGroup(ctx, batch, 2, "ColdRoll110", manufacturingSpec: "110*6");
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx); // 先种 4 组（5060/2030/三辊/拉机，DisplayOrder 1-4）
+        // 追加 110 组（DisplayOrder=0 确保排最前）：完全遍历含 110，生产工段行 = 荒管抛光 + 5 组共 6 行
+        ctx.ColdRollMachineGroupConfigs.Add(new ColdRollMachineGroupConfig { GroupKey = "110", DisplayName = "110组", ProcessKeys = "ColdRoll110", DisplayOrder = 0 });
+        await ctx.SaveChangesAsync();
+
+        var result = await svc.GetOverviewAsync();
+
+        // 行序：延期3 + 原料4 + [荒管抛光,110,5060,2030,三辊,拉机] + 生产汇总 + 成检 + 成检汇总 + 整体完工 = 17 行
+        result.Rows.Should().HaveCount(17);
+        result.Rows[8].Section.Should().Be("[累]110组");
+        result.Rows[8].TotalRemainingTons.Should().Be(1m);
+        result.Rows[9].Section.Should().Be("[累]5060组");
+        result.Rows[9].TotalRemainingTons.Should().Be(0m);
+        result.Rows[12].Section.Should().Be("[累]拉机组");
+        result.Rows[12].TotalRemainingTons.Should().Be(0m);
+        // 110 组无产能档案 → 运行时无兜底（产能=0）→ 预计天数空（2026-08-30 去运行时兜底）
+        result.Rows[8].EstDays.Should().BeNull();
     }
 }

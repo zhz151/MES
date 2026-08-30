@@ -921,56 +921,6 @@ public class BatchServiceTests : TestBase
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*生产批次不存在*");
     }
 
-    [Fact]
-    public async Task DeleteProcessGroupAsync_成功删除()
-    {
-        var ctx = CreateDbContext();
-        var svc = CreateService(ctx);
-
-        var created = await svc.CreateAsync(new CreateProductionBatchRequest
-        {
-            WorkOrderNo = "非工单",
-            TagNo = "TAG-DEL-PG",
-            ProductionType = ProductionType.RoughTube,
-            ManufacturingItem = MaterialType.OrderFinished,
-            PlantGrade = "20#",
-            Specification = "219×8",
-            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
-            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
-            MaterialName = PipeManufacturingType.SeamlessPipe,
-            LengthStatus = LengthStatus.NonFixed,
-            TotalWeight = 1000m,
-            ProductionRatio = 1,
-            SourcePlantGrade = "20#",
-            SourceSpecification = "219×8",
-            SourceLengthStatus = LengthStatus.NonFixed,
-            InputWeight = 1200m,
-            InputQuantity = 100,
-            ProcessGroups = new List<CreateProcessGroupRequest>
-            {
-                new() { ProcessName = "矫切酸检", ManufacturingSpec = "Φ50×5", ColdRollDraw = 1 }
-            }
-        });
-
-        var groups = await svc.GetProcessGroupsAsync(created.Id);
-        groups.Should().HaveCount(1);
-
-        await svc.DeleteProcessGroupAsync(groups[0].Id);
-
-        var after = await svc.GetProcessGroupsAsync(created.Id);
-        after.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task DeleteProcessGroupAsync_不存在_抛出BusinessException()
-    {
-        var ctx = CreateDbContext();
-        var svc = CreateService(ctx);
-
-        var act = () => svc.DeleteProcessGroupAsync(99999);
-        await act.Should().ThrowAsync<BusinessException>().WithMessage("*工序组不存在*");
-    }
-
     // ========== 分页查询 ==========
 
     [Fact]
@@ -1306,40 +1256,6 @@ public class BatchServiceTests : TestBase
 
         var act = () => svc.PrintBatchAsync(99999);
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*生产批次不存在*");
-    }
-
-    [Fact]
-    public async Task PrintBatchAllAsync_成功生成PDF()
-    {
-        var ctx = CreateDbContext();
-        var svc = CreateService(ctx);
-
-        await svc.CreateAsync(new CreateProductionBatchRequest
-        {
-            WorkOrderNo = "非工单",
-            TagNo = "PRINT-ALL",
-            ProductionType = ProductionType.RoughTube,
-            ManufacturingItem = MaterialType.OrderFinished,
-            PlantGrade = "20#",
-            Specification = "219×8",
-            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
-            ManufacturingStatus = DeliveryState.SolutionAnnealedAndPickled,
-            MaterialName = PipeManufacturingType.SeamlessPipe,
-            LengthStatus = LengthStatus.NonFixed,
-            TotalWeight = 1000m,
-            ProductionRatio = 1,
-            SourcePlantGrade = "20#",
-            SourceSpecification = "219×8",
-            SourceLengthStatus = LengthStatus.NonFixed,
-            InputWeight = 1200m,
-            InputQuantity = 100
-        });
-
-        var pdfBytes = await svc.PrintBatchAllAsync(new BatchPrintAllRequest());
-
-        pdfBytes.Should().NotBeNull();
-        pdfBytes.Should().NotBeEmpty();
-        pdfBytes[0].Should().Be((byte)'%');
     }
 
     [Fact]
@@ -2065,21 +1981,21 @@ public class BatchServiceTests : TestBase
     public static TheoryData<(int Seq, DateTime Date)[], DateTime?, string> FlowJudgmentCases => new()
     {
         // ===== 正常 =====
-        { Array.Empty<(int, DateTime)>(), null, "正常" },                                              // 未产
-        { Array.Empty<(int, DateTime)>(), new DateTime(2026, 8, 20), "正常" },                        // 仅仓库入库（终点覆盖，规则2跳过）
-        { new[] { (1, new DateTime(2026, 8, 10)) }, null, "正常" },                                   // N=1，补位≤0 跳过
-        { new[] { (1, new DateTime(2026, 8, 10)), (2, new DateTime(2026, 8, 10)), (3, new DateTime(2026, 8, 11)) }, null, "正常" }, // 完整连续，位置=全量max
-        { new[] { (1, new DateTime(2026, 8, 10)), (2, new DateTime(2026, 8, 11)) }, new DateTime(2026, 8, 12), "正常" },               // 已入库终点，入库日期最新
-        { new[] { (1, new DateTime(2026, 8, 10)), (3, new DateTime(2026, 8, 11)) }, null, "正常" },  // 读法A：N=3，N-2=1 存在，N-1=2 缺失容忍
-        { new[] { (2, new DateTime(2026, 8, 10)), (4, new DateTime(2026, 8, 11)) }, null, "正常" },  // 读法A：N=4，N-2=2 存在，N-1=3 缺失容忍
-        { new[] { (1, new DateTime(2026, 8, 10)), (2, new DateTime(2026, 8, 10)), (4, new DateTime(2026, 8, 11)) }, null, "正常" }, // 读法A：N=4，N-2=2 存在，N-1=3 缺失容忍（中间隔一道工序无记录）
+        { Array.Empty<(int, DateTime)>(), null, "Normal" },                                              // 未产
+        { Array.Empty<(int, DateTime)>(), new DateTime(2026, 8, 20), "Normal" },                        // 仅仓库入库（终点覆盖，规则2跳过）
+        { new[] { (1, new DateTime(2026, 8, 10)) }, null, "Normal" },                                   // N=1，补位≤0 跳过
+        { new[] { (1, new DateTime(2026, 8, 10)), (2, new DateTime(2026, 8, 10)), (3, new DateTime(2026, 8, 11)) }, null, "Normal" }, // 完整连续，位置=全量max
+        { new[] { (1, new DateTime(2026, 8, 10)), (2, new DateTime(2026, 8, 11)) }, new DateTime(2026, 8, 12), "Normal" },               // 已入库终点，入库日期最新
+        { new[] { (1, new DateTime(2026, 8, 10)), (3, new DateTime(2026, 8, 11)) }, null, "Normal" },  // 读法A：N=3，N-2=1 存在，N-1=2 缺失容忍
+        { new[] { (2, new DateTime(2026, 8, 10)), (4, new DateTime(2026, 8, 11)) }, null, "Normal" },  // 读法A：N=4，N-2=2 存在，N-1=3 缺失容忍
+        { new[] { (1, new DateTime(2026, 8, 10)), (2, new DateTime(2026, 8, 10)), (4, new DateTime(2026, 8, 11)) }, null, "Normal" }, // 读法A：N=4，N-2=2 存在，N-1=3 缺失容忍（中间隔一道工序无记录）
 
         // ===== 疑问 =====
-        { new[] { (1, new DateTime(2026, 8, 15)), (2, new DateTime(2026, 8, 10)) }, null, "疑问" },  // 低序晚录：位置(seq2=8-10) ≠ 全量max(8-15)
-        { new[] { (2, new DateTime(2026, 8, 10)) }, null, "疑问" },                                  // 跳段单记录：N=2，N-1=1 缺失
-        { new[] { (3, new DateTime(2026, 8, 10)) }, null, "疑问" },                                  // N=3，N-1=2 与 N-2=1 都缺失（两个都缺失→疑问）
-        { new[] { (4, new DateTime(2026, 8, 10)) }, null, "疑问" },                                  // N=4，N-1=3 与 N-2=2 都缺失（两个都缺失→疑问）
-        { new[] { (1, new DateTime(2026, 8, 15)), (2, new DateTime(2026, 8, 10)) }, new DateTime(2026, 8, 12), "疑问" } // 入库后低序晚录：全量max(8-15) > 入库(8-12)
+        { new[] { (1, new DateTime(2026, 8, 15)), (2, new DateTime(2026, 8, 10)) }, null, "Doubt" },  // 低序晚录：位置(seq2=8-10) ≠ 全量max(8-15)
+        { new[] { (2, new DateTime(2026, 8, 10)) }, null, "Doubt" },                                  // 跳段单记录：N=2，N-1=1 缺失
+        { new[] { (3, new DateTime(2026, 8, 10)) }, null, "Doubt" },                                  // N=3，N-1=2 与 N-2=1 都缺失（两个都缺失→疑问）
+        { new[] { (4, new DateTime(2026, 8, 10)) }, null, "Doubt" },                                  // N=4，N-1=3 与 N-2=2 都缺失（两个都缺失→疑问）
+        { new[] { (1, new DateTime(2026, 8, 15)), (2, new DateTime(2026, 8, 10)) }, new DateTime(2026, 8, 12), "Doubt" } // 入库后低序晚录：全量max(8-15) > 入库(8-12)
     };
 
     [Theory]
@@ -2141,14 +2057,14 @@ public class BatchServiceTests : TestBase
             PageSize = 20,
             Filters = new List<FilterDescriptor>
             {
-                new() { Field = "FlowJudgment", Operator = "in", Values = new List<string> { "疑问" } }
+                new() { Field = "FlowJudgment", Operator = "in", Values = new List<string> { "Doubt" } }
             }
         });
 
         result.Items.Should().HaveCount(1);
         result.TotalCount.Should().Be(1);
         result.Items.Should().ContainSingle(i => i.TagNo == "FLOW-DOUBT");
-        result.Items.Single().FlowJudgment.Should().Be("疑问");
+        result.Items.Single().FlowJudgment.Should().Be("Doubt");
     }
 
     [Fact]

@@ -499,14 +499,6 @@ public class RepairOrderService : IRepairOrderService
         return RepairOrderPrintHelper.GenerateBatchPdf(selected, columns);
     }
 
-    public async Task<byte[]> PrintAllAsync(RepairOrderQueryParams query, List<PrintColumnDef> columns)
-    {
-        query.PageIndex = 1;
-        query.PageSize = int.MaxValue;
-        var result = await GetPagedAsync(query);
-        return RepairOrderPrintHelper.GenerateBatchPdf(result.Items, columns);
-    }
-
     public async Task<List<RepairOrderListDto>> GetPendingByEquipmentAsync(int equipmentId)
     {
         var query = from r in _context.RepairOrders

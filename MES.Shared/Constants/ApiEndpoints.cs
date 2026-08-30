@@ -68,7 +68,6 @@ public static class ApiEndpoints
     public const string Scan = "api/scan";
 
     // ===== Scheduling 排程 =====
-    public const string SectionFlowAnalysis = "api/section-flow-analysis";
     public const string SectionParagraphFlowAnalysis = "api/section-paragraph-flow-analysis";
     public const string WorkOrderSchedule = "api/workorder-schedule";
     public const string BatchPlan = "api/batch-plan";
@@ -76,6 +75,7 @@ public static class ApiEndpoints
     public const string ColdRollSpecSchedule = "api/cold-roll-spec-schedule";
     public const string ColdRollCapacity = "api/cold-roll-capacity";
     public const string ColdRollMachineConfig = "api/cold-roll-machine-config";
+    public const string ColdRollMachineGroupConfig = "api/cold-roll-machine-group-config";
     public const string FinalInspectionPlan = "api/final-inspection-plan";
     public const string BatchPlanSchedule = "api/batch-plan-schedule";
     public const string ProductionOverview = "api/production-overview";
@@ -97,9 +97,7 @@ public static class ApiEndpoints
     public const string CertificatePrintColumnDefinition = "api/certificate-print-column-definition";
     public const string DailyOutputEstimate = "api/daily-output-estimate";
     public const string DailyProductionCapacity = "api/daily-production-capacity";
-    public const string SectionFlowCategorySettings = "api/section-flow-category-settings";
     public const string SectionParagraphConfigSettings = "api/section-paragraph-config-settings";
-    public const string CombinationGroup = "api/combination-group";
     public const string Workstation = "api/workstation";
     public const string Employee = "api/employee";
 

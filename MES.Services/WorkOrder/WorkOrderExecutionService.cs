@@ -345,6 +345,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var fixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("FixedSatisfied", 110m);
         var nonFixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("NonFixedSatisfied", 120m);
         var qualifiedRate = materialPlanStatusConfig.GetValueOrDefault("QualifiedRate", 98m) / 100m;
+        var reworkProcInspectionCoeff = await GetConfigAsync("ReworkRatio", "ProcessInspectionCoeff", 0.92m);
+        var reworkFinalInspectionCoeff = await GetConfigAsync("ReworkRatio", "FinalInspectionCoeff", 0.96m);
         var defaultValueConfig = await _configService.GetConfigMapAsync("DefaultValue");
         var defaultProcessCycle = (int)defaultValueConfig.GetValueOrDefault("DefaultProcessCycle", 22m);
 
@@ -556,7 +558,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var finalInspectionDefectWeight = finalInspectionReworkWeight + finalInspectionWarehouseWeight + finalInspectionScrapWeight;
             var reworkSourceEntries = BuildReworkSourceEntries(woPiList, woFiList);
 
-            var summary = ComputeSummary(wo, customerNameByWo.TryGetValue(wo.Id, out var cn) ? cn : "", customerSalesmanByWo.TryGetValue(wo.Id, out var sm) ? sm : "", endCustomerByWo.TryGetValue(wo.Id, out var ec) ? ec : null, woBatches, completeRatio, completeDeviation, completeOverRatio, groupDiscountRate, supplySatisfiedRate, fixedSatisfied, nonFixedSatisfied, qualifiedRate, processInspectionReworkWeight, processInspectionWarehouseWeight, processInspectionScrapWeight, processInspectionDefectWeight, finalInspectionReworkWeight, finalInspectionWarehouseWeight, finalInspectionScrapWeight, finalInspectionDefectQty, finalInspectionDefectWeight, reworkSourceEntries);
+            var summary = ComputeSummary(wo, customerNameByWo.TryGetValue(wo.Id, out var cn) ? cn : "", customerSalesmanByWo.TryGetValue(wo.Id, out var sm) ? sm : "", endCustomerByWo.TryGetValue(wo.Id, out var ec) ? ec : null, woBatches, completeRatio, completeDeviation, completeOverRatio, groupDiscountRate, supplySatisfiedRate, fixedSatisfied, nonFixedSatisfied, qualifiedRate, processInspectionReworkWeight, processInspectionWarehouseWeight, processInspectionScrapWeight, processInspectionDefectWeight, finalInspectionReworkWeight, finalInspectionWarehouseWeight, finalInspectionScrapWeight, finalInspectionDefectQty, finalInspectionDefectWeight, reworkSourceEntries, reworkProcInspectionCoeff, reworkFinalInspectionCoeff);
 
             // G3: 从用料计划总览读预计算值（避免重算 4 张原始计划表）
             if (execSummaryByWoId.TryGetValue(wo.Id, out var listSummary))
@@ -1075,6 +1077,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         var fixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("FixedSatisfied", 110m);
         var nonFixedSatisfied = materialPlanStatusConfig.GetValueOrDefault("NonFixedSatisfied", 120m);
         var qualifiedRate = materialPlanStatusConfig.GetValueOrDefault("QualifiedRate", 98m) / 100m;
+        var reworkProcInspectionCoeff = await GetConfigAsync("ReworkRatio", "ProcessInspectionCoeff", 0.92m);
+        var reworkFinalInspectionCoeff = await GetConfigAsync("ReworkRatio", "FinalInspectionCoeff", 0.96m);
         var defaultValueConfig = await _configService.GetConfigMapAsync("DefaultValue");
         var defaultProcessCycle = (int)defaultValueConfig.GetValueOrDefault("DefaultProcessCycle", 22m);
 
@@ -1282,7 +1286,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 completeRatio, completeDeviation, completeOverRatio, groupDiscountRate, supplySatisfiedRate, fixedSatisfied, nonFixedSatisfied, qualifiedRate,
                 processInspectionReworkWeight, processInspectionWarehouseWeight, processInspectionScrapWeight, processInspectionDefectWeight,
                 finalInspectionReworkWeight, finalInspectionWarehouseWeight, finalInspectionScrapWeight, finalInspectionDefectQty, finalInspectionDefectWeight,
-                reworkSourceEntries);
+                reworkSourceEntries,
+                reworkProcInspectionCoeff, reworkFinalInspectionCoeff);
 
             // G3: 从用料计划读模型取值
             if (execSummaryByWoId.TryGetValue(wo.Id, out var ls))
@@ -1693,7 +1698,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         int finalInspectionScrapWeight = 0,
         int finalInspectionDefectQty = 0,
         int finalInspectionDefectWeight = 0,
-        List<(decimal Weight, decimal UnitWeight)>? reworkSourceEntries = null)
+        List<(decimal Weight, decimal UnitWeight)>? reworkSourceEntries = null,
+        decimal reworkProcInspectionCoeff = 0.92m,
+        decimal reworkFinalInspectionCoeff = 0.96m)
     {
         // Group 1: 直接从工单复制（Salesman 从 SalesOrder 快照字段读取，已由调用方传入）
         var summary = new WorkOrderExecutionSummary
@@ -1884,9 +1891,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         summary.ReworkTheoreticalOutputQty = Math.Round(reworkTheorQty, 3);
         summary.ReworkTheoreticalOutputWeight = Math.Round(reworkTheorWeight, 3);
 
-        // 理论返整可产成重 = 过程检返整量×0.92 + 成品检返整量×0.96（无返整量为空）
+        // 理论返整可产成重 = 过程检返整量×过程检折算系数 + 成品检返整量×成检折算系数（配置 ReworkRatio 默认 0.92/0.96；无返整量为空）
         summary.ReworkTheoreticalProduceWeight = reworkDefectQty > 0
-            ? Math.Round(processInspectionReworkWeight * 0.92m + finalInspectionReworkWeight * 0.96m, 3)
+            ? Math.Round(processInspectionReworkWeight * reworkProcInspectionCoeff + finalInspectionReworkWeight * reworkFinalInspectionCoeff, 3)
             : null;
 
         // 待返整成支 = 理论返整可产成支 − 返整理论成品支（无可产成支为空，负值归0）
@@ -2919,9 +2926,9 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("WorkOrderExecutionService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.WorkOrderExecutionFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var query = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
 
@@ -3787,199 +3794,6 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     }
 
     // ========== 打印 ==========
-
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom, DateTime? signDateTo, DateTime? deliveryDateStart, DateTime? deliveryDateEnd, List<PrintColumnDef> columns)
-    {
-        var q = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
-
-        // 签订日期范围筛选
-        if (signDateFrom.HasValue)
-            q = q.Where(x => x.SignDate >= signDateFrom.Value);
-        if (signDateTo.HasValue)
-            q = q.Where(x => x.SignDate < signDateTo.Value.AddDays(1));
-
-        // 交货日期范围筛选
-        if (deliveryDateStart.HasValue)
-            q = q.Where(x => x.DeliveryDate >= deliveryDateStart.Value);
-        if (deliveryDateEnd.HasValue)
-            q = q.Where(x => x.DeliveryDate < deliveryDateEnd.Value.AddDays(1));
-
-        // 关键字搜索
-        if (!string.IsNullOrEmpty(keyword))
-        {
-            var kw = keyword;
-            q = q.Where(x =>
-                x.WorkOrderNo.Contains(kw) ||
-                x.SalesOrderNo.Contains(kw) ||
-                x.Salesman.Contains(kw) ||
-                x.CustomerName.Contains(kw) ||
-                (x.EndCustomer != null && x.EndCustomer.Contains(kw)) ||
-                x.SettlementMethod.Contains(kw) ||
-                x.MaterialName.Contains(kw) ||
-                x.DeliveryState.Contains(kw) ||
-                x.LengthStatus.Contains(kw) ||
-                x.PlantGrade.Contains(kw) ||
-                x.Specification.Contains(kw) ||
-                x.ProductionMainNo.Contains(kw) ||
-                (x.ProductionSubNo != null && x.ProductionSubNo.Contains(kw)) ||
-                (x.UrgencyLevel != null && x.UrgencyLevel.Contains(kw)) ||
-                (x.RawMaterialLockRemark != null && x.RawMaterialLockRemark.Contains(kw)) ||
-                (x.ProductionAttentionProcess != null && x.ProductionAttentionProcess.Contains(kw)) ||
-                (x.AdjustmentRemark != null && x.AdjustmentRemark.Contains(kw)) ||
-                (x.ProductionFlowProperty != null && x.ProductionFlowProperty.Contains(kw)) ||
-                (x.MainNoAttentionProcess != null && x.MainNoAttentionProcess.Contains(kw)) ||
-                (x.MaterialPlanProportion != null && x.MaterialPlanProportion.Contains(kw)));
-        }
-
-        // 排序
-        q = ApplySorting(q, sortBy ?? "LastRefreshTime", isDescending);
-
-        var rawEntities = await q.ToListAsync();
-
-        var items = rawEntities.Select(e => new WorkOrderExecutionSummaryDto
-        {
-            Id = e.Id,
-            WorkOrderId = e.WorkOrderId,
-            WorkOrderNo = e.WorkOrderNo,
-            LastRefreshTime = e.LastRefreshTime,
-            Salesman = e.Salesman,
-            CustomerName = e.CustomerName,
-            EndCustomer = e.EndCustomer,
-            SignDate = e.SignDate,
-            DeliveryDate = e.DeliveryDate,
-            DelayPenalty = e.DelayPenalty,
-            SettlementMethod = string.IsNullOrEmpty(e.SettlementMethod) ? default : Enum.Parse<SettlementMethod>(e.SettlementMethod),
-            SalesOrderNo = e.SalesOrderNo,
-            ProductionMainNo = e.ProductionMainNo,
-            ProductionSubNo = e.ProductionSubNo,
-            MaterialName = e.MaterialName,
-            DeliveryState = string.IsNullOrEmpty(e.DeliveryState) ? default : Enum.Parse<DeliveryState>(e.DeliveryState),
-            PlantGrade = e.PlantGrade,
-            Specification = e.Specification,
-            LengthStatus = string.IsNullOrEmpty(e.LengthStatus) ? default : Enum.Parse<LengthStatus>(e.LengthStatus),
-            MinLength = e.MinLength,
-            MaxLength = e.MaxLength,
-            TotalItemCount = e.TotalItemCount,
-            TotalQuantity = e.TotalQuantity,
-            TotalMeters = e.TotalMeters,
-            TotalWeight = e.TotalWeight,
-            MaterialPlanStatus = (MaterialPlanStatus)e.MaterialPlanStatus,
-            MainNoMaterialPlanRate = e.MainNoMaterialPlanRate,
-            MainNoMaterialPlanStatus = (MaterialPlanStatus)e.MainNoMaterialPlanStatus,
-            MainNoPlanExecutionStatus = e.MainNoPlanExecutionStatus,
-            MaterialPlanCoveredCount = e.MaterialPlanCoveredCount,
-            MaterialPlanProportion = e.MaterialPlanProportion,
-            TheoreticalCutoffDate = e.TheoreticalCutoffDate,
-            CutoffArrivalDate = e.CutoffArrivalDate,
-            MainNoCutoffArrivalDate = e.MainNoCutoffArrivalDate,
-
-            // G4~G10: 7 种用料计划执行状况
-            PiercingPlanWeight = e.PiercingPlanWeight,
-            PiercingSubOutWeight = e.PiercingSubOutWeight,
-            PiercingSubStatus = e.PiercingSubStatus,
-            PiercingSubInWeight = e.PiercingSubInWeight,
-            PiercingSubPendingWeight = e.PiercingSubPendingWeight,
-            PiercingReturnStatus = e.PiercingReturnStatus,
-            SemiPlanWeight = e.SemiPlanWeight,
-            SemiOrderWeight = e.SemiOrderWeight,
-            SemiOrderStatus = e.SemiOrderStatus,
-            SemiInWeight = e.SemiInWeight,
-            SemiPendingWeight = e.SemiPendingWeight,
-            SemiInStatus = e.SemiInStatus,
-            FinishPlanWeight = e.FinishPlanWeight,
-            FinishOrderWeight = e.FinishOrderWeight,
-            FinishOrderStatus = e.FinishOrderStatus,
-            FinishInWeight = e.FinishInWeight,
-            FinishPendingWeight = e.FinishPendingWeight,
-            FinishInStatus = e.FinishInStatus,
-            InventoryPlanWeight = e.InventoryPlanWeight,
-            InventoryOutWeight = e.InventoryOutWeight,
-            InventoryOutStatus = e.InventoryOutStatus,
-            ReworkPlanWeight = e.ReworkPlanWeight,
-            ReworkPlanInputWeight = e.ReworkPlanInputWeight,
-            ReworkPlanInputStatus = e.ReworkPlanInputStatus,
-            InProcessReworkPlanWeight = e.InProcessReworkPlanWeight,
-            InProcessReworkInputWeight = e.InProcessReworkInputWeight,
-            InProcessReworkInputStatus = e.InProcessReworkInputStatus,
-            InMainPlanWeight = e.InMainPlanWeight,
-            InMainInputWeight = e.InMainInputWeight,
-            InMainInputStatus = e.InMainInputStatus,
-
-            ReworkInputEndDate = e.ReworkInputEndDate,
-            ReworkBatchCount = e.ReworkBatchCount,
-            ReworkInputQuantity = e.ReworkInputQuantity,
-            ReworkInputWeight = e.ReworkInputWeight,
-            ReworkTheoreticalOutputQty = e.ReworkTheoreticalOutputQty,
-            ReworkTheoreticalOutputWeight = e.ReworkTheoreticalOutputWeight,
-            FlowOutputRatio = e.FlowOutputRatio,
-            FlowStatus = e.FlowStatus,
-            MainNoFlowOutputRatio = e.MainNoFlowOutputRatio,
-            MainNoFlowStatus = e.MainNoFlowStatus,
-            FlowTotalBatchCount = e.FlowTotalBatchCount,
-            FlowIncompleteBatchCount = e.FlowIncompleteBatchCount,
-            FlowMaxRemainingWorkDays = e.FlowMaxRemainingWorkDays,
-            WarehousingStartDate = e.WarehousingStartDate,
-            WarehousingEndDate = e.WarehousingEndDate,
-            WarehousingTotalQty = e.WarehousingTotalQty,
-            WarehousingTotalWeight = e.WarehousingTotalWeight,
-            WoWarehousingStatus = e.WoWarehousingStatus,
-            MainNoWarehousingStatus = e.MainNoWarehousingStatus,
-            OrderWarehousingStatus = e.OrderWarehousingStatus,
-            ScheduleStage = e.ScheduleStage,
-            TotalRemainingWorkDays = e.TotalRemainingWorkDays,
-            CapacityWorkDays = e.CapacityWorkDays,
-            UrgencyLevel = e.UrgencyLevel,
-            EstimatedProcessCompletionDate = e.EstimatedProcessCompletionDate,
-            DaysDiffFromDelivery = e.DaysDiffFromDelivery,
-            RawMaterialLockRemark = e.RawMaterialLockRemark,
-            InputStartDate = e.InputStartDate,
-            InputEndDate = e.InputEndDate,
-            TotalBatchCount = e.TotalBatchCount,
-            InputQuantity = e.InputQuantity,
-            InputWeight = e.InputWeight,
-            TheoreticalOutputQty = e.TheoreticalOutputQty,
-            TheoreticalOutputWeight = e.TheoreticalOutputWeight,
-            InputOutputRatio = e.InputOutputRatio,
-            InputStatus = e.InputStatus,
-            MainNoInputOutputRatio = e.MainNoInputOutputRatio,
-            MainNoInputStatus = e.MainNoInputStatus,
-            ValidBatchCount = e.ValidBatchCount,
-            ValidInputQuantity = e.ValidInputQuantity,
-            ValidInputWeight = e.ValidInputWeight,
-            ValidOutputQty = e.ValidOutputQty,
-            ValidOutputWeight = e.ValidOutputWeight,
-            PendingSectionRoughTube = e.PendingSectionRoughTube,
-            PendingSectionWarehouseFix = e.PendingSectionWarehouseFix,
-            PendingSection60Roll = e.PendingSection60Roll,
-            PendingSection50Roll = e.PendingSection50Roll,
-            PendingSection30Roll = e.PendingSection30Roll,
-            PendingSection20Roll = e.PendingSection20Roll,
-            PendingSectionThreeRoll = e.PendingSectionThreeRoll,
-            PendingSectionDrawBench = e.PendingSectionDrawBench,
-            DeformedProcessCompleted = e.DeformedProcessCompleted,
-            ProductionAttentionProcess = e.ProductionAttentionProcess,
-            MaxBatchRemainingWorkDays = e.MaxBatchRemainingWorkDays,
-            MainNoAttentionProcess = e.MainNoAttentionProcess,
-            IsUrging = e.IsUrging,
-            IsBatchDelivery = e.IsBatchDelivery,
-            IsPaused = e.IsPaused,
-            IsForceCompleted = e.IsForceCompleted,
-            AdjustmentRemark = e.AdjustmentRemark,
-            ProductionFlowProperty = e.ProductionFlowProperty,
-        }).ToList();
-
-        var resolvedItems = items.Select(item =>
-        {
-            var dict = new Dictionary<string, object>();
-            foreach (var col in columns)
-            {
-                dict[col.Key] = ResolvePrintValue(item, col.Key);
-            }
-            return dict;
-        }).ToList();
-
-        return WorkOrderExecutionPrintHelper.GeneratePdf("工单执行状况", resolvedItems, columns);
-    }
 
     private static object ResolvePrintValue(WorkOrderExecutionSummaryDto item, string key) => (key switch
     {

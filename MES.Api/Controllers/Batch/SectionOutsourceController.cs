@@ -132,17 +132,6 @@ public class SectionOutsourceController : ControllerBase
     // ========== 委外回收 ==========
 
     /// <summary>
-    /// 获取指定委外发出的回收明细
-    /// </summary>
-    [HttpGet("{outsourceId}/recoveries")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<List<OutsourceRecoveryDto>>>> GetRecoveries(int outsourceId)
-    {
-        var result = await _service.GetRecoveriesAsync(outsourceId);
-        return Ok(ApiResponse<List<OutsourceRecoveryDto>>.Ok(result, "查询成功"));
-    }
-
-    /// <summary>
     /// 跨批次分页查询回收记录
     /// </summary>
     [HttpGet("recoveries/list")]
@@ -242,20 +231,6 @@ public class SectionOutsourceController : ControllerBase
         return File(pdfBytes, "application/pdf", "委外发出打印.pdf");
     }
 
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] SectionOutsourcePrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending,
-            request.SendOutDateFrom, request.SendOutDateTo,
-            request.ActualRecoveryDateFrom, request.ActualRecoveryDateTo,
-            request.Columns);
-        return File(pdfBytes, "application/pdf", "委外发出列表.pdf");
-    }
-
     [HttpPost("recoveries/print-selected-file")]
     [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<IActionResult> PrintRecoverySelectedFile([FromBody] RecoveryPrintBatchRequest request)
@@ -265,18 +240,6 @@ public class SectionOutsourceController : ControllerBase
 
         var pdfBytes = await _service.PrintRecoveryBatchAsync(request.Ids, request.Columns);
         return File(pdfBytes, "application/pdf", "委外回收打印.pdf");
-    }
-
-    [HttpPost("recoveries/print-all-file")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<IActionResult> PrintRecoveryAllFile([FromBody] RecoveryPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintRecoveryAllAsync(request.Keyword, request.SortBy, request.IsDescending,
-            request.RecoveryDateFrom, request.RecoveryDateTo, request.Columns);
-        return File(pdfBytes, "application/pdf", "委外回收列表.pdf");
     }
 
     // ========== 筛选上下文 ==========

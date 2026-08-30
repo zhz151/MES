@@ -14,7 +14,7 @@ public class SectionProductionStatusDto
     /// <summary>工段名称（英文 Key）</summary>
     public string SectionName { get; set; } = null!;
 
-    /// <summary>产类（ProductStatuses.RoughTube/InProgress/Finished，与组合归类表前 3 字段口径一致）</summary>
+    /// <summary>产类（ProductStatuses.RoughTube/InProgress/Finished，口径=ProductStatusHelper.Calculate）</summary>
     public string ProductStatus { get; set; } = ProductStatuses.RoughTube;
 
     /// <summary>生产中：批次的当前工序/工段匹配此维度且工段未完工的现有效原料重量汇总</summary>

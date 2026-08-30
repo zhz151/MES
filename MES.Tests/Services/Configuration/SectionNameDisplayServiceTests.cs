@@ -243,17 +243,4 @@ public class SectionNameDisplayServiceTests : TestBase
         (await svc.ToDisplayAsync("")).Should().BeNull();
     }
 
-    // ========== ToKeyAsync ==========
-
-    [Fact]
-    public async Task ToKeyAsync_中文转Key()
-    {
-        var ctx = CreateDbContext();
-        var svc = CreateService(ctx);
-
-        (await svc.ToKeyAsync("断切")).Should().Be(SectionKeys.Cut);
-        (await svc.ToKeyAsync("切管")).Should().Be(SectionKeys.OilPipeCut); // 别名
-        (await svc.ToKeyAsync(SectionKeys.Cut)).Should().Be(SectionKeys.Cut); // Key 幂等
-        (await svc.ToKeyAsync("不存在的工段")).Should().BeNull();
-    }
 }

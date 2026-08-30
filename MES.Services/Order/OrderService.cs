@@ -80,7 +80,7 @@ public class OrderService : IOrderService
         var cacheKey = $"OrderService:ConfigMap:{category}";
         var map = await _cache.GetOrCreateAsync(cacheKey, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
             return await _configService.GetConfigMapAsync(category);
         });
         return map?.GetValueOrDefault(key, defaultValue) ?? defaultValue;
@@ -913,221 +913,6 @@ public class OrderService : IOrderService
 
     #region 项次管理
 
-    public async Task<OrderItemDto> AddItemAsync(int orderId, AddOrderItemRequest request)
-    {
-        var salesOrder = await _context.SalesOrders
-            .Include(so => so.OrderItems)
-            .FirstOrDefaultAsync(so => so.Id == orderId);
-
-        if (salesOrder == null)
-            throw new BusinessException("订单不存在");
-
-        var allSequences = await _context.OrderItems
-            .Where(oi => oi.SalesOrderId == orderId)
-            .Select(oi => oi.Sequence)
-            .ToListAsync();
-
-        int sequence;
-        if (request.Sequence.HasValue && request.Sequence.Value > 0)
-        {
-            sequence = request.Sequence.Value;
-            if (allSequences.Contains(sequence))
-                throw new BusinessException($"项次号 {sequence} 已存在");
-        }
-        else
-        {
-            sequence = 1;
-            while (allSequences.Contains(sequence))
-                sequence++;
-        }
-
-        var orderItem = await CreateOrderItemFromAddRequestAsync(request, salesOrder.Id, sequence);
-        _context.OrderItems.Add(orderItem);
-
-        // 更新订单的最后项次变更时间
-        salesOrder.LastItemChangeTime = DateTimeOffset.Now;
-        _context.Entry(salesOrder).Property(x => x.LastItemChangeTime).IsModified = true;
-
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
-        {
-            await _context.SaveChangesAsync();
-
-            await CreateItemChangedNotificationIfNeededAsync(orderId);
-            await transaction.CommitAsync();
-        }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
-
-        await _operationLogService.AddLogAsync("Order", orderId, "变更",
-            $"新增项次{orderItem.Sequence}: 交货日期={orderItem.DeliveryDate:yyyy-MM-dd}, 交货状态={EnumHelper.GetDisplayName(orderItem.DeliveryState)}, 标准牌号={orderItem.StandardGrade}, 外径={orderItem.OuterDiameter:G29}, 壁厚={orderItem.WallThickness:G29}, 支数={orderItem.Quantity}, 合同重量={orderItem.ContractWeight:G29}");
-
-        await RefreshByOrderIdAsync(orderId);
-
-        return await MapToOrderItemDto(orderItem);
-    }
-
-    public async Task<OrderItemDto> UpdateItemAsync(int orderId, int itemId, UpdateOrderItemRequest request)
-    {
-        var salesOrder = await _context.SalesOrders
-            .FirstOrDefaultAsync(so => so.Id == orderId);
-
-        if (salesOrder == null)
-            throw new BusinessException("订单不存在");
-
-        var orderItem = await _context.OrderItems
-            .FirstOrDefaultAsync(oi => oi.Id == itemId && oi.SalesOrderId == orderId);
-
-        if (orderItem == null)
-            throw new BusinessException("订单项次不存在");
-
-        if (request.Sequence != orderItem.Sequence)
-        {
-            var exists = await _context.OrderItems
-                .AnyAsync(oi => oi.SalesOrderId == orderId && oi.Sequence == request.Sequence && oi.Id != itemId);
-            if (exists)
-                throw new BusinessException($"项次号 {request.Sequence} 已存在");
-            orderItem.Sequence = request.Sequence;
-        }
-
-        var gradeMapping = await _context.StandardGradeMappings
-            .FirstOrDefaultAsync(sgm => sgm.StandardGrade == request.StandardGrade);
-
-        var plantGrade = gradeMapping?.PlantGrade ?? orderItem.PlantGrade;
-        var density = gradeMapping?.Density ?? orderItem.Density;
-
-        ValidateLengthStatus(request.LengthStatus, request.MinLength, request.MaxLength);
-
-        var normalizedOuterDiameter = NormalizeDecimalValue(request.OuterDiameter);
-        var normalizedWallThickness = NormalizeDecimalValue(request.WallThickness);
-        var normalizedOuterDiameterNegative = NormalizeDecimalValue(request.OuterDiameterNegative);
-        var normalizedOuterDiameterPositive = NormalizeDecimalValue(request.OuterDiameterPositive);
-        var normalizedWallThicknessNegative = NormalizeDecimalValue(request.WallThicknessNegative);
-        var normalizedWallThicknessPositive = NormalizeDecimalValue(request.WallThicknessPositive);
-        var normalizedContractWeight = NormalizeDecimalValue(request.ContractWeight);
-
-        var meters = CalculateMeters(request.LengthStatus, request.MinLength, request.MaxLength, request.Quantity, request.Meters);
-        var metersValue = meters ?? 0m;
-        var theoreticalWeight = CalculateTheoreticalWeight(
-            density,
-            normalizedOuterDiameter,
-            normalizedWallThickness,
-            normalizedOuterDiameterNegative, normalizedOuterDiameterPositive,
-            normalizedWallThicknessNegative, normalizedWallThicknessPositive,
-            metersValue);
-
-        // 捕获旧值，用于变更检测
-        var oldDeliveryDate = orderItem.DeliveryDate;
-        var oldDeliveryState = orderItem.DeliveryState;
-        var oldStandardGrade = orderItem.StandardGrade;
-        var oldOuterDiameter = orderItem.OuterDiameter;
-        var oldWallThickness = orderItem.WallThickness;
-        var oldOuterDiameterNegative = orderItem.OuterDiameterNegative;
-        var oldOuterDiameterPositive = orderItem.OuterDiameterPositive;
-        var oldWallThicknessNegative = orderItem.WallThicknessNegative;
-        var oldWallThicknessPositive = orderItem.WallThicknessPositive;
-        var oldLengthStatus = orderItem.LengthStatus;
-        var oldMinLength = orderItem.MinLength;
-        var oldMaxLength = orderItem.MaxLength;
-        var oldQuantity = orderItem.Quantity;
-        var oldContractWeight = orderItem.ContractWeight;
-
-        SetOrderItemFields(orderItem,
-            deliveryDate: request.DeliveryDate,
-            delayPenalty: request.DelayPenalty,
-            settlementMethod: request.SettlementMethod,
-            pipeManufacturingType: request.PipeManufacturingType,
-            standardNo: request.StandardNo,
-            deliveryState: request.DeliveryState,
-            standardGrade: request.StandardGrade,
-            plantGrade: plantGrade,
-            density: density,
-            outerDiameter: normalizedOuterDiameter,
-            wallThickness: normalizedWallThickness,
-            specification: $"{normalizedOuterDiameter}*{normalizedWallThickness}",
-            outerDiameterNegative: normalizedOuterDiameterNegative,
-            outerDiameterPositive: normalizedOuterDiameterPositive,
-            wallThicknessNegative: normalizedWallThicknessNegative,
-            wallThicknessPositive: normalizedWallThicknessPositive,
-            lengthStatus: request.LengthStatus,
-            minLength: request.MinLength,
-            maxLength: CalculateMaxLength(request.LengthStatus, request.MinLength, request.MaxLength),
-            quantity: request.Quantity,
-            meters: meters,
-            contractWeight: normalizedContractWeight,
-            theoreticalWeight: theoreticalWeight,
-            remark: request.Remark);
-
-        // 对比变更，生成详细日志
-        var fieldChanges = new List<string>();
-        if (orderItem.DeliveryDate != oldDeliveryDate)
-            fieldChanges.Add($"交货日期={oldDeliveryDate:yyyy-MM-dd}→{orderItem.DeliveryDate:yyyy-MM-dd}");
-        if (orderItem.DeliveryState != oldDeliveryState)
-            fieldChanges.Add($"交货状态={EnumHelper.GetDisplayName(oldDeliveryState)}→{EnumHelper.GetDisplayName(orderItem.DeliveryState)}");
-        if (orderItem.StandardGrade != oldStandardGrade)
-            fieldChanges.Add($"标准牌号={oldStandardGrade}→{orderItem.StandardGrade}");
-        if (orderItem.OuterDiameter != oldOuterDiameter)
-            fieldChanges.Add($"外径={oldOuterDiameter:G29}→{orderItem.OuterDiameter:G29}");
-        if (orderItem.WallThickness != oldWallThickness)
-            fieldChanges.Add($"壁厚={oldWallThickness:G29}→{orderItem.WallThickness:G29}");
-        if (orderItem.OuterDiameterNegative != oldOuterDiameterNegative)
-            fieldChanges.Add($"外径下差={oldOuterDiameterNegative:G29}→{orderItem.OuterDiameterNegative:G29}");
-        if (orderItem.OuterDiameterPositive != oldOuterDiameterPositive)
-            fieldChanges.Add($"外径上差={oldOuterDiameterPositive:G29}→{orderItem.OuterDiameterPositive:G29}");
-        if (orderItem.WallThicknessNegative != oldWallThicknessNegative)
-            fieldChanges.Add($"壁厚下差={oldWallThicknessNegative:G29}→{orderItem.WallThicknessNegative:G29}");
-        if (orderItem.WallThicknessPositive != oldWallThicknessPositive)
-            fieldChanges.Add($"壁厚上差={oldWallThicknessPositive:G29}→{orderItem.WallThicknessPositive:G29}");
-        if (orderItem.LengthStatus != oldLengthStatus)
-            fieldChanges.Add($"长度状态={EnumHelper.GetDisplayName(oldLengthStatus)}→{EnumHelper.GetDisplayName(orderItem.LengthStatus)}");
-        if (orderItem.MinLength != oldMinLength)
-            fieldChanges.Add($"最小长度={oldMinLength?.ToString("G29")}→{orderItem.MinLength?.ToString("G29")}");
-        if (orderItem.MaxLength != oldMaxLength)
-            fieldChanges.Add($"最大长度={oldMaxLength?.ToString("G29")}→{orderItem.MaxLength?.ToString("G29")}");
-        if (orderItem.Quantity != oldQuantity)
-            fieldChanges.Add($"支数={oldQuantity}→{orderItem.Quantity}");
-        if (orderItem.ContractWeight != oldContractWeight)
-            fieldChanges.Add($"合同重量={oldContractWeight:G29}→{orderItem.ContractWeight:G29}");
-
-        var itemChangeLog = $"项次{orderItem.Sequence}:" + (fieldChanges.Count > 0
-            ? string.Join(", ", fieldChanges)
-            : "无字段变更");
-
-        // 更新订单的最后项次变更时间
-        salesOrder.LastItemChangeTime = DateTimeOffset.Now;
-        _context.Entry(salesOrder).Property(x => x.LastItemChangeTime).IsModified = true;
-
-        using var transaction = await _context.Database.BeginTransactionAsync();
-        try
-        {
-            await _context.SaveChangesAsync();
-            await CreateItemChangedNotificationIfNeededAsync(orderId);
-            await transaction.CommitAsync();
-        }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
-
-        await _operationLogService.AddLogAsync("Order", orderId, "变更", itemChangeLog);
-
-        // 读模型刷新已移除（原 RefreshByOrderAsync 调用）
-        // 项次变更后先标记工单为"待修正"，再刷新读模型
-        await MarkWorkOrdersPendingAsync(salesOrder.OrderNumber);
-
-        await RefreshByOrderIdAsync(orderId);
-
-        // 刷新用料计划总览读模型（工单状态变更后同步）
-        if (_listSummaryService != null)
-            await _listSummaryService.RefreshBySalesOrderAsync(salesOrder.OrderNumber);
-
-        return await MapToOrderItemDto(orderItem);
-    }
-
     public async Task DeleteItemAsync(int orderId, int itemId)
     {
         var salesOrder = await _context.SalesOrders
@@ -1424,9 +1209,9 @@ public class OrderService : IOrderService
         if (_workOrderService != null)
             await _workOrderService.CheckAndUpdateWorkOrderStatusAsync(salesOrder.Id);
 
-        // 项次删除影响待发货 DTO 的 C2 项次引用，失效全部缓存
-        if (request.DeletedItemIds.Count > 0)
-            await InvalidatePendingDeliveryCachesAsync($"SaveAllDeleteItems:OrderId={id}");
+        // 项次新增/更新/删除均影响待发货 DTO 的 C0 组装与 C2 项次引用，失效全部缓存
+        if (request.NewItems.Count > 0 || request.UpdatedItems.Count > 0 || request.DeletedItemIds.Count > 0)
+            await InvalidatePendingDeliveryCachesAsync($"SaveAllItems:OrderId={id}");
 
         return new SaveAllOrderResponse
         {
@@ -1683,71 +1468,6 @@ public class OrderService : IOrderService
     #region Private Methods
 
     private async Task<OrderItem> CreateOrderItemFromCreateRequestAsync(CreateOrderItemRequest request, int salesOrderId, int sequence)
-    {
-        var lowerBound = await GetConfigAsync("ContractWeight", "LowerBound", 0.94m);
-        var upperBound = await GetConfigAsync("ContractWeight", "UpperBound", 1.06m);
-
-        var gradeMapping = await _context.StandardGradeMappings
-            .FirstOrDefaultAsync(sgm => sgm.StandardGrade == request.StandardGrade);
-        if (gradeMapping == null)
-            throw new BusinessException($"标准牌号 '{request.StandardGrade}' 不存在");
-
-        ValidateLengthStatus(request.LengthStatus, request.MinLength, request.MaxLength);
-
-        var normalizedOuterDiameter = NormalizeDecimalValue(request.OuterDiameter);
-        var normalizedWallThickness = NormalizeDecimalValue(request.WallThickness);
-        var normalizedOuterDiameterNegative = NormalizeDecimalValue(request.OuterDiameterNegative);
-        var normalizedOuterDiameterPositive = NormalizeDecimalValue(request.OuterDiameterPositive);
-        var normalizedWallThicknessNegative = NormalizeDecimalValue(request.WallThicknessNegative);
-        var normalizedWallThicknessPositive = NormalizeDecimalValue(request.WallThicknessPositive);
-        var normalizedContractWeight = NormalizeDecimalValue(request.ContractWeight);
-
-        var meters = CalculateMeters(request.LengthStatus, request.MinLength, request.MaxLength, request.Quantity, request.Meters);
-        var metersValue = meters ?? 0m;
-        var theoreticalWeight = CalculateTheoreticalWeight(
-            gradeMapping.Density,
-            normalizedOuterDiameter,
-            normalizedWallThickness,
-            normalizedOuterDiameterNegative, normalizedOuterDiameterPositive,
-            normalizedWallThicknessNegative, normalizedWallThicknessPositive,
-            metersValue);
-
-        // 验证合同重量与理算重量的关系
-        if (request.LengthStatus == LengthStatus.Fixed && theoreticalWeight > 0)
-        {
-            ValidateContractWeightAgainstTheoreticalWeight(normalizedContractWeight, theoreticalWeight, lowerBound, upperBound);
-        }
-
-        var item = new OrderItem { SalesOrderId = salesOrderId, Sequence = sequence };
-        SetOrderItemFields(item,
-            deliveryDate: request.DeliveryDate,
-            delayPenalty: request.DelayPenalty,
-            settlementMethod: request.SettlementMethod,
-            pipeManufacturingType: request.PipeManufacturingType,
-            standardNo: request.StandardNo,
-            deliveryState: request.DeliveryState,
-            standardGrade: request.StandardGrade,
-            plantGrade: gradeMapping.PlantGrade,
-            density: gradeMapping.Density,
-            outerDiameter: normalizedOuterDiameter,
-            wallThickness: normalizedWallThickness,
-            specification: $"{normalizedOuterDiameter}*{normalizedWallThickness}",
-            outerDiameterNegative: normalizedOuterDiameterNegative,
-            outerDiameterPositive: normalizedOuterDiameterPositive,
-            wallThicknessNegative: normalizedWallThicknessNegative,
-            wallThicknessPositive: normalizedWallThicknessPositive,
-            lengthStatus: request.LengthStatus,
-            minLength: request.MinLength,
-            maxLength: CalculateMaxLength(request.LengthStatus, request.MinLength, request.MaxLength),
-            quantity: request.Quantity,
-            meters: meters,
-            contractWeight: normalizedContractWeight,
-            theoreticalWeight: theoreticalWeight,
-            remark: request.Remark);
-        return item;
-    }
-
-    private async Task<OrderItem> CreateOrderItemFromAddRequestAsync(AddOrderItemRequest request, int salesOrderId, int sequence)
     {
         var lowerBound = await GetConfigAsync("ContractWeight", "LowerBound", 0.94m);
         var upperBound = await GetConfigAsync("ContractWeight", "UpperBound", 1.06m);
@@ -2126,23 +1846,6 @@ public class OrderService : IOrderService
         return SalesOrderPrintHelper.GenerateBatchOrderPdf(orders);
     }
 
-    public async Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom = null, DateTime? signDateTo = null, DateTime? deliveryDateFrom = null, DateTime? deliveryDateTo = null)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = sortBy ?? "signdate",
-            IsDescending = isDescending
-        };
-        var pagedResult = await GetPagedAsync(query, null, null, signDateFrom, signDateTo, deliveryDateFrom, deliveryDateTo);
-        var allIds = pagedResult.Items.Select(s => s.Id).ToArray();
-        if (allIds.Length == 0) return Array.Empty<byte>();
-        var orders = await GetByIdsForPrintAsync(allIds);
-        return SalesOrderPrintHelper.GenerateBatchOrderPdf(orders);
-    }
-
     /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
     public Task<byte[]> PrintOrderListAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)
     {
@@ -2232,12 +1935,9 @@ public class OrderService : IOrderService
                     break;
 
                 case "hasdelaypenalty":
+                    // 前端布尔筛选契约固定传 "True"/"False"，bool.TryParse 必命中
                     if (bool.TryParse(filter.Value, out var dpVal))
                         queryable = queryable.Where(s => s.HasDelayPenalty == dpVal);
-                    else if (filter.Value == "是")
-                        queryable = queryable.Where(s => s.HasDelayPenalty);
-                    else if (filter.Value == "否")
-                        queryable = queryable.Where(s => !s.HasDelayPenalty);
                     break;
 
                 case "totalcontractweight":
@@ -2288,12 +1988,9 @@ public class OrderService : IOrderService
                     break;
 
                 case "businesscompleted":
+                    // 前端布尔筛选契约固定传 "True"/"False"，bool.TryParse 必命中
                     if (bool.TryParse(filter.Value, out var bcVal))
                         queryable = queryable.Where(s => s.BusinessCompleted == bcVal);
-                    else if (filter.Value == "完结")
-                        queryable = queryable.Where(s => s.BusinessCompleted);
-                    else if (filter.Value == "否")
-                        queryable = queryable.Where(s => !s.BusinessCompleted);
                     break;
             }
         }
@@ -2304,9 +2001,9 @@ public class OrderService : IOrderService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("OrderService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.OrderFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
             var query = _context.Set<OrderListSummary>().AsNoTracking();
 
             var all = await query

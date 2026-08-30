@@ -407,20 +407,6 @@ public class ChemicalValidationRuleService : IChemicalValidationRuleService
         return ChemicalValidationRulePrintHelper.GenerateBatchPdf(selected, columns);
     }
 
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? null! : sortBy,
-            IsDescending = isDescending
-        };
-        var result = await GetAllAsync(query);
-        return ChemicalValidationRulePrintHelper.GenerateBatchPdf(result.Items, columns);
-    }
-
     private static IQueryable<ChemicalValidationRule> ApplySorting(IQueryable<ChemicalValidationRule> queryable, string sortBy, bool isDescending)
     {
         return queryable.ApplySort(sortBy, isDescending);

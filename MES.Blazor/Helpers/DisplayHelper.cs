@@ -11,6 +11,14 @@ namespace MES.Blazor.Helpers;
 /// 显示帮助类，提供格式化、颜色映射等通用方法
 /// 枚举中文显示统一委托给 EnumHelper（单一事实源）
 /// </summary>
+/// <remarks>
+/// <b>双通道兜底契约（禁止新增分裂点）</b>：
+/// <list type="bullet">
+///   <item><b>DTO 可空显示属性</b>：数据层无值一律返回 <c>null</c>（前端自行兜底），不得返回 <c>""</c> 或 <c>"-"</c>；业务特判返回值的（如非正式成检 <c>ManufacturingStatusDisplay</c>）除外。</item>
+///   <item><b>DisplayHelper 可空重载</b>：表现层占位符统一返回 <c>"-"</c>（如 <c>GetDeliveryStateText(DeliveryState?)</c>/<c>GetMaterialTypeText(MaterialType?)</c>/<c>GetShiftTypeText(ShiftType?)</c>）。</item>
+///   <item>新字段三件套纪律不变：int→IntStatusDisplayHelper、枚举→EnumHelper/本类、字典→DictValueDefaults + enabled-values。</item>
+/// </list>
+/// </remarks>
 public static class DisplayHelper
 {
     /// <summary>
@@ -76,6 +84,9 @@ public static class DisplayHelper
     /// <summary>获取长度状态中文文本</summary>
     public static string GetLengthStatusText(LengthStatus status) => EnumHelper.GetDisplayName(status);
 
+    /// <summary>获取长度状态中文文本（可空版本）</summary>
+    public static string GetLengthStatusText(LengthStatus? status) => status.HasValue ? EnumHelper.GetDisplayName(status.Value) : "-";
+
     /// <summary>获取长度状态中文文本（字符串版本）</summary>
     public static string GetLengthStatusText(string? lengthStatus) => EnumHelper.GetDisplayName<LengthStatus>(lengthStatus);
 
@@ -112,6 +123,9 @@ public static class DisplayHelper
     /// <summary>获取结算方式中文文本</summary>
     public static string GetSettlementMethodText(SettlementMethod method) => EnumHelper.GetDisplayName(method);
 
+    /// <summary>获取结算方式中文文本（可空版本）</summary>
+    public static string GetSettlementMethodText(SettlementMethod? method) => method.HasValue ? EnumHelper.GetDisplayName(method.Value) : "-";
+
     /// <summary>获取结算方式中文文本（字符串版本）</summary>
     public static string GetSettlementMethodText(string? method) => EnumHelper.GetDisplayName<SettlementMethod>(method);
 
@@ -142,6 +156,9 @@ public static class DisplayHelper
     /// <summary>获取生产类型中文文本（枚举版本）</summary>
     public static string GetProductionTypeText(ProductionType productionType) => EnumHelper.GetDisplayName(productionType);
 
+    /// <summary>获取生产类型中文文本（可空版本）</summary>
+    public static string GetProductionTypeText(ProductionType? productionType) => productionType.HasValue ? EnumHelper.GetDisplayName(productionType.Value) : "-";
+
     /// <summary>获取成品检验项目中文文本</summary>
     public static string GetInspectionItemText(InspectionItem item) => EnumHelper.GetDisplayName(item);
 
@@ -169,12 +186,6 @@ public static class DisplayHelper
     /// <summary>获取设备运行状态中文文本（枚举版本）</summary>
     public static string GetRunningStatusText(RunningStatus status) => EnumHelper.GetDisplayName(status);
 
-    /// <summary>获取维修优先级中文文本（字符串版本）</summary>
-    public static string GetRepairPriorityText(string? priority) => EnumHelper.GetDisplayName<RepairPriority>(priority);
-
-    /// <summary>获取维修优先级中文文本（枚举版本）</summary>
-    public static string GetRepairPriorityText(RepairPriority priority) => EnumHelper.GetDisplayName(priority);
-
     /// <summary>获取设备任务状态中文文本（字符串版本）</summary>
     public static string GetEquipmentTaskStatusText(string? status) => EnumHelper.GetDisplayName<EquipmentTaskStatus>(status);
 
@@ -192,12 +203,6 @@ public static class DisplayHelper
 
     /// <summary>获取优先级别中文文本（枚举版本）</summary>
     public static string GetPriorityText(RepairPriority priority) => EnumHelper.GetDisplayName(priority);
-
-    /// <summary>获取保养/点检任务状态中文文本（字符串版本）</summary>
-    public static string GetTaskOrderStatusText(string? status) => EnumHelper.GetDisplayName<TaskOrderStatus>(status);
-
-    /// <summary>获取保养/点检任务状态中文文本（枚举版本）</summary>
-    public static string GetTaskOrderStatusText(TaskOrderStatus status) => EnumHelper.GetDisplayName(status);
 
     /// <summary>获取委外加工明细状态中文文本</summary>
     public static string GetSubcontractProcessStatusText(SubcontractOrderStatus status) => EnumHelper.GetDisplayName(status);
@@ -226,20 +231,8 @@ public static class DisplayHelper
     /// <summary>获取要求类型中文文本</summary>
     public static string GetRequirementTypeText(RequirementType type) => EnumHelper.GetDisplayName(type);
 
-    /// <summary>获取库存计划状态中文文本</summary>
-    public static string GetInventoryPlanStatusText(InventoryPlanStatus status) => EnumHelper.GetDisplayName(status);
-
-    /// <summary>获取改制类型中文文本</summary>
-    public static string GetReworkTypeText(ReworkType type) => EnumHelper.GetDisplayName(type);
-
     /// <summary>获取成品类型中文文本</summary>
     public static string GetFinishedProductTypeText(FinishedProductType type) => EnumHelper.GetDisplayName(type);
-
-    /// <summary>获取客户状态中文文本</summary>
-    public static string GetCustomerStatusText(CustomerStatus status) => EnumHelper.GetDisplayName(status);
-
-    /// <summary>获取通知类型中文文本</summary>
-    public static string GetNotificationTypeText(NotificationType type) => EnumHelper.GetDisplayName(type);
 
     /// <summary>获取处理方式中文文本</summary>
     public static string GetDisposalMethodText(DisposalMethod method) => EnumHelper.GetDisplayName(method);
@@ -247,23 +240,17 @@ public static class DisplayHelper
     /// <summary>获取NCR状态中文文本</summary>
     public static string GetNcrStatusText(NcrStatus status) => EnumHelper.GetDisplayName(status);
 
-    /// <summary>获取酸洗状态中文文本</summary>
-    public static string GetPicklingStatusText(PicklingStatus status) => EnumHelper.GetDisplayName(status);
-
     /// <summary>获取严重级别中文文本</summary>
     public static string GetSeverityLevelText(SeverityLevel level) => EnumHelper.GetDisplayName(level);
 
     /// <summary>获取验证结果中文文本</summary>
     public static string GetVerifyResultText(VerifyResult result) => EnumHelper.GetDisplayName(result);
 
-    /// <summary>获取管类类别中文文本</summary>
-    public static string GetPipeCategoryText(MaterialType category) => EnumHelper.GetDisplayName(category);
-
-    /// <summary>获取工段状态中文文本</summary>
-    public static string GetSectionStatusText(SectionStatus status) => EnumHelper.GetDisplayName(status);
-
     /// <summary>获取投料类型中文文本</summary>
     public static string GetInputTypeText(BatchInputType type) => EnumHelper.GetDisplayName(type);
+
+    /// <summary>获取投料类型中文文本（可空版本）</summary>
+    public static string GetInputTypeText(BatchInputType? type) => type.HasValue ? EnumHelper.GetDisplayName(type.Value) : "-";
 
     // ========== 非枚举文本（保持独立映射） ==========
 
@@ -715,30 +702,6 @@ public static class DisplayHelper
         };
     }
 
-    /// <summary>获取保养/点检任务状态颜色（字符串版本）</summary>
-    public static Color GetTaskOrderStatusColor(string? status)
-    {
-        return status switch
-        {
-            "Pending" => Color.Warning,
-            "Completed" => Color.Success,
-            "Overdue" => Color.Error,
-            _ => Color.Default
-        };
-    }
-
-    /// <summary>获取保养/点检任务状态颜色（枚举版本）</summary>
-    public static Color GetTaskOrderStatusColor(TaskOrderStatus status)
-    {
-        return status switch
-        {
-            TaskOrderStatus.Pending => Color.Warning,
-            TaskOrderStatus.Completed => Color.Success,
-            TaskOrderStatus.Overdue => Color.Error,
-            _ => Color.Default
-        };
-    }
-
     /// <summary>获取委外加工单状态颜色</summary>
     public static Color GetSubcontractOrderStatusColor(SubcontractOrderStatus status)
     {
@@ -831,7 +794,7 @@ public static class DisplayHelper
     /// <summary>
     /// 班次中文显示（可空枚举版本）
     /// </summary>
-    public static string GetShiftTypeText(ShiftType? shift) => shift.HasValue ? EnumHelper.GetDisplayName(shift.Value) : "";
+    public static string GetShiftTypeText(ShiftType? shift) => shift.HasValue ? EnumHelper.GetDisplayName(shift.Value) : "-";
 
     /// <summary>
     /// 产类中文显示（数据库字符串字段，存稳定英文 Key）：RoughTube→荒管, InProgress→在制, Finished→成品。
@@ -840,20 +803,23 @@ public static class DisplayHelper
     public static string GetProductStatusText(string? productStatus)
         => DictValueDisplayHelper.GetText(DictValueDefaults.ProductStatus, productStatus) ?? "在制";
 
-    /// <summary>
-    /// 组合归类表产类中文显示：AllStatus（不限定产类）→"全部"；其余走 <see cref="GetProductStatusText"/>。
-    /// 组合表产类列使用本方法（"All" 不在字典表，直接走 GetProductStatusText 会错误回退"在制"）。
-    /// </summary>
-    public static string GetCombinationProductStatusText(string? productStatus)
-        => string.Equals(productStatus, ProductStatuses.AllStatus, StringComparison.OrdinalIgnoreCase)
-            ? "全部"
-            : GetProductStatusText(productStatus);
-
     /// <summary>产类颜色映射（字符串字段存稳定英文 Key）</summary>
     public static Color GetProductStatusColor(string? productStatus) => productStatus switch
     {
         ProductStatuses.RoughTube => Color.Primary,
         ProductStatuses.Finished => Color.Success,
         _ => Color.Default
+    };
+
+    /// <summary>
+    /// 段落类别类型中文显示（配置驱动 3 类）：Cold→冷轧拔, Section→普通工段, Fixed→检验。
+    /// 空值/未知默认"-"（存量旧段落由同步机制清理前兜底）。
+    /// </summary>
+    public static string GetParagraphCategoryTypeText(string? categoryType) => categoryType switch
+    {
+        ParagraphCategoryTypes.Cold => "冷轧拔",
+        ParagraphCategoryTypes.Section => "普通工段",
+        ParagraphCategoryTypes.Fixed => "检验",
+        _ => "-"
     };
 }

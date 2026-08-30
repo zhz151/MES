@@ -49,15 +49,3 @@ public class MaintenanceOrderPrintBatchRequest
     public int[] Ids { get; set; } = Array.Empty<int>();
     public List<PrintColumnDef> Columns { get; set; } = new();
 }
-
-/// <summary>
-/// 保养工单打印请求（全部）
-/// </summary>
-public class MaintenanceOrderPrintAllRequest
-{
-    public string? Keyword { get; set; }
-    public string? SortBy { get; set; }
-    public bool IsDescending { get; set; }
-    public int? EquipmentId { get; set; }
-    public List<PrintColumnDef> Columns { get; set; } = new();
-}

@@ -268,20 +268,6 @@ public class GradeChemicalCompositionService : IGradeChemicalCompositionService
         return GradeChemicalCompositionPrintHelper.GenerateBatchPdf(selected, columns);
     }
 
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = sortBy ?? "StandardGrade",
-            IsDescending = isDescending
-        };
-        var paged = await GetPagedAsync(query);
-        return GradeChemicalCompositionPrintHelper.GenerateBatchPdf(paged.Items, columns);
-    }
-
     private static GradeChemicalCompositionDto ToChemicalCompositionDto(GradeChemicalComposition entity) => new()
     {
         Id = entity.Id,

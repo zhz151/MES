@@ -337,6 +337,7 @@ public partial class ProcessDefinitions
 
         var errors = new List<string>();
         if (string.IsNullOrWhiteSpace(cache.ProcessName)) errors.Add("工序名称不能为空");
+        else if (!cache.ProcessName.Any(c => c >= 0x4E00 && c <= 0x9FFF)) errors.Add("工序名称须为中文（中文名用于显示，英文稳定 Key 请填在 Key 栏）");
         if (cache.DisplayOrder <= 0) errors.Add("显示顺序必须大于0");
 
         // 稳定 Key：新增行可手填；留空则按工序名称自动映射（预置 9 种工序）

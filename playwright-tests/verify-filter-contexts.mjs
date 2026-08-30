@@ -49,10 +49,9 @@ const KNOWN_FILTER_CONTEXT_ENDPOINTS = new Set([
 const NO_FILTER_CONTEXT_CONTROLLERS = new Set([
   'ConfigParameter', 'Employee', 'Workstation', 'DailyOutputEstimate',
   'DailyProductionCapacity', 'StandardWorkDay', 'StandardWorkDayDeliveryState',
-  'SectionFlowCategorySettings', 'ProductRequirement',
+  'ProductRequirement',
   'ColdRollPlan', 'FinalInspectionPlan',
   'RawMaterialLockPlanAndExecution',
-  'SectionFlowAnalysis', 'SectionProductionStatus',
   'User',
 ]);
 
@@ -112,8 +111,6 @@ const PAGE_CONTROLLER_MAP = {
   'FinalInspectionPlan': { controller: 'FinalInspectionPlan', filterContextEndpoint: false },
   'RawMaterialLockPlanAndExecution': { controller: 'RawMaterialLockPlanAndExecution', filterContextEndpoint: false },
   'WorkOrderSchedules': { controller: 'WorkOrderSchedule', filterContextEndpoint: true },
-  'SectionFlowAnalysis': { controller: 'SectionFlowAnalysis', filterContextEndpoint: false },
-  'SectionProductionStatus': { controller: 'SectionProductionStatus', filterContextEndpoint: false },
   // StandardRegister
   'ChemicalCompositions': { controller: 'ChemicalComposition', filterContextEndpoint: true },
   'ChemicalValidationRules': { controller: 'ChemicalValidationRule', filterContextEndpoint: true },

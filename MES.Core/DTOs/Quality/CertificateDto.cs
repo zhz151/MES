@@ -1,5 +1,4 @@
 using MES.Core.Enums;
-using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Quality;
 
@@ -15,7 +14,6 @@ public class CertificateDto
     public string? ProductStandard { get; set; }
     public string? ProductName { get; set; }
     public DeliveryState? DeliveryStatus { get; set; }
-    public string? DeliveryStatusDisplay => DeliveryStatus.HasValue ? EnumHelper.GetDisplayName(DeliveryStatus.Value) : null;
     public string? Remark { get; set; }
     public DateTime CreatedTime { get; set; }
     public string? CreatedBy { get; set; }

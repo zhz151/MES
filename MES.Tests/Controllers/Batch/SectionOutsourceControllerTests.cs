@@ -188,21 +188,6 @@ public class SectionOutsourceControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task GetRecoveries_ReturnsOk()
-    {
-        // Arrange
-        var list = new List<OutsourceRecoveryDto> { new() { Id = 1, SectionOutsourceId = 1 } };
-        _serviceMock.Setup(x => x.GetRecoveriesAsync(1)).ReturnsAsync(list);
-
-        // Act
-        var result = await _controller.GetRecoveries(1);
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<List<OutsourceRecoveryDto>>>(result);
-        Assert.Single(response.Data!);
-    }
-
-    [Fact]
     public async Task GetRecoveriesPaged_ReturnsOk()
     {
         // Arrange

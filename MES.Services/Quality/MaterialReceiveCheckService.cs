@@ -1080,9 +1080,9 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("MaterialReceiveCheckService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.MaterialReceiveCheckFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var dict = new Dictionary<string, List<string>>();
 
@@ -1210,23 +1210,6 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         }
 
         return MaterialCheckPrintHelper.GenerateBatchPdf(items, columns);
-    }
-
-    public async Task<byte[]> PrintMaterialCheckAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? receiveDateFrom, DateTime? receiveDateTo, string? filters = null)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = sortBy ?? "createdtime",
-            IsDescending = isDescending,
-            ReceiveDateFrom = receiveDateFrom,
-            ReceiveDateTo = receiveDateTo,
-            Filters = !string.IsNullOrEmpty(filters) ? System.Text.Json.JsonSerializer.Deserialize<List<FilterDescriptor>>(filters) : null
-        };
-        var paged = await GetAllMaterialReceiveChecksAsync(query);
-        return MaterialCheckPrintHelper.GenerateBatchPdf(paged.Items, columns);
     }
 
     /// <summary>

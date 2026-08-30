@@ -10,7 +10,6 @@
 @attribute [Authorize(Roles = Roles.Policies.SchedulingView)]
 @inject BatchPlanService BatchPlanSvc
 @inject BatchPlanScheduleService BatchPlanScheduleSvc
-@inject SectionFlowAnalysisService SectionFlowAnalysisSvc
 @inject SectionParagraphFlowAnalysisService SectionParagraphFlowAnalysisSvc
 @inject DictValueDefinitionService DictValueDefinitionService
 @inject NavigationManager Navigation
@@ -48,12 +47,6 @@
                            OnClick="ToggleParagraphCard">
                     段落流转分析
                 </MudButton>
-                <MudButton Variant="Variant.Outlined"
-                           Color="@(_showFlowCard ? Color.Primary : Color.Default)"
-                           StartIcon="@(_showFlowCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
-                           OnClick="ToggleFlowCard">
-                    工段流转分析
-                </MudButton>
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"
                            Disabled="@_isPlanning"
@@ -67,18 +60,18 @@
             </div>
         </div>
 
-        <!-- 工段筛选 Tab -->
+        <!-- 工段筛选 Tab（配置驱动：冷轧冷拔工序 + 普通工段 + 固定检验，Key=筛选传值、Display=显示名） -->
         <div class="d-flex flex-wrap align-center mb-2" style="gap: 4px 8px;">
             @foreach (var sec in _sectionTabs)
             {
-                var isActive = (sec == "全部" && _selectedSection == null)
-                    || (sec != "全部" && _selectedSection == sec);
+                var isActive = (sec.Key == "" && _selectedSection == null)
+                    || (sec.Key != "" && _selectedSection == sec.Key);
                 <MudButton Variant="@(isActive ? Variant.Filled : Variant.Outlined)"
                            Color="@(isActive ? Color.Primary : Color.Default)"
                            Size="Size.Small"
                            Class="ma-0"
-                           OnClick="@(() => OnSectionTabChanged(sec == "全部" ? null : sec))">
-                    @sec
+                           OnClick="@(() => OnSectionTabChanged(sec.Key == "" ? null : sec.Key))">
+                    @sec.Display
                 </MudButton>
             }
         </div>
@@ -268,63 +261,6 @@
                             <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_paragraphRows.Sum(x => x.PlanFlowQuantity ?? 0m))</MudTd>
                             <MudTd Class="col-footer-cell">&nbsp;</MudTd>
                             <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_paragraphRows.Sum(x => x.PlanKeyWeight ?? 0m))</MudTd>
-                        </FooterContent>
-                    </MudTable>
-                }
-            </MudCardContent>
-        </MudCard>
-    }
-
-    <!-- 工段流转分析折叠查询（纯表，无可持续天数字段） -->
-    @if (_showFlowCard)
-    {
-        <MudCard Class="mb-2 summary-card" Elevation="0">
-            <MudCardContent>
-                @if (_isLoadingFlow)
-                {
-                    <div class="d-flex align-center" style="gap:8px;">
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
-                        <span>工段流转分析加载中...</span>
-                    </div>
-                }
-                else
-                {
-                    <div class="d-flex justify-space-between align-center mb-2">
-                        <MudText Typo="Typo.subtitle2"><b>工段流转分析</b></MudText>
-                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.Print" OnClick="PrintFlowAnalysis">
-                            打印
-                        </MudButton>
-                    </div>
-                    <MudTable T="SectionFlowAnalysisDto" Items="@_flowRows"
-                              Dense="true" Hover="true" Elevation="0" Class="auto-table">
-                        <HeaderContent>
-                            <MudTh><div class="col-header-cell"><span class="th-label">流转类别</span></div></MudTh>
-                            <MudTh Class="mud-table-cell--right"><div class="col-header-cell"><span class="th-label">待在产重量</span></div></MudTh>
-                            <MudTh Class="mud-table-cell--center"><div class="col-header-cell"><span class="th-label">总况判定</span></div></MudTh>
-                            <MudTh Class="mud-table-cell--right"><div class="col-header-cell"><span class="th-label">计划流转量</span></div></MudTh>
-                            <MudTh Class="mud-table-cell--center"><div class="col-header-cell"><span class="th-label">计划流转判定</span></div></MudTh>
-                            <MudTh Class="mud-table-cell--right"><div class="col-header-cell"><span class="th-label">特急批重量</span></div></MudTh>
-                        </HeaderContent>
-                        <RowTemplate Context="item">
-                            <MudTd><span class="font-weight-bold">@item.CategoryName</span></MudTd>
-                            <MudTd Class="mud-table-cell--right">@RenderInt(item.PendingTotal)</MudTd>
-                            <MudTd Class="mud-table-cell--center">
-                                <MudChip Size="Size.Small" Color="@GetStatusColor(item.StatusJudgment)">@(item.StatusJudgment ?? "-")</MudChip>
-                            </MudTd>
-                            <MudTd Class="mud-table-cell--right">@RenderInt(item.PlanFlowQuantity)</MudTd>
-                            <MudTd Class="mud-table-cell--center">
-                                <MudChip Size="Size.Small" Color="@GetPlanFlowJudgmentColor(item.PlanFlowJudgment)">@(item.PlanFlowJudgment ?? "-")</MudChip>
-                            </MudTd>
-                            <MudTd Class="mud-table-cell--right">@RenderInt(item.PlanKeyWeight)</MudTd>
-                        </RowTemplate>
-                        <FooterContent>
-                            <MudTd Class="col-footer-cell">&nbsp;</MudTd>
-                            <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_flowRows.Sum(x => x.PendingTotal ?? 0m))</MudTd>
-                            <MudTd Class="col-footer-cell">&nbsp;</MudTd>
-                            <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_flowRows.Sum(x => x.PlanFlowQuantity ?? 0m))</MudTd>
-                            <MudTd Class="col-footer-cell">&nbsp;</MudTd>
-                            <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_flowRows.Sum(x => x.PlanKeyWeight ?? 0m))</MudTd>
                         </FooterContent>
                     </MudTable>
                 }

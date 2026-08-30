@@ -7,8 +7,10 @@
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @using MES.Core.DTOs.Scheduling
+@using MES.Core.DTOs.Configuration
 @using System.Text.Json
 @inject MES.Blazor.Services.ColdRollMachineConfigService Service
+@inject MES.Blazor.Services.ProcessDefinitionService ProcessDefSvc
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -108,9 +110,9 @@
                                            Value="@rowCache.ProcessType"
                                            ValueChanged="@(v => rowCache.ProcessType = v)"
                                            Class="compact-input">
-                                    @foreach (var opt in MachineTypeOptions)
+                                    @foreach (var opt in _machineTypeOptions)
                                     {
-                                        <MudSelectItem Value="@(opt)">@ProcessDisplayHelper.GetProcessNameText(opt)</MudSelectItem>
+                                        <MudSelectItem Value="@(opt.ProcessKey)">@ProcessDisplayHelper.GetProcessNameText(opt.ProcessKey)</MudSelectItem>
                                     }
                                 </MudSelect>
                             }

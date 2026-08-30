@@ -83,7 +83,6 @@ public partial class EnumDisplayDefinitions
         ["RunningStatus"] = "运行状态",
         ["RepairOrderStatus"] = "维修单状态",
         ["EquipmentTaskStatus"] = "设备任务状态",
-        ["TaskOrderStatus"] = "任务单状态",
         ["InspectionItem"] = "检验项目",
         ["InspectionType"] = "成检类型",
         ["DisposalMethod"] = "处理方式",

@@ -251,6 +251,7 @@ builder.Services.AddScoped<IDataFixService, DataFixService>();
 
 // 扫码执行服务
 builder.Services.AddScoped<IScanService, ScanService>();
+builder.Services.AddScoped<IQrCodeService, QrCodeService>();
 builder.Services.AddScoped<IWorkstationService, WorkstationService>();
 builder.Services.AddScoped<IEmployeeService, MES.Services.Configuration.EmployeeService>();
 builder.Services.AddScoped<IDailyProductionCapacityService, MES.Services.Configuration.DailyProductionCapacityService>();
@@ -265,17 +266,15 @@ builder.Services.AddScoped<IOrderDemandAdjustmentService, OrderDemandAdjustmentS
 builder.Services.AddScoped<IRawMaterialLockPlanAndExecutionService, RawMaterialLockPlanAndExecutionService>();
 builder.Services.AddScoped<IProductionOverviewService, ProductionOverviewService>();
 builder.Services.AddScoped<ISectionProductionStatusService, SectionProductionStatusService>();
-builder.Services.AddScoped<ISectionFlowAnalysisService, SectionFlowAnalysisService>();
 builder.Services.AddScoped<ISectionParagraphFlowAnalysisService, SectionParagraphFlowAnalysisService>();
-builder.Services.AddScoped<ISectionFlowCategoryService, MES.Services.Configuration.SectionFlowCategoryService>();
 builder.Services.AddScoped<ISectionParagraphConfigService, MES.Services.Configuration.SectionParagraphConfigService>();
-builder.Services.AddScoped<ICombinationGroupService, MES.Services.Configuration.CombinationGroupService>();
 builder.Services.AddScoped<IWorkOrderScheduleService, WorkOrderScheduleService>();
 builder.Services.AddScoped<IBatchPlanService, BatchPlanService>();
 builder.Services.AddScoped<IColdRollPlanService, ColdRollPlanService>();
 builder.Services.AddScoped<IColdRollSpecScheduleService, ColdRollSpecScheduleService>();
 builder.Services.AddScoped<IColdRollCapacityService, ColdRollCapacityService>();
 builder.Services.AddScoped<IColdRollMachineConfigService, ColdRollMachineConfigService>();
+builder.Services.AddScoped<IColdRollMachineGroupConfigService, ColdRollMachineGroupConfigService>();
 builder.Services.AddScoped<IBatchPlanScheduleService, BatchPlanScheduleService>();
 builder.Services.AddScoped<IFinalInspectionPlanService, FinalInspectionPlanService>();
 
@@ -370,6 +369,19 @@ recurringJobManager.AddOrUpdate<HangfireJobService>(
     "refresh-quality-process-tracking",
     service => service.RefreshQualityProcessTrackingJob(),
     "7 * * * *");
+
+// 全项目数据更新兜底任务：中午 11:55 + 晚上 23:55 各一次
+// 重建所有物化读模型（工单执行/订单列表/用料计划总览/质量过程跟踪）+ 失效派生缓存，
+// 修复增量刷新漏网（如 DataExchange Excel 导入直写 DbContext 无刷新）导致的读模型过期。
+recurringJobManager.AddOrUpdate<HangfireJobService>(
+    "full-project-data-refresh-noon",
+    service => service.FullProjectDataRefreshJob(),
+    "55 11 * * *");
+
+recurringJobManager.AddOrUpdate<HangfireJobService>(
+    "full-project-data-refresh-midnight",
+    service => service.FullProjectDataRefreshJob(),
+    "55 23 * * *");
 
 // 开发环境不启用 HTTPS 重定向（API 仅 HTTP 端口时避免预检请求重定向导致 CORS 失败）
 if (app.Environment.IsProduction())

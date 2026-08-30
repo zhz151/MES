@@ -333,28 +333,6 @@ public class SectionOutsourceServiceTests : TestBase
     }
 
     [Fact]
-    public async Task GetRecoveriesAsync_有数据_返回列表()
-    {
-        var ctx = CreateDbContext();
-        var batch = await SeedBatchAsync(ctx);
-        var outsource = await SeedOutsourceAsync(ctx, batch.Id);
-        ctx.OutsourceRecoveries.Add(new OutsourceRecovery
-        {
-            SectionOutsourceId = outsource.Id,
-            RecoveryDate = DateTime.Today,
-            RecoveryQuantity = 5,
-            RecoveryWeight = 500m
-        });
-        await ctx.SaveChangesAsync();
-        var svc = CreateService(ctx);
-
-        var result = await svc.GetRecoveriesAsync(outsource.Id);
-
-        result.Should().HaveCount(1);
-        result[0].RecoveryQuantity.Should().Be(5);
-    }
-
-    [Fact]
     public async Task UpdateRecoveryAsync_成功更新()
     {
         var ctx = CreateDbContext();

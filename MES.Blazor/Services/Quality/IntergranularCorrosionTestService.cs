@@ -1,12 +1,13 @@
 using MES.Core.Models;
 using MES.Core.DTOs.Quality;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Services;
 
 public class IntergranularCorrosionTestService
 {
     private readonly AuthHttpClient _http;
-    private const string BaseUrl = "api/intergranular-corrosion-test";
+    private const string BaseUrl = ApiEndpoints.IntergranularCorrosionTest;
 
     public IntergranularCorrosionTestService(AuthHttpClient http) => _http = http;
 

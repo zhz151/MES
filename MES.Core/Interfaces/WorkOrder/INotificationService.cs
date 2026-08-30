@@ -11,11 +11,6 @@ namespace MES.Core.Interfaces.WorkOrder;
 public interface INotificationService
 {
     /// <summary>
-    /// 获取未读通知数量
-    /// </summary>
-    Task<int> GetUnreadCountAsync();
-
-    /// <summary>
     /// 分页获取通知列表
     /// </summary>
     Task<PagedResult<NotificationDto>> GetPagedNotificationsAsync(int pageIndex, int pageSize);
@@ -24,11 +19,6 @@ public interface INotificationService
     /// 标记单条通知为已读
     /// </summary>
     Task MarkAsReadAsync(int id);
-
-    /// <summary>
-    /// 标记所有通知为已读
-    /// </summary>
-    Task MarkAllAsReadAsync();
 
     /// <summary>
     /// 创建通知

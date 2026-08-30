@@ -256,9 +256,9 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("QualityProcessTrackingService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.QualityProcessTrackingFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             // 数字列 DISTINCT 选项（供 ExcelFilter 多选筛选）
             List<string> DistinctInts(IEnumerable<int> vals) =>
@@ -730,27 +730,5 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
         var result = await GetPagedAsync(query);
         var selected = result.Items.Where(i => ids.Contains(i.Id)).ToList();
         return QualityProcessTrackingPrintHelper.GenerateBatchPdf(selected, columns);
-    }
-
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? receiveDateFrom = null, DateTime? receiveDateTo = null, string? filters = null)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? "Receivedate" : sortBy,
-            IsDescending = isDescending,
-            ReceiveDateFrom = receiveDateFrom,
-            ReceiveDateTo = receiveDateTo
-        };
-        if (!string.IsNullOrEmpty(filters))
-        {
-            var f = System.Text.Json.JsonSerializer.Deserialize<List<FilterDescriptor>>(filters);
-            if (f != null && f.Count > 0)
-                query.Filters = f;
-        }
-        var result = await GetPagedAsync(query);
-        return QualityProcessTrackingPrintHelper.GenerateBatchPdf(result.Items, columns);
     }
 }

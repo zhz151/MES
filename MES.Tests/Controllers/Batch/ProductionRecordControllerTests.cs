@@ -132,25 +132,4 @@ public class ProductionRecordControllerTests : ControllerTestBase
         Assert.False(response.Success);
     }
 
-    [Fact]
-    public async Task GetSectionOutsources_ReturnsOk()
-    {
-        // Arrange
-        var pagedResult = new PagedResult<SectionOutsourceDto>
-        {
-            Items = new List<SectionOutsourceDto> { new() { Id = 1, BatchNo = "BATCH001" } },
-            TotalCount = 1,
-            PageIndex = 1,
-            PageSize = 20
-        };
-        _serviceMock.Setup(x => x.GetSectionOutsourcesAsync(1, It.IsAny<QueryParams>())).ReturnsAsync(pagedResult);
-
-        // Act
-        var result = await _controller.GetSectionOutsources(1);
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<PagedResult<SectionOutsourceDto>>>(result);
-        Assert.Single(response.Data!.Items);
-    }
-
     }

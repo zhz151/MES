@@ -5,9 +5,11 @@ using MES.Blazor.Helpers;
 using MES.Blazor.Models;
 using MES.Blazor.Components;
 using MES.Blazor.Services;
+using MES.Blazor.Shared;
 using MES.Core.Constants;
 using MES.Core.Models;
 using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Configuration;
 using System.Text.Json;
 
 namespace MES.Blazor.Pages.Scheduling;
@@ -67,12 +69,39 @@ public partial class ColdRollPlans
         public string RollType { get; set; } = "None";
     }
 
-    // ========== 工段筛选 ==========
+    // ========== 工段筛选（配置驱动：冷轧/冷拔工序选项动态加载） ==========
     private string? _selectedSection;
-    private static readonly string[] _sectionTabs = new[]
+    private List<SectionTab> _sectionTabs = new()
     {
-        "全部", "60冷轧", "50冷轧", "30冷轧", "20冷轧", "三辊冷轧", "冷拔"
+        new SectionTab { Key = "", Display = "全部" }
     };
+
+    private class SectionTab
+    {
+        public string Key { get; init; } = "";
+        public string Display { get; init; } = "";
+    }
+
+    /// <summary>
+    /// 加载冷轧/冷拔工序选项（配置表 ProcessDefinitions，仅启用的 IsEnabled=true），
+    /// 填充机型下拉与工段 Tab；同时校验持久化恢复的 _selectedSection 是否悬空（配置已删/禁用工序 → 置 null）。
+    /// </summary>
+    private async Task LoadMachineTypeOptionsAsync()
+    {
+        var result = await ProcessDefSvc.GetColdRollOptionsAsync();
+        if (!result.Success || result.Data == null)
+        {
+            // 选项加载失败时保持"全部"占位（降级为无 Tab）
+            _machineTypeOptions = new List<ProcessInfoDto>();
+            _sectionTabs = new List<SectionTab> { new SectionTab { Key = "", Display = "全部" } };
+            return;
+        }
+        _machineTypeOptions = result.Data;
+        _sectionTabs = new List<SectionTab> { new SectionTab { Key = "", Display = "全部" } };
+        _sectionTabs.AddRange(result.Data.Select(p => new SectionTab { Key = p.ProcessKey, Display = ProcessDisplayHelper.GetProcessNameText(p.ProcessKey) }));
+        if (_selectedSection != null && !_sectionTabs.Any(t => t.Key == _selectedSection))
+            _selectedSection = null;
+    }
 
     // ========== Tab 汇总数据 ==========
     private int _tabSpecCount;
@@ -161,12 +190,17 @@ public partial class ColdRollPlans
 
     [Inject] private ColdRollPlanService ColdRollSvc { get; set; } = default!;
     [Inject] private ColdRollSpecScheduleService ScheduleSvc { get; set; } = default!;
+    [Inject] private ColdRollMachineConfigService MachineConfigSvc { get; set; } = default!;
+    [Inject] private ProcessDefinitionService ProcessDefSvc { get; set; } = default!;
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
+    [Inject] private IDialogService DialogService { get; set; } = default!;
     [Inject] private PageStateService PageState { get; set; } = default!;
     protected override async Task OnInitializedAsync()
     {
         RebuildColumnDefs();
+
+        await LoadMachineTypeOptionsAsync();
 
         var savedState = await PageState.LoadAsync("coldrollplans");
         if (savedState != null)
@@ -201,8 +235,11 @@ public partial class ColdRollPlans
 
             if (savedState.Extras?.ContainsKey("selectedSection") == true)
             {
-                _selectedSection = savedState.Extras["selectedSection"];
-                if (_selectedSection == "全部") _selectedSection = null;
+                var savedSection = savedState.Extras["selectedSection"];
+                _selectedSection = savedSection == "全部" ? null : savedSection;
+                // 悬空校验：配置表已删该工序 → 置 null 防筛选无结果（LoadMachineTypeOptionsAsync 亦兜底）
+                if (_selectedSection != null && !_sectionTabs.Any(t => t.Key == _selectedSection))
+                    _selectedSection = null;
             }
 
             if (savedState.Extras?.ContainsKey("columnFilters") == true)
@@ -414,6 +451,203 @@ public partial class ColdRollPlans
         finally
         {
             _suggestionApplying = false;
+        }
+    }
+
+    // ========== 机台数配置（内嵌卡片：排程人员随时维护机台数参数） ==========
+
+    private bool _showMachineConfig = false;
+    private bool _machineConfigLoading = false;
+    private bool _machineConfigSaving = false;
+    private List<ColdRollMachineConfigDto> _machineConfigRows = new();
+    private readonly HashSet<int> _machineConfigEditingIds = new();
+    private readonly Dictionary<int, MachineConfigEditCache> _machineConfigCache = new();
+
+    /// <summary>机型选项（配置驱动：ProcessDefinitions 冷轧/冷拔工序，LoadMachineTypeOptionsAsync 加载）</summary>
+    private List<ProcessInfoDto> _machineTypeOptions = new();
+
+    private class MachineConfigEditCache
+    {
+        public string ProcessType { get; set; } = string.Empty;
+        public int OwnedCount { get; set; }
+        public int MinMachines { get; set; }
+        public int MaxMachines { get; set; }
+        public decimal? EstimatedDailyOutput { get; set; }
+        public string? Remark { get; set; }
+    }
+
+    private static bool IsNewMachineConfig(int id) => id < 0;
+
+    private async Task ToggleMachineConfig()
+    {
+        _showMachineConfig = !_showMachineConfig;
+        if (_showMachineConfig)
+        {
+            // 展开时重载（后端无缓存，直接查库，改动即时可见）
+            await LoadMachineConfigAsync();
+        }
+    }
+
+    private async Task LoadMachineConfigAsync()
+    {
+        try
+        {
+            _machineConfigLoading = true;
+            var result = await MachineConfigSvc.GetAllAsync();
+            if (result.Success && result.Data != null)
+            {
+                _machineConfigRows = result.Data;
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "加载机台数配置失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载机台数配置失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _machineConfigLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>保存/删除后重载列表，并刷新已展开的排机估算/排程建议（后端已失效对应缓存）</summary>
+    private async Task RefreshMachineConfigAsync()
+    {
+        await LoadMachineConfigAsync();
+        if (_showMachineEstimate)
+            await LoadMachineEstimateAsync();
+        if (_showSuggestion)
+            await LoadSuggestionAsync();
+    }
+
+    private void AddMachineConfigNew()
+    {
+        var hash = DateTime.Now.Ticks.GetHashCode();
+        var newId = hash < 0 ? hash : -hash - 1;
+        var newItem = new ColdRollMachineConfigDto
+        {
+            Id = newId,
+            ProcessType = _machineTypeOptions.FirstOrDefault()?.ProcessKey ?? "",
+            OwnedCount = 0,
+            MinMachines = 0,
+            MaxMachines = 0,
+        };
+        _machineConfigRows.Insert(0, newItem);
+        StartMachineConfigEdit(newItem);
+        StateHasChanged();
+    }
+
+    private void StartMachineConfigEdit(ColdRollMachineConfigDto item)
+    {
+        if (!_machineConfigEditingIds.Add(item.Id)) return;
+        _machineConfigCache[item.Id] = new MachineConfigEditCache
+        {
+            ProcessType = item.ProcessType,
+            OwnedCount = item.OwnedCount,
+            MinMachines = item.MinMachines,
+            MaxMachines = item.MaxMachines,
+            EstimatedDailyOutput = item.EstimatedDailyOutput,
+            Remark = item.Remark,
+        };
+    }
+
+    private void CancelMachineConfigEdit(ColdRollMachineConfigDto item)
+    {
+        _machineConfigEditingIds.Remove(item.Id);
+        _machineConfigCache.Remove(item.Id);
+        if (IsNewMachineConfig(item.Id))
+            _machineConfigRows.Remove(item);
+        StateHasChanged();
+    }
+
+    private async Task SaveMachineConfigEdit(ColdRollMachineConfigDto item)
+    {
+        if (!_machineConfigCache.TryGetValue(item.Id, out var cache)) return;
+
+        var errors = new List<string>();
+        if (string.IsNullOrWhiteSpace(cache.ProcessType)) errors.Add("机型不能为空");
+        if (cache.OwnedCount < 0 || cache.MinMachines < 0 || cache.MaxMachines < 0) errors.Add("机台数不能为负");
+        if (cache.MinMachines > cache.MaxMachines) errors.Add("最小机台数不能大于最大机台数");
+        if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
+
+        _machineConfigSaving = true;
+        StateHasChanged();
+
+        try
+        {
+            var dto = new ColdRollMachineConfigDto
+            {
+                Id = IsNewMachineConfig(item.Id) ? 0 : item.Id,
+                ProcessType = cache.ProcessType,
+                OwnedCount = cache.OwnedCount,
+                MinMachines = cache.MinMachines,
+                MaxMachines = cache.MaxMachines,
+                EstimatedDailyOutput = cache.EstimatedDailyOutput,
+                Remark = cache.Remark,
+            };
+
+            var result = await MachineConfigSvc.SaveAsync(dto);
+            if (result.Success)
+            {
+                _machineConfigEditingIds.Remove(item.Id);
+                _machineConfigCache.Remove(item.Id);
+                Snackbar.Add("机台数配置已保存", Severity.Success);
+                await RefreshMachineConfigAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "保存失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"保存失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _machineConfigSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeleteMachineConfigEdit(ColdRollMachineConfigDto item)
+    {
+        if (IsNewMachineConfig(item.Id))
+        {
+            _machineConfigRows.Remove(item);
+            StateHasChanged();
+            return;
+        }
+
+        var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
+        {
+            ["ContentText"] = $"确定要删除机型 \"{ProcessDisplayHelper.GetProcessNameText(item.ProcessType)}\" 的机台数配置吗？",
+            ["ConfirmText"] = "确认删除",
+            ["Color"] = Color.Error,
+        });
+        var dialogResult = await dialog.Result;
+        if (dialogResult.Canceled) return;
+
+        try
+        {
+            var result = await MachineConfigSvc.DeleteAsync(item.Id);
+            if (result.Success)
+            {
+                Snackbar.Add("机台数配置已删除", Severity.Success);
+                await RefreshMachineConfigAsync();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "删除失败", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
         }
     }
 

@@ -26,11 +26,6 @@ public interface IInventorySyncService
     Task<SourceOrderValidationResult> ResolveLinkedWorkOrderAsync(int inventoryBatchId);
 
     /// <summary>
-    /// 验证仓库内入库数据的工单号是否在工单管理上下文中存在
-    /// </summary>
-    Task<List<string>> ValidateWarehouseWorkOrderNosAsync(int warehouseId);
-
-    /// <summary>
     /// 获取入库批次中工单号不存在的批次列表
     /// </summary>
     Task<List<BatchWorkOrderMismatchDto>> GetMismatchedWorkOrderBatchesAsync(int? warehouseId = null);

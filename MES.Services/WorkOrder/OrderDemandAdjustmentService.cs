@@ -254,9 +254,9 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
 
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
-        return await _cache.GetOrCreateAsync("OrderDemandAdjustmentService:FilterContexts", async entry =>
+        return await _cache.GetOrCreateAsync(CacheKeys.OrderDemandAdjustmentFilterContexts, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
 
             var query = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
 
@@ -315,106 +315,6 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
         return string.IsNullOrWhiteSpace(sortBy)
             ? query.OrderByDescending(x => x.ScheduleStage)
             : query.ApplySort(sortBy, isDescending);
-    }
-
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom, DateTime? signDateTo, DateTime? deliveryDateStart, DateTime? deliveryDateEnd, List<PrintColumnDef> columns)
-    {
-        var summaryQuery = _context.Set<WorkOrderExecutionSummary>().AsNoTracking();
-        var urgingQuery = _context.Set<OrderDemandAdjustment>().AsNoTracking();
-
-        var q = from e in summaryQuery
-                join u in urgingQuery on e.WorkOrderId equals u.WorkOrderId into uj
-                from u in uj.DefaultIfEmpty()
-                join wo in _context.WorkOrders.AsNoTracking() on e.WorkOrderId equals wo.Id into woj
-                from wo in woj.DefaultIfEmpty()
-                select new OrderDemandAdjustmentDto
-                {
-                    Id = e.Id,
-                    WorkOrderId = e.WorkOrderId,
-                    WorkOrderNo = e.WorkOrderNo,
-                    Salesman = e.Salesman,
-                    CustomerName = e.CustomerName,
-                    EndCustomer = e.EndCustomer,
-                    SignDate = e.SignDate,
-                    DeliveryDate = e.DeliveryDate,
-                    DelayPenalty = e.DelayPenalty,
-                    SettlementMethod = string.IsNullOrEmpty(e.SettlementMethod) ? default : Enum.Parse<SettlementMethod>(e.SettlementMethod),
-                    SalesOrderNo = e.SalesOrderNo,
-                    ProductionMainNo = e.ProductionMainNo,
-                    ProductionSubNo = e.ProductionSubNo,
-                    MaterialName = e.MaterialName,
-                    DeliveryState = string.IsNullOrEmpty(e.DeliveryState) ? default : Enum.Parse<DeliveryState>(e.DeliveryState),
-                    PlantGrade = e.PlantGrade,
-                    Specification = e.Specification,
-                    LengthStatus = string.IsNullOrEmpty(e.LengthStatus) ? default : Enum.Parse<LengthStatus>(e.LengthStatus),
-                    MinLength = e.MinLength,
-                    MaxLength = e.MaxLength,
-                    TotalItemCount = e.TotalItemCount,
-                    TotalQuantity = e.TotalQuantity,
-                    TotalMeters = e.TotalMeters,
-                    TotalWeight = e.TotalWeight,
-                    ScheduleStage = e.ScheduleStage,
-                    TotalRemainingWorkDays = e.TotalRemainingWorkDays,
-                    CapacityWorkDays = e.CapacityWorkDays,
-                    UrgencyLevel = e.UrgencyLevel,
-                    EstimatedProcessCompletionDate = e.EstimatedProcessCompletionDate,
-                    DaysDiffFromDelivery = e.DaysDiffFromDelivery,
-                    RawMaterialLockRemark = e.RawMaterialLockRemark,
-                    IsUrging = u != null && u.IsUrging,
-                    IsBatchDelivery = u != null && u.IsBatchDelivery,
-                    IsPaused = u != null && u.IsPaused,
-                    IsForceCompleted = u != null && u.IsForceCompleted,
-                    AdjustmentRemark = u != null ? u.AdjustmentRemark : null,
-                    CreatedBy = wo != null ? wo.CreatedBy : null,
-                    CreatedTime = wo != null ? wo.CreatedTime : default,
-                    UpdatedBy = wo != null ? wo.UpdatedBy : null,
-                    UpdatedTime = wo != null ? wo.UpdatedTime : default,
-                };
-
-        if (signDateFrom.HasValue)
-            q = q.Where(x => x.SignDate >= signDateFrom.Value);
-        if (signDateTo.HasValue)
-            q = q.Where(x => x.SignDate <= signDateTo.Value);
-
-        if (deliveryDateStart.HasValue)
-            q = q.Where(x => x.DeliveryDate >= deliveryDateStart.Value);
-        if (deliveryDateEnd.HasValue)
-            q = q.Where(x => x.DeliveryDate <= deliveryDateEnd.Value);
-
-        if (!string.IsNullOrEmpty(keyword))
-        {
-            var kw = keyword;
-            q = q.Where(x =>
-                x.WorkOrderNo.Contains(kw) ||
-                x.SalesOrderNo.Contains(kw) ||
-                x.Salesman.Contains(kw) ||
-                x.CustomerName.Contains(kw) ||
-                (x.EndCustomer != null && x.EndCustomer.Contains(kw)) ||
-                (x.ProductionSubNo != null && x.ProductionSubNo.Contains(kw)) ||
-                x.PlantGrade.Contains(kw) ||
-                x.Specification.Contains(kw) ||
-                x.ProductionMainNo.Contains(kw) ||
-                x.MaterialName.Contains(kw) ||
-                (x.UrgencyLevel != null && x.UrgencyLevel.Contains(kw)) ||
-                (x.RawMaterialLockRemark != null && x.RawMaterialLockRemark.Contains(kw)) ||
-                (x.AdjustmentRemark != null && x.AdjustmentRemark.Contains(kw)));
-        }
-
-        q = ApplySorting(q, sortBy, isDescending);
-
-        var items = await q.ToListAsync();
-
-        var resolvedItems = items.Select(item =>
-        {
-            var dict = new Dictionary<string, object>();
-            foreach (var col in columns)
-            {
-                dict[col.Key] = ResolvePrintValue(item, col.Key);
-            }
-            return dict;
-        }).ToList();
-
-        return OrderDemandAdjustmentPrintHelper.GeneratePdf("工单需求调整", resolvedItems, columns);
     }
 
     private static object ResolvePrintValue(OrderDemandAdjustmentDto item, string key) => key switch

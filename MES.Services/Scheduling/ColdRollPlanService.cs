@@ -63,6 +63,12 @@ public class ColdRollPlanService : IColdRollPlanService
     /// </summary>
     public const string ScheduleSuggestionCacheKey = "ColdRollPlanService:ScheduleSuggestion";
 
+    /// <summary>
+    /// 机台组配置缓存键（引擎归组运行时从配置表 ColdRollMachineGroupConfigs 加载）。
+    /// 机台组配置保存/删除时主动失效（ColdRollMachineGroupConfigService），短 TTL 60 秒双保险。
+    /// </summary>
+    public const string MachineGroupCacheKey = "ColdRollPlanService:MachineGroups";
+
     public ColdRollPlanService(AppDbContext context, IProcessDefinitionService processDefService, IMemoryCache cache)
     {
         _context = context;
@@ -558,13 +564,13 @@ public class ColdRollPlanService : IColdRollPlanService
             .Where(a => a.PositionDiff <= 6)
             .ToList();
 
-        // 轧机类型归并（ProcessType 英文 Key，机台组定义见 ColdRollMachineGroupKeys）
-        var machineTypeGroups = ColdRollMachineGroupKeys.Groups;
+        // 轧机类型归并（ProcessType 英文 Key，机台组定义配置表驱动：LoadMachineGroupsAsync）
+        var machineTypeGroups = await LoadMachineGroupsAsync();
 
         var result = new List<ColdRollMachineEstimateDto>();
         foreach (var group in machineTypeGroups)
         {
-            var groupAlloc = scheduled.Where(a => group.Keys.Contains(a.ProcessType)).ToList();
+            var groupAlloc = scheduled.Where(a => group.ContainsKey(a.ProcessType)).ToList();
 
             decimal flowTotal = groupAlloc.Sum(a => a.Weight);
             decimal finished = groupAlloc.Where(a => a.IsFinished).Sum(a => a.Weight);
@@ -572,7 +578,7 @@ public class ColdRollPlanService : IColdRollPlanService
 
             // 机台需求：Σ(规格流转量 ÷ 单机单日量) ÷ 6天，四舍五入；单机单日量为空/≤0 的规格贡献 0
             // 单机单日量取值：产能档案（参数表）优先，缺失/无效回退排程小表
-            // 5060 组与排程建议同口径：在制/成品分档各自四舍五入再相加（其余组整组一次取整）
+            // 供给方组（配置了 SupplyTargetGroupKey）与排程建议同口径：在制/成品分档各自四舍五入再相加（其余组整组一次取整）
             int MachineCountOf(IEnumerable<BatchAllocation> allocs)
             {
                 decimal machineDays = 0m;
@@ -591,7 +597,7 @@ public class ColdRollPlanService : IColdRollPlanService
                 return (int)Math.Round(machineDays, MidpointRounding.AwayFromZero);
             }
 
-            var machineCount = group.Key == ColdRollMachineGroupKeys.Roll5060
+            var machineCount = !string.IsNullOrEmpty(group.SupplyTargetGroupKey)
                 ? MachineCountOf(groupAlloc.Where(a => !a.IsFinished)) + MachineCountOf(groupAlloc.Where(a => a.IsFinished))
                 : MachineCountOf(groupAlloc);
 
@@ -655,8 +661,8 @@ public class ColdRollPlanService : IColdRollPlanService
         var machineConfigDict = (await _context.ColdRollMachineConfigs.AsNoTracking().ToListAsync())
             .ToDictionary(c => c.ProcessType, StringComparer.OrdinalIgnoreCase);
 
-        // 轧机类型归并（覆盖关系：60 可干 50、30 覆盖 20，机台需求按组聚合）
-        var machineTypeGroups = ColdRollMachineGroupKeys.Groups;
+        // 轧机类型归并（覆盖关系：60 可干 50、30 覆盖 20，机台需求按组聚合；组定义配置表驱动：LoadMachineGroupsAsync）
+        var machineTypeGroups = await LoadMachineGroupsAsync();
 
         // 四维 key 合并：scheduleDict 现有行必保（save-all 按 incoming 删僵尸）+ allocations 新维度必提（尤其急+行）
         var allKeys = scheduleDict.Keys
@@ -664,21 +670,18 @@ public class ColdRollPlanService : IColdRollPlanService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        // 2030 组最小机台数（流转保底矛盾 B 判定基准，5060/2030 两源组共用）
-        int minMachines2030 = machineTypeGroups.First(g => g.Key == ColdRollMachineGroupKeys.Roll2030).Keys
-            .Sum(k => machineConfigDict.GetValueOrDefault(k)?.MinMachines ?? 0);
-
-        // 流转保底（方式 B → 方式 A）：2030 下次承接需求 = 5060 流入（档位命中延伸，flowFrom5060）+ 2030 本组本次未定流转（当前档位不命中）。
-        // flowDemand2030=总承接（2030 组需求基准）；flowFrom5060=仅 5060 流入（对倒判据，5060 供给只喂这部分）；同时返回各部分料重（kg）。
-        var (flowFrom5060, flowDemand2030, flowFrom5060Weight, flowDemand2030Weight) =
-            ComputeFlowDemand2030(allocations, scheduleDict, capacityDict, machineConfigDict);
+        // 供需链（2026-08-29 方案 A）：按链对计算流入/承接，允许多条并行链、多级链（替代原硬编码 5060→2030 全局单链）。
+        // demandInflow[需求组Key] = (FromSupplier=Σ所有指向它的供给流入, Total=FromSupplier+本组未定流转, ...)
+        // supplierOutflow[供给组Key] = (FromSupplier=本组流向目标组流入, Total=目标组总承接, ...)
+        var (demandInflow, supplierOutflow) =
+            ComputeFlowDemand(allocations, scheduleDict, capacityDict, machineConfigDict, machineTypeGroups);
 
         var result = new List<ColdRollScheduleSuggestionDto>();
         foreach (var group in machineTypeGroups)
         {
-            var groupAlloc = allocations.Where(a => group.Keys.Contains(a.ProcessType)).ToList();
+            var groupAlloc = allocations.Where(a => group.ContainsKey(a.ProcessType)).ToList();
             var groupKeys = allKeys
-                .Where(k => group.Keys.Contains(ProcessTypeOf(k)))
+                .Where(k => group.ContainsKey(ProcessTypeOf(k)))
                 .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -696,35 +699,63 @@ public class ColdRollPlanService : IColdRollPlanService
             string currentTier = ComputeCurrentTier(groupKeys, scheduleDict);
             int currentCount = CountAtCurrentTiers(groupAlloc, scheduleDict, capacityDict);
 
-            // 流转保底（优先3）：2030 组需求方 / 5060 组供给方；组目标机台数
-            bool isDemander = group.Keys.Contains(ProcessKeys.ColdRoll20) || group.Keys.Contains(ProcessKeys.ColdRoll30);
-            bool isSupplier = group.Keys.Contains(ProcessKeys.ColdRoll50) || group.Keys.Contains(ProcessKeys.ColdRoll60);
+            // 流转保底（优先3）：需求方组（被供给组指向）/ 供给方组（配置了 SupplyTargetGroupKey）；组目标机台数
+            bool isDemander = demandInflow.ContainsKey(group.Key);
+            bool isSupplier = !string.IsNullOrEmpty(group.SupplyTargetGroupKey);
+            var targetGroup = isSupplier
+                ? machineTypeGroups.FirstOrDefault(g => string.Equals(g.Key, group.SupplyTargetGroupKey, StringComparison.OrdinalIgnoreCase))
+                : null;
+            int targetMinMachines = targetGroup?.Keys.Sum(k => machineConfigDict.GetValueOrDefault(k)?.MinMachines ?? 0) ?? 0;
             FlowStateDto? flowState = null;
-            if (isDemander)
+            if (isDemander && isSupplier)
             {
+                // 多级链中间节点：既承接上游供给，又再供给下游
+                var din = demandInflow[group.Key];
+                var sout = supplierOutflow[group.Key];
+                flowState = new FlowStateDto
+                {
+                    Role = "Both",
+                    SupplyMachines = din.Total,
+                    TotalWeight = din.TotalWeight,
+                    NeedMachines = minMachines,
+                    Balanced = din.Total >= minMachines,
+                    TargetGroupDisplay = targetGroup?.Display ?? group.SupplyTargetGroupKey ?? "",
+                    SupplyToTargetMachines = sout.FromSupplier,
+                    SupplyToTargetWeight = sout.FromSupplierWeight,
+                    Text = $"{group.Display}：承接流转 {din.Total} 台 / {din.TotalWeight.ToString("G29")}kg（供给流入 {din.FromSupplier} 台 / {din.FromSupplierWeight.ToString("G29")}kg + 本组未定流转 {din.Total - din.FromSupplier} 台 / {(din.TotalWeight - din.FromSupplierWeight).ToString("G29")}kg），再供给下游 {sout.FromSupplier} 台 / {sout.FromSupplierWeight.ToString("G29")}kg，最小需 {minMachines} 台，流转{(din.Total >= minMachines ? "平衡" : "不足")}",
+                };
+            }
+            else if (isDemander)
+            {
+                var din = demandInflow[group.Key];
                 flowState = new FlowStateDto
                 {
                     Role = "Demander",
-                    SupplyMachines = flowDemand2030,
-                    TotalWeight = flowDemand2030Weight,
-                    NeedMachines = minMachines2030,
-                    Balanced = flowDemand2030 >= minMachines2030,
-                    Text = $"2030 下次承接流转 {flowDemand2030} 台 / {flowDemand2030Weight.ToString("G29")}kg（5060 流入 {flowFrom5060} 台 / {flowFrom5060Weight.ToString("G29")}kg + 本次未定流转 {flowDemand2030 - flowFrom5060} 台 / {(flowDemand2030Weight - flowFrom5060Weight).ToString("G29")}kg），2030 最小需 {minMachines2030} 台，流转{(flowDemand2030 >= minMachines2030 ? "平衡" : "不足")}",
+                    SupplyMachines = din.Total,
+                    TotalWeight = din.TotalWeight,
+                    NeedMachines = minMachines,
+                    Balanced = din.Total >= minMachines,
+                    Text = $"{group.Display} 下次承接流转 {din.Total} 台 / {din.TotalWeight.ToString("G29")}kg（供给流入 {din.FromSupplier} 台 / {din.FromSupplierWeight.ToString("G29")}kg + 本次未定流转 {din.Total - din.FromSupplier} 台 / {(din.TotalWeight - din.FromSupplierWeight).ToString("G29")}kg），{group.Display} 最小需 {minMachines} 台，流转{(din.Total >= minMachines ? "平衡" : "不足")}",
                 };
             }
             else if (isSupplier)
             {
+                var sout = supplierOutflow[group.Key];
+                var tgtName = targetGroup?.Display ?? group.SupplyTargetGroupKey ?? "";
                 flowState = new FlowStateDto
                 {
                     Role = "Supplier",
-                    SupplyMachines = flowDemand2030,
-                    TotalWeight = flowDemand2030Weight,
-                    NeedMachines = minMachines2030,
-                    Balanced = flowDemand2030 >= minMachines2030,
-                    Text = $"5060 本次流转可供给 2030 流入 {flowFrom5060} 台 / {flowFrom5060Weight.ToString("G29")}kg（2030 下次总承接 {flowDemand2030} 台 / {flowDemand2030Weight.ToString("G29")}kg 含本次未定流转），2030 最小需 {minMachines2030} 台，流转{(flowDemand2030 >= minMachines2030 ? "平衡" : "不足")}",
+                    SupplyMachines = sout.FromSupplier,
+                    TotalWeight = sout.FromSupplierWeight,
+                    NeedMachines = targetMinMachines,
+                    Balanced = sout.Total >= targetMinMachines,
+                    TargetGroupDisplay = tgtName,
+                    SupplyToTargetMachines = sout.FromSupplier,
+                    SupplyToTargetWeight = sout.FromSupplierWeight,
+                    Text = $"{group.Display} 本次流转可供给 {tgtName} 流入 {sout.FromSupplier} 台 / {sout.FromSupplierWeight.ToString("G29")}kg（{tgtName} 下次总承接 {sout.Total} 台 / {sout.TotalWeight.ToString("G29")}kg 含本次未定流转），{tgtName} 最小需 {targetMinMachines} 台，流转{(sout.Total >= targetMinMachines ? "平衡" : "不足")}",
                 };
             }
-            int minTarget = isDemander ? Math.Max(minMachines, flowDemand2030) : minMachines;
+            int minTarget = isDemander ? Math.Max(minMachines, demandInflow[group.Key].Total) : minMachines;
 
             // ===== v2 档位决策：默认「急+/急/急-」起步，双向调整（产能平衡优先2）=====
             string suggestedTier;
@@ -737,30 +768,27 @@ public class ColdRollPlanService : IColdRollPlanService
             {
                 suggestedTier = "-"; // 无排程行无批次，无可建议
             }
-            else if (!isDemander && !isSupplier)
-            {
-                // 三辊 / 冷拔：固定「急+/急/急-」，后续完全由人工判定
-                suggestedTier = "Partial2";
-            }
             else if (maxMachines <= 0)
             {
-                // 2030/5060 无机台数配置：无区间约束，保持默认原始档（特急锁定在行级仍生效）
+                // 未配置机台数上限：无区间约束，保持默认原始档（特急锁定在行级仍生效）
                 suggestedTier = "Partial2";
             }
             else
             {
+                // 统一产能平衡（2026-08-29）：凡配了 MaxMachines 的组（无论有无供需链）都受机台数上限约束。
+                // 无供需组（三辊/冷拔独立池、或取消供给目标组后的 5060）不再无条件固定 Partial2——
+                // 超上限向窄收（Urgent→CrOnly）并标注矛盾 A'，不足向宽放（Partial3→All）并标注矛盾 A。
                 var chosen = ChooseTierBidirectional(group.Display, groupAlloc, minTarget, maxMachines, scheduleDict, capacityDict);
                 suggestedTier = chosen.tier;
                 status = chosen.status;
                 conflicts.AddRange(chosen.conflicts);
             }
 
-            // ===== 5060 ②流转平衡：两阶段——先只放宽在制喂饱 2030，再压成品防总负荷超上限 =====
-            // 判据统一 2030 基准：在制品堆按「2030 产能档案 daily」折算的供给机台 < flowFrom5060 才触发阶段1
-            // （flowFrom5060 = 仅 5060 流入需求，同样按 2030 daily 折算，两侧同基准；2030 本组本次未定流转由
-            //   2030 组自身承接，不由 5060 供给决定，故不进判据；只有真喂不饱 2030 时才动成品，
-            //   普通成品不会被 5060 daily > 2030 daily 的差异无脑压到 CrOnly）
-            if (isSupplier && suggestedTier != "-" && flowFrom5060 > 0)
+            // ===== 供给方组 ②流转平衡：两阶段——先只放宽在制喂饱目标需求组，再压成品防总负荷超上限 =====
+            // 判据统一目标组基准：在制品堆按「目标组产能档案 daily」折算的供给机台 < 本组流向目标组流入才触发阶段1
+            // （本组未定流转由目标组自身承接，不由本组供给决定，故不进判据；只有真喂不饱目标组时才动成品）
+            var flowToTarget = isSupplier ? supplierOutflow[group.Key].FromSupplier : 0;
+            if (isSupplier && targetGroup != null && suggestedTier != "-" && flowToTarget > 0)
             {
                 inProdTier = suggestedTier;
                 finishedTier = suggestedTier;
@@ -768,9 +796,9 @@ public class ColdRollPlanService : IColdRollPlanService
                 var finishedAlloc = groupAlloc.Where(a => a.IsFinished).ToList();
                 if (inProdAlloc.Count > 0 && finishedAlloc.Count > 0)
                 {
-                    // 阶段1：先只放宽 5060 在制档位，直到在制供给（2030 产能折算）≥ flowFrom5060 或放宽到 All；成品不动
+                    // 阶段1：先只放宽在制档位，直到在制供给（目标组产能折算）≥ 本组流向目标组流入 或放宽到 All；成品不动
                     int guard1 = 0;
-                    while (CountAtTierFlow2030(inProdAlloc, inProdTier, capacityDict, machineConfigDict) < flowFrom5060
+                    while (CountAtTierFlowTo(inProdAlloc, inProdTier, capacityDict, machineConfigDict, group, targetGroup) < flowToTarget
                         && inProdTier != "All" && guard1++ < 5)
                     {
                         var nextIn = TierStepWide(inProdTier);
@@ -778,7 +806,7 @@ public class ColdRollPlanService : IColdRollPlanService
                         inProdTier = nextIn;
                     }
 
-                    // 阶段2：放宽后若 5060 组总机台（在制+成品，5060 本组产能档案 5060 daily 口径）拉出组上限 → 压缩成品档位让路
+                    // 阶段2：放宽后若本组总机台（在制+成品，本组产能档案 daily 口径）拉出组上限 → 压缩成品档位让路
                     int guard2 = 0;
                     while (CountAtTier(inProdAlloc, inProdTier, scheduleDict, capacityDict)
                             + CountAtTier(finishedAlloc, finishedTier, scheduleDict, capacityDict) > maxMachines
@@ -792,11 +820,17 @@ public class ColdRollPlanService : IColdRollPlanService
             }
 
             // 流转保底矛盾 B（可叠加 A/A'）
-            bool flowUnbalanced = isDemander && flowDemand2030 > 0 && flowDemand2030 < minMachines2030;
+            bool flowUnbalanced = false;
+            if (isDemander)
+            {
+                var din = demandInflow[group.Key];
+                flowUnbalanced = din.Total > 0 && din.Total < minMachines;
+            }
             if (flowUnbalanced)
             {
+                var din = demandInflow[group.Key];
                 status = status == "OK" ? "B" : status + ",B";
-                conflicts.Add($"2030 下次承接流转 {flowDemand2030} 台（5060 流入 {flowFrom5060} + 本次未定流转 {flowDemand2030 - flowFrom5060}）< 2030 最小机台数 {minMachines2030} 台，请人工平衡 5060/2030 流转");
+                conflicts.Add($"{group.Display} 下次承接流转 {din.Total} 台（供给流入 {din.FromSupplier} + 本次未定流转 {din.Total - din.FromSupplier}）< {group.Display} 最小机台数 {minMachines} 台，请人工平衡供给/需求流转");
             }
 
             // 行级建议（按决策对象回填：三辊/冷拔→Partial2；2030→组档；5060→在制/成品档；矛盾→null 仅特急锁定）
@@ -869,6 +903,54 @@ public class ColdRollPlanService : IColdRollPlanService
         }
 
         return result;
+    }
+
+    // ========== 机台组配置（配置表驱动，替代 ColdRollMachineGroupKeys.Groups 硬编码） ==========
+
+    /// <summary>机台组定义（引擎归组运行时内存模型）：Key/Display/Keys[]/SupplyTargetGroupKey（配置表 ColdRollMachineGroupConfigs 映射，组角色字段已移除）</summary>
+    internal sealed class MachineGroupDef
+    {
+        public string Key { get; init; } = "";
+        public string Display { get; init; } = "";
+        public string[] Keys { get; init; } = Array.Empty<string>();
+
+        /// <summary>供给目标组 Key（可空）：本组为供给方时指向的下游需求组；引擎 isSupplier 判定 + 按链对流转折算依据</summary>
+        public string? SupplyTargetGroupKey { get; init; }
+
+        /// <summary>组内工序判定（OrdinalIgnoreCase：SQL 大小写不敏感，内存比较须忽略大小写）</summary>
+        public bool ContainsKey(string? processType)
+            => !string.IsNullOrEmpty(processType)
+               && Keys.Any(k => string.Equals(k, processType, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// 加载机台组定义（配置表按 DisplayOrder 排序，缓存 60 秒）。
+    /// 组配置保存/删除由 ColdRollMachineGroupConfigService 主动失效；短 TTL 双保险。
+    /// </summary>
+    private async Task<List<MachineGroupDef>> LoadMachineGroupsAsync()
+    {
+        return await _cache.GetOrCreateAsync(MachineGroupCacheKey, async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+            var rows = await _context.ColdRollMachineGroupConfigs
+                .AsNoTracking()
+                .OrderBy(g => g.DisplayOrder)
+                .ToListAsync();
+            return rows.Select(g => new MachineGroupDef
+            {
+                Key = g.GroupKey,
+                Display = g.DisplayName,
+                Keys = SplitProcessKeys(g.ProcessKeys),
+                SupplyTargetGroupKey = g.SupplyTargetGroupKey,
+            }).ToList();
+        }) ?? new List<MachineGroupDef>();
+    }
+
+    /// <summary>逗号分隔工序串 → 工序 Key 数组（Trim + 去空）</summary>
+    private static string[] SplitProcessKeys(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return Array.Empty<string>();
+        return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
     // ========== 私有方法 ==========
@@ -1116,35 +1198,46 @@ public class ColdRollPlanService : IColdRollPlanService
     }
 
     /// <summary>
-    /// 流转保底（方式 B → 方式 A）：2030 组下次计划（7-12天）的机台承接需求，两部分：
-    /// ① 5060 在制/待轧（PositionDiff≤6，档位命中=有流转要求）向下游延伸 2030 规格折算的流入机台 FlowFrom5060；
-    /// ② 2030 本组在制/待轧（PositionDiff≤6）本次计划未定流转的料（当前档位不命中，如急-/顺 未被本次档位覆盖）留待下次承接的机台。
-    /// 两者相加为 FlowTotal（2030 下次总承接）；产能档案有单机单日量用方式 B，否则回退机台配置 EstimatedDailyOutput（方式 A），皆无则贡献 0。
+    /// 供需链流转保底（方式 B → 方式 A，2026-08-29 方案 A 按链对）：对每个需求组算「下次计划（7-12天）的机台承接需求」，
+    /// 对每个供给组算「本组流向目标需求组的流入」。需求组承接两部分：
+    /// ① 供给组在制/待轧（PositionDiff≤6，档位命中=有流转要求）向下游延伸本组规格折算的流入机台 FromSupplier；
+    /// ② 本组在制/待轧（PositionDiff≤6）本次计划未定流转的料（当前档位不命中，如急-/顺 未被本次档位覆盖）留待下次承接的机台。
+    /// 两者相加为 Total（下次总承接）；产能档案有单机单日量用方式 B，否则回退机台配置 EstimatedDailyOutput（方式 A），皆无则贡献 0。
     /// 同时返回各组成部分的料重（kg，与机台数同批次口径）。
+    /// 多链/多级链：supplierOutflow[供给组] 仅计本组→本组 SupplyTarget 的流入（多级链中间节点既承接又再供给，互不重复）。
     /// </summary>
-    private static (int FlowFrom5060, int FlowTotal, decimal From5060Weight, decimal TotalWeight) ComputeFlowDemand2030(
+    private static (Dictionary<string, ChainFlow> demandInflow, Dictionary<string, ChainFlow> supplierOutflow) ComputeFlowDemand(
         List<BatchAllocation> allocations,
         IReadOnlyDictionary<string, ScheduleRow> scheduleDict,
         IReadOnlyDictionary<string, decimal?> capacityDict,
-        IReadOnlyDictionary<string, ColdRollMachineConfig> machineConfigDict)
+        IReadOnlyDictionary<string, ColdRollMachineConfig> machineConfigDict,
+        List<MachineGroupDef> groups)
     {
-        decimal from5060 = 0m;
-        decimal self = 0m;
-        decimal from5060Weight = 0m;
-        decimal selfWeight = 0m;
+        var targetGroupByKey = groups.ToDictionary(g => g.Key, StringComparer.OrdinalIgnoreCase);
+        var supplierGroups = groups.Where(g => !string.IsNullOrEmpty(g.SupplyTargetGroupKey)).ToList();
+        // 需求组集合 = 所有被供给组指向的组（含多级链中间节点；工序全局唯一归属一组，跨组不重叠）
+        var demanderGroups = supplierGroups
+            .Select(s => targetGroupByKey.GetValueOrDefault(s.SupplyTargetGroupKey!))
+            .Where(g => g != null)
+            .DistinctBy(g => g!.Key)
+            .Select(g => g!)
+            .ToList();
 
-        // ===== 部分二：5060 本次安排流转（档位命中）→ 延伸 2030 折算流入机台 =====
+        // ===== 部分二：供给组本次安排流转（档位命中）→ 延伸其目标组折算流入机台（按链对累积） =====
+        var chainMachine = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        var chainWeight = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         foreach (var a in allocations)
         {
             if (a.PositionDiff > 6) continue;
 
-            // 只算有流转要求（排程档位命中）的料：本批 5060 排程行档位须匹配（在轧 CompletionType/待轧 RollType）
+            // 只算有流转要求（排程档位命中）的料：本批供给组排程行档位须匹配（在轧 CompletionType/待轧 RollType）
             if (!scheduleDict.TryGetValue(KeyOf(a), out var sched)) continue;
             var schedType = a.PositionDiff == 0 ? sched.CompletionType : sched.RollType;
             if (!MatchesScheduleType(schedType, a.IsUrgent, a.IsNormal, a.AttentionMatchesCurrentCR, a.UrgencyLevel)) continue;
 
             var sourceKey = ProcessKeys.ToKey(a.ProcessType) ?? a.ProcessType;
-            if (sourceKey != ProcessKeys.ColdRoll50 && sourceKey != ProcessKeys.ColdRoll60) continue;
+            var srcGroup = supplierGroups.FirstOrDefault(g => g.ContainsKey(sourceKey));
+            if (srcGroup == null) continue;
 
             var pgs = a.ProcessGroups.OrderBy(pg => pg.SequenceNumber).ToList();
             if (pgs.Count == 0) continue;
@@ -1152,7 +1245,7 @@ public class ColdRollPlanService : IColdRollPlanService
             for (int i = 0; i < pgs.Count; i++)
             {
                 var k = ProcessKeys.ToKey(pgs[i].ProcessName) ?? pgs[i].ProcessName;
-                if (k == sourceKey) { idx = i; break; }
+                if (string.Equals(k, sourceKey, StringComparison.OrdinalIgnoreCase)) { idx = i; break; }
             }
             if (idx < 0) continue;
 
@@ -1165,9 +1258,10 @@ public class ColdRollPlanService : IColdRollPlanService
             if (next == null) continue;
 
             var nextKey = ProcessKeys.ToKey(next.ProcessName) ?? next.ProcessName;
-            if (nextKey != ProcessKeys.ColdRoll30 && nextKey != ProcessKeys.ColdRoll20) continue;
+            var tgtGroup = targetGroupByKey.GetValueOrDefault(srcGroup.SupplyTargetGroupKey!);
+            if (tgtGroup == null || !tgtGroup.ContainsKey(nextKey)) continue;
 
-            // 2030 规格维度：ProcessType=下一冷轧组、BilletSpec=5060 轧坯(a.RollingSpec)、RollingSpec=next 制造规格、IsFinished=next 是否最后工序组
+            // 目标组规格维度：ProcessType=下一冷轧组、BilletSpec=供给组轧坯(a.RollingSpec)、RollingSpec=next 制造规格、IsFinished=next 是否最后工序组
             var key = KeyOf(next.ProcessName, a.RollingSpec, next.ManufacturingSpec ?? "", next.IsFinished);
 
             decimal? daily = null;
@@ -1179,19 +1273,23 @@ public class ColdRollPlanService : IColdRollPlanService
 
             if (daily.HasValue)
             {
-                from5060 += a.Weight / (daily.Value * 6m);
-                from5060Weight += a.Weight;
+                var chainKey = $"{srcGroup.Key}|{tgtGroup.Key}";
+                chainMachine[chainKey] = chainMachine.GetValueOrDefault(chainKey) + a.Weight / (daily.Value * 6m);
+                chainWeight[chainKey] = chainWeight.GetValueOrDefault(chainKey) + a.Weight;
             }
         }
 
-        // ===== 部分一：2030 本组本次未定流转（当前档位不命中）→ 留待下次承接 =====
+        // ===== 部分一：需求组本组本次未定流转（当前档位不命中）→ 留待下次承接 =====
+        var selfMachine = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        var selfWeight = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         foreach (var a in allocations)
         {
             if (a.PositionDiff > 6) continue;
-            // 仅「2030 本组批次」（批次当前所在工序组为 20/30）：5060 批次的下游 30 组已由部分二（5060 流入）计入，不得重复
+            // 仅「需求组本组批次」（批次当前所在工序组属于某被指向的需求组）：供给组批次的下游延伸已由部分二（供给流入）计入，不得重复
             if (!a.IsCurrentGroup) continue;
             var sourceKey = ProcessKeys.ToKey(a.ProcessType) ?? a.ProcessType;
-            if (sourceKey != ProcessKeys.ColdRoll20 && sourceKey != ProcessKeys.ColdRoll30) continue;
+            var dGroup = demanderGroups.FirstOrDefault(g => g.ContainsKey(sourceKey));
+            if (dGroup == null) continue;
 
             // 当前档位命中（本次已安排流转）→ 不计；无排程行或档位不命中（急-/顺 等未被覆盖）→ 本次未定流转，计入下次承接
             bool matched = false;
@@ -1211,28 +1309,67 @@ public class ColdRollPlanService : IColdRollPlanService
 
             if (daily.HasValue)
             {
-                self += a.Weight / (daily.Value * 6m);
-                selfWeight += a.Weight;
+                selfMachine[dGroup.Key] = selfMachine.GetValueOrDefault(dGroup.Key) + a.Weight / (daily.Value * 6m);
+                selfWeight[dGroup.Key] = selfWeight.GetValueOrDefault(dGroup.Key) + a.Weight;
             }
         }
 
-        int flowFrom5060 = (int)Math.Round(from5060, MidpointRounding.AwayFromZero);
-        int flowTotal = (int)Math.Round(from5060 + self, MidpointRounding.AwayFromZero);
-        return (flowFrom5060, flowTotal, from5060Weight, from5060Weight + selfWeight);
+        // 聚合：demandInflow（按需求组：Σ 所有指向它的供给流入 + 本组未定流转）
+        var demandInflow = new Dictionary<string, ChainFlow>(StringComparer.OrdinalIgnoreCase);
+        foreach (var d in demanderGroups)
+        {
+            decimal fromM = 0m, fromW = 0m;
+            foreach (var s in supplierGroups)
+            {
+                var t = s.SupplyTargetGroupKey!;
+                if (!string.Equals(t, d.Key, StringComparison.OrdinalIgnoreCase)) continue;
+                fromM += chainMachine.GetValueOrDefault($"{s.Key}|{t}");
+                fromW += chainWeight.GetValueOrDefault($"{s.Key}|{t}");
+            }
+            decimal selfM = selfMachine.GetValueOrDefault(d.Key);
+            decimal selfW = selfWeight.GetValueOrDefault(d.Key);
+            demandInflow[d.Key] = new ChainFlow(
+                FromSupplier: (int)Math.Round(fromM, MidpointRounding.AwayFromZero),
+                Total: (int)Math.Round(fromM + selfM, MidpointRounding.AwayFromZero),
+                FromSupplierWeight: fromW,
+                TotalWeight: fromW + selfW);
+        }
+
+        // 聚合：supplierOutflow（按供给组：本组→目标组流入；Total=目标组总承接）
+        var supplierOutflow = new Dictionary<string, ChainFlow>(StringComparer.OrdinalIgnoreCase);
+        foreach (var s in supplierGroups)
+        {
+            var t = s.SupplyTargetGroupKey!;
+            decimal fromM = chainMachine.GetValueOrDefault($"{s.Key}|{t}");
+            decimal fromW = chainWeight.GetValueOrDefault($"{s.Key}|{t}");
+            var tgtInflow = demandInflow.GetValueOrDefault(t) ?? new ChainFlow(0, 0, 0, 0);
+            supplierOutflow[s.Key] = new ChainFlow(
+                FromSupplier: (int)Math.Round(fromM, MidpointRounding.AwayFromZero),
+                Total: tgtInflow.Total,
+                FromSupplierWeight: fromW,
+                TotalWeight: tgtInflow.TotalWeight);
+        }
+
+        return (demandInflow, supplierOutflow);
     }
 
+    /// <summary>供需链流动记录：FromSupplier=供给流入机台数，Total=总承接（含本组未定流转）；重量同构（kg）。</summary>
+    private sealed record ChainFlow(int FromSupplier, int Total, decimal FromSupplierWeight, decimal TotalWeight);
+
     /// <summary>
-    /// 5060 ②在制品供给机台（统一 2030 基准）：在制品堆（IsFinished=false，调用处已过滤）按档位匹配后，
-    /// 经 ProcessGroups 追踪下一 2030 组，用 2030 规格产能档案 daily（方式 B → 方式 A）折算供给机台——
-    /// 与 ComputeFlowDemand2030 部分二（5060 流入 flowFrom5060）同基准、同窗口(PositionDiff≤6)；
-    /// 对倒判据用 flowFrom5060：供给随档位放宽逐档计入——放宽至 All 时供给 = flowFrom5060 → 对倒自然停止；
-    /// 无 2030 延伸的批次贡献 0。
+    /// 供给方组 ②在制品供给机台（统一目标组基准）：在制品堆（IsFinished=false，调用处已过滤）按档位匹配后，
+    /// 经 ProcessGroups 追踪下一目标组工序，用目标组规格产能档案 daily（方式 B → 方式 A）折算供给机台——
+    /// 与 ComputeFlowDemand 部分二（本组流向目标组流入）同基准、同窗口(PositionDiff≤6)；
+    /// 对倒判据用本组流向目标组流入：供给随档位放宽逐档计入——放宽至 All 时供给 = 流入 → 对倒自然停止；
+    /// 无目标组延伸的批次贡献 0。
     /// </summary>
-    private static int CountAtTierFlow2030(
+    private static int CountAtTierFlowTo(
         List<BatchAllocation> inProdAlloc,
         string tier,
         IReadOnlyDictionary<string, decimal?> capacityDict,
-        IReadOnlyDictionary<string, ColdRollMachineConfig> machineConfigDict)
+        IReadOnlyDictionary<string, ColdRollMachineConfig> machineConfigDict,
+        MachineGroupDef supplierGroup,
+        MachineGroupDef targetGroup)
     {
         decimal machineDays = 0m;
         foreach (var a in inProdAlloc)
@@ -1241,7 +1378,7 @@ public class ColdRollPlanService : IColdRollPlanService
             if (!MatchesScheduleType(tier, a.IsUrgent, a.IsNormal, a.AttentionMatchesCurrentCR, a.UrgencyLevel)) continue;
 
             var sourceKey = ProcessKeys.ToKey(a.ProcessType) ?? a.ProcessType;
-            if (sourceKey != ProcessKeys.ColdRoll50 && sourceKey != ProcessKeys.ColdRoll60) continue;
+            if (!supplierGroup.ContainsKey(sourceKey)) continue;
 
             var pgs = a.ProcessGroups.OrderBy(pg => pg.SequenceNumber).ToList();
             if (pgs.Count == 0) continue;
@@ -1249,7 +1386,7 @@ public class ColdRollPlanService : IColdRollPlanService
             for (int i = 0; i < pgs.Count; i++)
             {
                 var k = ProcessKeys.ToKey(pgs[i].ProcessName) ?? pgs[i].ProcessName;
-                if (k == sourceKey) { idx = i; break; }
+                if (string.Equals(k, sourceKey, StringComparison.OrdinalIgnoreCase)) { idx = i; break; }
             }
             if (idx < 0) continue;
 
@@ -1262,7 +1399,7 @@ public class ColdRollPlanService : IColdRollPlanService
             if (next == null) continue;
 
             var nextKey = ProcessKeys.ToKey(next.ProcessName) ?? next.ProcessName;
-            if (nextKey != ProcessKeys.ColdRoll30 && nextKey != ProcessKeys.ColdRoll20) continue;
+            if (!targetGroup.ContainsKey(nextKey)) continue;
 
             var key = KeyOf(next.ProcessName, a.RollingSpec, next.ManufacturingSpec ?? "", next.IsFinished);
 

@@ -45,9 +45,6 @@ public interface IWorkOrderExecutionService
     /// </summary>
     Task RefreshByWorkOrderNosAsync(List<string> workOrderNos);
 
-    /// <summary>按筛选条件打印全部数据</summary>
-    Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom, DateTime? signDateTo, DateTime? deliveryDateStart, DateTime? deliveryDateEnd, List<PrintColumnDef> columns);
-
     /// <summary>打印选中行（Mode A：前端已准备数据）</summary>
     Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns);
 }

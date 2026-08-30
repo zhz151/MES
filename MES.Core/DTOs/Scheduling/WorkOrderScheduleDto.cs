@@ -22,17 +22,14 @@ public class WorkOrderScheduleDto
     public DateTime DeliveryDate { get; set; }
     public bool DelayPenalty { get; set; }
     public SettlementMethod SettlementMethod { get; set; }
-    public string SettlementMethodDisplay => EnumHelper.GetDisplayName(SettlementMethod);
     public string SalesOrderNo { get; set; } = null!;
     public string ProductionMainNo { get; set; } = null!;
     public string? ProductionSubNo { get; set; }
     public string MaterialName { get; set; } = null!;
     public DeliveryState DeliveryState { get; set; }
-    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
     public string PlantGrade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public LengthStatus LengthStatus { get; set; }
-    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
     public decimal? MinLength { get; set; }
     public decimal? MaxLength { get; set; }
     public int TotalItemCount { get; set; }
@@ -116,18 +113,6 @@ public class WorkOrderScheduleDto
 
     /// <summary>生产流转性覆盖</summary>
     public string? PlanProductionFlowProperty { get; set; }
-
-    /// <summary>显示的工单状态（覆盖值 ?? 系统值）</summary>
-    public int DisplayScheduleStage => PlanScheduleStage ?? ScheduleStage;
-
-    /// <summary>显示的紧急性（覆盖值 ?? 系统值）</summary>
-    public string? DisplayUrgencyLevel => PlanUrgencyLevel ?? UrgencyLevel;
-
-    /// <summary>显示的生产关注工序（覆盖值 ?? 系统值）</summary>
-    public string? DisplayProductionAttentionProcess => PlanProductionAttentionProcess ?? MainNoAttentionProcess;
-
-    /// <summary>显示的生产流转性（覆盖值 ?? 系统值）</summary>
-    public string? DisplayProductionFlowProperty => PlanProductionFlowProperty ?? ProductionFlowProperty;
 
     // ========== 实时一致性 ==========
     /// <summary>

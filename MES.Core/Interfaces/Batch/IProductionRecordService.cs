@@ -38,11 +38,6 @@ public interface IProductionRecordService
 
     // ========== 工段委外 ==========
 
-    /// <summary>
-    /// 获取批次的工段委外列表
-    /// </summary>
-    Task<PagedResult<SectionOutsourceDto>> GetSectionOutsourcesAsync(int batchId, QueryParams query);
-
     Task RefreshBatchTrackingFieldsAsync(int batchId);
 
     /// <summary>
@@ -106,9 +101,4 @@ public interface IProductionRecordService
     /// 批量打印生产记录
     /// </summary>
     Task<byte[]> PrintProductionRecordBatchAsync(int[] ids, List<PrintColumnDef> columns);
-
-    /// <summary>
-    /// 按筛选条件打印全部生产记录
-    /// </summary>
-    Task<byte[]> PrintProductionRecordAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns, DateTime? execDateFrom, DateTime? execDateTo);
 }

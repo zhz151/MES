@@ -42,13 +42,6 @@ public class NotificationService : INotificationService
         _context = context;
     }
 
-    public async Task<int> GetUnreadCountAsync()
-    {
-        return await _context.Notifications
-            .Where(n => !n.IsRead)
-            .CountAsync();
-    }
-
     public async Task<PagedResult<NotificationDto>> GetPagedNotificationsAsync(int pageIndex, int pageSize)
     {
         var query = _context.Notifications
@@ -89,18 +82,6 @@ public class NotificationService : INotificationService
             notification.IsRead = true;
             await _context.SaveChangesAsync();
         }
-    }
-
-    public async Task MarkAllAsReadAsync()
-    {
-        var unread = await _context.Notifications
-            .Where(n => !n.IsRead)
-            .ToListAsync();
-        foreach (var n in unread)
-        {
-            n.IsRead = true;
-        }
-        await _context.SaveChangesAsync();
     }
 
     public async Task CreateAsync(string notificationType, string title, string content, int? targetId = null, string? receiver = null)

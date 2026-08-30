@@ -8,6 +8,7 @@ using MES.Core.Constants;
 using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Scheduling;
+using MES.Core.DTOs.Configuration;
 
 namespace MES.Blazor.Pages.Configuration;
 
@@ -32,12 +33,15 @@ public partial class ColdRollMachineConfigs
     private string sortColumn = "ProcessType";
     private bool sortDescending = false;
 
-    /// <summary>机型选项（冷轧 60/50/30/20 + 三辊 + 冷拔）</summary>
-    private static readonly string[] MachineTypeOptions =
-    [
-        ProcessKeys.ColdRoll60, ProcessKeys.ColdRoll50, ProcessKeys.ColdRoll30,
-        ProcessKeys.ColdRoll20, ProcessKeys.ThreeRollColdRoll, ProcessKeys.ColdDraw
-    ];
+    /// <summary>机型选项（配置驱动：ProcessDefinitions 冷轧/冷拔工序，OnInitializedAsync 加载）</summary>
+    private List<ProcessInfoDto> _machineTypeOptions = new();
+
+    private async Task LoadMachineTypeOptionsAsync()
+    {
+        var result = await ProcessDefSvc.GetColdRollOptionsAsync();
+        if (result.Success && result.Data != null)
+            _machineTypeOptions = result.Data;
+    }
 
     // ========== 列选择管理 ==========
     private List<ColumnDef> _allColumns = new();
@@ -177,6 +181,7 @@ public partial class ColdRollMachineConfigs
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
+        await LoadMachineTypeOptionsAsync();
         var saved = await ColumnPrefs.LoadAsync("cold_roll_machine_configs", null);
         if (saved.Count > 0)
         {
@@ -234,7 +239,7 @@ public partial class ColdRollMachineConfigs
         var newItem = new ColdRollMachineConfigDto
         {
             Id = newId,
-            ProcessType = MachineTypeOptions[0],
+            ProcessType = _machineTypeOptions.FirstOrDefault()?.ProcessKey ?? "",
             OwnedCount = 0,
             MinMachines = 0,
             MaxMachines = 0,

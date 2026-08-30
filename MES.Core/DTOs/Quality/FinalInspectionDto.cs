@@ -15,7 +15,6 @@ public class FinalInspectionDto
 
     /// <summary>检验项目</summary>
     public InspectionItem InspectionItem { get; set; }
-    public string InspectionItemDisplay => EnumHelper.GetDisplayName(InspectionItem);
 
     /// <summary>检验日期</summary>
     public DateTime InspectionDate { get; set; }
@@ -28,7 +27,6 @@ public class FinalInspectionDto
 
     /// <summary>制造物品</summary>
     public MaterialType? ManufacturingItem { get; set; }
-    public string? ManufacturingItemDisplay => ManufacturingItem.HasValue ? EnumHelper.GetDisplayName(ManufacturingItem.Value) : null;
 
     /// <summary>挂牌号</summary>
     public string? TagNo { get; set; }
@@ -118,7 +116,6 @@ public class FinalInspectionDto
 
     /// <summary>班次</summary>
     public ShiftType? Shift { get; set; }
-    public string? ShiftDisplay => Shift.HasValue ? EnumHelper.GetDisplayName(Shift.Value) : null;
 
     /// <summary>操作员</summary>
     public string? Operator { get; set; }
@@ -128,7 +125,6 @@ public class FinalInspectionDto
 
     /// <summary>成检类型</summary>
     public InspectionType? InspectionType { get; set; }
-    public string? InspectionTypeDisplay => InspectionType.HasValue ? EnumHelper.GetDisplayName(InspectionType.Value) : null;
 
     /// <summary>理论检验重量</summary>
     public int? Weight { get; set; }

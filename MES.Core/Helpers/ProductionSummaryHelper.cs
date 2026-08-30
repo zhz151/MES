@@ -23,7 +23,8 @@ public static class ProductionSummaryHelper
     /// <summary>
     /// 近日/月度生产量数据全工段汇总行集合：SectionDefs 全部 26 个工段中文（内抛+内修磨合并为一行），
     /// 其中冷轧拔工段按所在工序组分化为多行（含暂未启用的 90 冷轧）+ 检验-荒管/检验-在制。
-    /// 与 BatchPlanSectionTabs（工段筛选 Tab，17 项）解耦：汇总按全工段归行，筛选 Tab 保持原状。
+    /// 与批次计划工段筛选 Tab（已配置驱动，BatchPlanSectionTabs.All 已删）解耦：本汇总恒按全工段归行，
+    /// 不随 Tab 选项变化；冷轧拔分化行含暂未启用工序，与筛选 Tab 的逐工序 Tab 口径不同。
     /// 行序 = SectionDefs.All 顺序（冷轧拔位置展开分化行）+ 检验-荒管/检验-在制末尾。
     /// </summary>
     public static readonly string[] SummaryAllSectionTabs = BuildSummaryAllSectionTabs();

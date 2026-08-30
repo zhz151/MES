@@ -11,11 +11,6 @@ namespace MES.Core.Interfaces.WorkOrder;
 public interface IWorkOrderService
 {
     /// <summary>
-    /// 获取工单首页订单列表（含工单状态）
-    /// </summary>
-    Task<PagedResult<OrderWorkOrderStatusDto>> GetOrderWorkOrderStatusPageAsync(WorkOrderQueryParams query);
-
-    /// <summary>
     /// 获取已确认但无工单的订单列表（待生成工单）
     /// </summary>
     Task<List<WorkOrderListItemDto>> GetPendingOrdersAsync();
@@ -76,20 +71,6 @@ public interface IWorkOrderService
     Task CheckAndUpdateWorkOrderStatusAsync(int salesOrderId);
 
     /// <summary>
-    /// 检测所有已确认订单的变更并更新工单状态
-    /// </summary>
-    Task CheckAllOrdersChangeAsync();
-    /// <summary>
-    /// 获取所有工单首页订单状态数据（无分页，供客户端筛选排序）
-    /// </summary>
-    Task<List<OrderWorkOrderStatusDto>> GetAllOrderStatusListAsync();
-
-    /// <summary>
-    /// 全量刷新用料计划读模型（全部 WorkOrders + 计划表重新计算）
-    /// </summary>
-    Task RefreshMaterialPlanReadModelAsync();
-
-    /// <summary>
     /// 获取所有用料计划总览数据（无分页，供客户端筛选排序）
     /// </summary>
     Task<List<WorkOrderListDto>> GetAllListAsync();
@@ -114,11 +95,6 @@ public interface IWorkOrderService
     /// 按多个订单号批量打印工单（选中打印）
     /// </summary>
     Task<byte[]> PrintWorkOrdersByOrderBatchAsync(string[] salesOrderNos);
-
-    /// <summary>
-    /// 按筛选项打印全部工单（全部打印）
-    /// </summary>
-    Task<byte[]> PrintWorkOrdersByOrderAllAsync(WorkOrderQueryParams query);
 
     /// <summary>
     /// 打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）

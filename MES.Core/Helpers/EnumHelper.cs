@@ -61,7 +61,6 @@ public static class EnumHelper
         ["SubcontractOrderStatus"] = "委外加工单状态",
         ["WorkOrderStatus"] = "工单状态（3态，不含已取消——工单物理删除）",
         ["VerifyResult"] = "纠正预防措施验证结论",
-        ["TaskOrderStatus"] = "点检/保养工单共用状态",
         ["UsageType"] = "设备作用类型（使用分类）"
     };
 
@@ -200,10 +199,6 @@ public static class EnumHelper
                                        ("Pending", "待执行"),
                                        ("Normal", "正常"),
                                        ("Overdue", "逾期"));
-
-        Register<TaskOrderStatus>(("Pending", "待执行"),
-                                   ("Completed", "已完成"),
-                                   ("Overdue", "已逾期"));
 
         Register<InspectionItem>(("PMIInspection", "PMI检验"),
                                   ("VisualInspection", "表检"),

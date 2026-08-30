@@ -37,17 +37,6 @@ public class FurnaceRegistrationController : ControllerBase
     }
 
     /// <summary>
-    /// 获取所有来料炉号登记（无分页）
-    /// </summary>
-    [HttpGet("all-list")]
-    [Authorize(Roles = Roles.Policies.QualityView)]
-    public async Task<ApiResponse<List<FurnaceRegistrationDto>>> GetAllList()
-    {
-        var result = await _service.GetAllListAsync();
-        return ApiResponse<List<FurnaceRegistrationDto>>.Ok(result);
-    }
-
-    /// <summary>
     /// 查询所有来料炉号登记（分页）
     /// </summary>
     [HttpGet("all")]
@@ -159,12 +148,4 @@ public class FurnaceRegistrationController : ControllerBase
         return File(pdfBytes, "application/pdf", "来料炉号登记-选中.pdf");
     }
 
-    /// <summary>按搜索条件打印全部记录（PDF 文件）</summary>
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.QualityView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] FurnaceRegistrationPrintAllRequest request)
-    {
-        var pdfBytes = await _service.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns, request.IncomingDateFrom, request.IncomingDateTo);
-        return File(pdfBytes, "application/pdf", "来料炉号登记-全部.pdf");
-    }
 }

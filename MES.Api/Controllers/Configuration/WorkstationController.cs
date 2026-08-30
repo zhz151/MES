@@ -104,11 +104,4 @@ public class WorkstationController : ControllerBase
         return File(pdfBytes, "application/pdf", "工位信息-选中.pdf");
     }
 
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.ScanView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] WorkstationPrintAllRequest request)
-    {
-        var pdfBytes = await _workstationService.PrintAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.Columns);
-        return File(pdfBytes, "application/pdf", "工位信息-全部.pdf");
-    }
 }

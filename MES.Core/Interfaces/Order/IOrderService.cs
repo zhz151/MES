@@ -45,16 +45,6 @@ public interface IOrderService
     // ========== 项次管理 ==========
 
     /// <summary>
-    /// 添加订单项次
-    /// </summary>
-    Task<OrderItemDto> AddItemAsync(int orderId, AddOrderItemRequest request);
-
-    /// <summary>
-    /// 更新订单项次
-    /// </summary>
-    Task<OrderItemDto> UpdateItemAsync(int orderId, int itemId, UpdateOrderItemRequest request);
-
-    /// <summary>
     /// 删除订单项次
     /// </summary>
     Task DeleteItemAsync(int orderId, int itemId);
@@ -90,11 +80,6 @@ public interface IOrderService
     /// 打印选中批次订单PDF
     /// </summary>
     Task<byte[]> PrintOrderBatchAsync(int[] ids);
-
-    /// <summary>
-    /// 按筛选条件打印全部订单PDF
-    /// </summary>
-    Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy, bool isDescending, DateTime? signDateFrom = null, DateTime? signDateTo = null, DateTime? deliveryDateFrom = null, DateTime? deliveryDateTo = null);
 
     /// <summary>
     /// 打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）

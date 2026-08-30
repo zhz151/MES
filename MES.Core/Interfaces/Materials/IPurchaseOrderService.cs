@@ -13,7 +13,6 @@ public interface IPurchaseOrderService
     Task<List<PurchaseOrderDto>> CreateBatchAsync(List<CreatePurchaseOrderRequest> requests);
     Task<PurchaseOrderDto> UpdateAsync(int id, UpdatePurchaseOrderRequest request, bool isAdmin = false);
     Task SyncAllAsync();
-    Task SyncSingleAsync(int id);
     Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request);
     Task DeleteAsync(int id, bool isAdmin = false);
     Task<List<ProcurementStatusDto>> GetProcurementStatusAsync();
@@ -32,5 +31,4 @@ public interface IPurchaseOrderService
     // ========== 打印 ==========
     Task<byte[]> PrintOrderAsync(int id, List<PrintColumnDef>? columns = null);
     Task<byte[]> PrintOrderBatchAsync(int[] ids, List<PrintColumnDef>? columns = null);
-    Task<byte[]> PrintOrderAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, DateTime? dateFrom = null, DateTime? dateTo = null, List<PrintColumnDef>? columns = null);
 }

@@ -42,30 +42,4 @@ public class SectionParagraphConfigService
             return ApiResponse.Fail($"网络错误: {ex.Message}");
         }
     }
-
-    public async Task<ApiResponse> CreateSettingAsync(SectionParagraphConfigDto dto)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<SectionParagraphConfigDto, ApiResponse>(BaseUrl, dto);
-            return response ?? ApiResponse.Fail("新增失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
-    public async Task<ApiResponse> DeleteSettingAsync(int id)
-    {
-        try
-        {
-            var response = await _http.DeleteFromJsonAsync<ApiResponse>($"{BaseUrl}/{id}");
-            return response ?? ApiResponse.Fail("删除失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse.Fail($"网络错误: {ex.Message}");
-        }
-    }
 }

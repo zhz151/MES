@@ -161,6 +161,33 @@ public class EnumDisplayDefinitionServiceTests : TestBase, IDisposable
     }
 
     [Fact]
+    public async Task SaveAsync_纯符号显示名行_改说明_成功()
+    {
+        // 回归：InspectionRequirementStage.None 中文显示为 "-"（不要求），改说明不能被"必须含汉字"误拦
+        var ctx = CreateDbContext();
+        var row = Row("InspectionRequirementStage", "None", "-", 1);
+        row.Remark = "不要求";
+        ctx.EnumDisplayDefinitions.Add(row);
+        await ctx.SaveChangesAsync();
+        var svc = CreateService(ctx);
+
+        var dto = new MES.Core.DTOs.Configuration.EnumDisplayDefinitionDto
+        {
+            Id = row.Id,
+            EnumKey = "InspectionRequirementStage",
+            Value = "None",
+            DisplayName = "-",
+            DisplayOrder = 1,
+            Remark = "无检验要求（已改）"
+        };
+
+        (await svc.SaveAsync(dto)).Should().BeTrue();
+        var updated = ctx.EnumDisplayDefinitions.Single(x => x.Id == row.Id);
+        updated.Remark.Should().Be("无检验要求（已改）");
+        updated.DisplayName.Should().Be("-");
+    }
+
+    [Fact]
     public async Task SaveAsync_编辑行改锚点Value_抛业务异常()
     {
         var ctx = CreateDbContext();

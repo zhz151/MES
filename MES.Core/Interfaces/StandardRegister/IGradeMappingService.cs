@@ -26,7 +26,6 @@ public interface IGradeMappingService
 
     // ========== 打印 ==========
     Task<byte[]> PrintGradeMappingBatchAsync(int[] ids, List<PrintColumnDef>? columns = null);
-    Task<byte[]> PrintGradeMappingAllAsync(string? keyword, string? sortBy = null, bool isDescending = false, List<PrintColumnDef>? columns = null);
 
     // ========== 筛选上下文 ==========
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();

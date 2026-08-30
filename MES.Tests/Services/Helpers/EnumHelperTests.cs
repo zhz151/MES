@@ -378,7 +378,7 @@ public class EnumHelperTests
             typeof(BatchStatus), typeof(PurchaseOrderStatus),
             typeof(SubcontractOrderStatus), typeof(SectionOutsourceStatus), typeof(RepairPriority),
             typeof(LifecycleStatus), typeof(UsageType), typeof(RunningStatus),
-            typeof(RepairOrderStatus), typeof(EquipmentTaskStatus), typeof(TaskOrderStatus),
+            typeof(RepairOrderStatus), typeof(EquipmentTaskStatus),
             typeof(InspectionItem), typeof(DisposalMethod),
             typeof(NcrStatus), typeof(PicklingStatus),
             typeof(SeverityLevel), typeof(VerifyResult), typeof(SectionStatus),
@@ -429,25 +429,17 @@ public class EnumHelperTests
         ("EquipmentTaskStatus", typeof(EquipmentTaskStatus)),
         ("RepairOrderStatus", typeof(RepairOrderStatus)),
         ("Priority", typeof(RepairPriority)),         // GetPriorityText(RepairPriority)
-        ("TaskOrderStatus", typeof(TaskOrderStatus)),
         ("SubcontractProcessStatus", typeof(SubcontractOrderStatus)),
         ("SubcontractOrderStatus", typeof(SubcontractOrderStatus)),
         ("OutboundType", typeof(OutboundType)),
         ("MaterialPlanStatus", typeof(MaterialPlanStatus)),
         ("RequirementType", typeof(RequirementType)),  // GetRequirementTypeText(RequirementType) — 注意：是枚举版本委托 EnumHelper
-        ("InventoryPlanStatus", typeof(InventoryPlanStatus)),
-        ("ReworkType", typeof(ReworkType)),
         ("FinishedProductType", typeof(FinishedProductType)),
         ("MaterialType", typeof(MaterialType)),
-        ("CustomerStatus", typeof(CustomerStatus)),
-        ("NotificationType", typeof(NotificationType)),
         ("DisposalMethod", typeof(DisposalMethod)),
         ("NcrStatus", typeof(NcrStatus)),
-        ("PicklingStatus", typeof(PicklingStatus)),
         ("SeverityLevel", typeof(SeverityLevel)),
         ("VerifyResult", typeof(VerifyResult)),
-        ("PipeCategory", typeof(MaterialType)),
-        ("SectionStatus", typeof(SectionStatus)),
     };
 
     /// <summary>

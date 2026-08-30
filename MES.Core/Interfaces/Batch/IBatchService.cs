@@ -68,11 +68,6 @@ public interface IBatchService
     /// </summary>
     Task<ProcessGroupDto> AddProcessGroupAsync(int batchId, CreateProcessGroupRequest request);
 
-    /// <summary>
-    /// 删除工序组
-    /// </summary>
-    Task DeleteProcessGroupAsync(int groupId);
-
     // ========== 查询 ==========
 
     /// <summary>
@@ -96,11 +91,6 @@ public interface IBatchService
     /// 打印批次详情
     /// </summary>
     Task<byte[]> PrintBatchAsync(int id);
-
-    /// <summary>
-    /// 打印全部批次
-    /// </summary>
-    Task<byte[]> PrintBatchAllAsync(BatchPrintAllRequest request);
 
     /// <summary>
     /// 打印选中批次

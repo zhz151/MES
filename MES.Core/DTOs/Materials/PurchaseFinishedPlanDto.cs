@@ -27,7 +27,6 @@ public class PurchaseFinishedPlanDto
     /// 成品类型
     /// </summary>
     public FinishedProductType ProductType { get; set; }
-    public string ProductTypeDisplay => EnumHelper.GetDisplayName(ProductType);
 
     /// <summary>
     /// 采购支数
@@ -98,7 +97,6 @@ public class PurchaseFinishedPlanDto
     /// 长度状态
     /// </summary>
     public LengthStatus LengthStatus { get; set; }
-    public string LengthStatusDisplay => EnumHelper.GetDisplayName(LengthStatus);
 
     /// <summary>
     /// 最小长度(mm)
@@ -114,7 +112,6 @@ public class PurchaseFinishedPlanDto
     /// 交货状态
     /// </summary>
     public DeliveryState DeliveryState { get; set; }
-    public string DeliveryStateDisplay => EnumHelper.GetDisplayName(DeliveryState);
 
     /// <summary>工艺周期（天）</summary>
     public int StandardCycle { get; set; }

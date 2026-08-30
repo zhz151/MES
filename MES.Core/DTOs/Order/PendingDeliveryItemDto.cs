@@ -1,5 +1,4 @@
 using MES.Core.Enums;
-using MES.Core.Helpers;
 
 namespace MES.Core.DTOs.Order;
 
@@ -13,10 +12,8 @@ public class PendingDeliveryItemDto
     public string InventoryBatchNo { get; set; } = null!;
     /// <summary>物料</summary>
     public MaterialType MaterialType { get; set; }
-    public string MaterialTypeDisplay => EnumHelper.GetDisplayName(MaterialType);
     /// <summary>来源</summary>
     public InboundSource InboundSource { get; set; }
-    public string InboundSourceDisplay => EnumHelper.GetDisplayName(InboundSource);
     /// <summary>来料单位</summary>
     public string SourceName { get; set; } = null!;
     /// <summary>生产批号</summary>

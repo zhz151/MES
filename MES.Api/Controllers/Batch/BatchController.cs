@@ -75,14 +75,6 @@ public class BatchController : ControllerBase
         return Ok(ApiResponse<PagedResult<ProductionBatchListDto>>.Ok(result, "查询成功"));
     }
 
-    [HttpGet("all-list")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<ActionResult<ApiResponse<List<ProductionBatchListDto>>>> GetAllList()
-    {
-        var result = await _service.GetAllBatchListAsync();
-        return Ok(ApiResponse<List<ProductionBatchListDto>>.Ok(result, "查询成功"));
-    }
-
     [HttpGet("doubt-execution-summary")]
     [Authorize(Roles = Roles.Policies.BatchView)]
     public async Task<ActionResult<ApiResponse<List<BatchDoubtExecutionItemDto>>>> GetDoubtExecutionSummary()
@@ -187,14 +179,6 @@ public class BatchController : ControllerBase
             return BadRequest(ApiResponse<ProcessGroupDto>.Fail("请求参数无效"));
         var result = await _service.AddProcessGroupAsync(batchId, request);
         return Ok(ApiResponse<ProcessGroupDto>.Ok(result, "添加工序组成功"));
-    }
-
-    [HttpDelete("records/{recordId}")]
-    [Authorize(Roles = Roles.Policies.BatchDelete)]
-    public async Task<ActionResult<ApiResponse>> DeleteProcessGroup(int recordId)
-    {
-        await _service.DeleteProcessGroupAsync(recordId);
-        return Ok(ApiResponse.Ok("删除工序组成功"));
     }
 
     // ========== 查询 ==========
@@ -333,16 +317,6 @@ public class BatchController : ControllerBase
             return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
         var pdfBytes = await _service.PrintBatchAsync(request.Id);
         return File(pdfBytes, "application/pdf", $"生产批次_{request.Id}.pdf");
-    }
-
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
-    public async Task<IActionResult> PrintBatchAllFile([FromBody] BatchPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-        var pdfBytes = await _service.PrintBatchAllAsync(request);
-        return File(pdfBytes, "application/pdf", "生产批次列表.pdf");
     }
 
     [HttpPost("print-selected-file")]

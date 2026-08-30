@@ -110,7 +110,7 @@ public partial class FinalInspections
             EnumOptions = DisplayHelper.GetEnumFilterOptions<InspectionType>() },
         new() { Key = "IsDeliveryStatus",      Label = "是否交付态", SortKey = "isdeliverystatus", FilterType = "enum", Width = "100",
             GroupKey = 1, GroupName = "G1 检验执行",
-            EnumOptions = DisplayHelper.GetBoolOptions() },
+            EnumOptions = new() { new("是", "是"), new("否", "否") } },
         new() { Key = "QualificationLevel",    Label = "资格等级",   SortKey = "qualificationlevel", FilterType = "string", Width = "100",
             GroupKey = 1, GroupName = "G1 检验执行" },
         new() { Key = "BatchNo",                Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120",
@@ -916,7 +916,7 @@ public partial class FinalInspections
         "ProductionCutQuantity" => item.ProductionCutQuantity?.ToString(),
         "ProductionWeight" => item.ProductionWeight?.ToString("G29"),
         "IsDeliveryStatus" => item.IsDeliveryStatusDisplay,
-        "LengthStatus" => item.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(item.LengthStatus.Value) : "-",
+        "LengthStatus" => DisplayHelper.GetLengthStatusText(item.LengthStatus),
         "FixedLength" => item.FixedLength,
         "NonFixedLengthRange" => item.NonFixedLengthRange,
         "EquipmentName" => item.EquipmentName,
@@ -1284,7 +1284,7 @@ public partial class FinalInspections
                 builder.AddContent(0, item.PlantGrade);
                 break;
             case "ProductionType":
-                builder.AddContent(0, item.ProductionType.HasValue ? DisplayHelper.GetProductionTypeText(item.ProductionType.Value) : "-");
+                builder.AddContent(0, DisplayHelper.GetProductionTypeText(item.ProductionType));
                 break;
             case "Specification":
                 builder.AddContent(0, item.Specification);
@@ -1293,7 +1293,7 @@ public partial class FinalInspections
                 builder.AddContent(0, item.Salesman);
                 break;
             case "LengthStatus":
-                builder.AddContent(0, item.LengthStatus.HasValue ? DisplayHelper.GetLengthStatusText(item.LengthStatus.Value) : "-");
+                builder.AddContent(0, DisplayHelper.GetLengthStatusText(item.LengthStatus));
                 break;
             case "DeliveryState":
                 builder.AddContent(0, DisplayHelper.GetDeliveryStateText(item.DeliveryState));

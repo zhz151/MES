@@ -38,8 +38,6 @@ public class DataExchangeServiceTests : TestBase
         var sectionNameDisplayMock = new Mock<ISectionNameDisplayService>();
         sectionNameDisplayMock.Setup(x => x.ToDisplayAsync(It.IsAny<string?>()))
             .ReturnsAsync((string? v) => SectionKeys.ToChinese(v));
-        sectionNameDisplayMock.Setup(x => x.ToKeyAsync(It.IsAny<string?>()))
-            .ReturnsAsync((string? v) => SectionKeys.ToKey(v));
         sectionNameDisplayMock.Setup(x => x.GetSectionNameMapAsync())
             .ReturnsAsync(SectionKeys.KeyToChinese);
         var exportService = new DataExportService(ctx, exportLoggerMock.Object, sectionNameDisplayMock.Object, CreateProcessDefinitionServiceMock());
@@ -50,9 +48,9 @@ public class DataExchangeServiceTests : TestBase
     // ========== Registry 验证 ==========
 
     [Fact]
-    public void Registry_包含所有68个实体()
+    public void Registry_包含所有66个实体()
     {
-        DataExchangeRegistry.Registry.Should().HaveCount(68);
+        DataExchangeRegistry.Registry.Should().HaveCount(66);
     }
 
     [Fact]
@@ -104,7 +102,7 @@ public class DataExchangeServiceTests : TestBase
     public void GetEntities_按上下文顺序排序()
     {
         var entities = DataExchangeRegistry.GetEntities();
-        entities.Should().HaveCount(68);
+        entities.Should().HaveCount(66);
 
         // 上下文分组出现顺序须与 ContextOrder 完全一致（组内按名称升序）
         var actual = entities.Select(e => e.Context).ToList();

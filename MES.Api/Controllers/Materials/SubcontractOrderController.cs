@@ -93,22 +93,6 @@ public class SubcontractOrderController : ControllerBase
         return Ok(ApiResponse<SubcontractOrderDto>.Ok(result, "更新成功"));
     }
 
-    [HttpPost("sync-all")]
-    [Authorize(Roles = Roles.Policies.MaterialEdit)]
-    public async Task<ActionResult<ApiResponse>> SyncAll()
-    {
-        await _service.SyncAllAsync();
-        return Ok(ApiResponse.Ok("同步完成"));
-    }
-
-    [HttpPost("{id}/sync")]
-    [Authorize(Roles = Roles.Policies.MaterialEdit)]
-    public async Task<ActionResult<ApiResponse>> SyncSingle(int id)
-    {
-        await _service.SyncSingleAsync(id);
-        return Ok(ApiResponse.Ok("同步完成"));
-    }
-
     [HttpPut("{id}/status")]
     [Authorize(Roles = Roles.Policies.MaterialEdit)]
     public async Task<ActionResult<ApiResponse>> UpdateStatus(int id, [FromBody] UpdateOrderStatusRequest request)
@@ -257,17 +241,6 @@ public class SubcontractOrderController : ControllerBase
     {
         var pdfBytes = await _service.PrintSubcontractOrderListAsync(request.Title, request.Items, request.Columns);
         return File(pdfBytes, "application/pdf", "圆棒穿孔列表.pdf");
-    }
-
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.MaterialView)]
-    public async Task<IActionResult> PrintOrderAllFile([FromBody] OrderPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var pdfBytes = await _service.PrintOrderAllAsync(request.Keyword, request.SortBy, request.IsDescending, request.DateFrom, request.DateTo);
-        return File(pdfBytes, "application/pdf", $"委外单全部.pdf");
     }
 
     [HttpGet("plan-detail")]

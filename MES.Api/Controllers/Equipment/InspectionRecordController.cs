@@ -52,15 +52,6 @@ public class InspectionRecordController : ControllerBase
         return Ok(ApiResponse<PagedResult<InspectionRecordListDto>>.Ok(result, "查询成功"));
     }
 
-    /// <summary>获取所有点检记录（无分页）</summary>
-    [HttpGet("all-list")]
-    [Authorize(Roles = Roles.Policies.EquipmentView)]
-    public async Task<ActionResult<ApiResponse<List<InspectionRecordListDto>>>> GetAllList()
-    {
-        var result = await _service.GetAllListAsync();
-        return Ok(ApiResponse<List<InspectionRecordListDto>>.Ok(result, "查询成功"));
-    }
-
     /// <summary>根据 ID 获取点检记录</summary>
     [HttpGet("{id}")]
     [Authorize(Roles = Roles.Policies.EquipmentView)]
@@ -143,21 +134,4 @@ public class InspectionRecordController : ControllerBase
         return File(pdfBytes, "application/pdf", "点检记录打印.pdf");
     }
 
-    [HttpPost("print-all-file")]
-    [Authorize(Roles = Roles.Policies.EquipmentView)]
-    public async Task<IActionResult> PrintAllFile([FromBody] InspectionRecordPrintAllRequest request)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<string>.Fail("请求参数无效"));
-
-        var query = new InspectionRecordQueryParams
-        {
-            Keyword = request.Keyword,
-            SortBy = string.IsNullOrEmpty(request.SortBy) ? "Id" : request.SortBy,
-            IsDescending = request.IsDescending,
-            EquipmentId = request.EquipmentId
-        };
-        var pdfBytes = await _service.PrintAllAsync(query, request.Columns);
-        return File(pdfBytes, "application/pdf", "点检记录列表.pdf");
-    }
 }

@@ -23,7 +23,6 @@ public class ProductionRecordDto
     public string? EquipmentName { get; set; }
     public string? Operator { get; set; }
     public ShiftType? Shift { get; set; }
-    public string? ShiftDisplay => Shift.HasValue ? EnumHelper.GetDisplayName(Shift.Value) : null;
     public int? Quantity { get; set; }
     public decimal? Weight { get; set; }
 

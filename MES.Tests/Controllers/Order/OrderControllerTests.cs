@@ -152,38 +152,6 @@ public class OrderControllerTests : ControllerTestBase
     }
 
     [Fact]
-    public async Task AddItem_ReturnsOk()
-    {
-        // Arrange
-        var request = new AddOrderItemRequest { Sequence = 1 };
-        var dto = new OrderItemDto { Id = 1, Sequence = 1 };
-        _serviceMock.Setup(x => x.AddItemAsync(1, request)).ReturnsAsync(dto);
-
-        // Act
-        var result = await _controller.AddItem(1, request);
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<OrderItemDto>>(result);
-        Assert.Equal(1, response.Data?.Sequence);
-    }
-
-    [Fact]
-    public async Task UpdateItem_ReturnsOk()
-    {
-        // Arrange
-        var request = new UpdateOrderItemRequest { Sequence = 2 };
-        var dto = new OrderItemDto { Id = 1, Sequence = 2 };
-        _serviceMock.Setup(x => x.UpdateItemAsync(1, 1, request)).ReturnsAsync(dto);
-
-        // Act
-        var result = await _controller.UpdateItem(1, 1, request);
-
-        // Assert
-        var (_, response) = AssertOk<ApiResponse<OrderItemDto>>(result);
-        Assert.Equal(2, response.Data?.Sequence);
-    }
-
-    [Fact]
     public async Task DeleteItem_ReturnsOk()
     {
         // Arrange

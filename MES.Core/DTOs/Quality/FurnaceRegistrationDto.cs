@@ -1,7 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
 using MES.Core.Enums;
-using MES.Core.Helpers;
 namespace MES.Core.DTOs.Quality;
 
 // ========== 来料炉号登记 ==========
@@ -18,7 +17,6 @@ public class FurnaceRegistrationDto
 
     /// <summary>原料类型</summary>
     public MaterialType RawMaterialType { get; set; }
-    public string RawMaterialTypeDisplay => EnumHelper.GetDisplayName(RawMaterialType);
 
     /// <summary>登记牌号</summary>
     public string RegisteredGrade { get; set; } = null!;
