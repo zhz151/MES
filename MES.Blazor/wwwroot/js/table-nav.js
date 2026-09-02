@@ -404,3 +404,29 @@ window.syncGroupHeadersForPrint = function (tableSelector) {
 
     return true;
 };
+
+// === 考勤表键盘导航（2026-09-01）===
+// 定义在本文件而非独立 attendance-nav.js：本文件被所有页面必加载，若浏览器缓存了不含新脚本引用的旧 index.html，
+// 独立脚本不会被加载导致 enableAttendanceKeyNav undefined（红屏）。聚焦全选用 focusin 事件委托，不随 Blazor 重渲染失效。
+(function () {
+    window.initAttendanceCellSelect = function () {
+        var grid = document.querySelector('.attendance-grid');
+        if (!grid || grid.__cellSelectInited) return true;
+        grid.__cellSelectInited = true;
+        grid.addEventListener('focusin', function (e) {
+            var t = e.target;
+            if (t && t.classList && t.classList.contains('attendance-cell-input')) {
+                requestAnimationFrame(function () { t.select(); });
+            }
+        });
+        return true;
+    };
+
+    window.enableAttendanceKeyNav = function () {
+        window.initAttendanceCellSelect();
+        if (window.enableTableArrowNav) {
+            window.enableTableArrowNav('.attendance-scroll');
+        }
+        return true;
+    };
+})();

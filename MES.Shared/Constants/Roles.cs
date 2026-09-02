@@ -5,9 +5,10 @@ public static class Roles
     public const string Admin = "Admin";
 
     // ======================================================================
-    // 角色模型：14 主菜单 × 3 档（Viewer=查 / Editor=查增改 / Full=查增改删）+ Admin（隐式全权）
-    // 纯一级模型：每个主菜单一个档位，角色 = {菜单前缀}{档位}，共 43 个。
+    // 角色模型：15 主菜单 × 3 档（Viewer=查 / Editor=查增改 / Full=查增改删）+ Admin（隐式全权）
+    // 纯一级模型：每个主菜单一个档位，角色 = {菜单前缀}{档位}，共 46 个。
     // 2026-08-26 用户决策：取消全部二级菜单权限，回到纯一级。
+    // 2026-09-01 新增「工资结算」主菜单（Salary 三档，考勤表一期）。
     // ======================================================================
 
     /// <summary>
@@ -63,6 +64,10 @@ public static class Roles
         public const string ScanViewer = "ScanViewer";
         public const string ScanEditor = "ScanEditor";
         public const string ScanFull = "ScanFull";
+        // 工资结算（独立三档，考勤表一期）
+        public const string SalaryViewer = "SalaryViewer";
+        public const string SalaryEditor = "SalaryEditor";
+        public const string SalaryFull = "SalaryFull";
         // 参数表
         public const string ConfigurationViewer = "ConfigurationViewer";
         public const string ConfigurationEditor = "ConfigurationEditor";
@@ -146,6 +151,10 @@ public static class Roles
         public const string ScanEdit = "ScanEditor,ScanFull,Admin";
         public const string ScanDelete = "ScanFull,Admin";
 
+        public const string SalaryView = "SalaryViewer,SalaryEditor,SalaryFull,Admin";
+        public const string SalaryEdit = "SalaryEditor,SalaryFull,Admin";
+        public const string SalaryDelete = "SalaryFull,Admin";
+
         public const string UserView = "UserViewer,UserEditor,UserFull,Admin";
         public const string UserEdit = "UserEditor,UserFull,Admin";
         public const string UserDelete = "UserFull,Admin";
@@ -198,6 +207,8 @@ public static class Roles
             Menus.DataToolViewer, Menus.DataToolEditor, Menus.DataToolFull,
             // 扫码管理
             Menus.ScanViewer, Menus.ScanEditor, Menus.ScanFull,
+            // 工资结算
+            Menus.SalaryViewer, Menus.SalaryEditor, Menus.SalaryFull,
             // 参数表
             Menus.ConfigurationViewer, Menus.ConfigurationEditor, Menus.ConfigurationFull,
             // 用户管理

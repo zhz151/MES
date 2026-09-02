@@ -101,6 +101,10 @@ public static class ApiEndpoints
     public const string Workstation = "api/workstation";
     public const string Employee = "api/employee";
 
+    // ===== Payroll 工资结算 =====
+    public const string Attendance = "api/attendance";
+    public const string PieceRateProductionCategory = "api/piece-rate-category";
+
     // ===== StandardRegister 标准号 =====
     public const string StandardRegister = "api/standard-register";
     public const string GradeChemicalComposition = "api/grade-chemical-composition";

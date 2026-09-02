@@ -1337,7 +1337,6 @@ public static class DataExchangeRegistry
             new("设备名称", "EquipmentName", typeof(string), isRequired: false),
             new("工段", "SectionName", typeof(string), isRequired: true),
             new("报工模板类型", "ReportType", typeof(Core.Enums.ReportTemplateType), isEnum: true, isRequired: true),
-            new("组类", "GroupNames", typeof(string), isRequired: false),
             new("成品检验项目", "InspectionItem", typeof(Core.Enums.InspectionItem), isEnum: true, isRequired: false),
             new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
         }),
@@ -1346,18 +1345,31 @@ public static class DataExchangeRegistry
         {
             new("工号", "Code"),
             new("姓名", "Name"),
-            new("部门", "Department", typeof(string), isRequired: false),
+            new("岗位类别", "Department", typeof(string), isRequired: false),
             new("岗位", "Position", typeof(string), isRequired: false),
             new("岗位备注", "PositionRemark", typeof(string), isRequired: false),
-            new("工资结算模式", "SalaryMode", typeof(string), isRequired: false),
+            new("工资结算模式", "SalaryMode", typeof(Core.Enums.SalaryMode), isEnum: true, isRequired: false),
             new("工资结算备注", "SalaryRemark", typeof(string), isRequired: false),
-            new("组类", "GroupName", typeof(string), isRequired: false),
+            new("靠工系数", "AttendanceCoefficient", typeof(decimal), isRequired: false),
+            new("小时工资", "HourlyWage", typeof(decimal), isRequired: false),
+            new("日工资", "DailyWage", typeof(decimal), isRequired: false),
+            new("月工资", "MonthlyWage", typeof(decimal), isRequired: false),
+            new("工序组", "GroupName", typeof(string), isRequired: false),
             new("工段", "SectionName", typeof(string), isRequired: false),
             new("成检项目资质", "InspectionItems", typeof(string), isRequired: false),
-            new("过程检验操作人", "ProcessInspectionItems", typeof(bool?), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("成检到料确认人", "MaterialReceiveCheckItems", typeof(bool?), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
         }),
+
+        // === 工资结算上下文 ===
+        ["AttendanceRecord"] = new EntityDef("工资-考勤表", "工资-考勤表", typeof(MES.Data.Entities.Payroll.AttendanceRecord), 1, null, new List<ColumnDef>
+        {
+            new("员工工号", null!) { IsFkColumn = true, FkEntityKey = "Employee", FkLookupProperty = "Code", FkTargetProperty = "EmployeeId" },
+            new("日期", "AttendDate", typeof(DateTime), isRequired: true),
+            new("出勤小时", "WorkHours", typeof(decimal), isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }, compositeKeyColumns: new[] { "EmployeeId", "AttendDate" }),
+
 
         // === 系统参数(全局参数)（独立配置表） ===
         ["ConfigParameter"] = new EntityDef("系统-系统参数(全局参数)", "系统-系统参数(全局参数)", typeof(MES.Data.Entities.Configuration.ConfigParameter), 1, null, new List<ColumnDef>
@@ -1586,6 +1598,7 @@ public static class DataExchangeRegistry
         "InventoryPlan", "PurchaseSemiPlan", "PurchaseFinishedPlan", "RoundBarPiercingPlan", "InProcessReworkPlan",
         "SemiPlanProcessGroup", "InventoryPlanProcessGroup", "PiercingPlanProcessGroup", "InProcessReworkPlanProcessGroup",
         "Workstation", "Employee",
+        "AttendanceRecord",
         "ConfigParameter",
         "StandardRegister", "StandardRegisterItem",
         "GradeChemicalComposition", "GradePhysicalProperty", "StandardInspectionRequirement", "FactoryInspectionRequirement", "SubStandardQuickView",
@@ -1594,11 +1607,11 @@ public static class DataExchangeRegistry
 
     /// <summary>
     /// 上下文归类顺序（数据工具「选择数据类型」下拉按此排序显示）：
-    /// 订单 → 工单 → 批次 → 质量 → 物料 → 仓库 → 设备 → 标准 → 配置 → 扫码 → 系统
+    /// 订单 → 工单 → 批次 → 质量 → 物料 → 仓库 → 设备 → 标准 → 配置 → 扫码 → 工资 → 系统
     /// </summary>
     public static readonly List<string> ContextOrder = new()
     {
-        "订单", "工单", "批次", "质量", "物料", "仓库", "设备", "标准", "配置", "扫码", "系统"
+        "订单", "工单", "批次", "质量", "物料", "仓库", "设备", "标准", "配置", "扫码", "工资", "系统"
     };
 
     /// <summary>

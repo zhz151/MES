@@ -53,6 +53,7 @@ public class RolesPoliciesTests
     [InlineData("Report")]
     [InlineData("DataTool")]
     [InlineData("Scan")]
+    [InlineData("Salary")]
     [InlineData("Configuration")]
     [InlineData("User")]
     public void MenuTierPolicies_AreConsistent(string prefix)
@@ -84,13 +85,13 @@ public class RolesPoliciesTests
     public void GetAllRoles_ReturnsAllMenuTierRolesAndAdmin()
     {
         var all = Roles.GetAllRoles();
-        // Admin + 14 菜单 × 3 档 = 1 + 42 = 43
-        all.Should().HaveCount(43);
+        // Admin + 15 菜单 × 3 档 = 1 + 45 = 46
+        all.Should().HaveCount(46);
         all.Should().Contain(Roles.Admin);
         foreach (var prefix in new[]
                  {
                      "Order", "WorkOrder", "Scheduling", "Batch", "Quality", "Material", "Warehouse",
-                     "Equipment", "Standard", "Report", "DataTool", "Scan", "Configuration", "User"
+                     "Equipment", "Standard", "Report", "DataTool", "Scan", "Salary", "Configuration", "User"
                  })
         {
             all.Should().Contain($"{prefix}Viewer").And.Contain($"{prefix}Editor").And.Contain($"{prefix}Full");

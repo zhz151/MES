@@ -1,0 +1,109 @@
+@page "/payroll/attendance"
+@using MES.Core.Helpers
+@using MES.Blazor.Helpers
+@using MES.Blazor.Services.Payroll
+@using MES.Core.DTOs.Payroll
+
+<MudContainer MaxWidth="MaxWidth.False" Class="py-4">
+    <MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true">
+        <div class="d-flex align-center flex-wrap gap-2">
+            <MudButton Icon="@Icons.Material.Filled.ChevronLeft" Color="Color.Default" OnClick="PrevMonth" />
+            <MudSelect T="int" Value="@_year" ValueChanged="OnYearChanged" Label="年份" Variant="Variant.Outlined" Dense="true" Style="width:110px">
+                @foreach (var y in _years)
+                {
+                    <MudSelectItem Value="@y">@y</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="int" Value="@_month" ValueChanged="OnMonthChanged" Label="月份" Variant="Variant.Outlined" Dense="true" Style="width:100px">
+                @foreach (var m in _months)
+                {
+                    <MudSelectItem Value="@m">@m 月</MudSelectItem>
+                }
+            </MudSelect>
+            <MudButton Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" OnClick="NextMonth" />
+            <MudTextField @bind-Value="_keyword" Label="工号/姓名" T="string" Variant="Variant.Outlined" Dense="true"
+                          Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
+                          OnKeyDown="OnKeywordEnter" Style="width:200px" />
+            <MudSelect T="string" Value="@_positionCategoryFilter" ValueChanged="OnPositionCategoryFilterChanged"
+                       Label="岗位类别" Variant="Variant.Outlined" Dense="true" Style="width:140px">
+                <MudSelectItem Value="@string.Empty">全部</MudSelectItem>
+                @foreach (var opt in _positionCategoryOptions)
+                {
+                    <MudSelectItem Value="@opt.Key">@opt.Text</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="string" Value="@_positionFilter" ValueChanged="OnPositionFilterChanged"
+                       Label="岗位" Variant="Variant.Outlined" Dense="true" Style="width:160px">
+                <MudSelectItem Value="@string.Empty">全部</MudSelectItem>
+                @foreach (var opt in _positionOptions)
+                {
+                    <MudSelectItem Value="@opt.Key">@opt.Text</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSpacer />
+            <MudButton StartIcon="@Icons.Material.Filled.Save" Color="Color.Success" Variant="Variant.Filled"
+                       Disabled="_loading || _employees.Count == 0" OnClick="SaveMonthAsync">保存本月</MudButton>
+        </div>
+    </MudPaper>
+
+    <MudProgressLinear Visible="_loading" Color="Color.Primary" />
+
+    <div class="attendance-scroll">
+        <table class="auto-table attendance-grid">
+            <thead>
+                <tr>
+                    <th class="sticky-left sortable-th" @onclick="() => ToggleSort(SortCode)">工号 @SortIcon(SortCode)</th>
+                    <th class="sticky-left sortable-th" @onclick="() => ToggleSort(SortName)">姓名 @SortIcon(SortName)</th>
+                    <th class="sticky-left sortable-th" @onclick="() => ToggleSort(SortCategory)">岗位类别 @SortIcon(SortCategory)</th>
+                    <th class="sticky-left sortable-th" @onclick="() => ToggleSort(SortPosition)">岗位 @SortIcon(SortPosition)</th>
+                    @foreach (var d in _days)
+                    {
+                        <th class="attendance-day">@d</th>
+                    }
+                    <th class="sticky-right">出勤天数</th>
+                    <th class="sticky-right">总小时</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var emp in _filteredEmployees)
+                {
+                    <tr>
+                        <td class="sticky-left">@emp.EmployeeCode</td>
+                        <td class="sticky-left">@emp.EmployeeName</td>
+                        <td class="sticky-left">@DisplayHelper.GetPositionCategoryText(emp.PositionCategory)</td>
+                        <td class="sticky-left">@DisplayHelper.GetPositionText(emp.Position)</td>
+                        @foreach (var d in _days)
+                        {
+                            <td class="attendance-cell-td">
+                                <input class="attendance-cell-input" type="text" inputmode="decimal" maxlength="6"
+                                       value="@GetCellText(emp.EmployeeId, d)"
+                                       @onchange="(ChangeEventArgs e) => OnCellChanged(emp.EmployeeId, d, e)" />
+                            </td>
+                        }
+                        <td class="sticky-right attendance-total-td">@AttendanceDays(emp.EmployeeId)</td>
+                        <td class="sticky-right attendance-total-td">@TotalHours(emp.EmployeeId)</td>
+                    </tr>
+                }
+            </tbody>
+            @if (_filteredEmployees.Count > 0)
+            {
+                <tfoot>
+                    <tr class="attendance-foot">
+                        <td class="sticky-left" colspan="4">当日合计(小时)</td>
+                        @foreach (var d in _days)
+                        {
+                            <td class="attendance-day">@DayTotal(d)</td>
+                        }
+                        <td class="sticky-right"></td>
+                        <td class="sticky-right">@_filteredEmployees.Sum(e => TotalHours(e.EmployeeId))</td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+
+    @if (_filteredEmployees.Count == 0 && !_loading)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-4">当月没有启用员工，或没有匹配的搜索/筛选结果。</MudAlert>
+    }
+</MudContainer>

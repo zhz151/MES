@@ -4,6 +4,7 @@ using MES.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MES.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260902081749_AddPieceRateProductionCategoryTables")]
+    partial class AddPieceRateProductionCategoryTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4077,6 +4080,171 @@ namespace MES.Data.Migrations
                         .HasDatabaseName("IX_Tier_Category");
 
                     b.ToTable("PieceRateProductionCategoryTiers", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.Payroll.PieceRateStandard", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("BasePrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("CutRateMax")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal?>("CutRateMin")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("CutRateRangeText")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("CutRateRatio")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("DeviceCategory")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DimensionKey")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("FixedLengthCountMax")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FixedLengthCountMin")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FixedLengthCountRangeText")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("FixedLengthCountRatio")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("GroupName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal?>("LengthMax")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal?>("LengthMin")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("LengthRangeText")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("LengthRatio")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("OuterDiameterMax")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal?>("OuterDiameterMin")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("OuterDiameterRangeText")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("OuterDiameterRatio")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("PieceRateType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("ProductRatio")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("ProductStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("SectionName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("SpecialGrade")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("SpecialGradeRatio")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("SpecialState")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("SpecialStateRatio")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("TotalRatio")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("WallThicknessMax")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal?>("WallThicknessMin")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("WallThicknessRangeText")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("WallThicknessRatio")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SectionName")
+                        .HasDatabaseName("IX_PieceRateStandard_SectionName");
+
+                    b.HasIndex("SectionName", "IsActive")
+                        .HasDatabaseName("IX_PieceRateStandard_SectionName_Active");
+
+                    b.ToTable("PieceRateStandards", (string)null);
                 });
 
             modelBuilder.Entity("MES.Data.Entities.Quality.Certificate", b =>

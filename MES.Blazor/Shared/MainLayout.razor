@@ -180,6 +180,14 @@
                 </AuthorizeView>
             </MudNavGroup>
 
+            <!-- 工资结算 -->
+            <AuthorizeView Roles="@Roles.Policies.SalaryView">
+                <MudNavGroup Title="工资结算" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
+                    <MudNavLink Href="/payroll/attendance">考勤表</MudNavLink>
+                    <MudNavLink Href="/payroll/piece-rate-categories">生产计件类别</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
+
             <!-- 参数表（二级各自选档位） -->
             <AuthorizeView Roles="@Roles.Policies.ConfigurationView">
                 <MudNavGroup Title="参数表" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
@@ -259,6 +267,7 @@
         }
 
         // 预加载字典显示映射（DictKey→Value→DisplayName），供 DictValueDisplayHelper 显示使用
+        // （注入晚于页面组件首次渲染；setter 赋值自动触发 OverrideMapChanged 事件，页面订阅后重建选项并重渲染）
         var dictDisplayMap = await DictValueDefinitionService.GetDisplayMapAsync();
         if (dictDisplayMap != null)
             DictValueDisplayHelper.OverrideMap = dictDisplayMap;

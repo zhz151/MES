@@ -14,6 +14,7 @@ using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.WorkOrder;
 using MES.Data.Entities.Infrastructure;
+using MES.Data.Entities.Payroll;
 using MES.Core.Enums;
 
 namespace MES.Data;
@@ -143,6 +144,11 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<Workstation> Workstations { get; set; } = null!;
     public DbSet<Employee> Employees { get; set; } = null!;
     public DbSet<SectionParagraphConfig> SectionParagraphConfigs { get; set; } = null!;
+
+    // ========== Payroll 上下文（工资结算） ==========
+    public DbSet<AttendanceRecord> AttendanceRecords { get; set; } = null!;
+    public DbSet<PieceRateProductionCategory> PieceRateProductionCategories { get; set; } = null!;
+    public DbSet<PieceRateProductionCategoryTier> PieceRateProductionCategoryTiers { get; set; } = null!;
 
     // ========== StandardRegister 上下文 ==========
     public DbSet<StandardGradeMapping> StandardGradeMappings { get; set; } = null!;
@@ -277,6 +283,11 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigureFactoryInspectionRequirement(builder);
         ConfigureChemicalComposition(builder);
         ConfigureChemicalValidationRule(builder);
+
+        // ========== Payroll 上下文（工资结算） ==========
+        ConfigureAttendanceRecord(builder);
+        ConfigurePieceRateProductionCategory(builder);
+        ConfigurePieceRateProductionCategoryTier(builder);
 
         // 为所有继承 BaseEntity 的实体统一配置审计字段长度
         foreach (var entityType in builder.Model.GetEntityTypes())

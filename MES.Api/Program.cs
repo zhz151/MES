@@ -47,6 +47,7 @@ using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
 using MES.Core.Interfaces.WorkOrder;
+using MES.Core.Interfaces.Payroll;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -254,6 +255,9 @@ builder.Services.AddScoped<IScanService, ScanService>();
 builder.Services.AddScoped<IQrCodeService, QrCodeService>();
 builder.Services.AddScoped<IWorkstationService, WorkstationService>();
 builder.Services.AddScoped<IEmployeeService, MES.Services.Configuration.EmployeeService>();
+builder.Services.AddScoped<IAttendanceService, MES.Services.Payroll.AttendanceService>();
+builder.Services.AddScoped<IPieceRateProductionCategoryService, MES.Services.Payroll.PieceRateProductionCategoryService>();
+builder.Services.AddScoped<IOperatorNameValidator, OperatorNameValidator>();
 builder.Services.AddScoped<IDailyProductionCapacityService, MES.Services.Configuration.DailyProductionCapacityService>();
 builder.Services.AddScoped<IStandardRegisterService, StandardRegisterService>();
 
