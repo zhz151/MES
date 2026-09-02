@@ -1,0 +1,318 @@
+@page "/payroll/final-inspection-categories"
+@using MES.Blazor.Components
+@using MES.Blazor.Services
+@using MES.Blazor.Shared
+@using MES.Core.DTOs.Payroll
+@using MES.Core.Models
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = Roles.Policies.SalaryView)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Category" Class="mr-2" Color="Color.Primary" />
+                    成检计件类别（基准价 × 维档系数）
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudText Typo="Typo.body2" Color="Color.Default" Class="mr-2">类别 = 成检项目 × 规格维档；单价 = 基准价 × 命中维档系数连乘；同成检项目同时仅一条启用类别</MudText>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Download"
+                           OnClick="ExportAll">
+                    导出全量
+                </MudButton>
+                <AuthorizeView Roles="@Roles.Policies.SalaryEdit">
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Secondary"
+                               StartIcon="@Icons.Material.Filled.PlaylistAdd"
+                               OnClick='() => OpenImportDialog("category")'>
+                        导入类别
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Tertiary"
+                               StartIcon="@Icons.Material.Filled.PlaylistAddCheck"
+                               OnClick='() => OpenImportDialog("tier")'>
+                        导入维档
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="AddNew">
+                        新增类别
+                    </MudButton>
+                </AuthorizeView>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <!-- 搜索 + 筛选栏 -->
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string"
+                                  Label="模糊搜索 - 成检项目/备注"
+                                  Value="_searchKeyword"
+                                  ValueExpression="@(() => _searchKeyword)"
+                                  ValueChanged="@OnSearchChanged"
+                                  Immediate="true"
+                                  DebounceInterval="500"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="string"
+                               Label="成检项目筛选"
+                               Value="_itemFilter"
+                               ValueChanged="@OnItemFilterChanged"
+                               Clearable="true"
+                               AdornmentIcon="@Icons.Material.Filled.FilterList">
+                        @foreach (var opt in _itemOptions)
+                        {
+                            <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="string"
+                               Label="启停筛选"
+                               Value="_activeFilter"
+                               ValueChanged="@OnActiveFilterChanged"
+                               Clearable="true"
+                               AdornmentIcon="@Icons.Material.Filled.FilterList">
+                        <MudSelectItem Value="@("true")">启用</MudSelectItem>
+                        <MudSelectItem Value="@("false")">停用</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <!-- 试算匹配区（按一条成检验证类别单价） -->
+            <MudExpansionPanels MultiExpansion="false" Class="mt-3">
+                <MudExpansionPanel>
+                    <TitleContent>
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@Icons.Material.Filled.Calculate" Class="mr-2" Color="Color.Primary" Size="Size.Small" />
+                            <MudText Typo="Typo.subtitle1">试算匹配（按一条成检验证类别单价）</MudText>
+                        </div>
+                    </TitleContent>
+                    <ChildContent>
+                        <MudGrid Class="pt-3">
+                            <MudItem xs="12" md="3">
+                                <MudSelect T="string"
+                                           Label="成检项目（必选）"
+                                           Value="_trialItemKey" ValueChanged="@(v => _trialItemKey = v)"
+                                           AdornmentIcon="@Icons.Material.Filled.VerifiedUser">
+                                    @foreach (var opt in _itemOptions)
+                                    {
+                                        <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" md="3">
+                                <MudSelect T="string"
+                                           Label="长度状态"
+                                           Value="_trialLengthStatus" ValueChanged="@(v => _trialLengthStatus = v)"
+                                           Clearable="true"
+                                           AdornmentIcon="@Icons.Material.Filled.Straighten">
+                                    @foreach (var opt in _lengthStatusOptions)
+                                    {
+                                        <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" md="3">
+                                <MudSelect T="string"
+                                           Label="特殊制造状态"
+                                           Value="_trialSpecialState" ValueChanged="@(v => _trialSpecialState = v)"
+                                           Clearable="true"
+                                           AdornmentIcon="@Icons.Material.Filled.Tune">
+                                    @foreach (var opt in _stateOptions)
+                                    {
+                                        <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" md="3">
+                                <MudTextField T="string"
+                                              Label="工厂牌号（特殊牌号）"
+                                              Value="_trialPlantGrade" ValueChanged="@(v => _trialPlantGrade = v)" />
+                            </MudItem>
+                            <MudItem xs="12" md="3">
+                                <MudNumericField T="decimal?"
+                                                 Label="外径（mm）"
+                                                 @bind-Value="_trialOuterDiameter"
+                                                 Format="G29"
+                                                 HideSpinButtons="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="3">
+                                <MudNumericField T="decimal?"
+                                                 Label="壁厚（mm）"
+                                                 @bind-Value="_trialWallThickness"
+                                                 Format="G29"
+                                                 HideSpinButtons="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="3">
+                                <MudNumericField T="decimal?"
+                                                 Label="长度（mm）"
+                                                 HelperText="定尺=实际定尺长；范围尺/非定尺留空自动按 6000"
+                                                 @bind-Value="_trialLength"
+                                                 Format="G29"
+                                                 HideSpinButtons="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="3">
+                                <MudNumericField T="int?"
+                                                 Label="检验支数（批次实检）"
+                                                 @bind-Value="_trialInspectionCount"
+                                                 HideSpinButtons="true" />
+                            </MudItem>
+                            <MudItem xs="12" md="3">
+                                <MudTextField T="string"
+                                              Label="设备名称（特殊设备号）"
+                                              Value="_trialEquipmentName" ValueChanged="@(v => _trialEquipmentName = v)" />
+                            </MudItem>
+                            <MudItem xs="12" md="3" Class="d-flex align-center mt-1">
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Calculate"
+                                           Disabled="@_matchLoading"
+                                           OnClick="StartMatchAsync">
+                                    开始试算
+                                </MudButton>
+                            </MudItem>
+                        </MudGrid>
+
+                        @if (_matchLoading)
+                        {
+                            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-3" />
+                        }
+                        else if (_matchDone)
+                        {
+                            @if (_matchResult == null)
+                            {
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-3">
+                                    <MudText Typo="Typo.body2">该项目未定价（无启用类别或未命中任何档）</MudText>
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Class="mt-3">
+                                    <MudText Typo="Typo.body2">
+                                        命中类别（Id=@_matchResult.CategoryId）：@_matchResult.ItemKeyChinese
+                                    </MudText>
+                                    <MudText Typo="Typo.body2" Class="mt-1">
+                                        基准价 <b>@_matchResult.BasePrice.ToString("G29")</b> × 总系数 <b>@_matchResult.TotalRatio.ToString("G29")</b> = 结算单价
+                                        <b>@_matchResult.UnitPrice.ToString("G29") @_matchResult.UnitChinese</b>
+                                    </MudText>
+                                    @if (_matchResult.Hits.Count > 0)
+                                    {
+                                        <div class="d-flex flex-wrap align-center mt-2" style="gap: 4px;">
+                                            <MudText Typo="Typo.caption" Class="mr-1">命中档:</MudText>
+                                            @foreach (var hit in _matchResult.Hits)
+                                            {
+                                                <MudChip Variant="Variant.Outlined" Size="Size.Small">@hit.DimensionKeyChinese：@hit.RangeText ×@hit.Ratio.ToString("G29")</MudChip>
+                                            }
+                                        </div>
+                                    }
+                                </MudAlert>
+                            }
+                        }
+                    </ChildContent>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+
+            <!-- 数据表格 -->
+            <div id="final-inspection-category-list-table">
+                <MudTable @ref="table"
+                          T="PieceRateFinalInspectionCategoryListItemDto"
+                          ServerData="@LoadDataFromServer"
+                          Dense="true"
+                          Hover="true"
+                          Class="mt-4 auto-table"
+                          Elevation="0"
+                          RowsPerPage="@_pageSize"
+                          RowsPerPageLabel="每页行数:">
+                    <ToolBarContent>
+                        <ColumnDisplaySelect Columns="_allColumns"
+                                             OnColumnToggle="OnColumnToggle"
+                                             OnMoveUp="MoveColumnUp"
+                                             OnMoveDown="MoveColumnDown" />
+                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.RestartAlt"
+                                   OnClick="ResetColumnDisplay" Class="ml-2">
+                            重置
+                        </MudButton>
+                        <MudSpacer />
+                        <MudText Typo="Typo.body2" Class="ml-auto">
+                            共 @_totalCount 条记录
+                        </MudText>
+                    </ToolBarContent>
+                    <HeaderContent>
+                        @foreach (var col in _visibleColumns)
+                        {
+                            <MudTh>
+                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label@if (col.IsRequired) {<span class="required-star">*</span>} @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
+                            </MudTh>
+                        }
+                        <MudTh Style="width: 150px;">操作</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="item">
+                        @foreach (var col in _visibleColumns)
+                        {
+                            <MudTd>
+                                @if (col.Key == "ItemKeyChinese")
+                                {
+                                    <b>@item.ItemKeyChinese</b>
+                                }
+                                else if (col.Key == "BasePrice")
+                                {
+                                    @item.BasePrice.ToString("G29")
+                                }
+                                else if (col.Key == "Unit")
+                                {
+                                    @item.UnitChinese
+                                }
+                                else if (col.Key == "TierCount")
+                                {
+                                    @item.TierCount
+                                }
+                                else if (col.Key == "IsActive")
+                                {
+                                    @(item.IsActive ? "是" : "否")
+                                }
+                                else if (col.Key == "Remark")
+                                {
+                                    @item.Remark
+                                }
+                                else if (col.Key == "UpdatedTime")
+                                {
+                                    @item.UpdatedTime.ToString("yyyy-MM-dd HH:mm")
+                                }
+                                else if (col.Key == "CreatedTime")
+                                {
+                                    @item.CreatedTime.ToString("yyyy-MM-dd HH:mm")
+                                }
+                                else
+                                {
+                                    @("")
+                                }
+                            </MudTd>
+                        }
+                        <MudTd Style="white-space: nowrap; width: 150px;">
+                            <AuthorizeView Roles="@Roles.Policies.SalaryEdit">
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Title="编辑定义/维档" Color="Color.Info" Size="Size.Small" OnClick="() => EditItem(item)" />
+                            </AuthorizeView>
+                            <AuthorizeView Roles="@Roles.Policies.SalaryDelete">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Title="删除" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItem(item)" />
+                            </AuthorizeView>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
+                    </PagerContent>
+                </MudTable>
+            </div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>

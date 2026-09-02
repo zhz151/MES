@@ -104,6 +104,7 @@ public static class ApiEndpoints
     // ===== Payroll 工资结算 =====
     public const string Attendance = "api/attendance";
     public const string PieceRateProductionCategory = "api/piece-rate-category";
+    public const string PieceRateFinalInspectionCategory = "api/piece-rate-final-inspection-category";
 
     // ===== StandardRegister 标准号 =====
     public const string StandardRegister = "api/standard-register";

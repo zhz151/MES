@@ -58,6 +58,41 @@ public partial class AppDbContext
         });
     }
 
+    private static void ConfigurePieceRateFinalInspectionCategory(ModelBuilder builder)
+    {
+        builder.Entity<PieceRateFinalInspectionCategory>(entity =>
+        {
+            entity.ToTable("PieceRateFinalInspectionCategories");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.BasePrice).HasColumnType("decimal(18,4)");
+            // 同一成检项目同时仅一条启用类别（过滤唯一索引；停用历史可多条并存）
+            entity.HasIndex(e => e.ItemKey)
+                .IsUnique()
+                .HasFilter("[IsActive] = 1")
+                .HasDatabaseName("UK_FinalInspectionCategory_Item_Active");
+            // 类别 → 维档：级联删除
+            entity.HasMany(e => e.Tiers)
+                .WithOne(t => t.Category)
+                .HasForeignKey(t => t.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigurePieceRateFinalInspectionCategoryTier(ModelBuilder builder)
+    {
+        builder.Entity<PieceRateFinalInspectionCategoryTier>(entity =>
+        {
+            entity.ToTable("PieceRateFinalInspectionCategoryTiers");
+            entity.HasKey(e => e.Id);
+            // 区间维数值边界（外径/壁厚/长度）
+            entity.Property(e => e.MinValue).HasColumnType("decimal(10,2)");
+            entity.Property(e => e.MaxValue).HasColumnType("decimal(10,2)");
+            // 系数承接 0.8697/1.0002 等多位数
+            entity.Property(e => e.Ratio).HasColumnType("decimal(18,6)");
+            entity.HasIndex(e => e.CategoryId).HasDatabaseName("IX_FinalInspectionTier_Category");
+        });
+    }
+
     private static void ConfigureAttendanceRecord(ModelBuilder builder)
     {
         builder.Entity<AttendanceRecord>(entity =>

@@ -1,0 +1,197 @@
+@page "/payroll/final-inspection-categories/edit/{Id:int?}"
+@page "/payroll/final-inspection-categories/create"
+@using MES.Blazor.Services
+@using MES.Blazor.Shared
+@using MES.Core.Constants
+@using MES.Core.DTOs.Payroll
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = Roles.Policies.SalaryEdit)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    @if (_loading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else
+    {
+        <MudCard>
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">
+                        <MudIcon Icon="@Icons.Material.Filled.Category" Class="mr-2" Color="Color.Primary" />
+                        @(_isEdit ? "编辑成检计件类别" : "新增成检计件类别")
+                    </MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Variant="Variant.Text" Color="Color.Default" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="Back" Class="mr-2">返回</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save" Disabled="@_saving" OnClick="SaveAsync">
+                        @(_isEdit ? "保存" : "创建")
+                    </MudButton>
+                </CardHeaderActions>
+            </MudCardHeader>
+
+            <MudCardContent>
+                <!-- ========== 类别定义 ========== -->
+                <MudText Typo="Typo.h6" Class="mb-2">类别定义</MudText>
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="string"
+                                   Label="成检项目（必选）"
+                                   Value="_itemKey" ValueChanged="@(v => _itemKey = v)"
+                                   AdornmentIcon="@Icons.Material.Filled.VerifiedUser">
+                            @foreach (var opt in _items)
+                            {
+                                <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudNumericField T="decimal"
+                                         Label="基准价（元/结算单位，必填）"
+                                         Value="_basePrice" ValueChanged="@(v => _basePrice = v)"
+                                         Format="G29"
+                                         HideSpinButtons="true" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect T="string"
+                                   Label="结算单位（必选）"
+                                   Value="_unit" ValueChanged="@(v => _unit = v)"
+                                   AdornmentIcon="@Icons.Material.Filled.Straighten">
+                            @foreach (var opt in _units)
+                            {
+                                <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6" Class="d-flex align-center mt-2">
+                        <MudSwitch T="bool" Value="_isActive" ValueChanged="@(v => _isActive = v)" Label="启用" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string"
+                                      Label="备注"
+                                      Value="_remark" ValueChanged="@(v => _remark = v)" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudDivider Class="my-4" />
+
+                <!-- ========== 维度档 ========== -->
+                <MudText Typo="Typo.h6" Class="mb-1">维度档（结算单价 = 基准价 × 命中维档系数连乘；不配置某维 = 系数 1）</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Default" Class="mb-1">
+                    区间维按【闭区间】理解（两端含）；单侧写 &gt;54（不含54）或 ≤54。同维相切（≤54 与 &gt;54）=合法邻接；重叠/取值重复标红并由服务端兜底拦截。
+                </MudText>
+                <MudText Typo="Typo.caption" Style="color:#d9534f;" Class="mb-2">
+                    ⚠️ 相邻档勿写重叠闭带（1-75 与 75-90 的 75 归属歧义）；正确邻接：1-75 与 &gt;75，或 1-75 与 75.1-90。<b>长度档量纲 mm、全长度状态参与</b>（Fixed=实际定尺长；范围尺/非定尺取数默认按 6000 折算命中）。<b>检验支数整数闭带，勿用 &gt;N 开区间</b>（开区间按含 N 解析，与相邻闭带共享整数判重叠；末档上限写业务最大可达，防超大单落空=该维系数 1）。等值维直接选取值。
+                </MudText>
+
+                <MudGrid Class="mt-1">
+                    @foreach (var dim in PieceRateInspectionDimensionKeys.All)
+                    {
+                        <MudItem xs="12" md="6">
+                            <div class="@(HasDimWarning(dim) ? "dim-block dim-block-warning" : "dim-block")">
+                                <div class="dim-block-header">
+                                    <div class="d-flex align-center">
+                                        <MudText Typo="Typo.subtitle2" Class="font-weight-bold">@DimChinese(dim)</MudText>
+                                        @if (IsIntervalDim(dim))
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Default" Class="ml-2">区间原文 + 系数</MudText>
+                                        }
+                                        else
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Default" Class="ml-2">等值取值 + 系数</MudText>
+                                        }
+                                        @if (HasDimWarning(dim))
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Class="ml-2" Style="color:#f44336;" Size="Size.Small" />
+                                            <MudText Typo="Typo.caption" Style="color:#f44336;" Class="ml-1">区间重叠或取值重复</MudText>
+                                        }
+                                    </div>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Add" Title="加一行" Color="Color.Primary" Size="Size.Small" OnClick="() => AddTier(dim)" />
+                                </div>
+
+                                @if (!RowsOf(dim).Any())
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Default" Class="pa-2">未配置维档（该维系数按 1）</MudText>
+                                }
+                                else
+                                {
+                                    @foreach (var row in RowsOf(dim).ToList())
+                                    {
+                                        <div class="tier-editor-row">
+                                            @if (IsIntervalDim(dim))
+                                            {
+                                                <MudTextField T="string"
+                                                              Class="flex-grow-1"
+                                                              Label="@RangeTextLabel(dim)"
+                                                              Value="@row.RangeText" ValueChanged="@(v => row.RangeText = v)"
+                                                              Disabled="@(!row.IsActive)" />
+                                                @if (dim == PieceRateInspectionDimensionKeys.InspectionCount)
+                                                {
+                                                    <MudText Typo="Typo.caption" Color="Color.Default" Class="dim-hint">整数支数</MudText>
+                                                }
+                                            }
+                                            else if (dim == PieceRateInspectionDimensionKeys.LengthStatus)
+                                            {
+                                                <MudSelect T="string"
+                                                           Class="flex-grow-1"
+                                                           Label="长度状态（定尺/范围尺/非定尺）"
+                                                           Value="@row.MatchValue" ValueChanged="@(v => row.MatchValue = v)"
+                                                           Disabled="@(!row.IsActive)"
+                                                           Clearable="true">
+                                                    @foreach (var opt in _lengthStatuses)
+                                                    {
+                                                        <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
+                                                    }
+                                                </MudSelect>
+                                            }
+                                            else if (dim == PieceRateInspectionDimensionKeys.SpecialState)
+                                            {
+                                                <MudSelect T="string"
+                                                           Class="flex-grow-1"
+                                                           Label="特殊制造状态"
+                                                           Value="@row.MatchValue" ValueChanged="@(v => row.MatchValue = v)"
+                                                           Disabled="@(!row.IsActive)"
+                                                           Clearable="true">
+                                                    @foreach (var opt in _states)
+                                                    {
+                                                        <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
+                                                    }
+                                                </MudSelect>
+                                            }
+                                            else if (dim == PieceRateInspectionDimensionKeys.SpecialGrade)
+                                            {
+                                                <MudTextField T="string"
+                                                              Class="flex-grow-1"
+                                                              Label="工厂牌号（如 316L）"
+                                                              Value="@row.MatchValue" ValueChanged="@(v => row.MatchValue = v)"
+                                                              Disabled="@(!row.IsActive)" />
+                                                <MudText Typo="Typo.caption" Color="Color.Default" Class="ml-1 dim-hint">候选: @string.Join("、", _grades.Take(6))@(_grades.Count > 6 ? "…" : "")</MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudTextField T="string"
+                                                              Class="flex-grow-1"
+                                                              Label="特殊设备号（检验设备 EquipmentName；未列出=系数1）"
+                                                              Value="@row.MatchValue" ValueChanged="@(v => row.MatchValue = v)"
+                                                              Disabled="@(!row.IsActive)" />
+                                            }
+                                            <MudNumericField T="decimal"
+                                                             Class="dim-ratio-input"
+                                                             Label="系数"
+                                                             Value="@row.Ratio" ValueChanged="@(v => row.Ratio = v)"
+                                                             Format="G29"
+                                                             HideSpinButtons="true"
+                                                             Disabled="@(!row.IsActive)" />
+                                            <MudSwitch T="bool" Value="@row.IsActive" ValueChanged="@(v => row.IsActive = v)" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Close" Title="删除该档" Color="Color.Error" Size="Size.Small" OnClick="() => RemoveTier(row)" />
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>

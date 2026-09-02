@@ -1,0 +1,126 @@
+@namespace MES.Blazor.Pages.Payroll
+@using Microsoft.AspNetCore.Components.Forms
+@using MES.Core.Models
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6" Class="font-weight-bold">批量导入（@_kindLabel）</MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (_isTier)
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3">
+                维档模板：定位 = 成检项目，命中类别后<b>整组替换</b>其维档系数；类别不存在会报错「请先导入类别定义」。
+            </MudAlert>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-3">
+                类别定义模板：定位 = 成检项目（单选 InspectionItem）。命中既有类别 → 更新定义（<b>不动维档</b>）；未命中 → 新建。模板与维档分开，互不清空。
+            </MudAlert>
+        }
+
+        <MudGrid Spacing="2">
+            <MudItem xs="12" md="5">
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.Download"
+                           Disabled="@(_isPreviewing || _isImporting)" OnClick="DownloadTemplateAsync" FullWidth="true">
+                    下载模板（示例行请删除）
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" md="7">
+                <label class="d-flex align-center" style="cursor:pointer">
+                    <InputFile OnChange="OnFileSelected" accept=".xlsx" hidden />
+                    <MudButton Component="span" Variant="Variant.Filled" Color="Color.Secondary"
+                               StartIcon="@Icons.Material.Filled.UploadFile">
+                        选择 .xlsx 文件
+                    </MudButton>
+                    <MudText Typo="Typo.body2" Class="ml-2">@(_hasFile ? _fileName : "未选择文件")</MudText>
+                </label>
+            </MudItem>
+        </MudGrid>
+
+        @if (_hasFile)
+        {
+            <MudGrid Spacing="2" Class="mt-2">
+                <MudItem xs="12" md="5">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.FactCheck"
+                               Disabled="@(_isPreviewing || _isImporting)" OnClick="PreviewAsync" FullWidth="true">
+                        解析预览
+                    </MudButton>
+                </MudItem>
+                <MudItem xs="12" md="7">
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Save"
+                               Disabled="@(_isImporting || _preview == null || _preview.ErrorCount > 0 || !_hasFile)"
+                               OnClick="DoImportAsync" FullWidth="true">
+                        执行导入（新增@(_preview?.AddCount ?? 0) / 覆盖@(_preview?.OverwriteCount ?? 0)）
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        }
+
+        @if (_preview != null)
+        {
+            <MudGrid Spacing="2" Class="mt-3">
+                <MudItem xs="12">
+                    <MudText Typo="Typo.body2">
+                        共 @_preview.TotalRows 行 ｜ 将新增 @_preview.AddCount ｜ 将覆盖 @_preview.OverwriteCount
+                        ｜ @if (_preview.ErrorCount > 0)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Error" Inline="true">错误 @_preview.ErrorCount（存在错误时整体拒绝导入）</MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Success" Inline="true">校验通过，可执行导入</MudText>
+                        }
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12">
+                    <div style="max-height:260px; overflow:auto">
+                        <MudSimpleTable Class="auto-table" Dense="true">
+                            <thead>
+                                <tr>
+                                    <th>行</th>
+                                    <th>定位/档值</th>
+                                    <th>处理</th>
+                                    <th>说明</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in _preview.RowResults)
+                                {
+                                    <tr>
+                                        <td>@row.RowNumber</td>
+                                        <td>@(string.IsNullOrEmpty(row.Key) ? "-" : row.Key)</td>
+                                        <td>
+                                            @if (row.IsValid)
+                                            {
+                                                <MudChip Size="Size.Small" Color="@(row.RowAction == "新增" ? Color.Secondary : Color.Info)" Variant="Variant.Outlined">@row.RowAction</MudChip>
+                                            }
+                                            else
+                                            {
+                                                <MudChip Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined">错误</MudChip>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (!row.IsValid)
+                                            {
+                                                @string.Join("；", row.Errors)
+                                            }
+                                            else
+                                            {
+                                                @(row.ActionNote ?? "-")
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    </div>
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">取消</MudButton>
+    </DialogActions>
+</MudDialog>
