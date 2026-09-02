@@ -12,8 +12,9 @@ public class FinalInspectionsTests : TestBase
 {
     public FinalInspectionsTests()
     {
-        RegisterServices(typeof(FinalInspectionService));
+        RegisterServices(typeof(FinalInspectionService), typeof(EmployeeService));
         ConfigureEmptyResponse("/api/final-inspection/all");
+        ConfigureEmptyResponse("/api/employee/list");
     }
 
     [Fact]

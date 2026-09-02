@@ -636,7 +636,7 @@ public partial class QualityProcessTracking
                 break;
 
             case "Checker":
-                builder.AddContent(0, item.Checker);
+                builder.AddContent(0, MES.Core.Helpers.OperatorNameHelper.ToNamesOnly(item.Checker));
                 break;
 
             case "TagNo":

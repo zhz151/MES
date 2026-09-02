@@ -70,7 +70,8 @@ public class ProductionRecordServiceTests : TestBase
             fixedLengthSvc ?? Mock.Of<IFixedLengthWorkOrderService>(),
             Mock.Of<ISectionNameDisplayService>(),
             CreateProcessDefinitionServiceMock(),
-            new MemoryCache(new MemoryCacheOptions()));
+            new MemoryCache(new MemoryCacheOptions()),
+            Mock.Of<IOperatorNameValidator>());
     }
 
     /// <summary>

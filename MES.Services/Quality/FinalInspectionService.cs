@@ -59,8 +59,9 @@ public class FinalInspectionService : IFinalInspectionService
     private readonly IQualityProcessTrackingService _qualityProcessTracking;
     private readonly IFixedLengthWorkOrderService _fixedLengthWorkOrderService;
     private readonly IMemoryCache _cache;
+    private readonly IOperatorNameValidator _operatorNameValidator;
 
-    public FinalInspectionService(AppDbContext context, ILogger<FinalInspectionService> logger, IWorkOrderExecutionService workOrderExecutionService, IQualityProcessTrackingService qualityProcessTracking, IFixedLengthWorkOrderService fixedLengthWorkOrderService, IMemoryCache cache)
+    public FinalInspectionService(AppDbContext context, ILogger<FinalInspectionService> logger, IWorkOrderExecutionService workOrderExecutionService, IQualityProcessTrackingService qualityProcessTracking, IFixedLengthWorkOrderService fixedLengthWorkOrderService, IMemoryCache cache, IOperatorNameValidator operatorNameValidator)
     {
         _context = context;
         _logger = logger;
@@ -68,6 +69,7 @@ public class FinalInspectionService : IFinalInspectionService
         _qualityProcessTracking = qualityProcessTracking;
         _fixedLengthWorkOrderService = fixedLengthWorkOrderService;
         _cache = cache;
+        _operatorNameValidator = operatorNameValidator;
     }
 
     /// <summary>
@@ -690,6 +692,9 @@ public class FinalInspectionService : IFinalInspectionService
                 unitWeight = prodBatch.TheoreticalUnitWeight.Value;
         }
 
+        // 操作人实名校验（非空才校验）
+        await _operatorNameValidator.EnsureValidOrThrowAsync(request.Operator);
+
         var entity = new FinalInspection
         {
             InspectionItem = request.InspectionItem,
@@ -888,6 +893,8 @@ public class FinalInspectionService : IFinalInspectionService
         entity.NonFixedLengthRange = request.NonFixedLengthRange ?? entity.NonFixedLengthRange;
         entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;
         entity.Shift = request.Shift ?? entity.Shift;
+        // 操作人实名校验（仅校验新传入值，非空才校验）
+        await _operatorNameValidator.EnsureValidOrThrowAsync(request.Operator);
         entity.Operator = request.Operator ?? entity.Operator;
         entity.Quantity = request.Quantity ?? entity.Quantity;
         entity.Weight = request.Weight ?? entity.Weight;
@@ -1066,6 +1073,7 @@ public class FinalInspectionService : IFinalInspectionService
 
         // 重复校验：日期 + 批次 + 检验项目 + 操作人 → 重复
         var errors = new List<string>();
+        var activeEmployees = await _operatorNameValidator.LoadActiveAsync();
         var seenKeys = new HashSet<string>(); // 本次提交内去重
         foreach (var (request, i) in requests.Select((r, idx) => (r, idx)))
         {
@@ -1073,6 +1081,11 @@ public class FinalInspectionService : IFinalInspectionService
             var batchId = batch.Id;
 
             var operatorName = request.Operator;
+
+            // 操作人实名校验（非空才校验，逐行收集进 errors 末尾汇总抛）
+            var unmatched = OperatorNameHelper.FindUnmatched(activeEmployees, request.Operator);
+            if (unmatched.Count > 0)
+                errors.Add($"第{i + 1}行：操作人「{string.Join("、", unmatched)}」不在启用员工表中，请选择有效操作人");
 
             // ① 与数据库已有记录比对
             var existing = existingByBatch.GetValueOrDefault(batchId, new List<FinalInspection>());

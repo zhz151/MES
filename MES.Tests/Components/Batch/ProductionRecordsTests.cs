@@ -12,8 +12,10 @@ public class ProductionRecordsTests : TestBase
 {
     public ProductionRecordsTests()
     {
-        RegisterServices(typeof(ProductionRecordService), typeof(BatchPlanService));
+        RegisterServices(typeof(ProductionRecordService), typeof(BatchPlanService), typeof(EmployeeService));
         ConfigureEmptyResponse("/api/production-record/all/records");
+        // 操作人下拉候选（EmployeeService）——返回空列表，避免渲染时 NRE
+        ConfigureEmptyResponse("/api/employee/list");
         // 月度/近日生产量汇总（BatchPlanSvc）——返回空列表，避免渲染时 NRE
         ConfigureResponse("/api/batch-plan/summary", new ApiResponse<List<BatchPlanSummaryRowDto>>
         {

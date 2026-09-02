@@ -254,9 +254,10 @@
                       ServerData="@LoadDataFromServer"
                       Dense="true"
                       Hover="true"
-                      Class="mt-0 auto-table compact-table"
+                      Class="mt-0 auto-table compact-table table-min-width"
                       Elevation="0"
-                      RowsPerPage="@_pageSize">
+                      RowsPerPage="@_pageSize"
+                      Style="@($"--table-min-width:{_totalTableWidth}px")">
                 <HeaderContent>
                     <MudTh Class="col-selection-th" Style="width:40px;padding:0 4px;">
                         <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />

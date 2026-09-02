@@ -60,6 +60,7 @@ public class ProcessInspectionService : IProcessInspectionService
     private readonly IMemoryCache _cache;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
     private readonly IProcessDefinitionService _processDefService;
+    private readonly IOperatorNameValidator _operatorNameValidator;
 
     public ProcessInspectionService(
         AppDbContext context,
@@ -67,11 +68,13 @@ public class ProcessInspectionService : IProcessInspectionService
         IProductionRecordService productionRecordService,
         IConfigParameterService configService,
         IMemoryCache cache,
-        IProcessDefinitionService processDefService)
+        IProcessDefinitionService processDefService,
+        IOperatorNameValidator operatorNameValidator)
     {
         _context = context;
         _logger = logger;
         _productionRecordService = productionRecordService;
+        _operatorNameValidator = operatorNameValidator;
         _configService = configService;
         _cache = cache;
         _processDefService = processDefService;
@@ -340,6 +343,9 @@ public class ProcessInspectionService : IProcessInspectionService
         var entities = new List<ProcessInspection>();
         var errors = new List<string>();
 
+        // 操作人强制实名：预加载启用员工快照，逐行校验
+        var activeEmployees = await _operatorNameValidator.LoadActiveAsync();
+
         // 预查询：各批次所有已有的过程检验记录（用于执行序号跳跃验证）
         var allExistingRecords = await _context.ProcessInspections
             .Where(r => allBatchIds.Contains(r.ProductionBatchId))
@@ -383,6 +389,11 @@ public class ProcessInspectionService : IProcessInspectionService
             var request = requests[i];
             var batch = batchLookup[request.BatchNo];
             var batchId = batch.Id;
+
+            // 操作人强制实名：非空才校验，未命中启用员工表收集进 errors
+            var opUnmatched = OperatorNameHelper.FindUnmatched(activeEmployees, request.Inspector);
+            if (opUnmatched.Count > 0)
+                errors.Add($"第{i + 1}行：操作人「{string.Join("、", opUnmatched)}」不在启用员工表中，请选择有效操作人");
 
             // 解析 ProcessGroupId
             int? pgId = request.ProcessGroupId;
@@ -599,6 +610,9 @@ public class ProcessInspectionService : IProcessInspectionService
         if (request.Weight.HasValue && request.Weight > 0 && batch != null
             && request.Weight.Value > (batch.CurrentValidWeight ?? batch.InputWeight))
             throw new BusinessException($"检验重量({request.Weight})不能大于现有效原料重量({batch.CurrentValidWeight ?? batch.InputWeight})");
+
+        // 操作人强制实名：非空才校验（只校验新传入值）
+        await _operatorNameValidator.EnsureValidOrThrowAsync(request.Inspector);
 
         entity.InspectionDate = request.InspectionDate;
         entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;

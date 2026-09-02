@@ -11,8 +11,9 @@ public class ProcessInspectionsTests : TestBase
 {
     public ProcessInspectionsTests()
     {
-        RegisterServices(typeof(ProcessInspectionService));
+        RegisterServices(typeof(ProcessInspectionService), typeof(EmployeeService));
         ConfigureEmptyResponse("/api/process-inspection/all");
+        ConfigureEmptyResponse("/api/employee/list");
     }
 
     [Fact]

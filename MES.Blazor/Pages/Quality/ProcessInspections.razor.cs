@@ -9,10 +9,12 @@ using MES.Blazor.Services;
 using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Quality;
+using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Shared;
 using MES.Core.Enums;
 using System.Text.Json;
 using MES.Shared.Constants;
+using MES.Core.Helpers;
 
 namespace MES.Blazor.Pages.Quality;
 
@@ -46,6 +48,69 @@ public partial class ProcessInspections
     private int _pageSize = 10;
     private int _loadVersion;
     private bool _resetToFirstPage;
+
+    [Inject] private EmployeeService EmployeeService { get; set; } = null!;
+
+    // 检验员员工下拉（全量启用员工，实名制）
+    private List<EmployeeDto> _allEmployees = new();
+    private Dictionary<string, EmployeeDto> _empByDisplay = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>按「姓名(工号)」或纯姓名反查员工；null 安全（Dictionary 键为 null 会抛 ArgumentNullException）</summary>
+    private EmployeeDto? ResolveEmp(string? key)
+        => key != null && _empByDisplay.TryGetValue(key, out var emp) ? emp : null;
+
+    /// <summary>加载全量启用员工（不做工段过滤，避免过度收窄阻断录入）；登记「姓名(工号)」与纯姓名两种回显键</summary>
+    private async Task LoadOperatorsAsync()
+    {
+        var resp = await EmployeeService.GetBySectionAsync(null);
+        _allEmployees = resp.Success && resp.Data != null ? resp.Data : new();
+        _empByDisplay = new Dictionary<string, EmployeeDto>(StringComparer.OrdinalIgnoreCase);
+        foreach (var e in _allEmployees)
+        {
+            if (!string.IsNullOrWhiteSpace(e.Name))
+            {
+                _empByDisplay[$"{e.Name}({e.Code})"] = e;
+                if (!_empByDisplay.ContainsKey(e.Name))
+                    _empByDisplay[e.Name] = e;
+            }
+        }
+    }
+
+    /// <summary>检验员下拉选项：按当前行「工段 + 工序组」双条件过滤；员工工序组空=通配；双条件无候选回退仅工段（防阻断）</summary>
+    private List<EmployeeDto> GetRowInspectorOptions(string? sectionName, string? processName)
+    {
+        var bySection = string.IsNullOrWhiteSpace(sectionName)
+            ? _allEmployees
+            : _allEmployees.Where(e => OperatorMatchHelper.MatchesSection(e, sectionName)).ToList();
+        if (string.IsNullOrWhiteSpace(processName))
+            return bySection;
+        var byBoth = bySection.Where(e => OperatorMatchHelper.MatchesProcessGroup(e, processName)).ToList();
+        return byBoth.Count > 0 ? byBoth : bySection;
+    }
+
+    /// <summary>把「姓名(工号)、姓名(工号)」字符串反查为员工列表（多人，后端以「、」分隔）</summary>
+    private List<EmployeeDto> ParseOperators(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return new();
+        var list = new List<EmployeeDto>();
+        foreach (var seg in OperatorNameHelper.Split(text))
+        {
+            var emp = ResolveEmp(seg);
+            if (emp != null && !list.Contains(emp)) list.Add(emp);
+        }
+        return list;
+    }
+
+    /// <summary>员工多选列表 → 「姓名(工号)、」分隔字符串（与后端 OperatorNameHelper.Split 约定一致）</summary>
+    private string? FormatOperators(IEnumerable<EmployeeDto> list)
+    {
+        var arr = list.Where(e => e != null)
+            .Select(e => $"{e.Name}({e.Code})")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return arr.Count == 0 ? null : string.Join("、", arr);
+    }
+
     private string _searchKeyword = string.Empty;
     private string _dateFrom = string.Empty;
     private string _dateTo = string.Empty;
@@ -111,7 +176,7 @@ public partial class ProcessInspections
         new() { Key = "Shift",                 Label = "班次",       SortKey = "shift", FilterType = "enum", Width = "120",
             GroupKey = 2, GroupName = "G2 检验执行",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<ShiftType>() },
-        new() { Key = "Inspector",             Label = "检验员",     SortKey = "inspector", FilterType = "string", Width = "120",
+        new() { Key = "Inspector",             Label = "检验员",     SortKey = "inspector", FilterType = "string", Width = "160",
             GroupKey = 2, GroupName = "G2 检验执行" },
         new() { Key = "InspectionItem",        Label = "检验项目",   SortKey = "inspectionitem", FilterType = "string", Width = "120",
             GroupKey = 2, GroupName = "G2 检验执行" },
@@ -389,6 +454,7 @@ public partial class ProcessInspections
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadOperatorsAsync();
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("process-inspection", null);
         if (saved.Count > 0)
@@ -702,15 +768,37 @@ public partial class ProcessInspections
             case "Inspector":
                 if (isEditing && cache != null)
                 {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Value", cache.Inspector);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.Inspector = v));
-                    builder.AddAttribute(3, "Class", "compact-input");
+                    // 检验员多选：MudSelect<EmployeeDto> MultiSelection（checkbox 一次勾选多人）。
+                    // ⚠️ MudBlazor 6.19.1 MudAutocomplete 不支持 MultiSelection（误传会 unboxing 崩溃），
+                    // 故用 MudSelect 原生多选 + PopoverClass 宽下拉；显示只显姓名，存储仍「姓名(工号)」。
+                    builder.OpenComponent<MudSelect<EmployeeDto>>(0);
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "Variant", Variant.Outlined);
+                    builder.AddAttribute(3, "Size", Size.Small);
+                    builder.AddAttribute(4, "MultiSelection", true);
+                    builder.AddAttribute(5, "SelectedValues", ParseOperators(cache.Inspector));
+                    builder.AddAttribute(6, "SelectedValuesChanged", EventCallback.Factory.Create<IEnumerable<EmployeeDto>>(this, list => cache.Inspector = FormatOperators(list)));
+                    builder.AddAttribute(7, "ToStringFunc", (Func<EmployeeDto, string>)(e => e?.Name ?? ""));
+                    builder.AddAttribute(8, "PopoverClass", "operator-select-popover");
+                    builder.AddAttribute(9, "Class", "compact-input operator-input");
+                    builder.AddAttribute(10, "Placeholder", "选择检验员");
+                    builder.AddAttribute(11, "MultiSelectionDelimiter", "、");
+                    builder.AddAttribute(12, "ChildContent", (RenderFragment)(b =>
+                    {
+                        foreach (var opt in GetRowInspectorOptions(item.SectionName, item.ProcessName))
+                        {
+                            b.OpenComponent<MudSelectItem<EmployeeDto>>(0);
+                            b.AddAttribute(1, "Value", opt);
+                            b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, opt.Name)));
+                            b.CloseComponent();
+                        }
+                    }));
                     builder.CloseComponent();
                 }
                 else
                 {
-                    builder.AddContent(0, item.Inspector);
+                    // 非编辑态只显纯姓名（去掉工号）
+                    builder.AddContent(0, OperatorNameHelper.ToNamesOnly(item.Inspector));
                 }
                 break;
             case "Shift":

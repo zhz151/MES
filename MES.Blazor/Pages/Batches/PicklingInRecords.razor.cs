@@ -9,11 +9,13 @@ using MES.Blazor.Services;
 using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Batch;
+using MES.Core.DTOs.Configuration;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
 using Microsoft.AspNetCore.Components.Rendering;
 using MES.Core.Enums;
 using MES.Shared.Constants;
+using MES.Core.Helpers;
 
 namespace MES.Blazor.Pages.Batches;
 
@@ -47,6 +49,69 @@ public partial class PicklingInRecords
     private int _pageSize = 10;
     private int _loadVersion;
     private bool _resetToFirstPage;
+
+    [Inject] private EmployeeService EmployeeService { get; set; } = null!;
+
+    // 操作人员工下拉（全量启用员工，实名制）
+    private List<EmployeeDto> _allEmployees = new();
+    private Dictionary<string, EmployeeDto> _empByDisplay = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>按「姓名(工号)」或纯姓名反查员工；null 安全（Dictionary 键为 null 会抛 ArgumentNullException）</summary>
+    private EmployeeDto? ResolveEmp(string? key)
+        => key != null && _empByDisplay.TryGetValue(key, out var emp) ? emp : null;
+
+    /// <summary>加载全量启用员工（不做工段过滤，避免过度收窄阻断录入）；登记「姓名(工号)」与纯姓名两种回显键</summary>
+    private async Task LoadOperatorsAsync()
+    {
+        var resp = await EmployeeService.GetBySectionAsync(null);
+        _allEmployees = resp.Success && resp.Data != null ? resp.Data : new();
+        _empByDisplay = new Dictionary<string, EmployeeDto>(StringComparer.OrdinalIgnoreCase);
+        foreach (var e in _allEmployees)
+        {
+            if (!string.IsNullOrWhiteSpace(e.Name))
+            {
+                _empByDisplay[$"{e.Name}({e.Code})"] = e;
+                if (!_empByDisplay.ContainsKey(e.Name))
+                    _empByDisplay[e.Name] = e;
+            }
+        }
+    }
+
+    /// <summary>操作人下拉选项：按当前行「工段 + 工序组」双条件过滤；员工工序组空=通配；双条件无候选回退仅工段（防阻断）</summary>
+    private List<EmployeeDto> GetRowOperatorOptions(string? sectionName, string? processName)
+    {
+        var bySection = string.IsNullOrWhiteSpace(sectionName)
+            ? _allEmployees
+            : _allEmployees.Where(e => OperatorMatchHelper.MatchesSection(e, sectionName)).ToList();
+        if (string.IsNullOrWhiteSpace(processName))
+            return bySection;
+        var byBoth = bySection.Where(e => OperatorMatchHelper.MatchesProcessGroup(e, processName)).ToList();
+        return byBoth.Count > 0 ? byBoth : bySection;
+    }
+
+    /// <summary>把「姓名(工号)、姓名(工号)」字符串反查为员工列表（多人，后端以「、」分隔）</summary>
+    private List<EmployeeDto> ParseOperators(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return new();
+        var list = new List<EmployeeDto>();
+        foreach (var seg in OperatorNameHelper.Split(text))
+        {
+            var emp = ResolveEmp(seg);
+            if (emp != null && !list.Contains(emp)) list.Add(emp);
+        }
+        return list;
+    }
+
+    /// <summary>员工多选列表 → 「姓名(工号)、」分隔字符串（与后端 OperatorNameHelper.Split 约定一致）</summary>
+    private string? FormatOperators(IEnumerable<EmployeeDto> list)
+    {
+        var arr = list.Where(e => e != null)
+            .Select(e => $"{e.Name}({e.Code})")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return arr.Count == 0 ? null : string.Join("、", arr);
+    }
+
     private string _searchKeyword = string.Empty;
     private string _dateFrom = string.Empty;
     private string _dateTo = string.Empty;
@@ -114,7 +179,7 @@ public partial class PicklingInRecords
         new() { Key = "EquipmentName",       Label = "设备名称",     SortKey = "equipmentname",       FilterType = "string", Width = "100", GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "Shift",               Label = "班次",         SortKey = "shift",               FilterType = "enum",   Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<ShiftType>() },
-        new() { Key = "Operator",            Label = "操作人",       SortKey = "operator",            FilterType = "string", Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "Operator",            Label = "操作人",       SortKey = "operator",            FilterType = "string", Width = "160",  GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "Quantity",            Label = "加工支数",     SortKey = "quantity",                                       Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "Weight",              Label = "加工重量",     SortKey = "weight",                                         Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "ProductStatus",       Label = "产类",         SortKey = "productstatus",       FilterType = "string", Width = "80", GroupKey = 1, GroupName = "去油/酸洗信息" },
@@ -534,6 +599,7 @@ public partial class PicklingInRecords
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadOperatorsAsync();
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("pickling-in-records", null);
         if (saved.Count > 0)
@@ -654,15 +720,37 @@ public partial class PicklingInRecords
             case "Operator":
                 if (isEditing && cache != null)
                 {
-                    builder.OpenComponent<MudTextField<string>>(0);
-                    builder.AddAttribute(1, "Value", cache.Operator);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => cache.Operator = v));
-                    builder.AddAttribute(3, "Class", "compact-input");
+                    // 操作工多选：MudSelect<EmployeeDto> MultiSelection（checkbox 一次勾选多人）。
+                    // ⚠️ MudBlazor 6.19.1 MudAutocomplete 不支持 MultiSelection（误传会 unboxing 崩溃），
+                    // 故用 MudSelect 原生多选 + PopoverClass 宽下拉；显示只显姓名，存储仍「姓名(工号)」。
+                    builder.OpenComponent<MudSelect<EmployeeDto>>(0);
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "Variant", Variant.Outlined);
+                    builder.AddAttribute(3, "Size", Size.Small);
+                    builder.AddAttribute(4, "MultiSelection", true);
+                    builder.AddAttribute(5, "SelectedValues", ParseOperators(cache.Operator));
+                    builder.AddAttribute(6, "SelectedValuesChanged", EventCallback.Factory.Create<IEnumerable<EmployeeDto>>(this, list => cache.Operator = FormatOperators(list)));
+                    builder.AddAttribute(7, "ToStringFunc", (Func<EmployeeDto, string>)(e => e?.Name ?? ""));
+                    builder.AddAttribute(8, "PopoverClass", "operator-select-popover");
+                    builder.AddAttribute(9, "Class", "compact-input operator-input");
+                    builder.AddAttribute(10, "Placeholder", "选择操作工");
+                    builder.AddAttribute(11, "MultiSelectionDelimiter", "、");
+                    builder.AddAttribute(12, "ChildContent", (RenderFragment)(b =>
+                    {
+                        foreach (var opt in GetRowOperatorOptions(item.SectionName, item.ProcessName))
+                        {
+                            b.OpenComponent<MudSelectItem<EmployeeDto>>(0);
+                            b.AddAttribute(1, "Value", opt);
+                            b.AddAttribute(2, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, opt.Name)));
+                            b.CloseComponent();
+                        }
+                    }));
                     builder.CloseComponent();
                 }
                 else
                 {
-                    builder.AddContent(0, item.Operator);
+                    // 非编辑态只显纯姓名（去掉工号）
+                    builder.AddContent(0, OperatorNameHelper.ToNamesOnly(item.Operator));
                 }
                 break;
             case "Shift":

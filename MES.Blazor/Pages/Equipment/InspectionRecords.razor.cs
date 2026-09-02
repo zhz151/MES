@@ -479,7 +479,7 @@ public partial class InspectionRecords
                 builder.AddContent(0, item.ActualDate?.ToString("yyyy-MM-dd"));
                 break;
             case "Inspector":
-                builder.AddContent(0, item.Inspector);
+                builder.AddContent(0, MES.Core.Helpers.OperatorNameHelper.ToNamesOnly(item.Inspector));
                 break;
             case "ExecutionSummary":
                 builder.AddContent(0, item.ExecutionSummary);

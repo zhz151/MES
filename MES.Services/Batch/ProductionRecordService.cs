@@ -65,6 +65,7 @@ public class ProductionRecordService : IProductionRecordService
     private readonly IProcessDefinitionService _processDefService;
     private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
     private readonly IMemoryCache _cache;
+    private readonly IOperatorNameValidator _operatorNameValidator;
 
     private sealed record SectionOutsourceInfo(
         int Id,
@@ -92,6 +93,7 @@ public class ProductionRecordService : IProductionRecordService
         ISectionNameDisplayService sectionNameDisplay,
         IProcessDefinitionService processDefService,
         IMemoryCache cache,
+        IOperatorNameValidator operatorNameValidator,
         IWorkOrderListSummaryRefreshService? listSummaryService = null)
     {
         _context = context;
@@ -105,6 +107,7 @@ public class ProductionRecordService : IProductionRecordService
         _sectionNameDisplay = sectionNameDisplay;
         _processDefService = processDefService;
         _cache = cache;
+        _operatorNameValidator = operatorNameValidator;
         _listSummaryService = listSummaryService;
     }
 
@@ -357,6 +360,9 @@ public class ProductionRecordService : IProductionRecordService
         var productStatus = CalculateProductStatus(request.ProcessName, request.ManufacturingSpec, batch.ManufacturingItem, batchProcessGroups, batch.Specification);
         var recordLengthStatus = CalculateLengthStatus(request.SectionName, productStatus, batch.LengthStatus);
 
+        // 操作人强制实名：非空才校验，未命中启用员工表即拒绝
+        await _operatorNameValidator.EnsureValidOrThrowAsync(request.Operator);
+
         var entity = new ProductionRecord
         {
             ProductionBatchId = batchId,
@@ -469,6 +475,9 @@ public class ProductionRecordService : IProductionRecordService
 
         var entities = new List<ProductionRecord>();
         var requestErrors = new List<string>();
+
+        // 操作人强制实名：预加载启用员工快照，逐行校验
+        var activeEmployees = await _operatorNameValidator.LoadActiveAsync();
 
         // 预查询：各批次所有已有的生产记录（用于执行序号跳跃验证）
         var allExistingRecords = await _context.ProductionRecords
@@ -696,6 +705,11 @@ public class ProductionRecordService : IProductionRecordService
             var batch = batchLookup[request.BatchNo];
             var batchId = batch.Id;
 
+            // 操作人强制实名：非空才校验，未命中启用员工表收集进 requestErrors
+            var opUnmatched = OperatorNameHelper.FindUnmatched(activeEmployees, request.Operator);
+            if (opUnmatched.Count > 0)
+                requestErrors.Add($"第{i + 1}行：操作人「{string.Join("、", opUnmatched)}」不在启用员工表中，请选择有效操作人");
+
             // 解析 ProcessGroupId
             var pgId = request.ProcessGroupId;
             if (pgId == null || pgId == 0)
@@ -913,6 +927,9 @@ public class ProductionRecordService : IProductionRecordService
             if (recSeq.HasValue)
                 entity.SequenceNumber = recSeq.Value;
         }
+
+        // 操作人强制实名：非空才校验（只校验新传入值）
+        await _operatorNameValidator.EnsureValidOrThrowAsync(request.Operator);
 
         entity.ExecDate = request.ExecDate;
         entity.EquipmentName = request.EquipmentName ?? entity.EquipmentName;

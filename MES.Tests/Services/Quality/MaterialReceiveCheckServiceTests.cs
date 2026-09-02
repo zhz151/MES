@@ -51,7 +51,8 @@ public class MaterialReceiveCheckServiceTests : TestBase
         var wesMock = new Mock<IWorkOrderExecutionService>();
         var prMock = new Mock<IProductionRecordService>();
         return new(ctx, qptMock.Object, wesMock.Object, prMock.Object,
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<MaterialReceiveCheckService>.Instance, new MemoryCache(new MemoryCacheOptions()));
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<MaterialReceiveCheckService>.Instance, new MemoryCache(new MemoryCacheOptions()),
+            Mock.Of<IOperatorNameValidator>());
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")
@@ -257,7 +258,8 @@ public class MaterialReceiveCheckServiceTests : TestBase
         var prMock = new Mock<IProductionRecordService>();
         var svc = new MaterialReceiveCheckService(ctx, qptMock.Object, wesMock.Object, prMock.Object,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<MaterialReceiveCheckService>.Instance,
-            new MemoryCache(new MemoryCacheOptions()));
+            new MemoryCache(new MemoryCacheOptions()),
+            Mock.Of<IOperatorNameValidator>());
 
         var created = await svc.CreateMaterialReceiveCheckAsync(new CreateMaterialReceiveCheckRequest
         {
@@ -288,7 +290,8 @@ public class MaterialReceiveCheckServiceTests : TestBase
         var prMock = new Mock<IProductionRecordService>();
         var svc = new MaterialReceiveCheckService(ctx, qptMock.Object, wesMock.Object, prMock.Object,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<MaterialReceiveCheckService>.Instance,
-            new MemoryCache(new MemoryCacheOptions()));
+            new MemoryCache(new MemoryCacheOptions()),
+            Mock.Of<IOperatorNameValidator>());
 
         var created = await svc.CreateMaterialReceiveCheckAsync(new CreateMaterialReceiveCheckRequest
         {

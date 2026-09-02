@@ -71,7 +71,8 @@ public class ProcessInspectionServiceTests : TestBase
             mockProductionRecordService.Object,
             configMock.Object,
             new MemoryCache(new MemoryCacheOptions()),
-            CreateProcessDefinitionServiceMock());
+            CreateProcessDefinitionServiceMock(),
+            Mock.Of<IOperatorNameValidator>());
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")

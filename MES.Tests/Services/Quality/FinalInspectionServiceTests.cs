@@ -49,7 +49,7 @@ public class FinalInspectionServiceTests : TestBase
     {
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var qptMock = new Mock<IQualityProcessTrackingService>();
-        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FinalInspectionService>.Instance, workOrderExecMock.Object, qptMock.Object, fixedLengthSvc ?? CreateFixedLengthSvcMock(), new MemoryCache(new MemoryCacheOptions()));
+        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FinalInspectionService>.Instance, workOrderExecMock.Object, qptMock.Object, fixedLengthSvc ?? CreateFixedLengthSvcMock(), new MemoryCache(new MemoryCacheOptions()), Mock.Of<IOperatorNameValidator>());
     }
 
     /// <summary>

@@ -40,32 +40,12 @@ public class EmployeeService
         });
 
     /// <summary>
-    /// 按工段 + 组类获取启用员工（普通生产工位扫码操作人下拉）；
-    /// 组类过滤 = GroupName 逗号串任一元素精确匹配（员工可多组）；组类传空 = 不按组过滤（工位未配置组类）
-    /// </summary>
-    public async Task<ApiResponse<List<EmployeeDto>>> GetBySectionAndGroupAsync(string? sectionName, string? groupName)
-        => await GetEnabledEmployeesAsync(new List<FilterDescriptor>
-        {
-            new() { Field = "SectionName", Operator = "equals", Value = sectionName },
-            new() { Field = "GroupName", Operator = "equals", Value = groupName }
-        });
-
-    /// <summary>
     /// 按成检项目获取启用员工（成品检验扫码操作人下拉），走 GetPagedAsync + InspectionItems 筛选
     /// </summary>
     public async Task<ApiResponse<List<EmployeeDto>>> GetByInspectionItemAsync(string? inspectionItem)
         => await GetEnabledEmployeesAsync(new List<FilterDescriptor>
         {
             new() { Field = "InspectionItems", Operator = "equals", Value = inspectionItem }
-        });
-
-    /// <summary>
-    /// 获取「过程检验」=是 的启用员工（过程检验扫码操作人下拉，不按项目/工段过滤）
-    /// </summary>
-    public async Task<ApiResponse<List<EmployeeDto>>> GetByProcessInspectionAsync()
-        => await GetEnabledEmployeesAsync(new List<FilterDescriptor>
-        {
-            new() { Field = "ProcessInspectionItems", Operator = "equals", Value = "True" }
         });
 
     /// <summary>
@@ -133,6 +113,20 @@ public class EmployeeService
         catch (Exception ex)
         {
             return ApiResponse<bool>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>一键补齐存量员工登录账号（用户名=工号、密码=123456、仅扫码权限），返回新建账号数</summary>
+    public async Task<ApiResponse<int>> SyncAccountsAsync()
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync<object?, ApiResponse<int>>($"{BaseUrl}/sync-accounts", null);
+            return response ?? ApiResponse<int>.Fail("补齐账号失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<int>.Fail($"网络错误: {ex.Message}");
         }
     }
 

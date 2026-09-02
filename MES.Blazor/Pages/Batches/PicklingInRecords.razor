@@ -147,10 +147,11 @@
                       ServerData="@LoadDataFromServer"
                       Dense="true"
                       Hover="true"
-                      Class="mt-0 auto-table compact-table"
+                      Class="mt-0 auto-table compact-table table-min-width"
                       Elevation="0"
                       RowsPerPage="@_pageSize"
-                      RowsPerPageLabel="每页行数:">
+                      RowsPerPageLabel="每页行数:"
+                      Style="@($"--table-min-width:{_totalTableWidth}px")">
                 <HeaderContent>
                     @{
                         int? _prevGk = null;

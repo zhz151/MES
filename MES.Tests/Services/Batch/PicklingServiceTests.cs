@@ -15,6 +15,7 @@ using MES.Core.DTOs.WorkOrder;
 using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Interfaces.Configuration;
 using MES.Core.Models;
 using MES.Services;
 using MES.Services.Batch;
@@ -37,7 +38,7 @@ public class PicklingServiceTests : TestBase
     private PicklingService CreateService(AppDbContext ctx)
     {
         var prMock = new Mock<Core.Interfaces.Batch.IProductionRecordService>();
-        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<PicklingService>.Instance, new MemoryCache(new MemoryCacheOptions()), prMock.Object, Mock.Of<Core.Interfaces.Configuration.ISectionNameDisplayService>(), CreateProcessDefinitionServiceMock());
+        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<PicklingService>.Instance, new MemoryCache(new MemoryCacheOptions()), prMock.Object, Mock.Of<Core.Interfaces.Configuration.ISectionNameDisplayService>(), CreateProcessDefinitionServiceMock(), Mock.Of<IOperatorNameValidator>());
     }
 
     private async Task<ProductionBatch> SeedBatchAsync(AppDbContext ctx, string batchNo = "BATCH001")

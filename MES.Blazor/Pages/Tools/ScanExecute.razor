@@ -168,25 +168,6 @@
                         </MudPaper>
                     }
 
-                    @* 组类筛选（工位配置组类选项时显示：先选组再选人；「全部组」= 该工段全部候选） *@
-                    @if (_groupOptions.Count > 0)
-                    {
-                        <MudSelect T="string?"
-                                   Dense="true"
-                                   Variant="Variant.Outlined"
-                                   Value="_selectedGroup"
-                                   ValueChanged="@(v => _ = ReloadOperatorsForGroupAsync(v))"
-                                   Label="组类筛选"
-                                   Class="mb-3"
-                                   Style="font-size: 0.875rem;">
-                            <MudSelectItem Value="@((string?)null)">全部组</MudSelectItem>
-                            @foreach (var g in _groupOptions)
-                            {
-                                <MudSelectItem Value="@g">@g</MudSelectItem>
-                            }
-                        </MudSelect>
-                    }
-
                     @* 下拉选择操作人（按工位工段优先过滤，可搜索全量） *@
                     <MudAutocomplete T="EmployeeDto"
                                      Value="_operatorSearchValue"
@@ -1483,10 +1464,6 @@
     private List<EmployeeDto> _allOperators = new();      // 操作人下拉候选（按工位工段过滤，进入工位时加载）
     private EmployeeDto? _operatorSearchValue;            // 操作人下拉当前选中（选中后立即加入并清空）
 
-    // 组类筛选（普通生产/入缸/出缸/委外工位按工段选人；工位配置组类选项后先选组再选人）
-    private List<string> _groupOptions = new();           // 工位组类选项（逗号串拆分，空 = 该工位不分组）
-    private string? _selectedGroup;                       // 当前选中组类（null = 全部组）
-
     // ========== 当前批次解析结果 ==========
     private ScanBatchResolveResultDto? _batchGroupResult;
     private List<ProcessGroupOption> _filteredGroups = new();
@@ -1701,8 +1678,6 @@
         //  成检到料 → 员工「成检到料」=是 的启用员工（不按项目/工段）
         //  其余类型 → 员工「生产工段」（SectionName）按工位工段过滤
         _operators.Clear();
-        _groupOptions = new();
-        _selectedGroup = null;
         switch (_workstationContext.ReportType)
         {
             case ReportTemplateType.FinalInspection:
@@ -1710,24 +1685,19 @@
                 var finalResp = await EmployeeService.GetByInspectionItemAsync(_workstationContext.InspectionItem?.ToString());
                 _allOperators = finalResp.Success && finalResp.Data != null ? finalResp.Data : new();
                 break;
-            case ReportTemplateType.ProcessInspection:
-                var procResp = await EmployeeService.GetByProcessInspectionAsync();
-                _allOperators = procResp.Success && procResp.Data != null ? procResp.Data : new();
-                break;
             case ReportTemplateType.MaterialReceiveCheck:
                 var mrcResp = await EmployeeService.GetByMaterialReceiveCheckAsync();
                 _allOperators = mrcResp.Success && mrcResp.Data != null ? mrcResp.Data : new();
                 break;
             default:
-                // 普通生产/入缸/出缸/委外：按工位工段过滤操作人；工位配置组类选项则先选组再选人
-                _groupOptions = SplitGroupOptions(_workstationContext.GroupNames);
-                await ReloadOperatorsForGroupAsync(null);
+                // 普通生产/入缸/出缸/过程检验/委外：按工位工段过滤操作人（「检验」同为工段，与其它生产记录一致）；选批次工序组后再按工序组收窄
+                await ReloadOperatorsBySectionAsync(_workstationContext?.SectionName);
                 break;
         }
         _operatorSearchValue = null;
 
         // 委外类（发出/回收）不选操作人，直接进入扫批次
-        if (_workstationContext.ReportType is ReportTemplateType.SectionOutsource or ReportTemplateType.OutsourceRecovery)
+        if (_workstationContext!.ReportType is ReportTemplateType.SectionOutsource or ReportTemplateType.OutsourceRecovery)
         {
             _step = ScanStep.ScanBatch;
             StateHasChanged();
@@ -1783,35 +1753,21 @@
 
     // ========== 操作人下拉（MudAutocomplete，从该工段员工中过滤）==========
 
-    /// <summary>工位组类选项拆分（逗号串 → 去重列表，空 = 该工位不分组）</summary>
-    private static List<string> SplitGroupOptions(string? groupNames)
+    /// <summary>按工位工段加载操作人候选（扫码添加员工不受工段限制，仅候选下拉过滤）</summary>
+    private async Task ReloadOperatorsBySectionAsync(string? sectionName)
     {
-        if (string.IsNullOrWhiteSpace(groupNames)) return new();
-        return groupNames.Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .Select(g => g.Trim())
-            .Where(g => g.Length > 0)
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+        var secResp = await EmployeeService.GetBySectionAsync(sectionName);
+        _allOperators = secResp.Success && secResp.Data != null ? secResp.Data : new();
+        _operatorSearchValue = null;
+        StateHasChanged();
     }
 
-    /// <summary>
-    /// 按组类重新加载操作人候选：组类空 → 该工位工段全部启用员工；非空 → 工段 ∩ 组类任一匹配
-    /// （扫码添加员工不受组类限制，仅候选下拉过滤）
-    /// </summary>
-    private async Task ReloadOperatorsForGroupAsync(string? group)
+    /// <summary>按选中工序组收窄操作人候选：员工工序组空=通配；无命中保留工段候选（防阻断）；null=仅工段</summary>
+    private void ApplyProcessGroupFilter(ProcessGroupOption? group)
     {
-        _selectedGroup = group;
-        if (string.IsNullOrWhiteSpace(group))
-        {
-            var secResp = await EmployeeService.GetBySectionAsync(_workstationContext?.SectionName);
-            _allOperators = secResp.Success && secResp.Data != null ? secResp.Data : new();
-        }
-        else
-        {
-            var grpResp = await EmployeeService.GetBySectionAndGroupAsync(_workstationContext?.SectionName, group);
-            _allOperators = grpResp.Success && grpResp.Data != null ? grpResp.Data : new();
-        }
-        _operatorSearchValue = null;
+        if (string.IsNullOrWhiteSpace(group?.ProcessName)) return;
+        var matched = _allOperators.Where(e => OperatorMatchHelper.MatchesProcessGroup(e, group.ProcessName)).ToList();
+        if (matched.Count > 0) _allOperators = matched;
         StateHasChanged();
     }
 
@@ -2002,6 +1958,7 @@
     private void SelectProcessGroup(ProcessGroupOption group)
     {
         _selectedProcessGroup = group;
+        ApplyProcessGroupFilter(group);
         StateHasChanged();
     }
 

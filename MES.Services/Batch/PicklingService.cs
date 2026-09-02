@@ -57,10 +57,11 @@ public class PicklingService : IPicklingService
     private readonly IProductionRecordService _productionRecordService;
     private readonly ISectionNameDisplayService _sectionNameDisplay;
     private readonly IProcessDefinitionService _processDefService;
+    private readonly IOperatorNameValidator _operatorNameValidator;
 
     public PicklingService(AppDbContext context, ILogger<PicklingService> logger, IMemoryCache cache,
         IProductionRecordService productionRecordService, ISectionNameDisplayService sectionNameDisplay,
-        IProcessDefinitionService processDefService)
+        IProcessDefinitionService processDefService, IOperatorNameValidator operatorNameValidator)
     {
         _context = context;
         _logger = logger;
@@ -68,6 +69,7 @@ public class PicklingService : IPicklingService
         _productionRecordService = productionRecordService;
         _sectionNameDisplay = sectionNameDisplay;
         _processDefService = processDefService;
+        _operatorNameValidator = operatorNameValidator;
     }
 
     // ========== 入缸记录 ==========
@@ -390,6 +392,9 @@ public class PicklingService : IPicklingService
             .Where(pg => pg.ProductionBatchId == batch.Id)
             .ToListAsync();
 
+        // 操作人强制实名：非空才校验，未命中启用员工表即拒绝
+        await _operatorNameValidator.EnsureValidOrThrowAsync(request.Operator);
+
         var entity = new PicklingInRecord
         {
             ProductionBatchId = batch.Id,
@@ -529,6 +534,9 @@ public class PicklingService : IPicklingService
         var entities = new List<PicklingInRecord>();
         var pendingKeys = new HashSet<(int batchId, int pgId, string section)>();
 
+        // 操作人强制实名：预加载启用员工快照，逐行校验
+        var activeEmployees = await _operatorNameValidator.LoadActiveAsync();
+
         // 收集本次提交中的冷轧拔记录
         var pendingColdRollDraw = new HashSet<(int batchId, int pgId)>();
         foreach (var request in requests)
@@ -550,6 +558,11 @@ public class PicklingService : IPicklingService
         for (int i = 0; i < requests.Count; i++)
         {
             var request = requests[i];
+
+            // 操作人强制实名：非空才校验，未命中启用员工表收集进 errors
+            var opUnmatched = OperatorNameHelper.FindUnmatched(activeEmployees, request.Operator);
+            if (opUnmatched.Count > 0)
+                errors.Add($"第{i + 1}行：操作人「{string.Join("、", opUnmatched)}」不在启用员工表中，请选择有效操作人");
 
             if (!batches.TryGetValue(request.BatchNo, out var batch))
             {
@@ -713,6 +726,9 @@ public class PicklingService : IPicklingService
             .Include(s => s.ProductionBatch)
             .FirstOrDefaultAsync(s => s.Id == id)
             ?? throw new BusinessException($"入缸记录不存在: {id}");
+
+        // 操作人强制实名：非空才校验（只校验新传入值）
+        await _operatorNameValidator.EnsureValidOrThrowAsync(request.Operator);
 
         if (request.InDate.HasValue)
             entity.InDate = request.InDate.Value;
@@ -955,6 +971,9 @@ public class PicklingService : IPicklingService
         if (inRecord.Status == PicklingStatus.Completed)
             throw new BusinessException("该入缸记录已完工，不能重复完工");
 
+        // 操作人强制实名：非空才校验（出缸操作人覆盖入缸值，仅校验新传入值）
+        await _operatorNameValidator.EnsureValidOrThrowAsync(request.Operator);
+
         // 从入缸记录复制冗余字段（计件工资结算/数据冻结）
         var entity = new PicklingOutRecord
         {
@@ -1014,6 +1033,9 @@ public class PicklingService : IPicklingService
         var entity = await _context.PicklingOutRecords
             .FirstOrDefaultAsync(r => r.Id == id)
             ?? throw new BusinessException($"完工记录不存在: {id}");
+
+        // 操作人强制实名：非空才校验（只校验新传入值）
+        await _operatorNameValidator.EnsureValidOrThrowAsync(request.Operator);
 
         if (request.CompleteDate.HasValue)
             entity.CompleteDate = request.CompleteDate.Value;

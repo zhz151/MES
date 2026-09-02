@@ -746,7 +746,8 @@ public partial class MaterialReceiveChecks
                 }
                 else
                 {
-                    builder.AddContent(0, item.Checker);
+                    // 非编辑态只显纯姓名（去掉工号）
+                    builder.AddContent(0, MES.Core.Helpers.OperatorNameHelper.ToNamesOnly(item.Checker));
                 }
                 break;
 

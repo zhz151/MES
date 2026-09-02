@@ -14,6 +14,7 @@ using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Exceptions;
+using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.DataExchange;
 using MES.Core.Interfaces.Equipment;
 using MES.Core.Interfaces.Infrastructure;
@@ -59,6 +60,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
     private readonly IProductionRecordService _productionRecordService;
     private readonly IWorkOrderListSummaryRefreshService? _listSummaryService;
     private readonly IMemoryCache _cache;
+    private readonly IOperatorNameValidator _operatorNameValidator;
 
     public MaterialReceiveCheckService(
         AppDbContext context,
@@ -67,6 +69,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         IProductionRecordService productionRecordService,
         ILogger<MaterialReceiveCheckService> logger,
         IMemoryCache cache,
+        IOperatorNameValidator operatorNameValidator,
         IWorkOrderListSummaryRefreshService? listSummaryService = null)
     {
         _context = context;
@@ -75,6 +78,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         _productionRecordService = productionRecordService;
         _logger = logger;
         _cache = cache;
+        _operatorNameValidator = operatorNameValidator;
         _listSummaryService = listSummaryService;
     }
 
@@ -227,6 +231,9 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         if (!ProductStatusHelper.IsFinishedManufacturingItem(batch.ManufacturingItem))
             throw new BusinessException($"批次 {batch.BatchNo} 为非成品类制造物品（{batch.ManufacturingItem}），检验应走过程检验，不能创建成检到料");
 
+        // 操作人实名校验（非空才校验）
+        await _operatorNameValidator.EnsureValidOrThrowAsync(request.Checker);
+
         var entity = new MaterialReceiveCheck
         {
             ProductionBatchId = request.ProductionBatchId,
@@ -333,6 +340,9 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
 
         var entities = new List<MaterialReceiveCheck>();
 
+        // 操作人实名校验：预加载启用员工快照一次，逐行行内校验
+        var activeEmployees = await _operatorNameValidator.LoadActiveAsync();
+
         // 预加载所有相关批次的工序组（按 ManufacturingSpec 匹配）
         var allBatchIds = modifiedBatches.Select(b => b.Id).ToList();
         var batchSpecLookup = modifiedBatches.ToDictionary(b => b.Id, b => b.Specification);
@@ -351,6 +361,11 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         foreach (var request in requests)
         {
             var batch = modifiedBatches[entities.Count];
+            // 操作人实名校验（非空才校验，行内 throw）
+            var unmatched = OperatorNameHelper.FindUnmatched(activeEmployees, request.Checker);
+            if (unmatched.Count > 0)
+                throw new BusinessException($"第{entities.Count + 1}行：操作人「{string.Join("、", unmatched)}」不在启用员工表中，请选择有效操作人");
+
             // 仅成品类制造物品可建成检到料；非成品类（余库料等）的检验属"过程检验"，不走成检
             if (!ProductStatusHelper.IsFinishedManufacturingItem(batch.ManufacturingItem))
                 throw new BusinessException($"批次「{batch.BatchNo}」为非成品类制造物品（{batch.ManufacturingItem}），检验应走过程检验，不能创建成检到料");
@@ -457,6 +472,8 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
         if (request.ReceiveDate != default)
             entity.ReceiveDate = request.ReceiveDate;
         entity.Shift = request.Shift ?? entity.Shift;
+        // 操作人实名校验（仅校验新传入值，非空才校验）
+        await _operatorNameValidator.EnsureValidOrThrowAsync(request.Checker);
         entity.Checker = request.Checker ?? entity.Checker;
         entity.Remark = request.Remark ?? entity.Remark;
         if (request.IsForceCompleted.HasValue)

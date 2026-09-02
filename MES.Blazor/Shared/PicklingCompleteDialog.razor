@@ -2,9 +2,11 @@
 @using MES.Blazor.Services
 @using MES.Blazor.Helpers
 @using MES.Core.DTOs.Batch
+@using MES.Core.DTOs.Configuration
 @using MES.Core.Enums
 @inject PicklingService PicklingService
 @inject ISnackbar Snackbar
+@inject EmployeeService EmployeeService
 
 <MudDialog>
     <TitleContent>
@@ -55,11 +57,13 @@
             </MudItem>
 
             <MudItem xs="12" sm="3">
-                <MudTextField T="string"
-                              Label="操作人"
-                              @bind-Value="_operator"
-                              Dense="true" Variant="Variant.Outlined"
-                             />
+                <MudAutocomplete T="EmployeeDto"
+                                 Label="操作人"
+                                 @bind-Value="_operatorEmp"
+                                 SearchFunc="FilterOperators"
+                                 ToStringFunc="@(e => e == null ? "" : $"{e.Name}({e.Code})")"
+                                 Dense="true" Variant="Variant.Outlined"
+                                 />
             </MudItem>
 
             <MudItem xs="12">
@@ -95,11 +99,38 @@
     private string _completeDateStr = DateTime.Today.ToString("yyyy-MM-dd");
     private string? _remark;
     private string? _shift;
-    private string? _operator;
     private bool _submitting;
+
+    // 操作人：员工下拉单选（实名制）
+    private EmployeeDto? _operatorEmp;
+    private List<EmployeeDto> _allEmployees = new();
 
     private static readonly List<(string Value, string Text)> _shiftOptions =
         DisplayHelper.GetEnumOptions<ShiftType>().Select(o => (o.Value, o.Display)).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var resp = await EmployeeService.GetBySectionAsync(null);
+        _allEmployees = resp.Success && resp.Data != null ? resp.Data : new();
+    }
+
+    /// <summary>操作人下拉搜索：按姓名/工号内存过滤</summary>
+    private Task<IEnumerable<EmployeeDto>> FilterOperators(string? keyword)
+    {
+        IEnumerable<EmployeeDto> result;
+        if (string.IsNullOrWhiteSpace(keyword))
+        {
+            result = _allEmployees;
+        }
+        else
+        {
+            var kw = keyword.Trim();
+            result = _allEmployees.Where(e =>
+                (e.Name?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (e.Code?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+        return Task.FromResult(result.Take(50));
+    }
 
     private void Cancel() => MudDialog.Cancel();
 
@@ -120,7 +151,7 @@
                 CompleteDate = completeDate,
                 Remark = _remark?.Trim(),
                 Shift = string.IsNullOrEmpty(_shift) ? null : Enum.Parse<ShiftType>(_shift),
-                Operator = _operator?.Trim()
+                Operator = _operatorEmp == null ? null : $"{_operatorEmp.Name}({_operatorEmp.Code})"
             };
 
             var result = await PicklingService.CreateOutRecordAsync(request);
