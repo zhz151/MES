@@ -149,6 +149,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<AttendanceRecord> AttendanceRecords { get; set; } = null!;
     public DbSet<PieceRateProductionCategory> PieceRateProductionCategories { get; set; } = null!;
     public DbSet<PieceRateProductionCategoryTier> PieceRateProductionCategoryTiers { get; set; } = null!;
+    public DbSet<PieceRateProductionCategoryKey> PieceRateProductionCategoryKeys { get; set; } = null!;
 
     // ========== StandardRegister 上下文 ==========
     public DbSet<StandardGradeMapping> StandardGradeMappings { get; set; } = null!;
@@ -288,6 +289,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigureAttendanceRecord(builder);
         ConfigurePieceRateProductionCategory(builder);
         ConfigurePieceRateProductionCategoryTier(builder);
+        ConfigurePieceRateProductionCategoryKey(builder);
 
         // 为所有继承 BaseEntity 的实体统一配置审计字段长度
         foreach (var entityType in builder.Model.GetEntityTypes())

@@ -257,6 +257,7 @@ builder.Services.AddScoped<IWorkstationService, WorkstationService>();
 builder.Services.AddScoped<IEmployeeService, MES.Services.Configuration.EmployeeService>();
 builder.Services.AddScoped<IAttendanceService, MES.Services.Payroll.AttendanceService>();
 builder.Services.AddScoped<IPieceRateProductionCategoryService, MES.Services.Payroll.PieceRateProductionCategoryService>();
+builder.Services.AddScoped<IPieceRateCategoryImportService, MES.Services.Payroll.PieceRateCategoryImportService>();
 builder.Services.AddScoped<IOperatorNameValidator, OperatorNameValidator>();
 builder.Services.AddScoped<IDailyProductionCapacityService, MES.Services.Configuration.DailyProductionCapacityService>();
 builder.Services.AddScoped<IStandardRegisterService, StandardRegisterService>();

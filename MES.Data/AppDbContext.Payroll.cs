@@ -20,6 +20,11 @@ public partial class AppDbContext
                 .WithOne(t => t.Category)
                 .HasForeignKey(t => t.CategoryId)
                 .OnDelete(DeleteBehavior.Cascade);
+            // 类别 → 约束集合成员行：级联删除
+            entity.HasMany(e => e.ConstraintKeys)
+                .WithOne(k => k.Category)
+                .HasForeignKey(k => k.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 
@@ -35,6 +40,21 @@ public partial class AppDbContext
             // 系数承接 0.8697/1.0002 等多位数
             entity.Property(e => e.Ratio).HasColumnType("decimal(18,6)");
             entity.HasIndex(e => e.CategoryId).HasDatabaseName("IX_Tier_Category");
+        });
+    }
+
+    private static void ConfigurePieceRateProductionCategoryKey(ModelBuilder builder)
+    {
+        builder.Entity<PieceRateProductionCategoryKey>(entity =>
+        {
+            entity.ToTable("PieceRateProductionCategoryKeys");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ConstraintType).HasMaxLength(30);
+            entity.Property(e => e.Key).HasMaxLength(50);
+            // 同类别同约束类型键唯一：防同键重复（无成员行=该维全选，冗余重复行无意义且破坏计数语义）
+            entity.HasIndex(e => new { e.CategoryId, e.ConstraintType, e.Key })
+                .IsUnique()
+                .HasDatabaseName("UK_CategoryKey_Type_Key");
         });
     }
 

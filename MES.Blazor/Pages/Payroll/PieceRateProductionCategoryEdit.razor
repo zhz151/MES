@@ -69,6 +69,7 @@
                                    Label="工序（多选；不选/全选 = 全部工序）"
                                    MultiSelection="true"
                                    SelectedValues="@_processKeys" SelectedValuesChanged="@(v => _processKeys = v?.ToList() ?? new())"
+                                   ToStringFunc="ProcessNameText"
                                    AdornmentIcon="@Icons.Material.Filled.Tune">
                             @foreach (var opt in _processes)
                             {
@@ -81,6 +82,7 @@
                                    Label="产类（多选；不选/全选 = 全部产类）"
                                    MultiSelection="true"
                                    SelectedValues="@_productStatusKeys" SelectedValuesChanged="@(v => _productStatusKeys = v?.ToList() ?? new())"
+                                   ToStringFunc="ProductStatusNameText"
                                    AdornmentIcon="@Icons.Material.Filled.Inventory2">
                             @foreach (var opt in _productStatuses)
                             {
@@ -93,6 +95,7 @@
                                    Label="作业阶段（多选；不选/全选 = 全部阶段含普通报工）"
                                    MultiSelection="true"
                                    SelectedValues="@_stageKeys" SelectedValuesChanged="@(v => _stageKeys = v?.ToList() ?? new())"
+                                   ToStringFunc="StageNameText"
                                    AdornmentIcon="@Icons.Material.Filled.SyncAlt">
                             @foreach (var opt in _stages)
                             {
@@ -197,7 +200,7 @@
                                             {
                                                 <MudTextField T="string"
                                                               Class="flex-grow-1"
-                                                              Label="设备号（报工 EquipmentName）"
+                                                              Label="特殊设备号（报工 EquipmentName；未列出设备=系数1）"
                                                               Value="@row.MatchValue" ValueChanged="@(v => row.MatchValue = v)"
                                                               Disabled="@(!row.IsActive)" />
                                             }

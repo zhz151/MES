@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MES.Core.Constants;
 using MES.Core.DTOs.Payroll;
 using MES.Core.Interfaces.Payroll;
 using MES.Core.Models;
@@ -17,10 +18,71 @@ namespace MES.Api.Controllers.Payroll;
 public class PieceRateProductionCategoryController : ControllerBase
 {
     private readonly IPieceRateProductionCategoryService _service;
+    private readonly IPieceRateCategoryImportService _importService;
 
-    public PieceRateProductionCategoryController(IPieceRateProductionCategoryService service)
+    public PieceRateProductionCategoryController(
+        IPieceRateProductionCategoryService service,
+        IPieceRateCategoryImportService importService)
     {
         _service = service;
+        _importService = importService;
+    }
+
+    private const string ExcelContentType =
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+    /// <summary>导出全量类别标准（Sheet「类别」+「维档」双表）</summary>
+    [HttpGet("export-all")]
+    [Authorize(Roles = Roles.Policies.SalaryView)]
+    public async Task<ActionResult> ExportAll()
+    {
+        var bytes = await _importService.ExportAsync();
+        return File(bytes, ExcelContentType, $"计件类别全量_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+    }
+
+    /// <summary>生成单 sheet 导入模板（kind=category|tier，中文表头 + 1 示例行）</summary>
+    [HttpGet("import/template")]
+    [Authorize(Roles = Roles.Policies.SalaryView)]
+    public async Task<ActionResult> GetTemplate([FromQuery] string kind)
+    {
+        if (!PieceRateImportKinds.IsValid(kind))
+            return BadRequest(ApiResponse<bool>.Fail($"无效的导入类型: {kind}"));
+        var bytes = await _importService.GenerateTemplateAsync(kind);
+        var fileName = string.Equals(kind, PieceRateImportKinds.Tier, StringComparison.OrdinalIgnoreCase)
+            ? "计件维档模板" : "计件类别模板";
+        return File(bytes, ExcelContentType, $"{fileName}.xlsx");
+    }
+
+    /// <summary>解析 + 校验 + 统计（预览结果与导入同口径）</summary>
+    [HttpPost("import/preview")]
+    [Authorize(Roles = Roles.Policies.SalaryView)]
+    public async Task<ActionResult<ApiResponse<ImportPreviewResult>>> PreviewImport(
+        [FromQuery] string kind, IFormFile? file)
+    {
+        if (!PieceRateImportKinds.IsValid(kind))
+            return BadRequest(ApiResponse<bool>.Fail($"无效的导入类型: {kind}"));
+        if (file == null || file.Length == 0)
+            return BadRequest(ApiResponse<bool>.Fail("请上传 .xlsx 文件"));
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        var result = await _importService.PreviewImportAsync(kind, ms.ToArray());
+        return Ok(ApiResponse<ImportPreviewResult>.Ok(result));
+    }
+
+    /// <summary>事务内覆盖更新导入（任一数据行无效 → 整体拒绝）</summary>
+    [HttpPost("import")]
+    [Authorize(Roles = Roles.Policies.SalaryEdit)]
+    public async Task<ActionResult<ApiResponse<ImportResult>>> Import(
+        [FromQuery] string kind, IFormFile? file)
+    {
+        if (!PieceRateImportKinds.IsValid(kind))
+            return BadRequest(ApiResponse<bool>.Fail($"无效的导入类型: {kind}"));
+        if (file == null || file.Length == 0)
+            return BadRequest(ApiResponse<bool>.Fail("请上传 .xlsx 文件"));
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        var result = await _importService.ImportAsync(kind, ms.ToArray());
+        return Ok(ApiResponse<ImportResult>.Ok(result));
     }
 
     /// <summary>分页查询类别（filters 为列级筛选 JSON，独立参数手动反序列化）</summary>

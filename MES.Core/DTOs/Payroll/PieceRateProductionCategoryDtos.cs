@@ -98,7 +98,7 @@ public class PieceRateProductionCategoryTierDto
 
     public int? MaxInt { get; set; }
 
-    /// <summary>等值维取值（牌号/状态/设备号）</summary>
+    /// <summary>等值维取值（特殊牌号/特殊制造状态/特殊设备号）</summary>
     public string? MatchValue { get; set; }
 
     /// <summary>加价系数（命中即乘）</summary>
@@ -157,7 +157,7 @@ public class PieceRateProductionCategoryTierSaveRequest
     /// <summary>区间维区间原文（如 "D&gt;54"、"54≥D&gt;41"、"6-8"；服务端解析边界）</summary>
     public string? RangeText { get; set; }
 
-    /// <summary>等值维取值（特殊牌号/特殊制造状态/设备号）</summary>
+    /// <summary>等值维取值（特殊牌号/特殊制造状态/特殊设备号）</summary>
     public string? MatchValue { get; set; }
 
     /// <summary>加价系数（命中即乘；&gt;0）</summary>
@@ -224,7 +224,7 @@ public class PieceRateProductionMatchRequest
     /// <summary>特殊牌号（工厂牌号 PlantGrade）</summary>
     public string? PlantGrade { get; set; }
 
-    /// <summary>设备号（报工 EquipmentName 文本）</summary>
+    /// <summary>特殊设备号（报工 EquipmentName 文本）</summary>
     public string? EquipmentName { get; set; }
 }
 

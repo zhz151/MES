@@ -45,6 +45,7 @@ public partial class PieceRateProductionCategories
     private const string ColumnPrefsVersion = "v1";
 
     [Inject] private PieceRateProductionCategoryService Service { get; set; } = null!;
+    [Inject] private PieceRateCategoryImportService ImportService { get; set; } = null!;
     [Inject] private NavigationManager Navigation { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
     [Inject] private IDialogService DialogService { get; set; } = null!;
@@ -263,7 +264,38 @@ public partial class PieceRateProductionCategories
         }
     }
 
-    // ========== 新增 / 编辑 / 删除 ==========
+    // ========== 导出 / 批量导入 / 新增编辑删除 ==========
+
+    private async Task ExportAll()
+    {
+        try
+        {
+            var bytes = await ImportService.ExportAllAsync();
+            await DownloadBytesAsync(bytes, $"计件类别全量_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+            Snackbar.Add("已导出全量类别标准（类别 + 维档双表）", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"导出失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OpenImportDialog(string kind)
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true };
+        var parameters = new DialogParameters { ["Kind"] = kind };
+        var title = kind == "tier" ? "批量导入 - 维档系数" : "批量导入 - 类别定义";
+        var dialog = await DialogService.ShowAsync<PieceRateCategoryImportDialog>(title, parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled && (bool?)result.Data == true && table != null)
+            await table.ReloadServerData();
+    }
+
+    private async Task DownloadBytesAsync(byte[] data, string fileName)
+    {
+        var base64 = Convert.ToBase64String(data);
+        await JS.InvokeVoidAsync("downloadFile", base64, fileName);
+    }
 
     private void AddNew() => Navigation.NavigateTo("/payroll/piece-rate-categories/create");
 

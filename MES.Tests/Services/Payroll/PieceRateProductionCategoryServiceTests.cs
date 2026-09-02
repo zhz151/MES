@@ -14,7 +14,7 @@ namespace MES.Tests.Services;
 
 /// <summary>
 /// 生产计件类别服务测试（2026-09-02 两表模型）：
-/// CRUD 整组保存、JSON 全选归一、禁交集拒存、区间重叠/等值去重校验、
+/// CRUD 整组保存、约束集合全选归一、禁交集拒存、区间重叠/等值去重校验、
 /// 相切邻接合法、试算匹配（连乘/未命中/数据违例）、列表模糊搜索。
 /// </summary>
 public class PieceRateProductionCategoryServiceTests : TestBase
@@ -59,9 +59,17 @@ public class PieceRateProductionCategoryServiceTests : TestBase
         dto.TierCount.Should().Be(0);
 
         var stored = await ctx.PieceRateProductionCategories.SingleAsync();
-        stored.ProcessKeys.Should().BeNull();      // 空工序 = 全选
-        stored.ProductStatusKeys.Should().NotBeNull();
-        stored.StageKeys.Should().NotBeNull();
+        var storedKeys = await ctx.PieceRateProductionCategoryKeys
+            .Where(k => k.CategoryId == stored.Id)
+            .ToListAsync();
+        storedKeys.Where(k => k.ConstraintType == PieceRateConstraintTypes.Process)
+            .Should().BeEmpty();                  // 空工序 = 全选 → 无成员行
+        storedKeys.Where(k => k.ConstraintType == PieceRateConstraintTypes.ProductStatus)
+            .Select(k => k.Key)
+            .Should().Contain(ProductStatuses.RoughTube);
+        storedKeys.Where(k => k.ConstraintType == PieceRateConstraintTypes.Stage)
+            .Select(k => k.Key)
+            .Should().Contain(PieceRateStageKeys.InTank);
     }
 
     [Fact]
@@ -142,7 +150,10 @@ public class PieceRateProductionCategoryServiceTests : TestBase
         dto.ProductStatusKeys.Should().BeEmpty();            // 归一为空（前端展示空=全选）
         dto.DisplayName.Should().Contain("全部产类");
         var stored = await ctx.PieceRateProductionCategories.SingleAsync();
-        stored.ProductStatusKeys.Should().BeNull();          // 落库归一为 null
+        var storedProds = await ctx.PieceRateProductionCategoryKeys
+            .Where(k => k.CategoryId == stored.Id && k.ConstraintType == PieceRateConstraintTypes.ProductStatus)
+            .ToListAsync();
+        storedProds.Should().BeEmpty();                       // 显式全列表归一 → 无成员行 = 全选
     }
 
     [Fact]

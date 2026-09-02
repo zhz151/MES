@@ -17,7 +17,7 @@ namespace MES.Services.Payroll;
 /// 类别 = 工段(必选单选) × 工序/产类/作业阶段(可空多选，空=全选) + 基准价 + 结算单位；
 /// 维度系数在子表档行（无例外价）。结算单价 = 类别.BasePrice × 命中档 Ratio 连乘。
 /// 保存时对同工段启用类别跑「禁止交集」+ 档内区间重叠/等值去重校验；
-/// 匹配 SQL 仅下推 SectionKey== &amp;&amp; IsActive，JSON 键约束 ToList 后内存 OrdinalIgnoreCase 比较。
+/// 匹配 SQL 仅下推 SectionKey== &amp;&amp; IsActive，约束成员表 ToList 后内存 OrdinalIgnoreCase 比较。
 /// </summary>
 public class PieceRateProductionCategoryService : IPieceRateProductionCategoryService
 {
@@ -42,6 +42,7 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
     {
         var queryable = _context.PieceRateProductionCategories.AsNoTracking()
             .Include(c => c.Tiers)
+            .Include(c => c.ConstraintKeys)
             .AsQueryable();
 
         // SQL 可下推的精确筛选
@@ -99,6 +100,7 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
     {
         var entity = await _context.PieceRateProductionCategories.AsNoTracking()
             .Include(c => c.Tiers)
+            .Include(c => c.ConstraintKeys)
             .FirstOrDefaultAsync(c => c.Id == id);
         if (entity == null) return null;
 
@@ -252,7 +254,7 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
         if (string.IsNullOrEmpty(unit) || !PieceRateUnitKeys.IsKey(unit))
             throw new BusinessException($"无效的结算单位: {request.Unit}");
 
-        // 三键约束集合归一：翻译中文→Key → 校验合法 → 显式全列表归一为 null（空=全选）
+        // 三键约束集合归一：翻译中文→Key → 校验合法 → 显式全列表归一为空数组（空=全选，不插成员行）
         var normalizedProcesses = await NormalizeProcessKeysAsync(request.ProcessKeys);
         var normalizedProducts = NormalizeFixedKeys(request.ProductStatusKeys,
             ProductStatuses.All, ProductStatuses.ToKey, "产类");
@@ -265,6 +267,7 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
         {
             entity = await _context.PieceRateProductionCategories
                 .Include(c => c.Tiers)
+                .Include(c => c.ConstraintKeys)
                 .FirstOrDefaultAsync(c => c.Id == id.Value)
                 ?? throw new BusinessException($"类别不存在: Id={id}");
         }
@@ -275,13 +278,15 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
         }
 
         entity.SectionKey = sectionKey;
-        entity.ProcessKeys = normalizedProcesses;
-        entity.ProductStatusKeys = normalizedProducts;
-        entity.StageKeys = normalizedStages;
         entity.BasePrice = request.BasePrice;
         entity.Unit = unit;
         entity.IsActive = request.IsActive;
         entity.Remark = string.IsNullOrWhiteSpace(request.Remark) ? null : request.Remark.Trim();
+
+        // 约束集合成员行整组替换（按 ConstraintType；空数组=移除全部成员行=该维全选）
+        ReplaceKeys(entity, PieceRateConstraintTypes.Process, normalizedProcesses);
+        ReplaceKeys(entity, PieceRateConstraintTypes.ProductStatus, normalizedProducts);
+        ReplaceKeys(entity, PieceRateConstraintTypes.Stage, normalizedStages);
 
         // 档行整组替换
         var newTiers = BuildTiers(request.Tiers);
@@ -301,8 +306,8 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
         return await GetDetailAsync(entity.Id) ?? throw new BusinessException("保存后读取失败");
     }
 
-    /// <summary>归一化工序键集：翻译中文→Key、校验、全列归一（DB 工序域 = ProcessDefinition ∪ 常量域）</summary>
-    private async Task<string?> NormalizeProcessKeysAsync(IEnumerable<string>? input)
+    /// <summary>归一化工序键集：翻译中文→Key、校验、全列归零（DB 工序域 = ProcessDefinition ∪ 常量域）</summary>
+    private async Task<string[]> NormalizeProcessKeysAsync(IEnumerable<string>? input)
     {
         var keys = new List<string>();
         foreach (var raw in input ?? [])
@@ -323,11 +328,11 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
             if (!domain.Contains(key, StringComparer.OrdinalIgnoreCase))
                 throw new BusinessException($"无效的工序: {key}");
         }
-        return PieceRateJsonKeys.SerializeNormalized(keys, domain);
+        return NormalizeToDomain(keys, domain);
     }
 
-    /// <summary>归一化固定键集（产类/作业阶段）：翻译中文→Key、校验、全列归一</summary>
-    private static string? NormalizeFixedKeys(
+    /// <summary>归一化固定键集（产类/作业阶段）：翻译中文→Key、校验、全列归零</summary>
+    private static string[] NormalizeFixedKeys(
         IEnumerable<string>? input, string[] all, Func<string?, string?> toKey, string chineseName)
     {
         var keys = new List<string>();
@@ -340,7 +345,81 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
             keys.Add(key);
         }
         var domain = all.Distinct(StringComparer.Ordinal).ToArray();
-        return PieceRateJsonKeys.SerializeNormalized(keys, domain);
+        return NormalizeToDomain(keys, domain);
+    }
+
+    /// <summary>
+    /// 键集归一为「落库成员数组」：空集合 → 空数组（=全选，不插成员行）；
+    /// 非空集合若与 fullDomain 全等（OrdinalIgnoreCase）→ 空数组（显式全列表归一为全选，防禁交集误判）；
+    /// 否则返回去重排序（Ordinal）的 Key 数组。
+    /// </summary>
+    private static string[] NormalizeToDomain(IEnumerable<string>? keys, IEnumerable<string> fullDomain)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (keys != null)
+        {
+            foreach (var key in keys)
+            {
+                if (!string.IsNullOrWhiteSpace(key))
+                    set.Add(key.Trim());
+            }
+        }
+
+        // 空集合 = 全选
+        if (set.Count == 0) return [];
+
+        // 显式全列表 = 全选（须与空形态统一，否则「全选」与「显式全列」被禁交集误判为不相交）
+        var domain = fullDomain.Where(d => !string.IsNullOrWhiteSpace(d)).ToArray();
+        if (domain.Length > 0)
+        {
+            var domainSet = new HashSet<string>(domain, StringComparer.OrdinalIgnoreCase);
+            if (domainSet.Count == set.Count && domainSet.IsSubsetOf(set))
+                return [];
+        }
+
+        return set.OrderBy(k => k, StringComparer.Ordinal).ToArray();
+    }
+
+    // ==================== 约束集合成员行 helper ====================
+
+    /// <summary>取某类某 ConstraintType 的成员 Key 数组（去重 OrdinalIgnoreCase；0 行=该维全选 → 空数组）</summary>
+    private static string[] ConstraintKeysOf(PieceRateProductionCategory entity, string type)
+        => entity.ConstraintKeys
+            .Where(k => string.Equals(k.ConstraintType, type, StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrWhiteSpace(k.Key))
+            .Select(k => k.Key.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+    /// <summary>取某类某 ConstraintType 的集合（HashSet OrdinalIgnoreCase；空=全选）</summary>
+    private static HashSet<string> ConstraintSetOf(PieceRateProductionCategory entity, string type)
+        => new(ConstraintKeysOf(entity, type), StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>键约束是否包含某值：空集合=全选 → 恒 true；否则要求 value 非空且 OrdinalIgnoreCase 命中。</summary>
+    private static bool KeysContain(IReadOnlyCollection<string> keys, string? value)
+    {
+        if (keys.Count == 0) return true;
+        return value != null && keys.Contains(value, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>整组替换某类某 ConstraintType 的成员行（先移除旧同 type，再按给定 Key 数组追加；空数组=移除全部=该维全选）</summary>
+    private void ReplaceKeys(PieceRateProductionCategory entity, string type, IEnumerable<string> keys)
+    {
+        var old = entity.ConstraintKeys
+            .Where(k => string.Equals(k.ConstraintType, type, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        foreach (var row in old)
+            _context.PieceRateProductionCategoryKeys.Remove(row);
+        entity.ConstraintKeys.RemoveAll(k => string.Equals(k.ConstraintType, type, StringComparison.OrdinalIgnoreCase));
+
+        foreach (var key in keys)
+        {
+            entity.ConstraintKeys.Add(new PieceRateProductionCategoryKey
+            {
+                ConstraintType = type,
+                Key = key
+            });
+        }
     }
 
     /// <summary>
@@ -444,6 +523,7 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
     private async Task EnsureNoCoverageOverlapAsync(PieceRateProductionCategory entity, int? selfId)
     {
         var others = await _context.PieceRateProductionCategories.AsNoTracking()
+            .Include(c => c.ConstraintKeys)
             .Where(c => c.SectionKey == entity.SectionKey
                         && c.IsActive
                         && (!selfId.HasValue || c.Id != selfId.Value))
@@ -451,17 +531,17 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
 
         var mine = CategoryCoverageRule.Create(
             entity.SectionKey,
-            PieceRateJsonKeys.Deserialize(entity.ProcessKeys),
-            PieceRateJsonKeys.Deserialize(entity.ProductStatusKeys),
-            PieceRateJsonKeys.Deserialize(entity.StageKeys));
+            ConstraintSetOf(entity, PieceRateConstraintTypes.Process),
+            ConstraintSetOf(entity, PieceRateConstraintTypes.ProductStatus),
+            ConstraintSetOf(entity, PieceRateConstraintTypes.Stage));
 
         foreach (var other in others)
         {
             var theirs = CategoryCoverageRule.Create(
                 other.SectionKey,
-                PieceRateJsonKeys.Deserialize(other.ProcessKeys),
-                PieceRateJsonKeys.Deserialize(other.ProductStatusKeys),
-                PieceRateJsonKeys.Deserialize(other.StageKeys));
+                ConstraintSetOf(other, PieceRateConstraintTypes.Process),
+                ConstraintSetOf(other, PieceRateConstraintTypes.ProductStatus),
+                ConstraintSetOf(other, PieceRateConstraintTypes.Stage));
             if (mine.Intersects(theirs))
                 throw new BusinessException(
                     $"类别覆盖与既有类别冲突（禁止交集）: 「{mine.Describe()}」与「{theirs.Describe()}」");
@@ -488,6 +568,7 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
         // SQL 仅下推工段 + 启用
         var candidates = await _context.PieceRateProductionCategories.AsNoTracking()
             .Include(c => c.Tiers)
+            .Include(c => c.ConstraintKeys)
             .Where(c => c.SectionKey == sectionKey && c.IsActive)
             .ToListAsync();
 
@@ -500,12 +581,12 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
         PieceRateProductionCategory? matched = null;
         foreach (var c in candidates)
         {
-            var procs = PieceRateJsonKeys.Deserialize(c.ProcessKeys);
-            var prods = PieceRateJsonKeys.Deserialize(c.ProductStatusKeys);
-            var stages = PieceRateJsonKeys.Deserialize(c.StageKeys);
-            if (PieceRateJsonKeys.ContainsKey(procs, processName)
-                && PieceRateJsonKeys.ContainsKey(prods, productStatus)
-                && PieceRateJsonKeys.ContainsKey(stages, stage))
+            var procs = ConstraintKeysOf(c, PieceRateConstraintTypes.Process);
+            var prods = ConstraintKeysOf(c, PieceRateConstraintTypes.ProductStatus);
+            var stages = ConstraintKeysOf(c, PieceRateConstraintTypes.Stage);
+            if (KeysContain(procs, processName)
+                && KeysContain(prods, productStatus)
+                && KeysContain(stages, stage))
             {
                 if (matched != null)
                     throw new BusinessException(
@@ -574,7 +655,7 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
                 PieceRateDimensionKeys.SpecialGrade => request.PlantGrade,
                 PieceRateDimensionKeys.SpecialState => NormalizeOrNull(
                     PieceRateStateKeys.ToKey(request.SpecialState), request.SpecialState),
-                PieceRateDimensionKeys.Device => request.EquipmentName,
+                PieceRateDimensionKeys.SpecialDevice => request.EquipmentName,
                 _ => null
             };
             if (string.IsNullOrWhiteSpace(value)) return null;
@@ -634,9 +715,9 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
         IReadOnlyDictionary<string, string> sectionMap,
         IReadOnlyDictionary<string, string> processMap)
     {
-        var procs = PieceRateJsonKeys.Deserialize(entity.ProcessKeys);
-        var prods = PieceRateJsonKeys.Deserialize(entity.ProductStatusKeys);
-        var stages = PieceRateJsonKeys.Deserialize(entity.StageKeys);
+        var procs = ConstraintKeysOf(entity, PieceRateConstraintTypes.Process);
+        var prods = ConstraintKeysOf(entity, PieceRateConstraintTypes.ProductStatus);
+        var stages = ConstraintKeysOf(entity, PieceRateConstraintTypes.Stage);
 
         return new PieceRateProductionCategoryListItemDto
         {
@@ -665,26 +746,26 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
         IReadOnlyDictionary<string, string> sectionMap,
         IReadOnlyDictionary<string, string> processMap)
     {
-        var procs = PieceRateJsonKeys.Deserialize(entity.ProcessKeys);
-        var prods = PieceRateJsonKeys.Deserialize(entity.ProductStatusKeys);
-        var stages = PieceRateJsonKeys.Deserialize(entity.StageKeys);
+        var procs = ConstraintKeysOf(entity, PieceRateConstraintTypes.Process);
+        var prods = ConstraintKeysOf(entity, PieceRateConstraintTypes.ProductStatus);
+        var stages = ConstraintKeysOf(entity, PieceRateConstraintTypes.Stage);
 
         var sectionCn = sectionMap.TryGetValue(entity.SectionKey, out var cn)
             ? cn
             : SectionKeys.ToChinese(entity.SectionKey) ?? entity.SectionKey;
 
         // 各自有序中文集（空=全选，显示「全部」）
-        var prodCn = prods.Count == 0
+        var prodCn = prods.Length == 0
             ? null
             : OrderDomain(prods, ProductStatuses.All)
                 .Select(k => ProductStatuses.ToChinese(k) ?? k)
                 .ToArray();
-        var procCn = procs.Count == 0
+        var procCn = procs.Length == 0
             ? null
             : OrderDomain(procs, ProcessKeys.All)
                 .Select(k => processMap.TryGetValue(k, out var name) ? name : k)
                 .ToArray();
-        var stageCn = stages.Count == 0
+        var stageCn = stages.Length == 0
             ? null
             : OrderDomain(stages, PieceRateStageKeys.All)
                 .Select(k => PieceRateStageKeys.ToChinese(k) ?? k)

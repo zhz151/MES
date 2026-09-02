@@ -20,7 +20,25 @@
             </CardHeaderContent>
             <CardHeaderActions>
                 <MudText Typo="Typo.body2" Color="Color.Default" Class="mr-2">单价 = 类别基准价 × 命中维档系数连乘；工段×工序×产类×阶段同覆盖仅允许一个启用类别</MudText>
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Download"
+                           OnClick="ExportAll">
+                    导出全量
+                </MudButton>
                 <AuthorizeView Roles="@Roles.Policies.SalaryEdit">
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Secondary"
+                               StartIcon="@Icons.Material.Filled.PlaylistAdd"
+                               OnClick='() => OpenImportDialog("category")'>
+                        导入类别
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Tertiary"
+                               StartIcon="@Icons.Material.Filled.PlaylistAddCheck"
+                               OnClick='() => OpenImportDialog("tier")'>
+                        导入维档
+                    </MudButton>
                     <MudButton Variant="Variant.Filled"
                                Color="Color.Primary"
                                StartIcon="@Icons.Material.Filled.Add"

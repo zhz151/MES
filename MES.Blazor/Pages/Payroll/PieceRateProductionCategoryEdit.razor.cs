@@ -237,6 +237,13 @@ public partial class PieceRateProductionCategoryEdit
         return string.Join("·", list.Select(k => dict.TryGetValue(k, out var cn) ? cn : k));
     }
 
+    // ========== MudSelect 多选闭合框中文显示 ==========
+    // MudBlazor 多选闭合文字 = string.Join(", ", SelectedValues.Select(x => Converter.Set(x)))，Converter 由
+    // ToStringFunc 决定（默认 x.ToString() 直出英文 Key）；必须设 ToStringFunc 映射回中文，否则显示英文。
+    private string ProcessNameText(string? k) => ResolveName(k, _processes) ?? k ?? string.Empty;
+    private string ProductStatusNameText(string? k) => ResolveName(k, _productStatuses) ?? k ?? string.Empty;
+    private string StageNameText(string? k) => ResolveName(k, _stages) ?? k ?? string.Empty;
+
     // ========== 提交保存 ==========
 
     private async Task SaveAsync()

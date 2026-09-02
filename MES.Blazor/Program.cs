@@ -137,6 +137,7 @@ builder.Services.AddScoped<WorkstationService>();
 builder.Services.AddScoped<EmployeeService>();
 builder.Services.AddScoped<MES.Blazor.Services.Payroll.AttendanceService>();
 builder.Services.AddScoped<MES.Blazor.Services.Payroll.PieceRateProductionCategoryService>();
+builder.Services.AddScoped<MES.Blazor.Services.Payroll.PieceRateCategoryImportService>();
 builder.Services.AddScoped<ProcessDefinitionService>();
 builder.Services.AddScoped<EnumDisplayDefinitionService>();
 builder.Services.AddScoped<DictValueDefinitionService>();

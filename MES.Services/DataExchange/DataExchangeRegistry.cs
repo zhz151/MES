@@ -1583,6 +1583,74 @@ public static class DataExchangeRegistry
             new("过多天数值", "UpperLimitDays", typeof(decimal), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
+
+        // === 工序组定义(批次/工艺)（工序组字典，ProcessKey 稳定键 + 可改名中文名） ===
+        ["ProcessDefinition"] = new EntityDef("配置-工序组定义(批次/工艺)", "配置-工序组定义(批次/工艺)", typeof(MES.Data.Entities.Configuration.ProcessDefinition), 1, "ProcessKey", new List<ColumnDef>
+        {
+            new("稳定Key(ProcessKeys)", "ProcessKey"),
+            new("工序组中文名", "ProcessName"),
+            new("显示顺序", "DisplayOrder", typeof(int), isRequired: false),
+            new("是否启用", "IsEnabled", typeof(bool), isRequired: false, valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("是否冷轧", "IsColdRoll", typeof(bool), isRequired: false, valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("是否冷拔", "IsColdDraw", typeof(bool), isRequired: false, valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("默认工段(SectionKeys JSON数组)", "DefaultSections", typeof(string), isRequired: false),
+            new("说明", "Remark", typeof(string), isRequired: false),
+        }),
+
+        // === 冷轧产能档案(冷轧排程)（机台×规格 单机单日量，排程保存自动反哺；复合键 ProcessType+BilletSpec+RollingSpec+IsFinished） ===
+        ["ColdRollCapacity"] = new EntityDef("配置-冷轧产能档案(冷轧排程)", "配置-冷轧产能档案(冷轧排程)", typeof(MES.Data.Entities.Scheduling.ColdRollCapacity), 1, null, new List<ColumnDef>
+        {
+            new("冷轧类型(ProcessKeys)", "ProcessType"),
+            new("轧坯规格", "BilletSpec"),
+            new("轧制规格", "RollingSpec"),
+            new("是否成品", "IsFinished", typeof(bool), isRequired: false, valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("常用机台(分号分隔)", "MachineNo", typeof(string), isRequired: false),
+            new("单机单日量(kg)", "DailyOutput", typeof(decimal), isRequired: false),
+            new("样本次数", "SampleCount", typeof(int), isRequired: false),
+        }, compositeKeyColumns: new[] { "ProcessType", "BilletSpec", "RollingSpec", "IsFinished" }),
+
+        // === 冷轧机台数配置(冷轧排程)（按机型机台数参数，排程引擎产能平衡输入） ===
+        ["ColdRollMachineConfig"] = new EntityDef("配置-冷轧机台数配置(冷轧排程)", "配置-冷轧机台数配置(冷轧排程)", typeof(MES.Data.Entities.Scheduling.ColdRollMachineConfig), 1, "ProcessType", new List<ColumnDef>
+        {
+            new("机型(ProcessKeys)", "ProcessType"),
+            new("本厂机台数", "OwnedCount", typeof(int)),
+            new("最小机台数", "MinMachines", typeof(int)),
+            new("最大机台数", "MaxMachines", typeof(int)),
+            new("估算单机日产(kg)", "EstimatedDailyOutput", typeof(decimal), isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }),
+
+        // === 冷轧机台组配置(冷轧排程)（工序归组 + 供需链，GroupKey 稳定键） ===
+        ["ColdRollMachineGroupConfig"] = new EntityDef("配置-冷轧机台组配置(冷轧排程)", "配置-冷轧机台组配置(冷轧排程)", typeof(MES.Data.Entities.Scheduling.ColdRollMachineGroupConfig), 1, "GroupKey", new List<ColumnDef>
+        {
+            new("组稳定Key", "GroupKey"),
+            new("组显示名", "DisplayName"),
+            new("组内工序(逗号分隔ProcessKeys)", "ProcessKeys", typeof(string), isRequired: false),
+            new("显示顺序", "DisplayOrder", typeof(int), isRequired: false),
+            new("供给目标组Key", "SupplyTargetGroupKey", typeof(string), isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }),
+
+        // === 枚举显示配置(全局显示)（EnumKey+Value 复合键，管理 C# 枚举中文显示） ===
+        ["EnumDisplayDefinition"] = new EntityDef("配置-枚举显示配置(全局显示)", "配置-枚举显示配置(全局显示)", typeof(MES.Data.Entities.Configuration.EnumDisplayDefinition), 1, null, new List<ColumnDef>
+        {
+            new("枚举标识(类型名)", "EnumKey"),
+            new("枚举值名(英文)", "Value"),
+            new("中文显示名", "DisplayName"),
+            new("显示顺序", "DisplayOrder", typeof(int), isRequired: false),
+            new("说明", "Remark", typeof(string), isRequired: false),
+        }, compositeKeyColumns: new[] { "EnumKey", "Value" }),
+
+        // === 字典显示配置(全局显示)（DictKey+Value 复合键，管理 string 字典字段中文显示/启停/加值） ===
+        ["DictValueDefinition"] = new EntityDef("配置-字典显示配置(全局显示)", "配置-字典显示配置(全局显示)", typeof(MES.Data.Entities.Configuration.DictValueDefinition), 1, null, new List<ColumnDef>
+        {
+            new("字典标识(DictKey)", "DictKey"),
+            new("英文稳定Key", "Value"),
+            new("中文显示名", "DisplayName"),
+            new("显示顺序", "DisplayOrder", typeof(int), isRequired: false),
+            new("是否启用", "IsEnabled", typeof(bool), isRequired: false, valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("说明", "Remark", typeof(string), isRequired: false),
+        }, compositeKeyColumns: new[] { "DictKey", "Value" }),
     };
 
     public static readonly List<string> EntityOrder = new()
@@ -1603,6 +1671,7 @@ public static class DataExchangeRegistry
         "StandardRegister", "StandardRegisterItem",
         "GradeChemicalComposition", "GradePhysicalProperty", "StandardInspectionRequirement", "FactoryInspectionRequirement", "SubStandardQuickView",
         "StandardWorkDay", "StandardWorkDayDeliveryState", "DailyOutputEstimate", "DailyProductionCapacity", "SectionParagraphConfig",
+        "ProcessDefinition", "ColdRollCapacity", "ColdRollMachineConfig", "ColdRollMachineGroupConfig", "EnumDisplayDefinition", "DictValueDefinition",
     };
 
     /// <summary>

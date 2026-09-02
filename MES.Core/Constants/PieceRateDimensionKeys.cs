@@ -31,14 +31,14 @@ public static class PieceRateDimensionKeys
     /// <summary>特殊制造状态（见 PieceRateStateKeys）</summary>
     public const string SpecialState = "SpecialState";
 
-    /// <summary>设备号（报工 EquipmentName 文本等值）</summary>
-    public const string Device = "Device";
+    /// <summary>特殊设备号（报工 EquipmentName 文本等值；仅列出设备乘系数，未列出=1，语义同特殊牌号）</summary>
+    public const string SpecialDevice = "SpecialDevice";
 
     /// <summary>所有维度 Key 的有序列表（编辑器分区顺序）</summary>
     public static readonly string[] All =
     [
         OuterDiameter, WallThickness, Length, CutRate, FixedLengthCount,
-        SpecialGrade, SpecialState, Device
+        SpecialGrade, SpecialState, SpecialDevice
     ];
 
     /// <summary>Key → 规范中文（显示）</summary>
@@ -51,7 +51,7 @@ public static class PieceRateDimensionKeys
         [FixedLengthCount] = "定尺",
         [SpecialGrade] = "特殊牌号",
         [SpecialState] = "特殊制造状态",
-        [Device] = "设备号",
+        [SpecialDevice] = "特殊设备号",
     };
 
     private static readonly HashSet<string> IntervalSet = new(
@@ -69,7 +69,7 @@ public static class PieceRateDimensionKeys
     public static bool IsInterval(string? dimKey)
         => !string.IsNullOrEmpty(dimKey) && IntervalSet.Contains(dimKey);
 
-    /// <summary>是否为等值维（特殊牌号/特殊制造状态/设备号；true 时行存 MatchValue 非区间）</summary>
+    /// <summary>是否为等值维（特殊牌号/特殊制造状态/特殊设备号；true 时行存 MatchValue 非区间）</summary>
     public static bool IsValueDimension(string? dimKey)
         => !string.IsNullOrEmpty(dimKey) && !IntervalSet.Contains(dimKey);
 }
