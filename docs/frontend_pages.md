@@ -1,7 +1,7 @@
 # MES 前端页面结构参考
 
 > 生成日期：2026-08-19（V25）
-> 最后更新：2026-08-30（V29）
+> 最后更新：2026-09-02（V37）
 > 用途：Quick Reference - 快速了解项目前端页面组织结构和上下文归属
 
 ---
@@ -27,6 +27,7 @@
 | 扫码报工 | (独立按钮) | 所有（仅登录） | 1 | 0 |
 | 设备扫码 | (独立按钮) | 所有（仅登录） | 1 | 0 |
 | 配置 | 参数表 | ConfigurationViewer/Editor/Full + Admin | 13 | 13 |
+| 工资结算 | 工资结算 | SalaryViewer/Editor/Full + Admin | 3 | 2 |
 | 用户管理 | (Admin按钮) | UserViewer/Editor/Full + Admin | 1 | 0 |
 
 ---
@@ -405,7 +406,44 @@
 └───────────────────────────────────────────────────────────┘
 ```
 
-### 2.11 其他页
+### 2.11 工资结算上下文
+
+```
+路由前缀: /payroll
+菜单: 工资结算 → [考勤表, 生产计件类别]（独立主菜单，位于扫码管理下方、参数表上方）
+
+┌─ 工资结算 ───────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                                              │
+│ Attendance.razor                /payroll/attendance                 [考勤表月视图网格页]                     │
+│ PieceRateProductionCategories.razor  /payroll/piece-rate-categories  [生产计件类别列表页]                    │
+│ PieceRateProductionCategoryEdit.razor                                                                        │
+│         /payroll/piece-rate-categories/create        [创建页]                                                │
+│         /payroll/piece-rate-categories/edit/{Id:int}  [编辑页]                                               │
+│                                                                                                              │
+│ 列表页: Attendance, PieceRateProductionCategories                                                            │
+│ 2026-09-02 变更：计件单价体系「单表→两表」重构：删除旧 3 页                                                  │
+│ （PieceRateStandards / PieceRateStandardEdit / PieceRateSectionEditor，                                      │
+│   /payroll/piece-rate-standards* 路由）与旧单表实体 PieceRateStandard；                                      │
+│ 改「生产计件类别」两表模型：PieceRateProductionCategory（类别定义）                                          │
+│ + 子表 PieceRateProductionTier（维档）                                                                       │
+│ 类别 = 工段 × 工序/产类/阶段约束 + 基准价 + 维档系数；                                                       │
+│ 结算单价 = 类别基准价 × 命中维档系数连乘（不配某维 = 系数 1）；                                              │
+│ 唯一性：工段×工序×产类×阶段同覆盖仅允许一个启用类别                                                          │
+│ 列表页：自动组合名/工段中文/基准价/单位/维档数/启停/备注/时间列                                              │
+│ + 列显隐/排序 + 工段下拉/启停下拉 + 模糊搜索（自动组合名/工段/备注）                                         │
+│ 行操作：编辑 → 独立编辑页 /payroll/piece-rate-categories/edit/{Id}；                                         │
+│         删除弹确认框（级联删维档）                                                                           │
+│ 编辑页（/payroll/piece-rate-categories/create、/edit/{Id:int}）：                                            │
+│ 上区类别定义 = 工段单选 + 工序/产类/作业阶段多选（空=全选）                                                  │
+│ + 基准价/结算单位/启用/备注 + 自动组合名实时预览；                                                           │
+│ 下区维度档 8 维：外径/壁厚/长度/断切率/定尺（区间维）                                                        │
+│ + 特殊牌号/特殊制造状态/设备号（等值维），加档行区间原文/取值                                                │
+│ + 系数 + 启停；同维区间重叠/取值重复本地即时标红，                                                           │
+│ 跨类别覆盖冲突由服务端权威校验；保存整类一次落库（类别+维档）                                                │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 2.12 其他页
 
 ```
 ┌─ 其他 ────────────────────────────────────────────────────┐
@@ -435,6 +473,7 @@
           │            牌号物理性能 / 子标准速览             │
 │          数据工具                                        │
 │          ▸ 扫码管理 → 扫码报工 / 设备扫码 / 工位管理 / 员工管理 │
+│          ▸ 工资结算 → 考勤表 / 生产计件类别               │
 │          ▸ 参数表 → 工序组定义(批次/工艺) / 工段工量天数(排程/用料) │
 │                    交货状态附加天数(排程/用料) / 规格日产预估(工单执行) │
 │                    冷轧产能档案(冷轧排程) / 冷轧机台数配置(冷轧排程) │
@@ -451,7 +490,7 @@
 
 ## 3. 列表页完整清单（需检查加载/排序/筛选）
 
-共 **70 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
+共 **71 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
 
 | # | 页面文件 | 路由 | 上下文 | 内联编辑 | 备注 |
 |---|---------|------|-------|---------|------|
@@ -526,6 +565,7 @@
 | 73 | ColdRollCapacities.razor | /cold-roll-capacities | 配置 | | 冷轧产能档案（四维 ProcessType/BilletSpec/RollingSpec/IsFinished 唯一），查改一体表；排程建议产能平衡输入 |
 | 74 | ColdRollMachineConfigs.razor | /cold-roll-machine-configs | 配置 | | 冷轧机台数配置（ProcessType 唯一），查改一体表；排程建议产能平衡输入（方式A兜底 daily） |
 | 75 | ColdRollMachineGroupConfigs.razor | /cold-roll-machine-group-configs | 配置 | | 冷轧机台组配置（GroupKey 唯一），归组配置表驱动；工序多选（仅启用的冷轧/冷拔工序，显示走 GetProcessNameText 中文）+供给目标组列（供需链显式化，组角色字段已移除；链合法性校验：凡配目标则目标存在+无环，允许多链/多级链，2030→冷拔(None) 末端合法）；保存/删除失效三引擎缓存键；工序禁用时自动从组内移除（ProcessDefinitionService） |
+| 76 | PieceRateProductionCategories.razor | /payroll/piece-rate-categories | 工资结算 | | 生产计件类别列表页（2026-09-02 单表→两表重构：PieceRateProductionCategory + PieceRateProductionTier 维档子表；类别 = 工段×工序/产类/阶段约束 + 基准价 + 维档系数，结算单价 = 类别基准价 × 命中维档系数连乘，不配某维=系数1，工段×工序×产类×阶段同覆盖仅允许一个启用类别）；列：自动组合名/工段中文/基准价(G29)/单位/维档数/是否启用/备注/更新时间/创建时间 + 列显隐/排序；顶部工段下拉 + 启停下拉 + 模糊搜索（自动组合名/工段/备注）；行操作：编辑走独立页 `/payroll/piece-rate-categories/edit/{Id}`、删除弹 ConfirmDialog（级联删维档），新增走 `/payroll/piece-rate-categories/create`；旧单表 UI 计件标准（PieceRateStandards 原 /payroll/piece-rate-standards）已于 2026-09-02 删除 |
 
 ---
 
@@ -569,6 +609,8 @@
 ---
 
 > 使用方式：询问关于页面结构、上下文归属、列表页检查范围等问题时，可引用此文档作为参考基础。
+>
+> **最后更新：2026-09-02（V37）** — 计件单价体系「单表→两表」重构：删除旧 3 页（PieceRateStandards 列表页 / PieceRateStandardEdit create·edit/{id} / PieceRateSectionEditor /editor/{SectionName}，路由 /payroll/piece-rate-standards*）与旧单表实体 PieceRateStandard；改「生产计件类别」两表模型：类别 = 工段 × 工序/产类/阶段约束 + 基准价 + 维档系数（维档子表 PieceRateProductionTier），结算单价 = 类别基准价 × 命中维档系数连乘，工段×工序×产类×阶段同覆盖仅允许一个启用类别；前端 PieceRateProductionCategories 列表页 + PieceRateProductionCategoryEdit 定义+维档同页编辑，路由 /payroll/piece-rate-categories 与 /payroll/piece-rate-categories/create、/edit/{Id:int}，菜单/导航改「生产计件类别」；§1 上下文表 2 页 1 列表页 → 3 页 2 列表页、§2.11 块、§2.12 导航、§3 #76 同步更新；原 V30-V36 单表 UI 演进注记已随页面删除并入本条
 >
 > **最后更新：2026-08-30（V29）** — 批次计划工段筛选 Tab 配置驱动：#45 描述更新——Tab 由编译期 17 项改为 `GET api/batch-plan/section-tab-options` 动态加载（冷轧/冷拔=工序组定义启用工序逐工序、普通工段=工段工量天数启用工段扣除冷轧拔/检验/入库且内抛/内修磨独立、末尾固定荒管检/在制检），新增工序自动出现；委外在产汇总列同源
 >
