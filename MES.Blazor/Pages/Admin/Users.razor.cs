@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
 using MES.Blazor.Components;
+using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Auth;
@@ -15,13 +16,41 @@ public partial class Users
     private List<UserDto> _pageItems = new();
     private int _totalCount;
     private int _currentPage = 1;
-    private int _pageSize = 10;
-    private string _searchKeyword = string.Empty;
+    private int _restoredPageIndex;
+    private bool _isFirstLoad = true;
     private int _loadVersion;
     private bool _resetToFirstPage;
+    private int _pageSize = 10;
+    private string _searchKeyword = string.Empty;
 
-    private string sortColumn = "CreatedTime";
-    private bool sortDescending = true;
+    private string sortColumn = "UserName";
+    private bool sortDescending = false;
+
+    // ========== 列选择管理 ==========
+    private List<ColumnDef> _allColumns = new();
+    private List<ColumnDef> _visibleColumns =>
+        _allColumns.Where(c => c.Visible).ToList();
+
+    // 默认列顺序 = 用户定稿：用户名 邮箱 姓名 备注 角色 状态 最后登录（序号固定最前）
+    private static List<ColumnDef> GetAllColumnDefs() => new()
+    {
+        new() { Key = "Seq",          Label = "序号",   IsRequired = true },
+        new() { Key = "UserName",     Label = "用户名",  SortKey = "username",     IsRequired = true },
+        new() { Key = "Email",        Label = "邮箱",    SortKey = "email" },
+        new() { Key = "FullName",     Label = "姓名",    SortKey = "fullname" },
+        new() { Key = "Remark",       Label = "用户备注", SortKey = "remark" },
+        new() { Key = "Roles",        Label = "角色" },
+        new() { Key = "IsActive",     Label = "状态",    SortKey = "isactive" },
+        new() { Key = "LastLoginAt",  Label = "最后登录", SortKey = "lastloginat" },
+    };
+
+    // 版本化列偏好 key：列顺序/默认显隐调整后，已保存过 localStorage 的用户也能看到新默认
+    private const string ColumnPrefsVersion = "v1";
+
+    private async Task SaveColumnPrefs()
+    {
+        await ColumnPrefs.SaveAsync("users", ColumnPrefsVersion, _allColumns);
+    }
 
     // ========== 服务端数据加载 ==========
 
@@ -31,6 +60,15 @@ public partial class Users
         var version = ++_loadVersion;
         try
         {
+            var sortBy = _allColumns.FirstOrDefault(c => c.Key == sortColumn)?.SortKey ?? "username";
+
+            // 首次加载覆盖页码
+            if (_isFirstLoad)
+            {
+                state.Page = _restoredPageIndex;
+                _isFirstLoad = false;
+            }
+
             if (_resetToFirstPage)
             {
                 state.Page = 0;
@@ -42,7 +80,7 @@ public partial class Users
                 PageIndex = state.Page + 1,
                 PageSize = state.PageSize,
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
-                SortBy = sortColumn.ToLower(),
+                SortBy = sortBy,
                 IsDescending = sortDescending
             };
 
@@ -71,6 +109,7 @@ public partial class Users
             _totalCount = 0;
         }
 
+        await SavePageStateAsync();
         return new TableData<UserDto>
         {
             Items = _pageItems,
@@ -89,6 +128,7 @@ public partial class Users
             sortColumn = sortKey;
             sortDescending = false;
         }
+        await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
     }
 
@@ -96,7 +136,92 @@ public partial class Users
     {
         _searchKeyword = value ?? string.Empty;
         _resetToFirstPage = true;
+        await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
+    }
+
+    // ========== 列选择操作 ==========
+
+    private async Task OnColumnToggle(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task ResetColumnDisplay()
+    {
+        _allColumns = GetAllColumnDefs();
+        await SaveColumnPrefs();
+        if (table != null) await table.ReloadServerData();
+    }
+
+    private async Task MoveColumnUp(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    private async Task MoveColumnDown(ColumnDef col)
+    {
+        await SaveColumnPrefs();
+    }
+
+    // ========== 初始化 ==========
+
+    protected override async Task OnInitializedAsync()
+    {
+        _allColumns = GetAllColumnDefs();
+        var saved = await ColumnPrefs.LoadAsync("users", ColumnPrefsVersion);
+        if (saved.Count > 0)
+        {
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null)
+                    match.Visible = s.Visible;
+            }
+            var reordered = new List<ColumnDef>();
+            foreach (var s in saved)
+            {
+                var match = _allColumns.FirstOrDefault(c => c.Key == s.Key);
+                if (match != null && !reordered.Contains(match))
+                    reordered.Add(match);
+            }
+            foreach (var c in _allColumns)
+            {
+                if (!reordered.Contains(c))
+                    reordered.Add(c);
+            }
+            _allColumns = reordered;
+        }
+
+        // 恢复排序/搜索状态
+        var savedState = await PageState.LoadAsync("users");
+        if (savedState != null)
+        {
+            sortColumn = savedState.SortBy ?? "UserName";
+            sortDescending = savedState.IsDescending;
+            _searchKeyword = savedState.Keyword ?? string.Empty;
+            _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && table != null)
+            await table.ReloadServerData();
+    }
+
+    // ========== 持久化 ==========
+
+    private async Task SavePageStateAsync()
+    {
+        var state = new PageState
+        {
+            SortBy = sortColumn,
+            IsDescending = sortDescending,
+            Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
+            PageIndex = _currentPage
+        };
+        await PageState.SaveAsync("users", state);
     }
 
     // ========== 创建用户弹窗 ==========

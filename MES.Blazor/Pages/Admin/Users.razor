@@ -1,5 +1,6 @@
 @page "/admin/users"
 @using MES.Blazor.Services
+@using MES.Blazor.Shared
 @using MES.Core.DTOs.Auth
 @using MES.Core.Models
 @using MES.Shared.Constants
@@ -8,6 +9,8 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject ColumnPrefsService ColumnPrefs
+@inject PageStateService PageState
 @attribute [Authorize(Roles = Roles.Policies.UserView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
@@ -34,7 +37,7 @@
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
-                                  Label="搜索 - 用户名/邮箱/姓名"
+                                  Label="模糊搜索 - 用户名/邮箱/姓名/备注"
                                   Value="_searchKeyword" ValueExpression="@(() => _searchKeyword)"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
@@ -42,106 +45,121 @@
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
-                <MudItem xs="12" md="6" Class="d-flex align-center">
-                    <MudText Typo="Typo.body2" Class="ml-auto">
-                        共 @_totalCount 条记录
-                    </MudText>
-                </MudItem>
             </MudGrid>
 
             <!-- 数据表格 -->
-            <MudTable @ref="table"
-                      T="UserDto"
-                      ServerData="@LoadDataFromServer"
-                      Dense="true"
-                      Hover="true"
-                      Class="mt-4 auto-table"
-                      Elevation="0"
-                      RowsPerPage="@_pageSize"
-                      RowsPerPageLabel="每页行数:">
-                <HeaderContent>
-                    <MudTh Style="width: 80px;">序号</MudTh>
-                    <MudTh>
-                        <div style="display:inline-flex; align-items:center; gap:4px;">
-                            <span @onclick='() => ToggleSort("UserName")' style="cursor:pointer" class="th-label">
-                                用户名 @if (sortColumn == "UserName") {@(sortDescending ? " ▼" : " ▲")}
-                            </span>
-                        </div>
-                    </MudTh>
-                    <MudTh>
-                        <div style="display:inline-flex; align-items:center; gap:4px;">
-                            <span @onclick='() => ToggleSort("Email")' style="cursor:pointer" class="th-label">
-                                邮箱 @if (sortColumn == "Email") {@(sortDescending ? " ▼" : " ▲")}
-                            </span>
-                        </div>
-                    </MudTh>
-                    <MudTh>
-                        <div style="display:inline-flex; align-items:center; gap:4px;">
-                            <span @onclick='() => ToggleSort("FullName")' style="cursor:pointer" class="th-label">
-                                姓名 @if (sortColumn == "FullName") {@(sortDescending ? " ▼" : " ▲")}
-                            </span>
-                        </div>
-                    </MudTh>
-                    <MudTh>
-                        <div style="display:inline-flex; align-items:center; gap:4px;">
-                            <span @onclick='() => ToggleSort("Remark")' style="cursor:pointer" class="th-label">
-                                用户备注 @if (sortColumn == "Remark") {@(sortDescending ? " ▼" : " ▲")}
-                            </span>
-                        </div>
-                    </MudTh>
-                    <MudTh>角色</MudTh>
-                    <MudTh>
-                        <div style="display:inline-flex; align-items:center; gap:4px;">
-                            <span @onclick='() => ToggleSort("IsActive")' style="cursor:pointer" class="th-label">
-                                状态 @if (sortColumn == "IsActive") {@(sortDescending ? " ▼" : " ▲")}
-                            </span>
-                        </div>
-                    </MudTh>
-                    <MudTh>
-                        <div style="display:inline-flex; align-items:center; gap:4px;">
-                            <span @onclick='() => ToggleSort("LastLoginAt")' style="cursor:pointer" class="th-label">
-                                最后登录 @if (sortColumn == "LastLoginAt") {@(sortDescending ? " ▼" : " ▲")}
-                            </span>
-                        </div>
-                    </MudTh>
-                    <MudTh style="width: 160px;">操作</MudTh>
-                </HeaderContent>
-                <RowTemplate Context="item">
-                    <MudTd DataLabel="序号">@((_currentPage - 1) * _pageSize + _pageItems.IndexOf(item) + 1)</MudTd>
-                    <MudTd DataLabel="用户名">@item.UserName</MudTd>
-                    <MudTd DataLabel="邮箱">@(string.IsNullOrWhiteSpace(item.Email) ? "-" : item.Email)</MudTd>
-                    <MudTd DataLabel="姓名">@item.FullName</MudTd>
-                    <MudTd DataLabel="用户备注">@(string.IsNullOrWhiteSpace(item.Remark) ? "-" : item.Remark)</MudTd>
-                    <MudTd DataLabel="角色">@(item.Roles.Contains(Roles.Admin) ? "超级管理员" : "-")</MudTd>
-                    <MudTd DataLabel="状态">
-                        <MudChip Size="Size.Small" Color="@(item.IsActive ? Color.Success : Color.Error)">
-                            @(item.IsActive ? "启用" : "停用")
-                        </MudChip>
-                    </MudTd>
-                    <MudTd DataLabel="最后登录">@(item.LastLoginAt?.ToString("yyyy-MM-dd HH:mm") ?? "-")</MudTd>
-                    <MudTd DataLabel="操作">
-                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
-                                       Color="Color.Primary" Title="编辑"
-                                       OnClick="@(() => OpenEditDialog(item))" />
-                        <MudIconButton Icon="@Icons.Material.Filled.LockReset" Size="Size.Small"
-                                       Color="Color.Warning" Title="重置密码"
-                                       OnClick="@(() => OpenResetPasswordDialog(item))" />
-                        <AuthorizeView Roles="@Roles.Policies.UserDelete">
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
-                                       Color="Color.Error" Title="删除"
-                                       Disabled="@(item.Roles.Contains("Admin"))"
-                                       OnClick="@(() => DeleteItem(item))" />
-                        </AuthorizeView>
-                    </MudTd>
-                </RowTemplate>
-                <NoRecordsContent>
-                    <MudText Typo="Typo.body2" Class="text-center pa-4">暂无用户数据</MudText>
-                </NoRecordsContent>
-                <LoadingContent>
-                    <MudText Typo="Typo.body2" Class="text-center pa-4">加载中...</MudText>
-                </LoadingContent>
-            </MudTable>
+            <div id="users-list-table">
+                <!-- 工具栏 -->
+                <div class="list-toolbar">
+                    <div class="d-flex align-center">
+                        <ColumnDisplaySelect Columns="_allColumns"
+                                             OnColumnToggle="OnColumnToggle"
+                                             OnMoveUp="MoveColumnUp"
+                                             OnMoveDown="MoveColumnDown" />
+                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                   Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.RestartAlt"
+                                   OnClick="ResetColumnDisplay" Class="ml-2">
+                            重置
+                        </MudButton>
+                    </div>
+                    <div class="d-flex align-center" style="margin-left:auto;">
+                        <MudText Typo="Typo.body2" Class="ml-4">
+                            共 @_totalCount 条记录
+                        </MudText>
+                    </div>
+                </div>
+                <MudTable @ref="table"
+                          T="UserDto"
+                          ServerData="@LoadDataFromServer"
+                          Dense="true"
+                          Hover="true"
+                          Class="mt-0 auto-table"
+                          Elevation="0"
+                          RowsPerPage="@_pageSize"
+                          RowsPerPageLabel="每页行数:">
+                    <HeaderContent>
+                        @foreach (var col in _visibleColumns)
+                        {
+                            <MudTh>
+                                <div style="display:inline-flex; align-items:center; gap:4px;">
+                                    @if (col.SortKey != null)
+                                    {
+                                        <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label@if (col.IsRequired) {<span class="required-star">*</span>} @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="th-label">@col.Label@if (col.IsRequired) {<span class="required-star">*</span>}</span>
+                                    }
+                                </div>
+                            </MudTh>
+                        }
+                        <MudTh Style="width: 160px;">操作</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="item">
+                        @foreach (var col in _visibleColumns)
+                        {
+                            <MudTd>
+                                @switch (col.Key)
+                                {
+                                    case "Seq":
+                                        @((_currentPage - 1) * _pageSize + _pageItems.IndexOf(item) + 1)
+                                        break;
+                                    case "UserName":
+                                        @item.UserName
+                                        break;
+                                    case "Email":
+                                        @(string.IsNullOrWhiteSpace(item.Email) ? "-" : item.Email)
+                                        break;
+                                    case "FullName":
+                                        @item.FullName
+                                        break;
+                                    case "Remark":
+                                        @(string.IsNullOrWhiteSpace(item.Remark) ? "-" : item.Remark)
+                                        break;
+                                    case "Roles":
+                                        @(item.Roles.Contains(Roles.Admin) ? "超级管理员" : "-")
+                                        break;
+                                    case "IsActive":
+                                        <MudChip Size="Size.Small" Color="@(item.IsActive ? Color.Success : Color.Error)">
+                                            @(item.IsActive ? "启用" : "停用")
+                                        </MudChip>
+                                        break;
+                                    case "LastLoginAt":
+                                        @(item.LastLoginAt?.ToString("yyyy-MM-dd HH:mm") ?? "-")
+                                        break;
+                                    default:
+                                        @("")
+                                        break;
+                                }
+                            </MudTd>
+                        }
+                        <MudTd DataLabel="操作">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                           Color="Color.Primary" Title="编辑"
+                                           OnClick="@(() => OpenEditDialog(item))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.LockReset" Size="Size.Small"
+                                           Color="Color.Warning" Title="重置密码"
+                                           OnClick="@(() => OpenResetPasswordDialog(item))" />
+                            <AuthorizeView Roles="@Roles.Policies.UserDelete">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                               Color="Color.Error" Title="删除"
+                                               Disabled="@(item.Roles.Contains(Roles.Admin))"
+                                               OnClick="@(() => DeleteItem(item))" />
+                            </AuthorizeView>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Typo="Typo.body2" Class="text-center pa-4">暂无用户数据</MudText>
+                    </NoRecordsContent>
+                    <LoadingContent>
+                        <MudText Typo="Typo.body2" Class="text-center pa-4">加载中...</MudText>
+                    </LoadingContent>
+                    <PagerContent>
+                        <MudTablePager PageSizeOptions="new int[]{10,20,50,100}" />
+                    </PagerContent>
+                </MudTable>
+            </div>
         </MudCardContent>
     </MudCard>
 </MudContainer>
-
