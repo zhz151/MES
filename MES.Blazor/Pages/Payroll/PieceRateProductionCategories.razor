@@ -54,7 +54,7 @@
                                AdornmentIcon="@Icons.Material.Filled.FilterList">
                         @foreach (var opt in _sectionOptions)
                         {
-                            <MudSelectItem Value="@opt.Key">@opt.Name</MudSelectItem>
+                            <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>

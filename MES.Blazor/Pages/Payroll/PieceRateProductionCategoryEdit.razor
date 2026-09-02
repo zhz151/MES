@@ -42,7 +42,7 @@
                                    AdornmentIcon="@Icons.Material.Filled.Business">
                             @foreach (var opt in _sections)
                             {
-                                <MudSelectItem Value="@opt.Key">@opt.Name</MudSelectItem>
+                                <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
@@ -60,7 +60,7 @@
                                    AdornmentIcon="@Icons.Material.Filled.Straighten">
                             @foreach (var opt in _units)
                             {
-                                <MudSelectItem Value="@opt.Key">@opt.Name</MudSelectItem>
+                                <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
@@ -72,7 +72,7 @@
                                    AdornmentIcon="@Icons.Material.Filled.Tune">
                             @foreach (var opt in _processes)
                             {
-                                <MudSelectItem Value="@opt.Key">@opt.Name</MudSelectItem>
+                                <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
@@ -84,7 +84,7 @@
                                    AdornmentIcon="@Icons.Material.Filled.Inventory2">
                             @foreach (var opt in _productStatuses)
                             {
-                                <MudSelectItem Value="@opt.Key">@opt.Name</MudSelectItem>
+                                <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
@@ -96,7 +96,7 @@
                                    AdornmentIcon="@Icons.Material.Filled.SyncAlt">
                             @foreach (var opt in _stages)
                             {
-                                <MudSelectItem Value="@opt.Key">@opt.Name</MudSelectItem>
+                                <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
@@ -121,8 +121,11 @@
 
                 <!-- ========== 维度档 ========== -->
                 <MudText Typo="Typo.h6" Class="mb-1">维度档（结算单价 = 基准价 × 命中维档系数连乘；不配置某维 = 系数 1）</MudText>
-                <MudText Typo="Typo.caption" Color="Color.Default" Class="mb-2">
-                    区间维填写区间原文（例：外径 &gt;54、壁厚 41-54、定尺 6-8）；等值维填写取值。同维区间相切（如 ≤54 与 &gt;54）视为合法邻接；真正重叠/等值重复将标红提示并由服务端兜底拦截。
+                <MudText Typo="Typo.caption" Color="Color.Default" Class="mb-1">
+                    区间维按【闭区间】理解：41-54 = 41≤值≤54（两端含）；单侧写 &gt;54（值&gt;54，不含54）或 ≤54。同维相切（如 ≤54 与 &gt;54）为合法邻接；重叠/等值重复标红并由服务端兜底拦截。
+                </MudText>
+                <MudText Typo="Typo.caption" Style="color:#d9534f;" Class="mb-2">
+                    ⚠️ 相邻两档请勿写成“两个都含端点”的闭带（如 1-75 与 75-90——75 归属有歧义）。正确邻接写法：1-75 与 &gt;75；若上档要含75下档从75.1起，则写 1-75 与 75.1-90。含 ≥D&gt; 半开写法（如 15≥D&gt;13.5）归属明确，优先采用。等值维直接填取值。
                 </MudText>
 
                 <MudGrid Class="mt-1">
@@ -171,13 +174,13 @@
                                             {
                                                 <MudSelect T="string"
                                                            Class="flex-grow-1"
-                                                           Label="光亮等特殊状态"
+                                                           Label="制造/交货状态（固溶酸洗、光亮、硬态等）"
                                                            Value="@row.MatchValue" ValueChanged="@(v => row.MatchValue = v)"
                                                            Disabled="@(!row.IsActive)"
                                                            Clearable="true">
                                                     @foreach (var opt in _states)
                                                     {
-                                                        <MudSelectItem Value="@opt.Key">@opt.Name</MudSelectItem>
+                                                        <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
                                                     }
                                                 </MudSelect>
                                             }
