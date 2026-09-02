@@ -8,7 +8,7 @@
  *   4. 使用 Filters 参数测试筛选
  *   5. 调用 filter-contexts 端点验证可用性
  *
- * 覆盖范围：72 个 Controller（全部），59 个有标准列表端点
+ * 覆盖范围：80 个 Controller（全部），72 个有标准列表端点（2026-08-31 补入冷轧机台/供需链/段落配置等新增模块；移除已归档的 Material 物料档案）
  * 使用: node playwright-tests/api-verify-sort-filter-search.mjs
  * 前提: MES.Api 运行在 http://localhost:7000
  */
@@ -36,6 +36,13 @@ const CONTROLLERS = [
   { name: 'DailyProductionCapacity',       route: 'api/daily-production-capacity',     listPath: 'list' },
   { name: 'StandardWorkDay',               route: 'api/standard-work-day',              listPath: 'list' },
   { name: 'StandardWorkDayDeliveryState',  route: 'api/standard-work-day-delivery-state', listPath: 'list' },
+  { name: 'ProcessDefinition',             route: 'api/process-definition',                  listPath: 'list' },
+  { name: 'DictValueDefinition',           route: 'api/dict-value-definition',                listPath: 'list',  fcPath: 'filter-contexts' },
+  { name: 'EnumDisplayDefinition',         route: 'api/enum-display-definition',              listPath: 'list',  fcPath: 'filter-contexts' },
+  { name: 'CertificatePrintSetting',       route: 'api/certificate-print-setting',            listPath: 'all' },
+  { name: 'CertificatePrintColumnDefinition', route: 'api/certificate-print-column-definition', listPath: 'all' },
+  { name: 'ProcessCardColumnDefinition',   route: 'api/process-card-column-definition',       listPath: 'all' },
+  { name: 'ProcessCardStyleDefinition',    route: 'api/process-card-style-definition',        listPath: 'all' },
 
   // ========== Equipment (4 controllers, 4 端点) ==========
   { name: 'Equipment',                     route: 'api/equipment',            listPath: 'list',      fcPath: 'filter-contexts' },
@@ -47,8 +54,8 @@ const CONTROLLERS = [
   { name: 'User',                          route: 'api/users',                listPath: 'list' },  // 标准列表，无 fc
   // Auth 和 Scan 无标准列表端点
 
-  // ========== Materials (4 controllers, 4 端点) ==========
-  { name: 'Material',                      route: 'api/material',             listPath: 'list',      fcPath: 'filter-contexts' },
+  // ========== Materials (3 controllers, 3 端点) ==========
+  // Material 物料档案主档已删除（2026-08 归档），无 Controller
   { name: 'Supplier',                      route: 'api/supplier',             listPath: 'list',      fcPath: 'filter-contexts' },
   { name: 'PurchaseOrder',                 route: 'api/purchase-order',       listPath: 'list',      fcPath: 'filter-contexts' },
   { name: 'SubcontractOrder',              route: 'api/subcontract',          listPath: 'list',      fcPath: 'filter-contexts' },
@@ -80,8 +87,13 @@ const CONTROLLERS = [
   { name: 'BatchPlan',                     route: 'api/batch-plan',            listPath: 'list',      fcPath: 'filter-contexts' },
   { name: 'WorkOrderSchedule',             route: 'api/workorder-schedule',    listPath: 'list',      fcPath: 'filter-contexts' },
   { name: 'RawMaterialLockPlan',           route: 'api/raw-material-lock-plan', listPath: 'list' },
-  // BatchPlanSchedule, BatchPlanTarget, ColdRollPlan, ColdRollSpecSchedule, FinalInspectionPlan,
-  // ProductionOverview — 无标准列表端点
+  { name: 'BatchPlanSchedule',             route: 'api/batch-plan-schedule',          listPath: 'all' },
+  { name: 'ColdRollCapacity',              route: 'api/cold-roll-capacity',           listPath: 'list' },
+  { name: 'ColdRollMachineConfig',         route: 'api/cold-roll-machine-config',     listPath: 'list' },
+  { name: 'ColdRollMachineGroupConfig',    route: 'api/cold-roll-machine-group-config', listPath: 'list' },
+  { name: 'ColdRollSpecSchedule',          route: 'api/cold-roll-spec-schedule',      listPath: 'all' },
+  // ColdRollPlan, FinalInspectionPlan, ProductionOverview, SectionParagraphConfigSettings,
+  // SectionParagraphFlowAnalysis — 无标准列表端点
 
   // ========== StandardRegister (8 controllers, 8 端点) ==========
   { name: 'StandardRegister',              route: 'api/standard-register',    listPath: 'list',      fcPath: 'filter-contexts' },
@@ -92,11 +104,12 @@ const CONTROLLERS = [
   { name: 'GradePhysicalProperty',         route: 'api/grade-physical-property', listPath: 'list',   fcPath: 'filter-contexts' },
   { name: 'StandardInspectionRequirement', route: 'api/standard-inspection-requirement', listPath: 'list', fcPath: 'filter-contexts' },
   { name: 'SubStandardQuickView',          route: 'api/sub-standard-quick-view', listPath: 'list',   fcPath: 'filter-contexts' },
+  { name: 'FactoryInspectionRequirement',  route: 'api/factory-inspection-requirement', listPath: 'list', fcPath: 'filter-contexts' },
 
   // ========== Warehouse (4 controllers, 4 端点) ==========
   { name: 'Inventory',                     route: 'api/inventory',            listPath: 'list',                     fcPath: 'inventory-filter-contexts' },
   { name: 'InventoryOutbound',             route: 'api/inventory',            listPath: 'outbound-records',         fcPath: 'outbound-filter-contexts' },
-  { name: 'PendingDelivery',               route: 'api/pending-delivery',     listPath: 'list',                     fcPath: 'filter-contexts' },
+  { name: 'PendingDelivery',               route: 'api/pending-delivery',     listPath: 'all',                      fcPath: 'filter-contexts' },
   { name: 'Warehouse',                     route: 'api/warehouse',            listPath: 'list',                     fcPath: 'filter-contexts' },
 
   // ========== Work Orders (4 controllers, 3 端点) ==========
@@ -104,7 +117,8 @@ const CONTROLLERS = [
   { name: 'WorkOrderExecution',            route: 'api/workorder-execution',  listPath: 'list',      fcPath: 'filter-contexts' },
   { name: 'OrderDemandAdjustment',         route: 'api/workorder-demand-adjustment', listPath: 'list',  fcPath: 'filter-contexts' },
   { name: 'Notification',                  route: 'api/notification',         listPath: 'list' },
-  // MaterialPlan 无标准列表端点（参数化路由）
+  { name: 'FixedLengthWorkOrder',          route: 'api/fixed-length-work-order', listPath: 'list' },
+  // MaterialPlan / MaterialPlanProcessGroup / ProductRequirement 无标准列表端点（参数化路由）
 ];
 
 // ============================================================
@@ -155,12 +169,18 @@ const SORT_KEYS = {
   'DailyProductionCapacity': ['createdtime'],
   'StandardWorkDay': ['createdtime'],
   'StandardWorkDayDeliveryState': ['createdtime'],
+  'ProcessDefinition': ['createdtime'],
+  'DictValueDefinition': ['createdtime'],
+  'EnumDisplayDefinition': ['createdtime'],
+  'CertificatePrintSetting': ['createdtime'],
+  'CertificatePrintColumnDefinition': ['createdtime'],
+  'ProcessCardColumnDefinition': ['createdtime'],
+  'ProcessCardStyleDefinition': ['createdtime'],
   'Equipment': ['createdtime'],
   'InspectionRecord': ['createdtime'],
   'MaintenanceOrder': ['createdtime'],
   'RepairOrder': ['createdtime'],
   'User': ['createdtime'],
-  'Material': ['createdtime'],
   'Supplier': ['createdtime'],
   'PurchaseOrder': ['createdtime'],
   'SubcontractOrder': ['createdtime'],
@@ -182,6 +202,11 @@ const SORT_KEYS = {
   'BatchPlan': ['createdtime'],
   'WorkOrderSchedule': ['createdtime'],
   'RawMaterialLockPlan': ['createdtime'],
+  'BatchPlanSchedule': ['createdtime'],
+  'ColdRollCapacity': ['createdtime'],
+  'ColdRollMachineConfig': ['createdtime'],
+  'ColdRollMachineGroupConfig': ['createdtime'],
+  'ColdRollSpecSchedule': ['createdtime'],
   'StandardRegister': ['createdtime'],
   'ChemicalComposition': ['createdtime'],
   'ChemicalValidationRule': ['createdtime'],
@@ -190,11 +215,13 @@ const SORT_KEYS = {
   'GradePhysicalProperty': ['createdtime'],
   'StandardInspectionRequirement': ['createdtime'],
   'SubStandardQuickView': ['createdtime'],
+  'FactoryInspectionRequirement': ['createdtime'],
   'PendingDelivery': ['createdtime'],
   'Warehouse': ['createdtime'],
   'WorkOrder': ['createdtime'],
   'OrderDemandAdjustment': ['createdtime'],
   'Notification': ['createdtime'],
+  'FixedLengthWorkOrder': ['createdtime'],
 };
 
 // ============================================================
@@ -230,7 +257,14 @@ function headers() {
 
 async function get(url) {
   const res = await fetch(url, { headers: headers() });
-  const body = await res.json();
+  // 容错：个别端点可能返回非 JSON（如 500 HTML 页），解析失败时保留原始文本供失败定位
+  let body;
+  try {
+    body = await res.json();
+  } catch (e) {
+    const text = await res.text().catch(() => '');
+    return { status: res.status, ok: res.ok, body: null, parseError: text.substring(0, 300) };
+  }
   return { status: res.status, ok: res.ok, body };
 }
 

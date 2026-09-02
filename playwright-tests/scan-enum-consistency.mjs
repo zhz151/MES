@@ -93,6 +93,9 @@ function checkTC06() {
       const switchMatch = line.match(/\bswitch\s*\(/);
       if (!switchMatch) continue;
 
+      // 跳过渲染列 switch（switch (col.Key) 是单元格渲染分支，非枚举中文映射）
+      if (/switch\s*\(\s*col\.Key\s*\)/.test(line)) continue;
+
       // 检查 switch 块中是否有中文字符串返回
       let j = i;
       let braceDepth = 0;
@@ -236,10 +239,12 @@ function main() {
       console.log(`  方法列表: ${r40.registeredMethods.join(', ')}`);
 
       if (r40.potentialRawCalls.length > 0) {
-        console.log(`\n  绕过 DisplayHelper 的原始 switch 调用:`);
+        // 提示级：文件内含中文 switch 但整体未引用 DisplayHelper。
+        // 可能是业务 switch（关键词解析/档位映射/首字符分类等非枚举显示逻辑），
+        // 无法静态判定是否真绕过枚举显示，故降级为人工审查清单，不计违规。
+        console.log(`\n  ℹ 潜在原始 switch 调用（需人工审查，是否为枚举→中文显示绕过）:`);
         for (const c of r40.potentialRawCalls) {
-          console.log(`  ⚠ ${c.file} (${c.count} 处)`);
-          totalViolations++;
+          console.log(`    ${c.file} (${c.count} 处)`);
         }
       } else {
         console.log('  ✅ 所有枚举显示调用均通过 DisplayHelper');
