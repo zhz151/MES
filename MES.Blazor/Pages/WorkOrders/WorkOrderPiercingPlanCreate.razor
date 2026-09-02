@@ -279,7 +279,7 @@
                                                ToStringFunc="@((string v) => ProcessDisplayHelper.GetProcessNameText(v))">
                                         @foreach (var opt in _processOptions)
                                         {
-                                            <MudSelectItem Value="@opt.ProcessKey">@opt.ProcessName</MudSelectItem>
+                                            <MudSelectItem Value="@opt.ProcessKey">@ProcessDisplayHelper.GetProcessNameText(opt.ProcessName)</MudSelectItem>
                                         }
                                     </MudSelect>
                                 </MudTd>

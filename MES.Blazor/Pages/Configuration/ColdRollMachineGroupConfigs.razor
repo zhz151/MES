@@ -230,7 +230,7 @@
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
                         <AuthorizeView Roles="@Roles.Policies.ColdRollMachineGroupConfigDelete">
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItem(item)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Title="删除" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItem(item)" />
                         </AuthorizeView>
                         }
                     </MudTd>

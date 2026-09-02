@@ -214,7 +214,7 @@ public partial class BatchPlans
             new() { Key = "Salesman",              Label = "业务员",       SortKey = "Salesman",              FilterType = "string", Width = "100", GroupKey = 1, GroupName = "批次基础信息", Visible = false },
             new() { Key = "EndCustomer",           Label = "最终用户",     SortKey = "EndCustomer",           FilterType = "string", Width = "130", GroupKey = 1, GroupName = "批次基础信息", Visible = false },
             new() { Key = "DeliveryState",         Label = "交货状态",     SortKey = "DeliveryState",         FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>(), GroupKey = 1, GroupName = "批次基础信息", DisplayConverter = v => v is DeliveryState dv ? DisplayHelper.GetDeliveryStateText(dv) : DisplayHelper.GetDeliveryStateText(v as string) },
-            new() { Key = "DeliveryDate",          Label = "交货日期",     SortKey = "DeliveryDate",          FilterType = "number", Width = "110", GroupKey = 1, GroupName = "批次基础信息" },
+            new() { Key = "DeliveryDate",          Label = "交货日期",     SortKey = "DeliveryDate",          FilterType = "date", Width = "110", GroupKey = 1, GroupName = "批次基础信息" },
             new() { Key = "Specification",         Label = "成品规格",     SortKey = "Specification",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次基础信息" },
             new() { Key = "LengthStatus",          Label = "长度状态",     SortKey = "LengthStatus",          FilterType = "enum", Width = "100", EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>(), GroupKey = 1, GroupName = "批次基础信息", DisplayConverter = v => v is LengthStatus ls ? DisplayHelper.GetLengthStatusText(ls) : DisplayHelper.GetLengthStatusText(v as string) },
         };
@@ -229,7 +229,7 @@ public partial class BatchPlans
         // G3: 状态跟踪
         var g3 = new List<ColumnDef>
         {
-            new() { Key = "CurrentExecDate",        Label = "执行截止日",   SortKey = "CurrentExecDate",        FilterType = "number", Width = "110", GroupKey = 3, GroupName = "状态跟踪" },
+            new() { Key = "CurrentExecDate",        Label = "执行截止日",   SortKey = "CurrentExecDate",        FilterType = "date", Width = "110", GroupKey = 3, GroupName = "状态跟踪" },
             new() { Key = "PendingProcess",         Label = "执行工序",     FilterType = "string", Width = "130", GroupKey = 3, GroupName = "状态跟踪" },
             new() { Key = "PendingSectionName",     Label = "待在产执行工段", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "状态跟踪" },
             new() { Key = "PendingSpec",            Label = "执行规格",      FilterType = "string", Width = "120", GroupKey = 3, GroupName = "状态跟踪" },

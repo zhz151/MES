@@ -317,7 +317,7 @@
                                                                OnClick="() => StartMachineConfigEdit(item)" />
                                             </AuthorizeView>
                                             <AuthorizeView Roles="@Roles.Policies.SchedulingDelete">
-                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Title="删除" Color="Color.Error" Size="Size.Small"
                                                                OnClick="() => DeleteMachineConfigEdit(item)" />
                                             </AuthorizeView>
                                         }
