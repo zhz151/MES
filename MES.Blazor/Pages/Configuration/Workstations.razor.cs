@@ -105,14 +105,13 @@ public partial class Workstations
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
-    // 默认列顺序=用户定稿：工位名称 工位编码* 报工模板类型 生产工段 组类 成检项目 启用 设备名称
+    // 默认列顺序=用户定稿：工位名称 工位编码* 报工模板类型 生产工段 成检项目 启用 设备名称
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "Name",           Label = "工位名称",     SortKey = "name",           FilterType = "string" },
         new() { Key = "Code",           Label = "工位编码",     SortKey = "code",           FilterType = "string", IsRequired = true },
         new() { Key = "ReportType",     Label = "报工模板类型", SortKey = "reporttype",     FilterType = "string" },
         new() { Key = "SectionName",    Label = "生产工段",     SortKey = "sectionname",    FilterType = "string" },
-        new() { Key = "GroupNames",     Label = "组类",         SortKey = "groupnames",     FilterType = "string" },
         new() { Key = "InspectionItem", Label = "成检项目",     SortKey = "inspectionitem", FilterType = "string" },
         new() { Key = "IsActive",       Label = "启用",         SortKey = "isactive",       FilterType = "boolean" },
         new() { Key = "EquipmentName",  Label = "设备名称",     SortKey = "equipmentname",  FilterType = "string" },
@@ -433,7 +432,6 @@ public partial class Workstations
         public string? Name { get; set; }
         public string? EquipmentName { get; set; }
         public string? SectionName { get; set; }
-        public string? GroupNames { get; set; }
         public ReportTemplateType? ReportType { get; set; }
         public InspectionItem? InspectionItem { get; set; }
         public bool IsActive { get; set; } = true;
@@ -450,7 +448,6 @@ public partial class Workstations
             Name = item.Name,
             EquipmentName = item.EquipmentName,
             SectionName = item.SectionName,
-            GroupNames = item.GroupNames,
             ReportType = item.ReportType,
             InspectionItem = item.InspectionItem,
             IsActive = item.IsActive
@@ -493,7 +490,6 @@ public partial class Workstations
                 Name = cache.Name,
                 EquipmentName = cache.EquipmentName,
                 SectionName = cache.SectionName,
-                GroupNames = cache.GroupNames,
                 ReportType = cache.ReportType!.Value,
                 InspectionItem = cache.InspectionItem,
                 IsActive = cache.IsActive

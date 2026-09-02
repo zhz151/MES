@@ -803,6 +803,20 @@ public static class DisplayHelper
     public static string GetProductStatusText(string? productStatus)
         => DictValueDisplayHelper.GetText(DictValueDefaults.ProductStatus, productStatus) ?? "在制";
 
+    /// <summary>工资结算模式中文显示（枚举存储，枚举名英文）：PieceIndividual→个人计件 等</summary>
+    public static string GetSalaryModeText(string? salaryMode) => EnumHelper.GetDisplayName<SalaryMode>(salaryMode);
+
+    /// <summary>工资结算模式中文显示（可空枚举版本）</summary>
+    public static string GetSalaryModeText(SalaryMode? salaryMode) => salaryMode.HasValue ? EnumHelper.GetDisplayName(salaryMode.Value) : "-";
+
+    /// <summary>岗位中文显示（字典字段，存英文 Key）：Cutting→切割 等（配置表优先 → PositionKeys 兜底）</summary>
+    public static string GetPositionText(string? position)
+        => DictValueDisplayHelper.GetText(DictValueDefaults.PositionKey, position) ?? "";
+
+    /// <summary>岗位类别中文显示（字典字段，存英文 Key）：Workshop→车间生产 等（配置表优先 → PositionCategoryKeys 兜底）</summary>
+    public static string GetPositionCategoryText(string? positionCategory)
+        => DictValueDisplayHelper.GetText(DictValueDefaults.PositionCategoryKey, positionCategory) ?? "";
+
     /// <summary>产类颜色映射（字符串字段存稳定英文 Key）</summary>
     public static Color GetProductStatusColor(string? productStatus) => productStatus switch
     {

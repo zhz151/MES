@@ -218,4 +218,11 @@ public class UserManagementService : IUserManagementService
 
         return ApiResponse<object>.Ok(new object(), "删除成功");
     }
+
+    public async Task<string?> FindIdByUserNameAsync(string userName)
+    {
+        if (string.IsNullOrWhiteSpace(userName)) return null;
+        var user = await _userManager.FindByNameAsync(userName.Trim());
+        return user?.Id;
+    }
 }

@@ -39,10 +39,4 @@ public class Workstation : BaseEntity
     /// 仅 ReportType=FinalInspection 时必填绑定，扫码即确定检验项目并过滤操作人
     /// </summary>
     public string? InspectionItem { get; set; }
-
-    /// <summary>
-    /// 组类选项集合（存组类名逗号串，如 "甲班,乙班"）— 人多的工段扫码先选组类再选操作人；
-    /// 有值 = 扫码该工位需先选组类，候选 = 该工位工段 ∩ 员工组类任一匹配；留空 = 直接候选（不分组）
-    /// </summary>
-    public string? GroupNames { get; set; }
 }

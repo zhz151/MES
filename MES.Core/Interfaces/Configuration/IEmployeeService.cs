@@ -19,8 +19,11 @@ public interface IEmployeeService
     /// </summary>
     Task<bool> SaveAsync(EmployeeDto dto);
 
-    /// <summary>删除</summary>
+    /// <summary>删除（同时删除自动创建的登录账号）</summary>
     Task<bool> DeleteAsync(int id);
+
+    /// <summary>一键补齐存量启用员工的登录账号（用户名=工号、密码=123456、仅扫码权限），返回新建账号数</summary>
+    Task<int> SyncAccountsAsync();
 
     /// <summary>列头筛选上下文（自由文本列取存量去重值，工段/成检项目列取标准选项）</summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();

@@ -88,7 +88,6 @@ public class WorkstationService : IWorkstationService
                 w.SectionName,
                 w.ReportType,
                 w.InspectionItem,
-                w.GroupNames,
                 w.IsActive
             })
             .ToListAsync();
@@ -102,7 +101,6 @@ public class WorkstationService : IWorkstationService
             SectionName = w.SectionName,
             ReportType = Enum.Parse<ReportTemplateType>(w.ReportType),
             InspectionItem = w.InspectionItem == null ? null : Enum.Parse<InspectionItem>(w.InspectionItem),
-            GroupNames = w.GroupNames,
             IsActive = w.IsActive
         }).ToList();
 
@@ -128,7 +126,6 @@ public class WorkstationService : IWorkstationService
                 ws.SectionName,
                 ws.ReportType,
                 ws.InspectionItem,
-                ws.GroupNames,
                 ws.IsActive
             })
             .FirstOrDefaultAsync();
@@ -144,7 +141,6 @@ public class WorkstationService : IWorkstationService
             SectionName = entity.SectionName,
             ReportType = Enum.Parse<ReportTemplateType>(entity.ReportType),
             InspectionItem = entity.InspectionItem == null ? null : Enum.Parse<InspectionItem>(entity.InspectionItem),
-            GroupNames = entity.GroupNames,
             IsActive = entity.IsActive
         };
     }
@@ -182,7 +178,6 @@ public class WorkstationService : IWorkstationService
             entity.SectionName = dto.SectionName;
             entity.ReportType = dto.ReportType.ToString();
             entity.InspectionItem = dto.InspectionItem?.ToString();
-            entity.GroupNames = dto.GroupNames;
             entity.IsActive = dto.IsActive;
         }
         else
@@ -196,7 +191,6 @@ public class WorkstationService : IWorkstationService
                 SectionName = dto.SectionName,
                 ReportType = dto.ReportType.ToString(),
                 InspectionItem = dto.InspectionItem?.ToString(),
-                GroupNames = dto.GroupNames,
                 IsActive = dto.IsActive
             };
             _context.Workstations.Add(entity);
@@ -227,7 +221,7 @@ public class WorkstationService : IWorkstationService
     {
         var rows = await _context.Workstations
             .AsNoTracking()
-            .Select(w => new { w.Name, w.Code, w.EquipmentName, w.SectionName, w.GroupNames })
+            .Select(w => new { w.Name, w.Code, w.EquipmentName, w.SectionName })
             .ToListAsync();
 
         // 工段选项 = 26 标准工段 + 存量非标准值补充（成检到料/成品检验工段选填可任意值）
@@ -247,7 +241,6 @@ public class WorkstationService : IWorkstationService
             ["Code"] = Distinct(rows.Select(r => r.Code)),
             ["ReportType"] = Enum.GetValues<ReportTemplateType>().Select(e => e.ToString()).ToList(),
             ["SectionName"] = sectionOptions,
-            ["GroupNames"] = Distinct(rows.Select(r => r.GroupNames)),
             ["InspectionItem"] = Enum.GetValues<InspectionItem>().Select(e => e.ToString()).ToList(),
             ["IsActive"] = new List<string> { "True", "False" },
             ["EquipmentName"] = Distinct(rows.Select(r => r.EquipmentName))

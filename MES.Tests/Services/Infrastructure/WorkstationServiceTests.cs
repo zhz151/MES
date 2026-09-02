@@ -22,7 +22,7 @@ public class WorkstationServiceTests : TestBase
     private WorkstationService CreateService(AppDbContext ctx) => new(ctx);
 
     private async Task<Workstation> SeedWorkstationAsync(AppDbContext ctx,
-        string code = "WS001", string sectionName = SectionKeys.Pickle, bool isActive = true, string? groupNames = null)
+        string code = "WS001", string sectionName = SectionKeys.Pickle, bool isActive = true)
     {
         var ws = new Workstation
         {
@@ -30,7 +30,6 @@ public class WorkstationServiceTests : TestBase
             Name = "测试工位",
             SectionName = sectionName,
             ReportType = ReportTemplateType.PicklingInRecord.ToString(),
-            GroupNames = groupNames,
             IsActive = isActive
         };
         ctx.Workstations.Add(ws);
@@ -485,78 +484,6 @@ public class WorkstationServiceTests : TestBase
         saved.InspectionItem.Should().BeNull();
     }
 
-    // ========== GroupNames（组类选项集合，扫码先选组再选人） ==========
-
-    [Fact]
-    public async Task GetPagedAsync_返回组类选项字段()
-    {
-        var ctx = CreateDbContext();
-        await SeedWorkstationAsync(ctx, groupNames: "甲班,乙班");
-        var svc = CreateService(ctx);
-
-        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
-
-        result.Items.Should().HaveCount(1);
-        result.Items[0].GroupNames.Should().Be("甲班,乙班");
-    }
-
-    [Fact]
-    public async Task GetByCodeAsync_返回组类选项字段()
-    {
-        var ctx = CreateDbContext();
-        await SeedWorkstationAsync(ctx, groupNames: "甲班");
-        var svc = CreateService(ctx);
-
-        var result = await svc.GetByCodeAsync("WS001");
-
-        result!.GroupNames.Should().Be("甲班");
-    }
-
-    [Fact]
-    public async Task SaveAsync_新增_保存组类选项()
-    {
-        var ctx = CreateDbContext();
-        var svc = CreateService(ctx);
-
-        var result = await svc.SaveAsync(new WorkstationDto
-        {
-            Code = "WS001",
-            Name = "冷轧拔工位",
-            SectionName = SectionKeys.ColdRollDraw,
-            ReportType = ReportTemplateType.ProductionRecord,
-            GroupNames = "甲班,乙班"
-        });
-
-        result.Should().BeTrue();
-
-        var saved = await ctx.Workstations.FirstAsync();
-        saved.GroupNames.Should().Be("甲班,乙班");
-    }
-
-    [Fact]
-    public async Task SaveAsync_更新_修改组类选项()
-    {
-        var ctx = CreateDbContext();
-        var ws = await SeedWorkstationAsync(ctx, groupNames: "甲班");
-        var svc = CreateService(ctx);
-
-        var result = await svc.SaveAsync(new WorkstationDto
-        {
-            Id = ws.Id,
-            Code = "WS001",
-            Name = "测试工位",
-            SectionName = SectionKeys.ColdRollDraw,
-            ReportType = ReportTemplateType.ProductionRecord,
-            GroupNames = "丙班",
-            IsActive = true
-        });
-
-        result.Should().BeTrue();
-
-        var updated = await ctx.Workstations.FindAsync(ws.Id);
-        updated!.GroupNames.Should().Be("丙班");
-    }
-
     // ========== GetFilterContextsAsync（列头筛选上下文） ==========
 
     [Fact]
@@ -609,19 +536,4 @@ public class WorkstationServiceTests : TestBase
         result["SectionName"].Should().HaveCountGreaterThan(SectionKeys.All.Length);
     }
 
-    [Fact]
-    public async Task GetFilterContextsAsync_组类列_取存量整串去重值()
-    {
-        var ctx = CreateDbContext();
-        await SeedWorkstationAsync(ctx, groupNames: "甲班,乙班");
-        await SeedWorkstationAsync(ctx, "WS002", groupNames: "甲班,乙班");
-        await SeedWorkstationAsync(ctx, "WS003", groupNames: "丙班");
-        var svc = CreateService(ctx);
-
-        var result = await svc.GetFilterContextsAsync();
-
-        result["GroupNames"].Should().Contain("甲班,乙班");
-        result["GroupNames"].Should().Contain("丙班");
-        result["GroupNames"].Should().HaveCount(2); // 整串去重
-    }
 }

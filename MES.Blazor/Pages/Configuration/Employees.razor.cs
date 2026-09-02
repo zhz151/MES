@@ -12,11 +12,12 @@ using MES.Core.DTOs.Shared;
 using System.Text.Json;
 using MES.Core.Constants;
 using MES.Core.Enums;
+using MES.Core.Helpers;
 using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Configuration;
 
-public partial class Employees
+public partial class Employees : IDisposable
 {
     [Inject] private HttpClient Http { get; set; } = null!;
     private MudTable<EmployeeDto>? table;
@@ -42,6 +43,32 @@ public partial class Employees
     // 工段下拉选项（从参数表加载启用工段，失败降级为预置 26 工段）
     private List<(string Key, string Text)> _sectionOptions = new();
 
+    // 工序组下拉选项（从工序定义加载启用工序，失败降级为预置 ProcessKeys）
+    private List<(string Key, string Text)> _processOptions = new();
+
+    // 岗位下拉选项（PositionKeys 兜底，显示中文经 DictValueDisplayHelper 配置表优先）
+    private List<(string Key, string Text)> _positionOptions = BuildPositionOptions();
+
+    // 岗位类别下拉选项（PositionCategoryKeys 兜底，显示中文经 DictValueDisplayHelper 配置表优先）
+    private List<(string Key, string Text)> _positionCategoryOptions = BuildPositionCategoryOptions();
+
+    // 工资结算模式下拉选项（枚举，显示中文经 DisplayHelper.GetEnumOptions 配置表排序优先）
+    private List<(SalaryMode Value, string Display)> _salaryModeOptions = BuildSalaryModeOptions();
+
+    // 字段初始化器在组件构造时执行，此时 DictValueDisplayHelper.OverrideMap 尚未注入（MainLayout 晚于页面渲染）；
+    // MainLayout 注入后经 OverrideMapChanged 事件调用 ApplyDictOverrideMapAsync 重建，使选项按参数表中文显示
+    private static List<(string Key, string Text)> BuildPositionOptions() =>
+        PositionKeys.All.Select(k => (k, DictValueDisplayHelper.GetText(DictValueDefaults.PositionKey, k) ?? k)).ToList();
+
+    private static List<(string Key, string Text)> BuildPositionCategoryOptions() =>
+        PositionCategoryKeys.All.Select(k => (k, DictValueDisplayHelper.GetText(DictValueDefaults.PositionCategoryKey, k) ?? k)).ToList();
+
+    private static List<(SalaryMode Value, string Display)> BuildSalaryModeOptions() =>
+        DisplayHelper.GetEnumOptions<SalaryMode>()
+            .Where(o => Enum.TryParse<SalaryMode>(o.Value, out _))
+            .Select(o => (Enum.Parse<SalaryMode>(o.Value), o.Display))
+            .ToList();
+
     // ========== 工段多选辅助（SectionName 存逗号分隔英文 Key 串） ==========
 
     // 逗号串 → 多选列表（编辑态初值）
@@ -57,9 +84,28 @@ public partial class Employees
             : string.Join("、", value.Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(s => SectionDisplayHelper.GetSectionNameText(s.Trim())));
 
+    // ========== 工序组多选辅助（GroupName 存逗号分隔工序英文 Key 串） ==========
+
+    // 逗号串 → 多选列表（编辑态初值）
+    private static List<string> SplitProcesses(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? new List<string>()
+            : value.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList();
+
+    // 逗号串 → 中文显示（"、" 连接，显示名参数化）
+    private static string FormatProcesses(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : string.Join("、", value.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => ProcessDisplayHelper.GetProcessNameText(s.Trim())));
+
     // ========== 检验项目多选辅助（InspectionItems 存逗号分隔枚举名串） ==========
 
-    private readonly List<(string Key, string Text)> _inspectionItemOptions =
+    // 成检项目下拉（枚举配置表 EnumDisplayDefinition 优先 → EnumHelper 静态注册兜底）。
+    // 字段初始化器在构造时枚举覆盖未注入（MainLayout 晚注入），故改为可重建，随 OverrideMapChanged 事件重建
+    private List<(string Key, string Text)> _inspectionItemOptions = BuildInspectionItemOptions();
+
+    private static List<(string Key, string Text)> BuildInspectionItemOptions() =>
         DisplayHelper.GetEnumOptions<InspectionItem>().Select(o => (o.Value, o.Display)).ToList();
 
     // 逗号串 → 多选列表（编辑态初值）
@@ -127,22 +173,25 @@ public partial class Employees
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
-    // 默认列顺序=用户定稿：部门 岗位 工号 姓名 生产工段 组类 过程检验 成检到料 成检项目 启用（HR 三备注默认隐藏）
+    // 默认列顺序=用户定稿（2026-09-01）：工号 姓名 生产工段 工序组 成检到料 成检项目 启用 岗位类别 岗位 岗位备注 工资结算模式 工资结算备注（默认全显）
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "Department",    Label = "部门",         SortKey = "department",     FilterType = "string" },
-        new() { Key = "Position",      Label = "岗位",         SortKey = "position",       FilterType = "string" },
         new() { Key = "Code",          Label = "工号",         SortKey = "code",           FilterType = "string", IsRequired = true },
         new() { Key = "Name",          Label = "姓名",         SortKey = "name",           FilterType = "string", IsRequired = true },
         new() { Key = "SectionName",   Label = "生产工段",     SortKey = "sectionname",    FilterType = "string" },
-        new() { Key = "GroupName",     Label = "组类",         SortKey = "groupname",      FilterType = "string" },
-        new() { Key = "ProcessInspectionItems",   Label = "过程检验",   SortKey = "processinspectionitems",   FilterType = "boolean" },
+        new() { Key = "GroupName",     Label = "工序组",       SortKey = "groupname",      FilterType = "string" },
         new() { Key = "MaterialReceiveCheckItems", Label = "成检到料", SortKey = "materialreceivecheckitems", FilterType = "boolean" },
         new() { Key = "InspectionItems", Label = "成检项目",    SortKey = "inspectionitems", FilterType = "string" },
         new() { Key = "IsActive",      Label = "启用",         SortKey = "isactive",       FilterType = "boolean" },
-        new() { Key = "PositionRemark", Label = "岗位备注",     SortKey = "positionremark", FilterType = "string", Visible = false },
-        new() { Key = "SalaryMode",    Label = "工资结算模式", SortKey = "salarymode",     FilterType = "string", Visible = false },
-        new() { Key = "SalaryRemark",  Label = "工资结算备注", SortKey = "salaryremark",   FilterType = "string", Visible = false },
+        new() { Key = "Department",    Label = "岗位类别",     SortKey = "department",     FilterType = "string" },
+        new() { Key = "Position",      Label = "岗位",         SortKey = "position",       FilterType = "string" },
+        new() { Key = "PositionRemark", Label = "岗位备注",     SortKey = "positionremark", FilterType = "string" },
+        new() { Key = "SalaryMode",    Label = "工资结算模式", SortKey = "salarymode",     FilterType = "string" },
+        new() { Key = "AttendanceCoefficient", Label = "靠工系数", SortKey = "attendancecoefficient" },
+        new() { Key = "HourlyWage",    Label = "小时工资",     SortKey = "hourlywage" },
+        new() { Key = "DailyWage",     Label = "日工资",       SortKey = "dailywage" },
+        new() { Key = "MonthlyWage",   Label = "月工资",       SortKey = "monthlywage" },
+        new() { Key = "SalaryRemark",  Label = "工资结算备注", SortKey = "salaryremark",   FilterType = "string" },
     };
 
     // ========== 服务端数据加载 ==========
@@ -288,10 +337,13 @@ public partial class Employees
                 Display = kvp.Key switch
                 {
                     "SectionName" => SectionDisplayHelper.GetSectionNameText(v),
+                    "GroupName" => FormatProcesses(v),
                     "InspectionItems" => Enum.TryParse<InspectionItem>(v, out var item) ? DisplayHelper.GetInspectionItemText(item) : v,
-                    "ProcessInspectionItems" => v == "True" ? "是" : "否",
                     "MaterialReceiveCheckItems" => v == "True" ? "是" : "否",
                     "IsActive" => v == "True" ? "启用" : "停用",
+                    "Department" => DisplayHelper.GetPositionCategoryText(v),
+                    "Position" => DisplayHelper.GetPositionText(v),
+                    "SalaryMode" => DisplayHelper.GetSalaryModeText(v),
                     _ => v
                 },
                 Count = 0
@@ -317,7 +369,7 @@ public partial class Employees
     }
 
     // 版本化列偏好 key：列顺序/默认显隐调整后，已保存过 localStorage 的用户也能看到新默认
-    private const string ColumnPrefsVersion = "v3";
+    private const string ColumnPrefsVersion = "v4";
 
     private async Task SaveColumnPrefs()
     {
@@ -353,9 +405,54 @@ public partial class Employees
             _sectionOptions = SectionKeys.All.Select(k => (k, SectionDisplayHelper.GetSectionNameText(k))).ToList();
     }
 
+    // 加载启用工序下拉（从工序定义，失败降级为预置 ProcessKeys）；显示文本统一走 GetProcessNameText 中文化，防配置表存英文 Key 时下拉直出英文
+    private async Task LoadProcessOptionsAsync()
+    {
+        var r = await ProcessDefinitionService.GetEnabledProcessesAsync();
+        if (r.Success && r.Data != null)
+            _processOptions = r.Data.Select(x => (x.ProcessKey, ProcessDisplayHelper.GetProcessNameText(x.ProcessName))).ToList();
+        else
+            _processOptions = ProcessKeys.All.Select(k => (k, ProcessKeys.ToChinese(k) ?? k)).ToList();
+    }
+
+    // 岗位/岗位类别下拉 = 参数表「启用值」全量（含配置新增 Key、过滤停用、按 DisplayOrder 排序），
+    // 与配置管理页「启用值」一致；失败降级 OverrideMap/常量类兜底。
+    // 注：字段初始化器用 BuildXxx（常量类兜底）保证构造期有值，此处异步加载成功后覆盖。
+    private async Task LoadDictOptionsAsync()
+    {
+        try
+        {
+            var pos = await DictValueDefinitionService.GetEnabledValuesAsync(DictValueDefaults.PositionKey);
+            if (pos.Success && pos.Data != null && pos.Data.Count > 0)
+                _positionOptions = pos.Data.Select(x => (x.Value, x.DisplayName)).ToList();
+            else
+                _positionOptions = BuildPositionOptions();
+        }
+        catch { _positionOptions = BuildPositionOptions(); }
+
+        try
+        {
+            var cat = await DictValueDefinitionService.GetEnabledValuesAsync(DictValueDefaults.PositionCategoryKey);
+            if (cat.Success && cat.Data != null && cat.Data.Count > 0)
+                _positionCategoryOptions = cat.Data.Select(x => (x.Value, x.DisplayName)).ToList();
+            else
+                _positionCategoryOptions = BuildPositionCategoryOptions();
+        }
+        catch { _positionCategoryOptions = BuildPositionCategoryOptions(); }
+    }
+
     protected override async Task OnInitializedAsync()
     {
+        // 订阅字典显示映射注入事件：MainLayout 注入 OverrideMap 晚于页面首次渲染，
+        // 事件回调重建下拉/筛选选项并 StateHasChanged，使页面按参数表中文显示
+        DictValueDisplayHelper.OverrideMapChanged += OnDictOverrideMapChanged;
+        if (DictValueDisplayHelper.OverrideMap != null)
+            await ApplyDictOverrideMapAsync(); // 已就绪直接应用（防时序漏报，内部含 LoadDictOptionsAsync）
+        else
+            await LoadDictOptionsAsync();
+
         await LoadSectionOptionsAsync();
+        await LoadProcessOptionsAsync();
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("employees", ColumnPrefsVersion);
         if (saved.Count > 0)
@@ -419,6 +516,29 @@ public partial class Employees
         }
     }
 
+    public void Dispose()
+    {
+        DictValueDisplayHelper.OverrideMapChanged -= OnDictOverrideMapChanged;
+    }
+
+    private void OnDictOverrideMapChanged()
+    {
+        _ = InvokeAsync(async () => await ApplyDictOverrideMapAsync());
+    }
+
+    /// <summary>
+    /// 字典显示映射就绪后应用：重建岗位/岗位类别/结算模式下拉选项、重建筛选上下文（中文按参数表重算）、强制重渲染。
+    /// 列表列走模板实时调用 DisplayHelper.GetXxxText，重渲染即用新映射。
+    /// </summary>
+    private async Task ApplyDictOverrideMapAsync()
+    {
+        await LoadDictOptionsAsync();
+        _salaryModeOptions = BuildSalaryModeOptions();
+        _inspectionItemOptions = BuildInspectionItemOptions();
+        await LoadFilterContextsAsync();
+        StateHasChanged();
+    }
+
     // ========== 新增 ==========
 
     private async Task AddNew()
@@ -462,11 +582,14 @@ public partial class Employees
         public string? Department { get; set; }
         public string? Position { get; set; }
         public string? PositionRemark { get; set; }
-        public string? SalaryMode { get; set; }
+        public SalaryMode? SalaryMode { get; set; }
         public string? SalaryRemark { get; set; }
+        public decimal? AttendanceCoefficient { get; set; } = 1.0m;
+        public decimal? HourlyWage { get; set; }
+        public decimal? DailyWage { get; set; }
+        public decimal? MonthlyWage { get; set; }
         public string? SectionName { get; set; }
         public string? GroupName { get; set; }
-        public bool? ProcessInspectionItems { get; set; }
         public bool? MaterialReceiveCheckItems { get; set; }
         public string? InspectionItems { get; set; }
         public bool IsActive { get; set; } = true;
@@ -486,9 +609,12 @@ public partial class Employees
             PositionRemark = item.PositionRemark,
             SalaryMode = item.SalaryMode,
             SalaryRemark = item.SalaryRemark,
+            AttendanceCoefficient = item.AttendanceCoefficient,
+            HourlyWage = item.HourlyWage,
+            DailyWage = item.DailyWage,
+            MonthlyWage = item.MonthlyWage,
             SectionName = item.SectionName,
             GroupName = item.GroupName,
-            ProcessInspectionItems = item.ProcessInspectionItems,
             MaterialReceiveCheckItems = item.MaterialReceiveCheckItems,
             InspectionItems = item.InspectionItems,
             IsActive = item.IsActive
@@ -531,9 +657,12 @@ public partial class Employees
                 PositionRemark = cache.PositionRemark,
                 SalaryMode = cache.SalaryMode,
                 SalaryRemark = cache.SalaryRemark,
+                AttendanceCoefficient = cache.AttendanceCoefficient,
+                HourlyWage = cache.HourlyWage,
+                DailyWage = cache.DailyWage,
+                MonthlyWage = cache.MonthlyWage,
                 SectionName = cache.SectionName,
                 GroupName = cache.GroupName,
-                ProcessInspectionItems = cache.ProcessInspectionItems,
                 MaterialReceiveCheckItems = cache.MaterialReceiveCheckItems,
                 InspectionItems = cache.InspectionItems,
                 IsActive = cache.IsActive
@@ -600,6 +729,42 @@ public partial class Employees
             {
                 Snackbar.Add($"删除失败: {ex.Message}", Severity.Error);
             }
+        }
+    }
+
+    // ========== 一键补齐登录账号 ==========
+
+    private bool _isSyncing;
+
+    private async Task SyncAccounts()
+    {
+        var dialog = DialogService.Show<ConfirmDialog>("补齐登录账号", new DialogParameters
+        {
+            ["ContentText"] = "将为所有启用员工自动创建登录账号（用户名=工号、密码=123456、仅最小扫码权限），已存在的账号自动跳过。是否继续？",
+            ["ConfirmText"] = "开始补齐",
+            ["Color"] = Color.Primary
+        });
+        var dialogResult = await dialog.Result;
+        if (dialogResult.Canceled) return;
+
+        _isSyncing = true;
+        StateHasChanged();
+        try
+        {
+            var result = await EmployeeService.SyncAccountsAsync();
+            if (result.Success)
+                Snackbar.Add(result.Message ?? $"已补齐 {result.Data} 个登录账号", Severity.Success);
+            else
+                Snackbar.Add(result.Message ?? "补齐账号失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"补齐账号失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSyncing = false;
+            StateHasChanged();
         }
     }
 

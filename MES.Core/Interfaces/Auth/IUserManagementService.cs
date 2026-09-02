@@ -11,4 +11,9 @@ public interface IUserManagementService
     Task<ApiResponse<UserDto>> UpdateAsync(string userId, UpdateUserRequest request);
     Task<ApiResponse<object>> ResetPasswordAsync(string userId, ResetPasswordRequest request);
     Task<ApiResponse<object>> DeleteAsync(string userId);
+
+    /// <summary>
+    /// 按用户名反查用户 Id（用于「员工删除 → 登录账号联动删除」），不存在返回 null
+    /// </summary>
+    Task<string?> FindIdByUserNameAsync(string userName);
 }

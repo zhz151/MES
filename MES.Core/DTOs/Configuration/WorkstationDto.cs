@@ -22,7 +22,4 @@ public class WorkstationDto
     /// <summary>检验项目中文显示</summary>
     public string? InspectionItemDisplay => InspectionItem.HasValue ? EnumHelper.GetDisplayName(InspectionItem.Value) : null;
     public bool IsActive { get; set; } = true;
-
-    /// <summary>组类选项集合（逗号串，如 "甲班,乙班"）— 有值则扫码该工位先选组类再选操作人</summary>
-    public string? GroupNames { get; set; }
 }

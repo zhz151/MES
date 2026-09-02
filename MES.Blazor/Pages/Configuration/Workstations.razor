@@ -189,23 +189,6 @@
                                 @DisplayHelper.GetReportTypeText(item.ReportType)
                             }
                         }
-                        else if (col.Key == "GroupNames")
-                        {
-                            if (rowEditing && rowCache != null)
-                            {
-                                <MudTextField T="string"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Value="@rowCache.GroupNames"
-                                              ValueChanged="@(v => rowCache.GroupNames = v)"
-                                              Class="compact-input"
-                                              Label="组类（多个逗号分隔，可空）" />
-                            }
-                            else
-                            {
-                                @item.GroupNames
-                            }
-                        }
                         else if (col.Key == "InspectionItem")
                         {
                             if (rowEditing && rowCache != null)

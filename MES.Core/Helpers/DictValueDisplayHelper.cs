@@ -14,8 +14,25 @@ namespace MES.Core.Helpers;
 /// </summary>
 public static class DictValueDisplayHelper
 {
-    /// <summary>DictKey → Value → DisplayName（由配置表加载，全局共享）</summary>
-    public static Dictionary<string, Dictionary<string, string>>? OverrideMap { get; set; }
+    private static Dictionary<string, Dictionary<string, string>>? _overrideMap;
+
+    /// <summary>
+    /// DictKey → Value → DisplayName（由配置表加载，全局共享）。
+    /// setter 赋值（前端 MainLayout 注入）后触发 <see cref="OverrideMapChanged"/>，
+    /// 供已渲染的页面订阅并强制重渲染——解决 MainLayout 注入晚于页面组件首次渲染导致列表/下拉沿用静态兜底的时序 bug。
+    /// </summary>
+    public static Dictionary<string, Dictionary<string, string>>? OverrideMap
+    {
+        get => _overrideMap;
+        set
+        {
+            _overrideMap = value;
+            OverrideMapChanged?.Invoke();
+        }
+    }
+
+    /// <summary>OverrideMap 注入完成后广播（前端页面订阅后重建选项并 StateHasChanged）</summary>
+    public static event Action? OverrideMapChanged;
 
     /// <summary>字典 Key → 显示中文（配置表优先 → Keys 常量类兜底 → 原样）；空值返回 null</summary>
     public static string? GetText(string dictKey, string? value)
@@ -40,6 +57,8 @@ public static class DictValueDisplayHelper
             DictValueDefaults.NcrResponsibilityKey => NcrResponsibilityKeys.ToChinese(value),
             DictValueDefaults.RawMaterialLockRemarkKey => RawMaterialLockRemarkKeys.ToChinese(value),
             DictValueDefaults.ProductionAttentionKey => ProductionAttentionKeys.ToChinese(value),
+            DictValueDefaults.PositionKey => PositionKeys.ToChinese(value),
+            DictValueDefaults.PositionCategoryKey => PositionCategoryKeys.ToChinese(value),
             _ => value
         } ?? value;
     }

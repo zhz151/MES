@@ -61,7 +61,8 @@ public static class EnumHelper
         ["SubcontractOrderStatus"] = "委外加工单状态",
         ["WorkOrderStatus"] = "工单状态（3态，不含已取消——工单物理删除）",
         ["VerifyResult"] = "纠正预防措施验证结论",
-        ["UsageType"] = "设备作用类型（使用分类）"
+        ["UsageType"] = "设备作用类型（使用分类）",
+        ["SalaryMode"] = "工资结算模式（员工配置，决定计件/计时/固定结算路径）"
     };
 
     static EnumHelper()
@@ -282,6 +283,13 @@ public static class EnumHelper
 
         Register<CutLengthMatchType>(("FullMatch", "完全匹配"),
                                      ("MainNoMatch", "主号匹配"));
+
+        Register<SalaryMode>(("PieceIndividual", "个人计件"),
+                             ("PieceCollective", "集体计件"),
+                             ("PieceAttendance", "靠工计件"),
+                             ("Hourly", "计小时"),
+                             ("Daily", "计日期"),
+                             ("Fixed", "固定月薪"));
     }
 
     private static void Register<T>(params (string value, string display)[] mappings) where T : Enum

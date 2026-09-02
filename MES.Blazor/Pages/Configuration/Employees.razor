@@ -2,12 +2,15 @@
 @using MES.Blazor.Services
 @using MES.Core.Constants
 @using MES.Core.Models
+@using MES.Core.Enums
 @using MES.Blazor.Helpers
 @using Microsoft.AspNetCore.Authorization
 @using MES.Blazor.Shared
 @using MES.Core.DTOs.Configuration
 @inject EmployeeService EmployeeService
 @inject StandardWorkDayService StandardWorkDayService
+@inject ProcessDefinitionService ProcessDefinitionService
+@inject DictValueDefinitionService DictValueDefinitionService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -26,6 +29,16 @@
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
+                <AuthorizeView Roles="@Roles.Policies.ScanEdit">
+                    <MudButton Variant="Variant.Text"
+                               Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Sync"
+                               OnClick="SyncAccounts"
+                               Disabled="@_isSyncing"
+                               Class="mr-2">
+                        一键补齐账号
+                    </MudButton>
+                </AuthorizeView>
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Add"
@@ -40,7 +53,7 @@
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField T="string"
-                                  Label="模糊搜索 - 工号/姓名/部门/岗位/结算模式"
+                                  Label="模糊搜索 - 工号/姓名/岗位类别/岗位/结算模式"
                                   Value="_searchKeyword" ValueExpression="@(() => _searchKeyword)"
                                   ValueChanged="@OnSearchChanged"
                                   Immediate="true"
@@ -170,34 +183,48 @@
                         {
                             if (rowEditing && rowCache != null)
                             {
-                                <MudTextField T="string"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Value="@rowCache.Department"
-                                              ValueChanged="@(v => rowCache.Department = v)"
-                                              Class="compact-input"
-                                              Label="部门" />
+                                <MudSelect T="string"
+                                           Dense="true"
+                                           Variant="Variant.Outlined"
+                                           Value="@rowCache.Department"
+                                           ValueChanged="@(v => rowCache.Department = v)"
+                                           ToStringFunc="@(x => DisplayHelper.GetPositionCategoryText(x))"
+                                           Class="compact-input"
+                                           Label="岗位类别">
+                                    <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
+                                    @foreach (var opt in _positionCategoryOptions)
+                                    {
+                                        <MudSelectItem Value="@opt.Key">@opt.Text</MudSelectItem>
+                                    }
+                                </MudSelect>
                             }
                             else
                             {
-                                @item.Department
+                                @DisplayHelper.GetPositionCategoryText(item.Department)
                             }
                         }
                         else if (col.Key == "Position")
                         {
                             if (rowEditing && rowCache != null)
                             {
-                                <MudTextField T="string"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Value="@rowCache.Position"
-                                              ValueChanged="@(v => rowCache.Position = v)"
-                                              Class="compact-input"
-                                              Label="岗位" />
+                                <MudSelect T="string"
+                                           Dense="true"
+                                           Variant="Variant.Outlined"
+                                           Value="@rowCache.Position"
+                                           ValueChanged="@(v => rowCache.Position = v)"
+                                           ToStringFunc="@(x => DisplayHelper.GetPositionText(x))"
+                                           Class="compact-input"
+                                           Label="岗位">
+                                    <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
+                                    @foreach (var opt in _positionOptions)
+                                    {
+                                        <MudSelectItem Value="@opt.Key">@opt.Text</MudSelectItem>
+                                    }
+                                </MudSelect>
                             }
                             else
                             {
-                                @item.Position
+                                @DisplayHelper.GetPositionText(item.Position)
                             }
                         }
                         else if (col.Key == "PositionRemark")
@@ -221,17 +248,24 @@
                         {
                             if (rowEditing && rowCache != null)
                             {
-                                <MudTextField T="string"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Value="@rowCache.SalaryMode"
-                                              ValueChanged="@(v => rowCache.SalaryMode = v)"
-                                              Class="compact-input"
-                                              Label="工资结算模式" />
+                                <MudSelect T="SalaryMode?"
+                                           Dense="true"
+                                           Variant="Variant.Outlined"
+                                           Value="@rowCache.SalaryMode"
+                                           ValueChanged="@(v => rowCache.SalaryMode = v)"
+                                           ToStringFunc="@(x => DisplayHelper.GetSalaryModeText(x))"
+                                           Class="compact-input"
+                                           Label="工资结算模式">
+                                    <MudSelectItem Value="@((SalaryMode?)null)">请选择</MudSelectItem>
+                                    @foreach (var opt in _salaryModeOptions)
+                                    {
+                                        <MudSelectItem Value="@((SalaryMode?)opt.Value)">@opt.Display</MudSelectItem>
+                                    }
+                                </MudSelect>
                             }
                             else
                             {
-                                @item.SalaryMode
+                                @DisplayHelper.GetSalaryModeText(item.SalaryMode)
                             }
                         }
                         else if (col.Key == "SalaryRemark")
@@ -249,6 +283,82 @@
                             else
                             {
                                 @item.SalaryRemark
+                            }
+                        }
+                        else if (col.Key == "AttendanceCoefficient")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudNumericField T="decimal?"
+                                                 Dense="true"
+                                                 Variant="Variant.Outlined"
+                                                 Value="@rowCache.AttendanceCoefficient"
+                                                 ValueChanged="@(v => rowCache.AttendanceCoefficient = v)"
+                                                 Format="G29"
+                                                 HideSpinButtons="true"
+                                                 Class="compact-input"
+                                                 Label="靠工系数" />
+                            }
+                            else
+                            {
+                                @DisplayHelper.FormatNullableDecimal(item.AttendanceCoefficient)
+                            }
+                        }
+                        else if (col.Key == "HourlyWage")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudNumericField T="decimal?"
+                                                 Dense="true"
+                                                 Variant="Variant.Outlined"
+                                                 Value="@rowCache.HourlyWage"
+                                                 ValueChanged="@(v => rowCache.HourlyWage = v)"
+                                                 Format="G29"
+                                                 HideSpinButtons="true"
+                                                 Class="compact-input"
+                                                 Label="小时工资" />
+                            }
+                            else
+                            {
+                                @DisplayHelper.FormatNullableDecimal(item.HourlyWage)
+                            }
+                        }
+                        else if (col.Key == "DailyWage")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudNumericField T="decimal?"
+                                                 Dense="true"
+                                                 Variant="Variant.Outlined"
+                                                 Value="@rowCache.DailyWage"
+                                                 ValueChanged="@(v => rowCache.DailyWage = v)"
+                                                 Format="G29"
+                                                 HideSpinButtons="true"
+                                                 Class="compact-input"
+                                                 Label="日工资" />
+                            }
+                            else
+                            {
+                                @DisplayHelper.FormatNullableDecimal(item.DailyWage)
+                            }
+                        }
+                        else if (col.Key == "MonthlyWage")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudNumericField T="decimal?"
+                                                 Dense="true"
+                                                 Variant="Variant.Outlined"
+                                                 Value="@rowCache.MonthlyWage"
+                                                 ValueChanged="@(v => rowCache.MonthlyWage = v)"
+                                                 Format="G29"
+                                                 HideSpinButtons="true"
+                                                 Class="compact-input"
+                                                 Label="月工资" />
+                            }
+                            else
+                            {
+                                @DisplayHelper.FormatNullableDecimal(item.MonthlyWage)
                             }
                         }
                         else if (col.Key == "SectionName")
@@ -278,39 +388,23 @@
                         {
                             if (rowEditing && rowCache != null)
                             {
-                                <MudTextField T="string"
-                                              Dense="true"
-                                              Variant="Variant.Outlined"
-                                              Value="@rowCache.GroupName"
-                                              ValueChanged="@(v => rowCache.GroupName = v)"
-                                              Class="compact-input"
-                                              Label="组类（多个逗号分隔，可空）" />
-                            }
-                            else
-                            {
-                                @item.GroupName
-                            }
-                        }
-                        else if (col.Key == "ProcessInspectionItems")
-                        {
-                            if (rowEditing && rowCache != null)
-                            {
-                                <MudSwitch T="bool?"
+                                <MudSelect T="string"
                                            Dense="true"
-                                           Value="@rowCache.ProcessInspectionItems"
-                                           ValueChanged="@(v => rowCache.ProcessInspectionItems = v)"
-                                           Color="Color.Primary" />
+                                           MultiSelection="true"
+                                           Variant="Variant.Outlined"
+                                           SelectedValues="@SplitProcesses(rowCache.GroupName)"
+                                           SelectedValuesChanged="@(v => rowCache.GroupName = string.Join(",", v))"
+                                           Class="compact-input"
+                                           Label="工序组（可多选，空=全工序组通配）">
+                                    @foreach (var opt in _processOptions)
+                                    {
+                                        <MudSelectItem Value="@opt.Key">@opt.Text</MudSelectItem>
+                                    }
+                                </MudSelect>
                             }
                             else
                             {
-                                if (item.ProcessInspectionItems == true)
-                                {
-                                    <MudChip Size="Size.Small" Color="Color.Success">是</MudChip>
-                                }
-                                else
-                                {
-                                    <MudChip Size="Size.Small" Color="Color.Default">否</MudChip>
-                                }
+                                @FormatProcesses(item.GroupName)
                             }
                         }
                         else if (col.Key == "MaterialReceiveCheckItems")

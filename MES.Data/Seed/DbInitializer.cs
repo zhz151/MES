@@ -24,7 +24,7 @@ namespace MES.Data.Seed;
 
 public static class DbInitializer
 {
-    /// <summary>DictValueDefinition 种子字典：除专门配置表（工段/工序）外的 9 个（含责任类别/NCR责任类别/原锁备注/生产关注）</summary>
+    /// <summary>DictValueDefinition 种子字典：除专门配置表（工段/工序）外的 11 个（含责任类别/NCR责任类别/原锁备注/生产关注/岗位/岗位类别）</summary>
     private static readonly string[] DictValueSeedKeys =
     [
         DictValueDefaults.UrgencyLevelKey,
@@ -36,6 +36,8 @@ public static class DbInitializer
         DictValueDefaults.NcrResponsibilityKey,
         DictValueDefaults.RawMaterialLockRemarkKey,
         DictValueDefaults.ProductionAttentionKey,
+        DictValueDefaults.PositionKey,
+        DictValueDefaults.PositionCategoryKey,
     ];
 
     public static async Task InitializeAsync(IServiceProvider serviceProvider)
@@ -426,7 +428,7 @@ public static class DbInitializer
         }
 
         // ========== 8f. Initialize Dict Value Definitions（字典显示配置）——幂等 ==========
-        // 仅含无专门配置表的 9 个字典（紧急度/产类/流转/关注目标/汇总行/责任类别/NCR责任类别/原锁备注/生产关注）；
+        // 仅含无专门配置表的 10 个字典（紧急度/产类/流转/关注目标/汇总行/责任类别/NCR责任类别/原锁备注/生产关注/岗位）；
         // 工段/工序由各自专门配置表管理（StandardWorkDays/ProcessDefinitions），不在此重复 seed，避免双入口。
         if (!context.DictValueDefinitions.Any())
         {

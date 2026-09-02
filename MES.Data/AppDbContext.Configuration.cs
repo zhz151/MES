@@ -1,5 +1,6 @@
 // Auto-generated partial class for Configuration entity configurations
 using Microsoft.EntityFrameworkCore;
+using MES.Core.Enums;
 using MES.Data.Entities.Configuration;
 
 namespace MES.Data;
@@ -208,8 +209,12 @@ public partial class AppDbContext
             entity.Property(e => e.Department).HasMaxLength(100);
             entity.Property(e => e.Position).HasMaxLength(100);
             entity.Property(e => e.PositionRemark).HasMaxLength(200);
-            entity.Property(e => e.SalaryMode).HasMaxLength(50);
+            entity.Property(e => e.SalaryMode).HasMaxLength(50).HasConversion(new NullableEnumStringConverter<SalaryMode>());
             entity.Property(e => e.SalaryRemark).HasMaxLength(200);
+            entity.Property(e => e.AttendanceCoefficient).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.HourlyWage).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.DailyWage).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.MonthlyWage).HasColumnType("decimal(18,2)");
             entity.Property(e => e.SectionName).HasMaxLength(200);
             entity.Property(e => e.InspectionItems).HasMaxLength(200);
             entity.Property(e => e.GroupName).HasMaxLength(200);
@@ -250,7 +255,6 @@ public partial class AppDbContext
             entity.Property(e => e.SectionName).HasMaxLength(50);
             entity.Property(e => e.ReportType).IsRequired().HasMaxLength(50);
             entity.Property(e => e.InspectionItem).HasMaxLength(30);
-            entity.Property(e => e.GroupNames).HasMaxLength(200);
             entity.HasIndex(e => e.Code)
                 .IsUnique()
                 .HasDatabaseName("UK_WS_Code");

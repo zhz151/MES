@@ -92,6 +92,17 @@ public class EmployeeController : ControllerBase
         return Ok(ApiResponse<bool>.Ok(result));
     }
 
+    /// <summary>
+    /// 一键补齐存量员工登录账号（用户名=工号、密码=123456、仅 ScanViewer 最小扫码权限）
+    /// </summary>
+    [HttpPost("sync-accounts")]
+    [Authorize(Roles = Roles.Policies.ScanEdit)]
+    public async Task<ActionResult<ApiResponse<int>>> SyncAccounts()
+    {
+        var count = await _employeeService.SyncAccountsAsync();
+        return Ok(ApiResponse<int>.Ok(count, $"已补齐 {count} 个登录账号"));
+    }
+
     // ========== 打印 ==========
 
     [HttpPost("print-batch-file")]
