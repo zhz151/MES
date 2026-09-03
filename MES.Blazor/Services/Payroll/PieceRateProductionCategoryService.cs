@@ -94,17 +94,4 @@ public class PieceRateProductionCategoryService
             return ApiResponse<PieceRateProductionCategoryOptionsDto>.Fail($"网络错误: {ex.Message}");
         }
     }
-
-    public async Task<ApiResponse<PieceRateProductionMatchResultDto?>> MatchPriceAsync(PieceRateProductionMatchRequest request)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<PieceRateProductionMatchRequest, ApiResponse<PieceRateProductionMatchResultDto?>>(BaseUrl + "/match-price", request);
-            return response ?? ApiResponse<PieceRateProductionMatchResultDto?>.Fail("试算失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<PieceRateProductionMatchResultDto?>.Fail($"网络错误: {ex.Message}");
-        }
-    }
 }

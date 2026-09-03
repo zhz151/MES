@@ -1,0 +1,132 @@
+@page "/payroll/collective-monthly"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = Roles.Policies.SalaryView)]
+@using MES.Blazor.Helpers
+@using MES.Core.DTOs.Payroll
+@using MES.Shared.Constants
+
+<MudContainer MaxWidth="MaxWidth.False" Class="py-4">
+    <MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true">
+        <MudText Typo="Typo.body2" Class="text-medium-emphasis mb-3">
+            集体 = 岗位 × 月度评分 × 月结快照；成员月得 = 岗位池 × (实出勤小时 × 分值) ÷ Σ同岗位权重。
+        </MudText>
+        <div class="d-flex align-center flex-wrap gap-2">
+            <MudText Typo="Typo.h6" Class="font-weight-bold mr-2">集体计件月结</MudText>
+            <MudButton Icon="@Icons.Material.Filled.ChevronLeft" Color="Color.Default" OnClick="PrevMonth" />
+            <MudSelect T="int" Value="@_year" ValueChanged="OnYearChanged" Label="年份" Variant="Variant.Outlined" Dense="true" Style="width:110px">
+                @foreach (var y in _years)
+                {
+                    <MudSelectItem Value="@y">@y</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="int" Value="@_month" ValueChanged="OnMonthChanged" Label="月份" Variant="Variant.Outlined" Dense="true" Style="width:100px">
+                @foreach (var m in _months)
+                {
+                    <MudSelectItem Value="@m">@m 月</MudSelectItem>
+                }
+            </MudSelect>
+            <MudButton Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" OnClick="NextMonth" />
+            <MudSpacer />
+            @if (_canEdit)
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.Refresh" Color="Color.Warning" Variant="Variant.Outlined"
+                           Disabled="_loading || MembersCount == 0" OnClick="RecalcAsync"
+                           title="仅把当前在册集体成员重算为引擎分配草稿；已转出/离职成员的历史已保存快照金额保留不变。">引擎重算</MudButton>
+                <MudButton StartIcon="@Icons.Material.Filled.DeleteSweep" Color="Color.Error" Variant="Variant.Outlined"
+                           Disabled="_loading || MembersCount == 0" OnClick="RecalcFullAsync"
+                           title="全量重算（清历史）：覆盖整月全部成员——在册集体成员→引擎草稿；已转出/离职的历史快照成员→当月清空，保存后其当月旧记录被删除、不可找回。保留历史请用「引擎重算」。">全量重算</MudButton>
+                <MudButton StartIcon="@Icons.Material.Filled.Save" Color="Color.Success" Variant="Variant.Filled"
+                           Disabled="_loading || MembersCount == 0" OnClick="SaveMonthAsync">保存本月</MudButton>
+            }
+        </div>
+    </MudPaper>
+
+    <MudProgressLinear Visible="_loading" Color="Color.Primary" />
+
+    @if (_hasSaved)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-2">
+            当前显示为 @_year 年 @_month 月已保存的集体月结快照（金额已冻结）。重算两种：只覆盖在册成员→「引擎重算」（保留历史）；连同已转出/离职历史成员一并清空→「全量重算（清历史）」（破坏性，双重确认）。
+        </MudAlert>
+    }
+    else if (!_loading && MembersCount > 0)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mb-2">
+            当月尚未保存：以下为引擎按现行单价自动带出的集体池草稿，可直接修改后点「保存本月」落库。
+        </MudAlert>
+    }
+    @foreach (var w in _warnings)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Text" Class="mb-2">@w</MudAlert>
+    }
+
+    @foreach (var g in Groups)
+    {
+        var posText = string.IsNullOrWhiteSpace(g.Position) ? "(未设岗位)" : DisplayHelper.GetPositionText(g.Position);
+        <MudPaper Class="pa-3 mb-3" Elevation="0" Outlined="true">
+            <div class="d-flex align-center flex-wrap mb-1">
+                <MudText Typo="Typo.subtitle1" Class="font-weight-bold mr-3">@posText</MudText>
+                <MudChip Size="Size.Small" Variant="Variant.Outlined">@g.Members.Count 人</MudChip>
+                <MudChip Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" Class="ml-2">岗位池 @DisplayHelper.RoundYuan(g.PoolAmount).ToString("0") 元</MudChip>
+                <MudChip Size="Size.Small" Variant="Variant.Outlined" Class="ml-1">权重和 Σw=@g.SumWeight.ToString("G29")</MudChip>
+            </div>
+            <table class="auto-table">
+                <thead>
+                    <tr>
+                        <th style="width:100px">工号</th>
+                        <th style="width:130px">姓名</th>
+                        <th style="width:110px">出勤(小时)</th>
+                        <th style="width:90px">分值(1~10)</th>
+                        <th style="width:100px">权重 w</th>
+                        <th style="width:150px">实得金额(元)</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var m in g.Members)
+                    {
+                        var mEmpId = m.EmployeeId;
+                        var isWeightZero = !m.Weight.HasValue || m.Weight == 0m;
+                        <tr>
+                            <td>@m.EmployeeCode</td>
+                            <td>@m.EmployeeName</td>
+                            <td>@(m.AttendanceHours.HasValue ? m.AttendanceHours.Value.ToString("G29") : "—")</td>
+                            <td>@(m.Score.HasValue ? m.Score.Value.ToString("0.#") : "未评分")</td>
+                            <td>@(m.Weight.HasValue ? m.Weight.Value.ToString("G29") : "—")</td>
+                            <td>
+                                <input class="amount-cell-input" type="text" inputmode="decimal" maxlength="14"
+                                       disabled="@(!_canEdit)"
+                                       value="@GetAmountText(mEmpId)"
+                                       @onchange="(ChangeEventArgs e) => OnAmountChanged(mEmpId, e)" />
+                            </td>
+                            <td class="text-medium-emphasis">
+                                @if (!m.EngineCovered)
+                                {
+                                    <MudText Typo="Typo.body2" Class="text-medium-emphasis">历史快照(仅回溯)</MudText>
+                                }
+                                else if (isWeightZero && !_hasSaved)
+                                {
+                                    <MudText Typo="Typo.body2" Class="error-text">缺出勤或评分(得0)</MudText>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                @if (g.Members.Count > 0)
+                {
+                    <tfoot>
+                        <tr>
+                            <td colspan="5">本组合计(元)</td>
+                            <td>@GroupTotal(g).ToString("G29")</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                }
+            </table>
+        </MudPaper>
+    }
+
+    @if (MembersCount == 0 && !_loading)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-2">当月没有在册集体计件员工（需在员工管理配置 岗位 + 工资结算模式=集体计件）。</MudAlert>
+    }
+</MudContainer>

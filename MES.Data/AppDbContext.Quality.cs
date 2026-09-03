@@ -109,7 +109,7 @@ public partial class AppDbContext
             entity.Property(e => e.SequenceNumber).IsRequired();
             entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.EquipmentName).HasMaxLength(100);
-            entity.Property(e => e.Inspector).HasMaxLength(50);
+            entity.Property(e => e.Inspector).HasMaxLength(100);
             entity.Property(e => e.Shift).HasMaxLength(20);
             entity.Property(e => e.Quantity);
             entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
@@ -158,7 +158,7 @@ public partial class AppDbContext
             // 执行信息
             entity.Property(e => e.EquipmentName).HasMaxLength(100);
             entity.Property(e => e.Shift).HasConversion(new NullableEnumStringConverter<ShiftType>()).HasMaxLength(20);
-            entity.Property(e => e.Operator).HasMaxLength(50);
+            entity.Property(e => e.Operator).HasMaxLength(100);
 
             // 数量/重量
             entity.Property(e => e.Quantity);

@@ -2,7 +2,8 @@ namespace MES.Core.Constants;
 
 /// <summary>
 /// 计件单价体系的单位英文 Key 常量（结算单价单位）。
-/// 本阶段仅存单位标识，数量换算（元/吨×重量、元/千米×千米数、元/支×支数、元/头×头数）属核算阶段。
+/// 每单位同时给出数量取数维度映射 GetQuantityDimension（结算工资 = 单价 × 数量：
+/// 元/吨→重量、元/千米→长度、元/支→支数、元/头→头数），供结算取数（PieceRateCollector）使用。
 /// </summary>
 public static class PieceRateUnitKeys
 {

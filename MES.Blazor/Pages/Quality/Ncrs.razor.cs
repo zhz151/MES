@@ -1069,6 +1069,9 @@ public partial class Ncrs
             case "PipeCategory":
                 builder.AddContent(0, GetPipeCategoryText(item.PipeCategory));
                 break;
+            case "Reporter":
+                builder.AddContent(0, DisplayHelper.FormatPersonName(item.Reporter));
+                break;
             case "DisposalMethod":
                 builder.AddContent(0, GetDisposalMethodText(item.DisposalMethod));
                 break;
@@ -1097,6 +1100,7 @@ public partial class Ncrs
             case "ReportDate":
                 builder.AddContent(0, item.ReportDate.ToString("yyyy-MM-dd"));
                 break;
+            case "OperationDate":
             case "DisposalCompleteDate":
             case "AnalysisConfirmDate":
             case "ActionPlanDate":
@@ -1116,6 +1120,7 @@ public partial class Ncrs
 
     private static string? GetDateValue(NcrDto item, string key) => key switch
     {
+        "OperationDate" => item.OperationDate?.ToString("yyyy-MM-dd"),
         "DisposalCompleteDate" => item.DisposalCompleteDate?.ToString("yyyy-MM-dd"),
         "AnalysisConfirmDate" => item.AnalysisConfirmDate?.ToString("yyyy-MM-dd"),
         "ActionPlanDate" => item.ActionPlanDate?.ToString("yyyy-MM-dd"),
@@ -1137,6 +1142,7 @@ public partial class Ncrs
     {
         "Status" => GetStatusText(item.Status),
         "PipeCategory" => GetPipeCategoryText(item.PipeCategory),
+        "Reporter" => DisplayHelper.FormatPersonName(item.Reporter),
         "DisposalMethod" => GetDisposalMethodText(item.DisposalMethod),
         "Severity" => GetSeverityText(item.Severity),
         "ResponsibilityCategory" => DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, item.ResponsibilityCategory) ?? "",
@@ -1144,6 +1150,7 @@ public partial class Ncrs
         "DisposalIsCompleted" => item.DisposalIsCompleted ? "是" : "否",
         "PersonIsCompleted" => item.PersonIsCompleted ? "是" : "否",
         "ReportDate" => item.ReportDate.ToString("yyyy-MM-dd"),
+        "OperationDate" => item.OperationDate?.ToString("yyyy-MM-dd"),
         "DisposalCompleteDate" => item.DisposalCompleteDate?.ToString("yyyy-MM-dd"),
         "AnalysisConfirmDate" => item.AnalysisConfirmDate?.ToString("yyyy-MM-dd"),
         "ActionPlanDate" => item.ActionPlanDate?.ToString("yyyy-MM-dd"),

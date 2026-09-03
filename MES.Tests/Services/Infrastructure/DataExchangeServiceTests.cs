@@ -16,6 +16,7 @@ using MES.Data.Entities.Batch;
 using MES.Data.Entities.Configuration;
 using MES.Data.Entities.Materials;
 using MES.Data.Entities.Order;
+using MES.Data.Entities.Quality;
 using MES.Data.Entities.StandardRegister;
 using MES.Data.Entities.Warehouse;
 using MES.Core.Interfaces.DataExchange;
@@ -48,9 +49,9 @@ public class DataExchangeServiceTests : TestBase
     // ========== Registry 验证 ==========
 
     [Fact]
-    public void Registry_包含所有73个实体()
+    public void Registry_包含所有80个实体()
     {
-        DataExchangeRegistry.Registry.Should().HaveCount(73);
+        DataExchangeRegistry.Registry.Should().HaveCount(80);
     }
 
     [Fact]
@@ -102,7 +103,7 @@ public class DataExchangeServiceTests : TestBase
     public void GetEntities_按上下文顺序排序()
     {
         var entities = DataExchangeRegistry.GetEntities();
-        entities.Should().HaveCount(73);
+        entities.Should().HaveCount(80);
 
         // 上下文分组出现顺序须与 ContextOrder 完全一致（组内按名称升序）
         var actual = entities.Select(e => e.Context).ToList();
@@ -930,6 +931,135 @@ public class DataExchangeServiceTests : TestBase
         var sheet = package.Workbook.Worksheets[0];
         var colIdx = Enumerable.Range(1, sheet.Dimension.Columns).First(c => sheet.Cells[1, c].Value?.ToString() == "成检项目资质");
         sheet.Cells[2, colIdx].Value.Should().Be("超声波,涡流", "InspectionItems 逗号枚举串导出应转中文");
+    }
+
+    // ========== 字典/枚举列导出中文（2026-09-03 数据工具修复） ==========
+
+    [Fact]
+    public async Task ExportAsync_员工_岗位类别岗位工序组工段多值导出中文()
+    {
+        var ctx = CreateDbContext();
+        ctx.Employees.Add(new Employee
+        {
+            Code = "E-DICT",
+            Name = "字典列",
+            Department = "Workshop",             // PositionCategoryKey 字典英文值
+            Position = "AcidWashing",            // PositionKey 字典英文值
+            GroupName = "ColdRoll60,ColdRoll50", // 工序组逗号列表（曾整串单译失败 → 英文）
+            SectionName = "Cut,OilPipeCut",      // 工段逗号列表（曾整串单译失败 → 中英混淆）
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var bytes = await svc.ExportAsync("Employee");
+
+        using var package = new ExcelPackage(new MemoryStream(bytes));
+        var sheet = package.Workbook.Worksheets[0];
+        string Cell(string header) => sheet.Cells[2, Enumerable.Range(1, sheet.Dimension.Columns)
+            .First(c => sheet.Cells[1, c].Value?.ToString() == header)].Value?.ToString() ?? "";
+
+        Cell("岗位类别").Should().Be(PositionCategoryKeys.ToChinese("Workshop") ?? "Workshop", "岗位类别存英文字典值，导出应转中文");
+        Cell("岗位").Should().Be(PositionKeys.ToChinese("AcidWashing") ?? "AcidWashing", "岗位存英文字典值，导出应转中文");
+        Cell("工序组").Should().Be(string.Join("、", new[] { "ColdRoll60", "ColdRoll50" }.Select(k => ProcessKeys.ToChinese(k))),
+            "工序组为逗号列表，导出应逐项转中文后用顿号连接");
+        Cell("工段").Should().Be(string.Join("、", new[] { "Cut", "OilPipeCut" }.Select(k => SectionKeys.ToChinese(k))),
+            "工段为逗号列表，导出应逐项转中文，避免中英混淆");
+    }
+
+    [Fact]
+    public async Task ExportAsync_不合格报告_来源检验项目导出中文()
+    {
+        var ctx = CreateDbContext();
+        ctx.Set<Ncr>().Add(new Ncr
+        {
+            ReportDate = DateTime.Today,
+            BatchNo = "B-NCR-DICT",
+            SourceInspectionItem = "Dimension", // 存 InspectionItem 枚举名英文
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var bytes = await svc.ExportAsync("Ncr");
+
+        using var package = new ExcelPackage(new MemoryStream(bytes));
+        var sheet = package.Workbook.Worksheets[0];
+        var colIdx = Enumerable.Range(1, sheet.Dimension.Columns).First(c => sheet.Cells[1, c].Value?.ToString() == "来源检验项目");
+        sheet.Cells[2, colIdx].Value.Should().Be(EnumHelper.GetDisplayName(InspectionItem.Dimension),
+            "来源检验项目存 InspectionItem 枚举名，导出应转中文");
+    }
+
+    [Fact]
+    public async Task ExportAsync_库存批次_定尺切割匹配导出中文()
+    {
+        var ctx = CreateDbContext();
+        ctx.InventoryBatches.Add(new InventoryBatch
+        {
+            BatchNo = "IB-CUT",
+            CutLengthMatchType = "MainNoMatch", // 存 CutLengthMatchType 枚举名英文
+            // InventoryBatch 模型有非空必填列（InMemory 会校验 required）
+            InboundSource = "Purchase",
+            MaterialType = "Finished",
+            PlantGrade = "304",
+            SourceName = "来源",
+            Specification = "48*4",
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var bytes = await svc.ExportAsync("InventoryBatch");
+
+        using var package = new ExcelPackage(new MemoryStream(bytes));
+        var sheet = package.Workbook.Worksheets[0];
+        var colIdx = Enumerable.Range(1, sheet.Dimension.Columns).First(c => sheet.Cells[1, c].Value?.ToString() == "定尺切割匹配");
+        sheet.Cells[2, colIdx].Value.Should().Be(EnumHelper.GetDisplayName(CutLengthMatchType.MainNoMatch),
+            "定尺切割匹配存 CutLengthMatchType 枚举名，导出应转中文");
+    }
+
+    [Fact]
+    public async Task ImportAsync_员工_中文岗位工序组工段多值_归一为英文Key()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        var positionCategoryCn = PositionCategoryKeys.ToChinese("Workshop") ?? "Workshop";
+        var positionCn = PositionKeys.ToChinese("AcidWashing") ?? "AcidWashing";
+        var groupCn = string.Join("、", new[] { "ColdRoll60", "ColdRoll50" }.Select(k => ProcessKeys.ToChinese(k)));
+        var sectionCn = string.Join("、", new[] { "Cut", "OilPipeCut" }.Select(k => SectionKeys.ToChinese(k)));
+
+        // 模拟把"下载数据"改好中文后再导入：中文岗位/顿号连接的多值工段/工序组应回 Key
+        var bytes = CreateTestExcel("扫码-员工管理", new() { "工号", "姓名", "岗位类别", "岗位", "工序组", "工段" },
+            new() { new() { "E-IMP", "导入员", positionCategoryCn, positionCn, groupCn, sectionCn } });
+
+        var result = await svc.ImportAsync("Employee", bytes, "test");
+        var errDetail = string.Join(" | ", result.Errors.Select(e => e.Message));
+
+        result.SuccessCount.Should().Be(1, errDetail);
+        result.FailedCount.Should().Be(0, errDetail);
+
+        var saved = await ctx.Employees.AsNoTracking().SingleAsync(e => e.Code == "E-IMP");
+        saved.Department.Should().Be("Workshop", "岗位类别中文应归一为英文 Key");
+        saved.Position.Should().Be("AcidWashing", "岗位中文应归一为英文 Key");
+        saved.GroupName.Should().Be("ColdRoll60,ColdRoll50", "工序组顿号中文列表应归一为英文逗号 Key 串");
+        saved.SectionName.Should().Be("Cut,OilPipeCut", "工段顿号中文列表应归一为英文逗号 Key 串，不得存中文");
+    }
+
+    [Fact]
+    public async Task ImportAsync_不合格报告_来源检验项目中文_归一为英文()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateTestableService(ctx);
+
+        var bytes = CreateTestExcel("质量-不合格报告", new() { "反馈日期", "生产编号", "来源检验项目" },
+            new() { new() { "2026-09-03", "B-NCR-IMP", EnumHelper.GetDisplayName(InspectionItem.Dimension) } });
+
+        var result = await svc.ImportAsync("Ncr", bytes, "test");
+        var ncrErrDetail = string.Join(" | ", result.Errors.Select(e => e.Message));
+
+        result.SuccessCount.Should().Be(1, ncrErrDetail);
+        result.FailedCount.Should().Be(0, ncrErrDetail);
+
+        var saved = await ctx.Set<Ncr>().AsNoTracking().SingleAsync(n => n.BatchNo == "B-NCR-IMP");
+        saved.SourceInspectionItem.Should().Be("Dimension", "来源检验项目中文应归一为英文枚举名");
     }
 
     // ========== 综合复查回归测试（2026-08-26） ==========

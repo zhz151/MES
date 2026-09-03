@@ -1,0 +1,94 @@
+@page "/payroll/collective-scores"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = Roles.Policies.SalaryView)]
+@using MES.Core.DTOs.Payroll
+@using MES.Blazor.Helpers
+@using MES.Shared.Constants
+
+<MudContainer MaxWidth="MaxWidth.False" Class="py-4">
+    <MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true">
+        <MudText Typo="Typo.body2" Class="text-medium-emphasis mb-3">
+            分值 1~10（最多 1 位小数），评定机制由业务自定；集体月结按「实出勤小时 × 分值」作为成员分配权重。
+        </MudText>
+        <div class="d-flex align-center flex-wrap gap-2">
+            <MudText Typo="Typo.h6" Class="font-weight-bold mr-2">集体计件月度评分</MudText>
+            <MudButton Icon="@Icons.Material.Filled.ChevronLeft" Color="Color.Default" OnClick="PrevMonth" />
+            <MudSelect T="int" Value="@_year" ValueChanged="OnYearChanged" Label="年份" Variant="Variant.Outlined" Dense="true" Style="width:110px">
+                @foreach (var y in _years)
+                {
+                    <MudSelectItem Value="@y">@y</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="int" Value="@_month" ValueChanged="OnMonthChanged" Label="月份" Variant="Variant.Outlined" Dense="true" Style="width:100px">
+                @foreach (var m in _months)
+                {
+                    <MudSelectItem Value="@m">@m 月</MudSelectItem>
+                }
+            </MudSelect>
+            <MudButton Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" OnClick="NextMonth" />
+            <MudSpacer />
+            @if (_canEdit)
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.Save" Color="Color.Success" Variant="Variant.Filled"
+                           Disabled="_loading || _rows.Count == 0" OnClick="SaveScoresAsync">保存评分</MudButton>
+            }
+        </div>
+    </MudPaper>
+
+    <MudProgressLinear Visible="_loading" Color="Color.Primary" />
+
+    @foreach (var g in Groups)
+    {
+        var posText = string.IsNullOrWhiteSpace(g.Key) ? "(未设岗位)" : DisplayHelper.GetPositionText(g.Key);
+        <MudPaper Class="pa-3 mb-3" Elevation="0" Outlined="true">
+            <div class="d-flex align-center mb-1">
+                <MudText Typo="Typo.subtitle1" Class="font-weight-bold mr-3">@posText</MudText>
+                <MudChip Size="Size.Small" Variant="Variant.Outlined">@g.Count() 人</MudChip>
+            </div>
+            <table class="auto-table">
+                <thead>
+                    <tr>
+                        <th style="width:100px">工号</th>
+                        <th style="width:140px">姓名</th>
+                        <th style="width:160px">岗位</th>
+                        <th style="width:120px">分值 (1~10)</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in g)
+                    {
+                        var rowEmpId = r.EmployeeId;
+                        <tr>
+                            <td>@r.EmployeeCode</td>
+                            <td>@r.EmployeeName</td>
+                            <td>@DisplayHelper.GetPositionText(r.Position)</td>
+                            <td>
+                                                <MudNumericField T="decimal?" Class="score-input" Value="@GetScore(rowEmpId)" ValueChanged="v => SetScore(rowEmpId, v)"
+                                                 Min="1" Max="10" Step="@(0.1m)" HideSpinButtons="true" Disabled="@(!_canEdit)" Margin="Margin.None" Variant="Variant.Outlined" Dense="true" />
+                            </td>
+                            <td class="text-medium-emphasis">
+                                @if (r.Score.HasValue)
+                                {
+                                    @* 已评分历史，仅展示提示 *@
+                                }
+                                else if (GetScore(rowEmpId).HasValue)
+                                {
+                                    <MudText Typo="Typo.body2" Class="text-medium-emphasis">本次新录入</MudText>
+                                }
+                                else
+                                {
+                                    <MudText Typo="Typo.body2" Class="error-text">未评分</MudText>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </MudPaper>
+    }
+
+    @if (_rows.Count == 0 && !_loading)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-2">当月没有在册集体计件员工（需在员工管理配置 岗位 + 工资结算模式=集体计件）。</MudAlert>
+    }
+</MudContainer>

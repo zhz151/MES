@@ -100,7 +100,7 @@ public class CreatePicklingInRecordRequest
     [MaxLength(100)]
     public string? EquipmentName { get; set; }
     /// <summary>操作人</summary>
-    [MaxLength(50)]
+    [MaxLength(100)]
     public string? Operator { get; set; }
     /// <summary>班次</summary>
     public ShiftType? Shift { get; set; }
@@ -131,7 +131,7 @@ public class UpdatePicklingInRecordRequest
     public DateTime? InDate { get; set; }
     [MaxLength(100)]
     public string? EquipmentName { get; set; }
-    [MaxLength(50)]
+    [MaxLength(100)]
     public string? Operator { get; set; }
     public ShiftType? Shift { get; set; }
     public int? Quantity { get; set; }
@@ -193,7 +193,7 @@ public class CreatePicklingOutRecordRequest
     public ShiftType? Shift { get; set; }
 
     /// <summary>完工操作人（出缸时登记，区别于入缸操作人）</summary>
-    [MaxLength(50)]
+    [MaxLength(100)]
     public string? Operator { get; set; }
 }
 
@@ -211,7 +211,7 @@ public class UpdatePicklingOutRecordRequest
     public ShiftType? Shift { get; set; }
 
     /// <summary>完工操作人</summary>
-    [MaxLength(50)]
+    [MaxLength(100)]
     public string? Operator { get; set; }
 }
 

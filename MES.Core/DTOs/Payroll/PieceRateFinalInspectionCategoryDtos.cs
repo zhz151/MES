@@ -2,12 +2,10 @@ using MES.Core.Models;
 
 namespace MES.Core.DTOs.Payroll;
 
-/// <summary>
-/// 成检计件类别（2026-09-03 引入）——DTO 全集。
-/// 类别 = 成检项目(InspectionItem 单选) + 基准价 + 结算单位；无工序/产类/作业阶段约束（无 PieceRate*Key 子表）。
-/// 维度系数在子表 PieceRateFinalInspectionCategoryTier（无例外价/绝对价）。
-/// 维度 Key 域见 PieceRateInspectionDimensionKeys。
-/// </summary>
+// 成检计件类别（2026-09-03 引入）——DTO 全集：
+// 类别 = 成检项目(InspectionItem 单选) + 基准价 + 结算单位；无工序/产类/作业阶段约束（无 PieceRate*Key 子表）。
+// 维度系数在子表 PieceRateFinalInspectionCategoryTier（无例外价/绝对价）。
+// 维度 Key 域见 PieceRateInspectionDimensionKeys。
 
 /// <summary>类别查询参数</summary>
 public class PieceRateFinalInspectionCategoryQueryParams : QueryParams

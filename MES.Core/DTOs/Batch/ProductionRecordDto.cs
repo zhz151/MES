@@ -125,7 +125,7 @@ public class CreateProductionRecordRequest
     [MaxLength(100)]
     public string? EquipmentName { get; set; }
 
-    [MaxLength(50)]
+    [MaxLength(100)]
     public string? Operator { get; set; }
 
     public ShiftType? Shift { get; set; }
@@ -177,7 +177,7 @@ public class UpdateProductionRecordRequest
     [MaxLength(100)]
     public string? EquipmentName { get; set; }
 
-    [MaxLength(50)]
+    [MaxLength(100)]
     public string? Operator { get; set; }
 
     public ShiftType? Shift { get; set; }

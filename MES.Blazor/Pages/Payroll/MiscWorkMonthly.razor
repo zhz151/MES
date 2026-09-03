@@ -1,0 +1,208 @@
+@page "/payroll/misc-work"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = Roles.Policies.SalaryView)]
+@using MES.Core.DTOs.Payroll
+@using MES.Shared.Constants
+
+<MudContainer MaxWidth="MaxWidth.False" Class="py-4">
+    <MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true">
+        <MudText Typo="Typo.body2" Class="text-medium-emphasis mb-3">
+            登记员工每天做的杂项辅助工作（一条 = 一段任务，同一员工同一天可多条）。金额为手工录入源头、保留小数不取整；完整月工资 = 各类工资 + 杂辅工资。
+        </MudText>
+        <div class="d-flex align-center flex-wrap gap-2">
+            <MudText Typo="Typo.h6" Class="font-weight-bold mr-2">杂辅工记录</MudText>
+            <MudButton Icon="@Icons.Material.Filled.ChevronLeft" Color="Color.Default" OnClick="PrevMonth" Disabled="_loading" />
+            <MudSelect T="int" Value="@_year" ValueChanged="OnYearChanged" Label="年份" Variant="Variant.Outlined" Dense="true" Style="width:110px">
+                @foreach (var y in _years)
+                {
+                    <MudSelectItem Value="@y">@y</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="int" Value="@_month" ValueChanged="OnMonthChanged" Label="月份" Variant="Variant.Outlined" Dense="true" Style="width:100px">
+                @foreach (var m in _months)
+                {
+                    <MudSelectItem Value="@m">@m 月</MudSelectItem>
+                }
+            </MudSelect>
+            <MudButton Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" OnClick="NextMonth" Disabled="_loading" />
+            <MudSpacer />
+            <MudTextField T="string" Label="页内筛选 - 工号/姓名/内容"
+                          Value="_keyword" ValueChanged="OnKeywordChanged"
+                          Immediate="true" DebounceInterval="400"
+                          Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined" Dense="true" Style="width:240px" />
+            @if (_data != null)
+            {
+                <MudChip Size="Size.Small" Variant="Variant.Outlined">@_data.RecordCount 条</MudChip>
+                <MudChip Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">合计 @_data.TotalHours.ToString("G29") 小时</MudChip>
+                <MudChip Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined">合计 @_data.TotalAmount.ToString("G29") 元</MudChip>
+            }
+            @if (_canEdit)
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary" Variant="Variant.Filled"
+                           Disabled="_loading" OnClick="BeginAdd">新增杂辅</MudButton>
+            }
+        </div>
+    </MudPaper>
+
+    <MudProgressLinear Visible="_loading" Color="Color.Primary" />
+
+    @* 新增面板 *@
+    @if (_adding)
+    {
+        <MudPaper Class="pa-3 mb-3" Elevation="0" Outlined="true">
+            <div class="d-flex align-center flex-wrap gap-2">
+                <MudSelect T="int" Label="员工 *" Variant="Variant.Outlined" Dense="true"
+                           Value="_newEmployeeId ?? 0"
+                           ValueChanged="@((int v) => _newEmployeeId = v == 0 ? null : v)"
+                           Style="width:200px">
+                    @foreach (var e in _employees)
+                    {
+                        <MudSelectItem Value="@e.Id">@($"{e.Name}({e.Code})")</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudTextField T="string" Label="日期 *" Placeholder="yyyy-MM-dd" Variant="Variant.Outlined" Dense="true"
+                              Value="_newDateText" ValueChanged="@((string v) => _newDateText = v ?? string.Empty)"
+                              Style="width:150px" />
+                <MudTextField T="string" Label="杂辅内容 *" Variant="Variant.Outlined" Dense="true" Style="width:320px"
+                              Value="_newContent" ValueChanged="@((string v) => _newContent = v ?? string.Empty)" />
+                <MudTextField T="string" Label="小时数 *" Variant="Variant.Outlined" Dense="true" Style="width:110px"
+                              Value="_newHoursText" ValueChanged="@((string v) => _newHoursText = v ?? string.Empty)" />
+                <MudTextField T="string" Label="杂辅工资(元) *" Variant="Variant.Outlined" Dense="true" Style="width:140px"
+                              Value="_newAmountText" ValueChanged="@((string v) => _newAmountText = v ?? string.Empty)" />
+                <MudTextField T="string" Label="备注" Variant="Variant.Outlined" Dense="true" Style="width:160px"
+                              Value="_newRemark" ValueChanged="@((string v) => _newRemark = v ?? string.Empty)" />
+                <MudButton StartIcon="@Icons.Material.Filled.Save" Color="Color.Success" Variant="Variant.Filled"
+                           Disabled="_loading" OnClick="SaveNewAsync">保存</MudButton>
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CancelAdd">取消</MudButton>
+            </div>
+        </MudPaper>
+    }
+
+    @* 台账表 *@
+    <MudPaper Class="pa-3" Elevation="0" Outlined="true">
+        @if (_data == null && !_loading)
+        {
+            <MudText Typo="Typo.body2" Class="text-medium-emphasis">@(_year) 年 @(_month) 月暂无杂辅记录。</MudText>
+        }
+        else if (Rows.Any() && !FilteredRows.Any())
+        {
+            <MudText Typo="Typo.body2" Class="text-medium-emphasis">筛选无匹配（整月共 @_data!.RecordCount 条）。</MudText>
+        }
+        else if (FilteredRows.Any())
+        {
+            @if (!string.IsNullOrWhiteSpace(_keyword))
+            {
+                <MudText Typo="Typo.caption" Class="text-medium-emphasis mb-2">筛选显示 @FilteredRows.Count / @_data!.RecordCount 条</MudText>
+            }
+            <MudTable T="MiscWorkRowDto" Items="@FilteredRows" Dense="true" Hover="true"
+                      Elevation="0" Class="auto-table" RowsPerPage="15"
+                      RowsPerPageLabel="每页行数:" Breakpoint="Breakpoint.None">
+                <HeaderContent>
+                    <MudTh Style="width:110px">日期</MudTh>
+                    <MudTh Style="width:80px">工号</MudTh>
+                    <MudTh Style="width:100px">姓名</MudTh>
+                    <MudTh>杂辅内容</MudTh>
+                    <MudTh Style="width:90px" Class="text-right">小时数</MudTh>
+                    <MudTh Style="width:130px" Class="text-right">杂辅工资(元)</MudTh>
+                    <MudTh Style="width:180px">备注</MudTh>
+                    @if (_canEdit)
+                    {
+                        <MudTh Style="width:110px">操作</MudTh>
+                    }
+                </HeaderContent>
+                <RowTemplate Context="row">
+                    @{
+                        var isEdit = _editingIds.Contains(row.Id);
+                    }
+                    <MudTd Style="white-space:nowrap" DataLabel="日期">
+                        @if (isEdit && _editCache.TryGetValue(row.Id, out var edit))
+                        {
+                            <MudTextField T="string" Placeholder="yyyy-MM-dd" Dense="true" Margin="Margin.Dense"
+                                          Value="edit.WorkDateText"
+                                          ValueChanged="@((string v) => edit.WorkDateText = v ?? string.Empty)"
+                                          Style="width:120px" />
+                        }
+                        else
+                        {
+                            @WorkDateText(row.WorkDate)
+                        }
+                    </MudTd>
+                    <MudTd Style="white-space:nowrap" DataLabel="工号">@row.EmployeeCode</MudTd>
+                    <MudTd Style="white-space:nowrap" DataLabel="姓名">@row.EmployeeName</MudTd>
+                    <MudTd DataLabel="杂辅内容">
+                        @if (isEdit && _editCache.TryGetValue(row.Id, out var edit2))
+                        {
+                            <MudTextField T="string" Dense="true" Margin="Margin.Dense"
+                                          Value="edit2.Content"
+                                          ValueChanged="@((string v) => edit2.Content = v ?? string.Empty)" />
+                        }
+                        else
+                        {
+                            <span class="table-cell-clamp-2" title="@row.Content">@row.Content</span>
+                        }
+                    </MudTd>
+                    <MudTd Class="text-right" Style="white-space:nowrap" DataLabel="小时数">
+                        @if (isEdit && _editCache.TryGetValue(row.Id, out var edit3))
+                        {
+                            <MudTextField T="string" Dense="true" Margin="Margin.Dense"
+                                          Value="edit3.HoursText"
+                                          ValueChanged="@((string v) => edit3.HoursText = v ?? string.Empty)"
+                                          Style="width:90px" />
+                        }
+                        else
+                        {
+                            @row.Hours.ToString("G29")
+                        }
+                    </MudTd>
+                    <MudTd Class="text-right" Style="white-space:nowrap" DataLabel="杂辅工资">
+                        @if (isEdit && _editCache.TryGetValue(row.Id, out var edit4))
+                        {
+                            <MudTextField T="string" Dense="true" Margin="Margin.Dense"
+                                          Value="edit4.AmountText"
+                                          ValueChanged="@((string v) => edit4.AmountText = v ?? string.Empty)"
+                                          Style="width:120px" />
+                        }
+                        else
+                        {
+                            @row.Amount.ToString("G29")
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="备注">
+                        @if (isEdit && _editCache.TryGetValue(row.Id, out var edit5))
+                        {
+                            <MudTextField T="string" Dense="true" Margin="Margin.Dense"
+                                          Value="edit5.Remark"
+                                          ValueChanged="@((string v) => edit5.Remark = v ?? string.Empty)" />
+                        }
+                        else
+                        {
+                            <span class="table-cell-clamp-1" title="@row.Remark">@row.Remark</span>
+                        }
+                    </MudTd>
+                    @if (_canEdit)
+                    {
+                        <MudTd Style="white-space:nowrap">
+                            @if (isEdit)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Success"
+                                               OnClick="() => SaveEditAsync(row)" Title="保存" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Color="Color.Default"
+                                               OnClick="() => CancelEdit(row.Id)" Title="取消" />
+                            }
+                            else
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Warning"
+                                               OnClick="() => StartEdit(row)" Title="编辑" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                               OnClick="() => DeleteAsync(row)" Title="删除" />
+                            }
+                        </MudTd>
+                    }
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[]{15,25,50,100}" />
+                </PagerContent>
+            </MudTable>
+        }
+    </MudPaper>
+</MudContainer>

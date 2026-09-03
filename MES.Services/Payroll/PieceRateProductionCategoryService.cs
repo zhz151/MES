@@ -650,6 +650,10 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
     {
         if (PieceRateDimensionKeys.IsValueDimension(dimKey))
         {
+            // 冷拔类型 = 备注关键词包含命中（非等值）：Remark 含 MatchValue 关键词即命中，最长词优先
+            if (dimKey == PieceRateDimensionKeys.ColdDrawType)
+                return PieceRateRemarkMatcher.MatchKeyword(activeTiers, request.Remark);
+
             var value = dimKey switch
             {
                 PieceRateDimensionKeys.SpecialGrade => request.PlantGrade,

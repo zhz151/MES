@@ -4,7 +4,8 @@ namespace MES.Core.Constants;
 /// 生产计件类别维度档的英文 Key 常量（子表 PieceRateProductionCategoryTier 的 DimensionKey，2026-09-02 重构引入）。
 /// 替代旧 PieceRateDimensionTemplate（按类别固化启用维）与旧 PieceRateFactorKeys 的维度档/特殊行语义：
 /// 新模型不存「启用维度集合」，类别下实际配了档行的维才参与结算（未配=系数 1）。
-/// 5 个区间维（外径/壁厚/长度/断切率 = MinValue/MaxValue，定尺 = MinInt/MaxInt）+ 3 个等值维（牌号/状态/设备 = MatchValue）。
+/// 5 个区间维（外径/壁厚/长度/断切率 = MinValue/MaxValue，定尺 = MinInt/MaxInt）+ 4 个等值维
+/// （牌号/状态/设备 = MatchValue 相等；冷拔类型 = MatchValue 为备注关键词，按 Remark.Contains 命中）。
 /// </summary>
 public static class PieceRateDimensionKeys
 {
@@ -34,11 +35,14 @@ public static class PieceRateDimensionKeys
     /// <summary>特殊设备号（报工 EquipmentName 文本等值；仅列出设备乘系数，未列出=1，语义同特殊牌号）</summary>
     public const string SpecialDevice = "SpecialDevice";
 
+    /// <summary>冷拔类型（备注关键词自由文本值维：MatchValue 存关键词，报工备注 Remark.Contains(关键词) 即乘系数；未命中=1。仅冷拔类别配档）</summary>
+    public const string ColdDrawType = "ColdDrawType";
+
     /// <summary>所有维度 Key 的有序列表（编辑器分区顺序）</summary>
     public static readonly string[] All =
     [
         OuterDiameter, WallThickness, Length, CutRate, FixedLengthCount,
-        SpecialGrade, SpecialState, SpecialDevice
+        SpecialGrade, SpecialState, SpecialDevice, ColdDrawType
     ];
 
     /// <summary>Key → 规范中文（显示）</summary>
@@ -52,6 +56,7 @@ public static class PieceRateDimensionKeys
         [SpecialGrade] = "特殊牌号",
         [SpecialState] = "特殊制造状态",
         [SpecialDevice] = "特殊设备号",
+        [ColdDrawType] = "冷拔类型",
     };
 
     private static readonly HashSet<string> IntervalSet = new(
@@ -69,7 +74,7 @@ public static class PieceRateDimensionKeys
     public static bool IsInterval(string? dimKey)
         => !string.IsNullOrEmpty(dimKey) && IntervalSet.Contains(dimKey);
 
-    /// <summary>是否为等值维（特殊牌号/特殊制造状态/特殊设备号；true 时行存 MatchValue 非区间）</summary>
+    /// <summary>是否为等值补充维（特殊牌号/特殊制造状态/特殊设备号/冷拔类型；true 时行存 MatchValue 非区间）</summary>
     public static bool IsValueDimension(string? dimKey)
         => !string.IsNullOrEmpty(dimKey) && !IntervalSet.Contains(dimKey);
 }

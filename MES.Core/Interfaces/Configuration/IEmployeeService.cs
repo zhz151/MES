@@ -28,6 +28,9 @@ public interface IEmployeeService
     /// <summary>列头筛选上下文（自由文本列取存量去重值，工段/成检项目列取标准选项）</summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
+    /// <summary>靠工岗位候选 = 计件活岗（当前在册存在 个人计件/集体计件 员工的岗位），去重英文 Position Key</summary>
+    Task<List<string>> GetPiecePositionOptionsAsync();
+
     /// <summary>批量打印（按ID）</summary>
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
 }

@@ -79,6 +79,29 @@ public static class DisplayHelper
     /// </summary>
     public static string FormatNullableDate(DateTime? value) => value?.ToString("yyyy-MM-dd") ?? "";
 
+    /// <summary>
+    /// 实名串「姓名(编号)」→ 纯姓名（NCR 反馈人/检验员等展示简化，去掉括号工号）。
+    /// 工号判定：括号内容全部为 ASCII 字母/数字/_/- 且含数字或大写字母（如 YG044）；不满足则原样返回。
+    /// </summary>
+    public static string FormatPersonName(string? display)
+    {
+        if (string.IsNullOrWhiteSpace(display)) return "";
+        var s = display.Trim();
+        if (s.Length > 2 && s[^1] == ')')
+        {
+            var idx = s.LastIndexOf('(');
+            if (idx > 0)
+            {
+                var inner = s[(idx + 1)..^1];
+                var looksLikeCode = inner.Length >= 2
+                    && inner.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '-')
+                    && (inner.Any(char.IsDigit) || inner.Any(c => c is >= 'A' and <= 'Z'));
+                if (looksLikeCode) return s[..idx];
+            }
+        }
+        return s;
+    }
+
     // ========== 枚举文本（统一委托给 EnumHelper） ==========
 
     /// <summary>获取长度状态中文文本</summary>
@@ -808,6 +831,13 @@ public static class DisplayHelper
 
     /// <summary>工资结算模式中文显示（可空枚举版本）</summary>
     public static string GetSalaryModeText(SalaryMode? salaryMode) => salaryMode.HasValue ? EnumHelper.GetDisplayName(salaryMode.Value) : "-";
+
+    /// <summary>
+    /// 工资额四舍五入到整元（用户口径 2026-09-03：所有工资显示/保存按整数元，四舍五入到元）。
+    /// 显示与落库统一经此取整：引擎草稿小数（如每日 12.5 元）显示与保存均按 13 元。null → 0（未填/0 元）。
+    /// </summary>
+    public static decimal RoundYuan(decimal? value)
+        => value.HasValue ? decimal.Round(value.Value, 0, MidpointRounding.AwayFromZero) : 0m;
 
     /// <summary>岗位中文显示（字典字段，存英文 Key）：Cutting→切割 等（配置表优先 → PositionKeys 兜底）</summary>
     public static string GetPositionText(string? position)

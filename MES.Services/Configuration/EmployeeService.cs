@@ -99,6 +99,7 @@ public class EmployeeService : IEmployeeService
                 PositionRemark = e.PositionRemark,
                 SalaryMode = e.SalaryMode,
                 SalaryRemark = e.SalaryRemark,
+                AttendancePositions = e.AttendancePositions,
                 AttendanceCoefficient = e.AttendanceCoefficient,
                 HourlyWage = e.HourlyWage,
                 DailyWage = e.DailyWage,
@@ -260,6 +261,7 @@ public class EmployeeService : IEmployeeService
                 PositionRemark = e.PositionRemark,
                 SalaryMode = e.SalaryMode,
                 SalaryRemark = e.SalaryRemark,
+                AttendancePositions = e.AttendancePositions,
                 AttendanceCoefficient = e.AttendanceCoefficient,
                 HourlyWage = e.HourlyWage,
                 DailyWage = e.DailyWage,
@@ -297,6 +299,7 @@ public class EmployeeService : IEmployeeService
             entity.PositionRemark = dto.PositionRemark;
             entity.SalaryMode = dto.SalaryMode;
             entity.SalaryRemark = dto.SalaryRemark;
+            entity.AttendancePositions = dto.AttendancePositions;
             entity.AttendanceCoefficient = dto.AttendanceCoefficient;
             entity.HourlyWage = dto.HourlyWage;
             entity.DailyWage = dto.DailyWage;
@@ -319,6 +322,7 @@ public class EmployeeService : IEmployeeService
                 PositionRemark = dto.PositionRemark,
                 SalaryMode = dto.SalaryMode,
                 SalaryRemark = dto.SalaryRemark,
+                AttendancePositions = dto.AttendancePositions,
                 AttendanceCoefficient = dto.AttendanceCoefficient,
                 HourlyWage = dto.HourlyWage,
                 DailyWage = dto.DailyWage,
@@ -418,7 +422,7 @@ public class EmployeeService : IEmployeeService
     {
         var rows = await _context.Employees
             .AsNoTracking()
-            .Select(e => new { e.Code, e.Name, e.Department, e.Position, e.PositionRemark, e.SalaryMode, e.SalaryRemark, e.SectionName, e.GroupName })
+            .Select(e => new { e.Code, e.Name, e.Department, e.Position, e.PositionRemark, e.SalaryMode, e.SalaryRemark, e.SectionName, e.GroupName, e.AttendancePositions })
             .ToListAsync();
 
         // 工段选项 = 26 标准工段 + 存量工段片段中非标准值（员工工段为逗号串多工段）
@@ -472,6 +476,25 @@ public class EmployeeService : IEmployeeService
             .OrderBy(v => v)
             .ToList();
 
+        // 靠工岗位选项 = 计件活岗（在册个人/集体计件员工岗位，内存从 rows 判定）+ 存量靠工岗位片段中非活岗值
+        var piecePositions = rows
+            .Where(r => (r.SalaryMode == SalaryMode.PieceIndividual || r.SalaryMode == SalaryMode.PieceCollective)
+                        && !string.IsNullOrEmpty(r.Position))
+            .Select(r => r.Position!.Trim())
+            .Where(v => v.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var attendancePosOptions = piecePositions
+            .Concat(rows.Select(r => r.AttendancePositions)
+                .Where(v => !string.IsNullOrEmpty(v))
+                .SelectMany(v => v!.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                .Select(s => s.Trim())
+                .Where(s => s.Length > 0)
+                .Where(s => !piecePositions.Contains(s, StringComparer.OrdinalIgnoreCase)))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(v => v)
+            .ToList();
+
         return new Dictionary<string, List<string>>
         {
             ["Department"] = categoryOptions,
@@ -485,7 +508,8 @@ public class EmployeeService : IEmployeeService
             ["IsActive"] = new List<string> { "True", "False" },
             ["PositionRemark"] = Distinct(rows.Select(r => r.PositionRemark)),
             ["SalaryMode"] = Enum.GetNames<SalaryMode>().ToList(),
-            ["SalaryRemark"] = Distinct(rows.Select(r => r.SalaryRemark))
+            ["SalaryRemark"] = Distinct(rows.Select(r => r.SalaryRemark)),
+            ["AttendancePositions"] = attendancePosOptions
         };
     }
 
@@ -495,6 +519,23 @@ public class EmployeeService : IEmployeeService
             .Distinct(StringComparer.Ordinal)
             .OrderBy(v => v)
             .ToList();
+
+    /// <summary>
+    /// 靠工岗位候选 = 「计件活岗」：当前在册存在 个人计件 或 集体计件 员工的岗位（动态），返回去重英文 Position Key 列表。
+    /// 员工「靠工岗位」多选下拉专用（中文显示由前端 DisplayHelper.GetPositionText 统一）。
+    /// </summary>
+    public async Task<List<string>> GetPiecePositionOptionsAsync()
+    {
+        return await _context.Employees
+            .AsNoTracking()
+            .Where(e => e.IsActive
+                        && e.Position != null && e.Position != ""
+                        && (e.SalaryMode == SalaryMode.PieceIndividual || e.SalaryMode == SalaryMode.PieceCollective))
+            .Select(e => e.Position!)
+            .Distinct()
+            .OrderBy(p => p)
+            .ToListAsync();
+    }
 
     public async Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns)
     {

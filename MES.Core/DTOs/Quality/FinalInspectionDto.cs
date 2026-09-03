@@ -343,7 +343,7 @@ public class CreateFinalInspectionRequest
     [MaxLength(100)]
     public string? EquipmentName { get; set; }
     public ShiftType? Shift { get; set; }
-    [MaxLength(50)]
+    [MaxLength(100)]
     public string? Operator { get; set; }
     public int? Quantity { get; set; }
     public int? Weight { get; set; }
@@ -433,7 +433,7 @@ public class UpdateFinalInspectionRequest
     [MaxLength(100)]
     public string? EquipmentName { get; set; }
     public ShiftType? Shift { get; set; }
-    [MaxLength(50)]
+    [MaxLength(100)]
     public string? Operator { get; set; }
     public int? Quantity { get; set; }
     public int? Weight { get; set; }

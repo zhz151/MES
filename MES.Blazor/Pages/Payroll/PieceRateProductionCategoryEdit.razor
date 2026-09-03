@@ -1,7 +1,5 @@
 @page "/payroll/piece-rate-categories/edit/{Id:int?}"
 @page "/payroll/piece-rate-categories/create"
-@using MES.Blazor.Services
-@using MES.Blazor.Shared
 @using MES.Core.Constants
 @using MES.Core.DTOs.Payroll
 @using MES.Shared.Constants
@@ -125,6 +123,9 @@
                 <!-- ========== 维度档 ========== -->
                 <MudText Typo="Typo.h6" Class="mb-1">维度档（结算单价 = 基准价 × 命中维档系数连乘；不配置某维 = 系数 1）</MudText>
                 <MudText Typo="Typo.caption" Color="Color.Default" Class="mb-1">
+                    冷拔类型维为“备注包含关键词”命中（非等值）：报工备注 Remark 含档行关键词即乘系数；未命中 = 系数 1。同备注命中多词取最长关键词。
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Default" Class="mb-1">
                     区间维按【闭区间】理解：41-54 = 41≤值≤54（两端含）；单侧写 &gt;54（值&gt;54，不含54）或 ≤54。同维相切（如 ≤54 与 &gt;54）为合法邻接；重叠/等值重复标红并由服务端兜底拦截。
                 </MudText>
                 <MudText Typo="Typo.caption" Style="color:#d9534f;" Class="mb-2">
@@ -195,6 +196,15 @@
                                                               Value="@row.MatchValue" ValueChanged="@(v => row.MatchValue = v)"
                                                               Disabled="@(!row.IsActive)" />
                                                 <MudText Typo="Typo.caption" Color="Color.Default" Class="ml-1 dim-hint">候选: @string.Join("、", _grades.Take(6))@(_grades.Count > 6 ? "…" : "")</MudText>
+                                            }
+                                            else if (dim == PieceRateDimensionKeys.ColdDrawType)
+                                            {
+                                                <MudTextField T="string"
+                                                              Class="flex-grow-1"
+                                                              Label="备注关键词（自由文本；报工备注含该词即乘系数，未命中=系数1）"
+                                                              Value="@row.MatchValue" ValueChanged="@(v => row.MatchValue = v)"
+                                                              Disabled="@(!row.IsActive)" />
+                                                <MudText Typo="Typo.caption" Color="Color.Default" Class="ml-1 dim-hint">同备注命中多词取最长；建议避开互相包含的词</MudText>
                                             }
                                             else
                                             {

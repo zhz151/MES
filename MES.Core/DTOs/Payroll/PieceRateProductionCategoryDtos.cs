@@ -2,11 +2,9 @@ using MES.Core.Models;
 
 namespace MES.Core.DTOs.Payroll;
 
-/// <summary>
-/// 生产计件类别（2026-09-02 重构引入）——DTO 全集。
-/// 类别 = 工段(必选单选) × 工序/产类/作业阶段(可空多选，空=全选) + 基准价 + 结算单位；
-/// 维度系数在子表 PieceRateProductionCategoryTier（无例外价/绝对价）。
-/// </summary>
+// 生产计件类别（2026-09-02 重构引入）——DTO 全集：
+// 类别 = 工段(必选单选) × 工序/产类/作业阶段(可空多选，空=全选) + 基准价 + 结算单位；
+// 维度系数在子表 PieceRateProductionCategoryTier（无例外价/绝对价）。
 
 /// <summary>类别查询参数</summary>
 public class PieceRateProductionCategoryQueryParams : QueryParams
@@ -148,9 +146,6 @@ public class PieceRateProductionCategorySaveRequest
 /// <summary>类别维度档保存行</summary>
 public class PieceRateProductionCategoryTierSaveRequest
 {
-    /// <summary>&gt;0=更新既有行（当前实现整组替换，仅作回显占位）；0=新增。实际保存不依赖此值。</summary>
-    public int Id { get; set; }
-
     /// <summary>维度英文 Key（PieceRateDimensionKeys）</summary>
     public string DimensionKey { get; set; } = null!;
 
@@ -226,6 +221,9 @@ public class PieceRateProductionMatchRequest
 
     /// <summary>特殊设备号（报工 EquipmentName 文本）</summary>
     public string? EquipmentName { get; set; }
+
+    /// <summary>报工备注自由文本（仅 ColdDrawType 冷拔类型维按关键词包含命中使用；空=该维系数1）</summary>
+    public string? Remark { get; set; }
 }
 
 /// <summary>命中的维度档（展示用）</summary>

@@ -54,6 +54,17 @@ public class EmployeeController : ControllerBase
     }
 
     /// <summary>
+    /// 靠工岗位候选 = 计件活岗（当前在册存在 个人计件/集体计件 员工的岗位），返回英文 Position Key
+    /// </summary>
+    [HttpGet("piece-positions")]
+    [Authorize(Roles = Roles.Policies.ScanView)]
+    public async Task<ActionResult<ApiResponse<List<string>>>> GetPiecePositionOptions()
+    {
+        var result = await _employeeService.GetPiecePositionOptionsAsync();
+        return Ok(ApiResponse<List<string>>.Ok(result, "查询成功"));
+    }
+
+    /// <summary>
     /// 按工号查询（扫码用）
     /// </summary>
     [HttpGet("{code}")]

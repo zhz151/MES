@@ -130,6 +130,22 @@ public class EmployeeService
         }
     }
 
+    /// <summary>
+    /// 靠工岗位候选 = 计件活岗（当前在册存在 个人计件/集体计件 员工的岗位），返回英文 Position Key 列表（员工靠工岗位多选下拉用）
+    /// </summary>
+    public async Task<ApiResponse<List<string>>> GetPiecePositionOptionsAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<string>>>($"{BaseUrl}/piece-positions")
+                   ?? ApiResponse<List<string>>.Fail("获取计件活岗失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<string>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     /// <summary>列头筛选上下文（ExcelFilter 下拉选项）</summary>
     public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
     {

@@ -55,6 +55,9 @@ public partial class Employees : IDisposable
     // 工资结算模式下拉选项（枚举，显示中文经 DisplayHelper.GetEnumOptions 配置表排序优先）
     private List<(SalaryMode Value, string Display)> _salaryModeOptions = BuildSalaryModeOptions();
 
+    // 靠工岗位下拉选项（「计件活岗」动态候选，从后端 piece-positions 拉取；显示中文经 DisplayHelper.GetPositionText）
+    private List<(string Key, string Text)> _attendancePositionOptions = new();
+
     // 字段初始化器在组件构造时执行，此时 DictValueDisplayHelper.OverrideMap 尚未注入（MainLayout 晚于页面渲染）；
     // MainLayout 注入后经 OverrideMapChanged 事件调用 ApplyDictOverrideMapAsync 重建，使选项按参数表中文显示
     private static List<(string Key, string Text)> BuildPositionOptions() =>
@@ -120,6 +123,21 @@ public partial class Employees : IDisposable
             ? string.Empty
             : string.Join("、", value.Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(x => Enum.TryParse<InspectionItem>(x.Trim(), out var item) ? DisplayHelper.GetInspectionItemText(item) : x.Trim()));
+
+    // ========== 靠工岗位多选辅助（AttendancePositions 存逗号分隔岗位英文 Key 串，仅靠工计件模式使用） ==========
+
+    // 逗号串 → 多选列表（编辑态初值）
+    private static List<string> SplitAttendancePositions(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? new List<string>()
+            : value.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).ToList();
+
+    // 逗号串 → 中文显示（"、" 连接）
+    private static string FormatAttendancePositions(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : string.Join("、", value.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => DisplayHelper.GetPositionText(s.Trim())));
 
     // ========== 选择/打印 ==========
     private HashSet<int> selectedIds = new();
@@ -187,6 +205,7 @@ public partial class Employees : IDisposable
         new() { Key = "Position",      Label = "岗位",         SortKey = "position",       FilterType = "string" },
         new() { Key = "PositionRemark", Label = "岗位备注",     SortKey = "positionremark", FilterType = "string" },
         new() { Key = "SalaryMode",    Label = "工资结算模式", SortKey = "salarymode",     FilterType = "string" },
+        new() { Key = "AttendancePositions", Label = "靠工岗位", SortKey = "attendancepositions", FilterType = "string" },
         new() { Key = "AttendanceCoefficient", Label = "靠工系数", SortKey = "attendancecoefficient" },
         new() { Key = "HourlyWage",    Label = "小时工资",     SortKey = "hourlywage" },
         new() { Key = "DailyWage",     Label = "日工资",       SortKey = "dailywage" },
@@ -343,6 +362,7 @@ public partial class Employees : IDisposable
                     "IsActive" => v == "True" ? "启用" : "停用",
                     "Department" => DisplayHelper.GetPositionCategoryText(v),
                     "Position" => DisplayHelper.GetPositionText(v),
+                    "AttendancePositions" => DisplayHelper.GetPositionText(v),
                     "SalaryMode" => DisplayHelper.GetSalaryModeText(v),
                     _ => v
                 },
@@ -369,7 +389,7 @@ public partial class Employees : IDisposable
     }
 
     // 版本化列偏好 key：列顺序/默认显隐调整后，已保存过 localStorage 的用户也能看到新默认
-    private const string ColumnPrefsVersion = "v4";
+    private const string ColumnPrefsVersion = "v5";
 
     private async Task SaveColumnPrefs()
     {
@@ -439,6 +459,15 @@ public partial class Employees : IDisposable
                 _positionCategoryOptions = BuildPositionCategoryOptions();
         }
         catch { _positionCategoryOptions = BuildPositionCategoryOptions(); }
+
+        // 靠工岗位候选 = 「计件活岗」动态（服务端实时查询当前在册计件员工岗位）；失败保留现役选项
+        try
+        {
+            var r = await EmployeeService.GetPiecePositionOptionsAsync();
+            if (r.Success && r.Data != null)
+                _attendancePositionOptions = r.Data.Select(k => (k, DisplayHelper.GetPositionText(k))).ToList();
+        }
+        catch { }
     }
 
     protected override async Task OnInitializedAsync()
@@ -584,6 +613,7 @@ public partial class Employees : IDisposable
         public string? PositionRemark { get; set; }
         public SalaryMode? SalaryMode { get; set; }
         public string? SalaryRemark { get; set; }
+        public string? AttendancePositions { get; set; }
         public decimal? AttendanceCoefficient { get; set; } = 1.0m;
         public decimal? HourlyWage { get; set; }
         public decimal? DailyWage { get; set; }
@@ -609,6 +639,7 @@ public partial class Employees : IDisposable
             PositionRemark = item.PositionRemark,
             SalaryMode = item.SalaryMode,
             SalaryRemark = item.SalaryRemark,
+            AttendancePositions = item.AttendancePositions,
             AttendanceCoefficient = item.AttendanceCoefficient,
             HourlyWage = item.HourlyWage,
             DailyWage = item.DailyWage,
@@ -657,6 +688,7 @@ public partial class Employees : IDisposable
                 PositionRemark = cache.PositionRemark,
                 SalaryMode = cache.SalaryMode,
                 SalaryRemark = cache.SalaryRemark,
+                AttendancePositions = cache.AttendancePositions,
                 AttendanceCoefficient = cache.AttendanceCoefficient,
                 HourlyWage = cache.HourlyWage,
                 DailyWage = cache.DailyWage,

@@ -108,4 +108,136 @@ public partial class AppDbContext
                 .HasDatabaseName("UK_Attendance_Employee_Date");
         });
     }
+
+    private static void ConfigurePayrollDailyWageRecord(ModelBuilder builder)
+    {
+        builder.Entity<PayrollDailyWageRecord>(entity =>
+        {
+            entity.ToTable("PayrollDailyWageRecords");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.WageDate).HasColumnType("date");
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.SalaryMode).HasMaxLength(20);
+            entity.Property(e => e.Remark).HasMaxLength(200);
+            // 员工 + 日期唯一：同一员工同一天只有一条每日工资（不重复月份保存）
+            entity.HasIndex(e => new { e.EmployeeId, e.WageDate })
+                .IsUnique()
+                .HasDatabaseName("UK_PayrollDailyWage_Employee_Date");
+        });
+    }
+
+    private static void ConfigurePayrollCollectiveScore(ModelBuilder builder)
+    {
+        builder.Entity<PayrollCollectiveScore>(entity =>
+        {
+            entity.ToTable("PayrollCollectiveScores");
+            entity.HasKey(e => e.Id);
+            // 分值 1–10 可 1 位小数（如 8.5）：decimal(3,1)
+            entity.Property(e => e.Score).HasColumnType("decimal(3,1)");
+            // 员工 + 结算月唯一：同一员工同一个月只有一条评分（整月 upsert）
+            entity.HasIndex(e => new { e.EmployeeId, e.Year, e.Month })
+                .IsUnique()
+                .HasDatabaseName("UK_PayrollCollectiveScore_Employee_Month");
+        });
+    }
+
+    private static void ConfigurePayrollCollectiveWageRecord(ModelBuilder builder)
+    {
+        builder.Entity<PayrollCollectiveWageRecord>(entity =>
+        {
+            entity.ToTable("PayrollCollectiveWageRecords");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Position).HasMaxLength(50);
+            entity.Property(e => e.Score).HasColumnType("decimal(3,1)");
+            entity.Property(e => e.AttendanceHours).HasColumnType("decimal(18,1)");
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            // 员工 + 结算月唯一：同一员工同一个月只有一条月结快照（不重复月份保存）
+            entity.HasIndex(e => new { e.EmployeeId, e.WageYear, e.WageMonth })
+                .IsUnique()
+                .HasDatabaseName("UK_PayrollCollectiveWage_Employee_Month");
+        });
+    }
+
+    private static void ConfigurePayrollAttendanceWageRecord(ModelBuilder builder)
+    {
+        builder.Entity<PayrollAttendanceWageRecord>(entity =>
+        {
+            entity.ToTable("PayrollAttendanceWageRecords");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.AttendancePositions).HasMaxLength(200);
+            entity.Property(e => e.AttendanceHours).HasColumnType("decimal(18,1)");
+            entity.Property(e => e.AttendanceCoefficient).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            // 员工 + 结算月唯一：同一员工同一个月只有一条月结快照（不重复月份保存）
+            entity.HasIndex(e => new { e.EmployeeId, e.WageYear, e.WageMonth })
+                .IsUnique()
+                .HasDatabaseName("UK_PayrollAttendanceWage_Employee_Month");
+        });
+    }
+
+    private static void ConfigurePayrollMiscWorkRecord(ModelBuilder builder)
+    {
+        builder.Entity<PayrollMiscWorkRecord>(entity =>
+        {
+            entity.ToTable("PayrollMiscWorkRecords");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.WorkDate).HasColumnType("date");
+            entity.Property(e => e.Content).HasMaxLength(500);
+            entity.Property(e => e.Hours).HasColumnType("decimal(18,1)");
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Remark).HasMaxLength(200);
+            // 杂辅台账：每人每天可多条 → 无唯一索引；仅建日期索引供按月区间查询
+            entity.HasIndex(e => e.WorkDate).HasDatabaseName("IX_PayrollMiscWork_WorkDate");
+        });
+    }
+
+    private static void ConfigurePayrollAllowanceRecord(ModelBuilder builder)
+    {
+        builder.Entity<PayrollAllowanceRecord>(entity =>
+        {
+            entity.ToTable("PayrollAllowanceRecords");
+            entity.HasKey(e => e.Id);
+            // 9 个金额项目列：整元手工录入（decimal(18,2) 可空，空=未填等价 0 元）
+            entity.Property(e => e.FullAttendanceBonus).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.SeniorityBonus).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.NightShiftAllowance).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.PositionAllowance).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.HighTempAllowance).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.InjurySubsidy).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.LeadBonus).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Penalty).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.SocialSecurity).HasColumnType("decimal(18,2)");
+            // 员工 + 结算月唯一：每人每月一行（整月 upsert，不是台账多条）
+            entity.HasIndex(e => new { e.EmployeeId, e.Year, e.Month })
+                .IsUnique()
+                .HasDatabaseName("UK_PayrollAllowance_Employee_Month");
+        });
+    }
+
+    private static void ConfigurePayrollMonthlySummaryRecord(ModelBuilder builder)
+    {
+        builder.Entity<PayrollMonthlySummaryRecord>(entity =>
+        {
+            entity.ToTable("PayrollMonthlySummaryRecords");
+            entity.HasKey(e => e.Id);
+            // 各金额列：派生快照，decimal(18,2)；处罚/代缴社保存负（源表正数录入、扣减语义）
+            entity.Property(e => e.BaseWage).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.MiscWorkAmount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.PositionAllowance).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.SeniorityBonus).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.FullAttendanceBonus).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.LeadBonus).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.NightShiftAllowance).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.HighTempAllowance).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.InjurySubsidy).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Penalty).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.SocialSecurity).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.TotalPayable).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.TotalPaid).HasColumnType("decimal(18,2)");
+            // 员工 + 结算月唯一：每人每月一行（整月替换快照，不重复保存）
+            entity.HasIndex(e => new { e.EmployeeId, e.Year, e.Month })
+                .IsUnique()
+                .HasDatabaseName("UK_PayrollMonthlySummary_Employee_Month");
+        });
+    }
 }

@@ -40,14 +40,19 @@ public class DataImportService : IDataImportService
     /// <summary>字典配置表反向映射（DictKey → DisplayName → Value），供导入 Excel 中文 → 英文 Key；可加值字典的加值项也能转回 Key</summary>
     private Dictionary<string, Dictionary<string, string>>? _dictReverseMaps;
 
+    /// <summary>工序配置表反向映射（ProcessName 中文 → ProcessKey），供导入不在静态 ProcessKeys 的配置工序名（如 ColdRoll90/110）转回 Key</summary>
+    private Dictionary<string, string>? _processNameToKey;
+
     /// <summary>字典配置表反向映射（懒加载，配置表优先；与导出 GetText 配置表优先语义对称）</summary>
     private Dictionary<string, Dictionary<string, string>> GetDictReverseMaps()
     {
         if (_dictReverseMaps == null)
         {
+            // 先 ToList 再内存分组：GroupBy 不可翻译到所有提供程序（InMemory 测试抛异常，SQL Server 可翻译但行为需一致）
             _dictReverseMaps = _context.DictValueDefinitions
                 .AsNoTracking()
-                .GroupBy(x => x.DictKey)
+                .ToList()
+                .GroupBy(x => x.DictKey, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(
                     g => g.Key,
                     g => g.ToDictionary(x => x.DisplayName, x => x.Value, StringComparer.OrdinalIgnoreCase),
@@ -62,6 +67,49 @@ public class DataImportService : IDataImportService
         if (GetDictReverseMaps().TryGetValue(dictKey, out var map) && map.TryGetValue(value, out var key))
             return key;
         return null;
+    }
+
+    // ========== Key 列表解析辅助（导入 Excel 中文 → 英文 Key，员工多选字段兼容顿号/逗号） ==========
+
+    /// <summary>列表分隔符：兼容导出顿号连接的中文串与存储/手工输入的英文逗号串/全角逗号</summary>
+    private static readonly char[] ImportListSeparators = { ',', '、', '，' };
+
+    /// <summary>按分隔符拆分并 trim 列表 token（去空项）</summary>
+    private static List<string> SplitKeyList(string value) =>
+        value.Split(ImportListSeparators, StringSplitOptions.RemoveEmptyEntries)
+            .Select(t => t.Trim())
+            .Where(t => t.Length > 0)
+            .ToList();
+
+    /// <summary>工段 Key 列表/中文列表 → 英文逗号串；单项原样（未知值保留，防置 NULL）</summary>
+    private static string NormalizeKeyList(string value, Func<string, string?> toKey)
+    {
+        var parts = SplitKeyList(value);
+        if (parts.Count == 0) return value;
+        return string.Join(",", parts.Select(t => toKey(t) ?? t));
+    }
+
+    /// <summary>工段：已是 Key 原样，中文经 SectionDefs/别名反查；未知返回 null</summary>
+    private static string? ResolveSectionKey(string token) => SectionKeys.ToKey(token);
+
+    /// <summary>工序/工序组：静态 ProcessKeys 反查优先；静态未命中再查配置表 ProcessName 反向；未知返回 null</summary>
+    private string? ResolveProcessKey(string token)
+    {
+        if (ProcessKeys.ToKey(token) is { } staticKey)
+            return staticKey;
+
+        if (_processNameToKey == null)
+        {
+            // 配置表反向：ProcessName → ProcessKey（同名多行取首行）；表内为英文种子时名即 Key，无中文可反查。
+            // ToList 后内存分组：GroupBy 不可翻译到所有提供程序（InMemory 测试）
+            _processNameToKey = _context.ProcessDefinitions
+                .AsNoTracking()
+                .Where(p => p.ProcessKey != null && p.ProcessName != null)
+                .ToList()
+                .GroupBy(p => p.ProcessName!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().ProcessKey!, StringComparer.OrdinalIgnoreCase);
+        }
+        return _processNameToKey.TryGetValue(token, out var key) ? key : null;
     }
 
     public DataImportService(AppDbContext context, ILogger<DataImportService> logger, IServiceScopeFactory? scopeFactory = null)
@@ -1102,28 +1150,24 @@ public class DataImportService : IDataImportService
                         value = await ResolveOrderItemIdsForImportAsync(cellValue);
                     }
 
-                    // 特殊处理：SectionName 存储改英文 Key（Excel 中文 → Key；未知值原样保留，防置 NULL）
-                    if (colDef.Property == "SectionName" && value is string sectionName)
+                    // 特殊处理：工段类 Key 列表 → 英文 Key 串（员工 SectionName 为逗号分隔多选，其余单值；
+                    // Excel 可能是中文/顿号连接，逐项回 Key 后再以英文逗号拼接，防置 NULL）
+                    if ((colDef.Property == "SectionName"
+                        || colDef.Property == "CurrentSectionName"
+                        || colDef.Property == "NextSectionName") && value is string sectionNames)
                     {
-                        value = SectionKeys.ToKey(sectionName) ?? sectionName;
+                        value = NormalizeKeyList(sectionNames, ResolveSectionKey);
                     }
 
-                    // 特殊处理：ProcessName/ProcessGroupName 存储改英文 Key（Excel 中文 → Key；未知值原样保留，如 ColdRoll90 不在 ProcessKeys）
-                    if ((colDef.Property == "ProcessName" || colDef.Property == "ProcessGroupName") && value is string processName)
+                    // 特殊处理：工序/工序组类 Key 列表 → 英文 Key 串（员工 GroupName 为逗号分隔多选，其余单值；
+                    // 配置表 ProcessDefinitions 反查 + ProcessKeys 静态兜底，如 ColdRoll90/110 等配置工序名也能转回 Key）
+                    if ((colDef.Property == "ProcessName"
+                        || colDef.Property == "ProcessGroupName"
+                        || colDef.Property == "CurrentGroupName"
+                        || colDef.Property == "NextProcess"
+                        || colDef.Property == "GroupName") && value is string processKeysList)
                     {
-                        value = ProcessKeys.ToKey(processName) ?? processName;
-                    }
-
-                    // 特殊处理：CurrentGroupName/NextProcess 存储改英文 Key（Excel 中文 → Key；未知值原样保留）
-                    if ((colDef.Property == "CurrentGroupName" || colDef.Property == "NextProcess") && value is string currentProcessName)
-                    {
-                        value = ProcessKeys.ToKey(currentProcessName) ?? currentProcessName;
-                    }
-
-                    // 特殊处理：CurrentSectionName/NextSectionName 存储改英文 Key（Excel 中文 → Key；未知值原样保留）
-                    if ((colDef.Property == "CurrentSectionName" || colDef.Property == "NextSectionName") && value is string currentSectionName)
-                    {
-                        value = SectionKeys.ToKey(currentSectionName) ?? currentSectionName;
+                        value = NormalizeKeyList(processKeysList, ResolveProcessKey);
                     }
 
                     // 特殊处理：ProductStatus 存储改英文 Key（Excel 中文 → Key；配置表加值项优先，静态兜底）
@@ -1145,6 +1189,20 @@ public class DataImportService : IDataImportService
                     {
                         value = ResolveDictValueKey(DictValueDefaults.NcrResponsibilityKey, responsibilityCategory)
                             ?? NcrResponsibilityKeys.ToKey(responsibilityCategory) ?? responsibilityCategory;
+                    }
+
+                    // 特殊处理：员工岗位类别 Department 存储改英文 Key（PositionCategoryKey 字典；配置表优先，静态兜底）
+                    if (colDef.Property == "Department" && value is string department)
+                    {
+                        value = ResolveDictValueKey(DictValueDefaults.PositionCategoryKey, department)
+                            ?? PositionCategoryKeys.ToKey(department) ?? department;
+                    }
+
+                    // 特殊处理：员工岗位 Position 存储改英文 Key（PositionKey 字典；配置表优先，静态兜底）
+                    if (colDef.Property == "Position" && value is string position)
+                    {
+                        value = ResolveDictValueKey(DictValueDefaults.PositionKey, position)
+                            ?? PositionKeys.ToKey(position) ?? position;
                     }
 
                     // 特殊处理：字典/Key 字段（string 属性但存英文 Key/枚举名）Excel 中文 → 英文 Key；未识别的原样保留

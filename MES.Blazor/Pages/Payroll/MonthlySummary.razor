@@ -1,0 +1,109 @@
+@page "/payroll/monthly-summary"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = Roles.Policies.SalaryView)]
+@using MES.Blazor.Helpers
+@using MES.Core.DTOs.Payroll
+@using MES.Shared.Constants
+
+<MudContainer MaxWidth="MaxWidth.False" Class="py-4">
+    <MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true">
+        <MudText Typo="Typo.body2" Class="text-medium-emphasis mb-3">
+            员工某结算月「完整应发/实发」汇总（列序对齐《工资条及打印.xlsx》）：基础工资按各子页已保存金额（固定月薪取员工档案）；
+            出勤天数=当月有考勤记录的日期数；处罚/代缴社保源表正数录入、此处显负值。网格实时重算预览，
+            打印严格读「保存本月」生成的快照，保证发放单与冻结口径一致。
+        </MudText>
+        <div class="d-flex align-center flex-wrap gap-2">
+            <MudText Typo="Typo.h6" Class="font-weight-bold mr-2">月工资津贴汇总</MudText>
+            <MudButton Icon="@Icons.Material.Filled.ChevronLeft" Color="Color.Default" OnClick="PrevMonth" Disabled="_loading" />
+            <MudSelect T="int" Value="@_year" ValueChanged="OnYearChanged" Label="年份" Variant="Variant.Outlined" Dense="true" Style="width:110px">
+                @foreach (var y in _years)
+                {
+                    <MudSelectItem Value="@y">@y</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="int" Value="@_month" ValueChanged="OnMonthChanged" Label="月份" Variant="Variant.Outlined" Dense="true" Style="width:100px">
+                @foreach (var m in _months)
+                {
+                    <MudSelectItem Value="@m">@m 月</MudSelectItem>
+                }
+            </MudSelect>
+            <MudButton Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" OnClick="NextMonth" Disabled="_loading" />
+            <MudTextField T="string" Label="页内筛选 - 工号/姓名"
+                          Value="_keyword" ValueChanged="OnKeywordChanged"
+                          Immediate="true" DebounceInterval="400"
+                          Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined" Dense="true" Style="width:220px" />
+            <MudChip Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">@FilteredRows.Count 名员工</MudChip>
+            <MudChip Size="Size.Small" Color="@(_hasSaved ? Color.Success : Color.Warning)" Variant="Variant.Outlined">
+                @(_hasSaved ? "已保存本月快照" : "未保存（打印需先保存）")
+            </MudChip>
+            <MudSpacer />
+            @if (_canEdit)
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.Save" Color="Color.Success" Variant="Variant.Filled"
+                           Disabled="_loading || FilteredRows.Count == 0" OnClick="SaveMonthAsync">保存本月</MudButton>
+            }
+            <MudButton StartIcon="@Icons.Material.Filled.TableChart" Color="Color.Primary" Variant="Variant.Outlined"
+                       Disabled="_loading || !_hasSaved" OnClick="PrintAllAsync">全部打印</MudButton>
+            <MudButton StartIcon="@Icons.Material.Filled.Receipt" Color="Color.Primary" Variant="Variant.Filled"
+                       Disabled="_loading || !_hasSaved" OnClick="PrintPersonalAsync">个人打印</MudButton>
+        </div>
+    </MudPaper>
+
+    <MudProgressLinear Visible="_loading" Color="Color.Primary" />
+
+    <div class="attendance-scroll">
+        <table class="auto-table attendance-grid monthly-summary-grid">
+            <thead>
+                <tr>
+                    <th class="sticky-left" style="width:56px">工号</th>
+                    <th class="sticky-left" style="width:70px">姓名</th>
+                    <th class="sticky-left" style="width:62px">岗位类别</th>
+                    <th class="sticky-left" style="width:90px">岗位</th>
+                    @foreach (var col in Columns)
+                    {
+                        <th class="text-center" style="width:@(col.IsMoney ? "88px" : "56px"); min-width:@(col.IsMoney ? "88px" : "56px"); background:#f2f7f7;">@col.Label</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in FilteredRows)
+                {
+                    <tr class="@(row.IsActive ? null : "allowance-inactive-row")">
+                        <td class="sticky-left">@row.EmployeeCode</td>
+                        <td class="sticky-left">@row.EmployeeName</td>
+                        <td class="sticky-left">@DisplayHelper.GetPositionCategoryText(row.PositionCategory)</td>
+                        <td class="sticky-left">@DisplayHelper.GetPositionText(row.Position)</td>
+                        @foreach (var col in Columns)
+                        {
+                            <td class="@(col.IsMoney ? "text-right" : "text-center")" style="padding-right:@(col.IsMoney ? "8px" : "0")">@CellText(row, col.Key)</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+            @if (FilteredRows.Count > 0)
+            {
+                <tfoot>
+                    <tr class="attendance-foot">
+                        <td class="sticky-left" colspan="4">整月合计(元)</td>
+                        <td class="text-center">—</td>
+                        @foreach (var col in Columns.Where(c => c.IsMoney))
+                        {
+                            <td class="text-right" style="padding-right:8px;">@Money(ColumnTotal(col.Key))</td>
+                        }
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+
+    @if (_rows.Count == 0 && !_loading)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-4">
+            本月无可汇总员工（既无在册员工，各工资子页亦无已保存金额）。请先在考勤/每日工资/集体计件/靠工计件/杂辅/津贴子页录入并「保存本月」。
+        </MudAlert>
+    }
+    else if (FilteredRows.Count == 0 && !_loading)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-4">没有匹配的页内筛选结果。</MudAlert>
+    }
+</MudContainer>

@@ -251,8 +251,8 @@ namespace MES.Data.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Operator")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("PlantGrade")
                         .HasMaxLength(50)
@@ -366,8 +366,8 @@ namespace MES.Data.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Operator")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<int>("PicklingInRecordId")
                         .HasColumnType("int");
@@ -1103,8 +1103,8 @@ namespace MES.Data.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Operator")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("PlantGrade")
                         .HasMaxLength(50)
@@ -1626,6 +1626,10 @@ namespace MES.Data.Migrations
 
                     b.Property<decimal?>("AttendanceCoefficient")
                         .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("AttendancePositions")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -3949,6 +3953,419 @@ namespace MES.Data.Migrations
                     b.ToTable("AttendanceRecords", (string)null);
                 });
 
+            modelBuilder.Entity("MES.Data.Entities.Payroll.PayrollAllowanceRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("FullAttendanceBonus")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("HighTempAllowance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("InjurySubsidy")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("LeadBonus")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("NightShiftAllowance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("Penalty")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PositionAllowance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("SeniorityBonus")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("SocialSecurity")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId", "Year", "Month")
+                        .IsUnique()
+                        .HasDatabaseName("UK_PayrollAllowance_Employee_Month");
+
+                    b.ToTable("PayrollAllowanceRecords", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.Payroll.PayrollAttendanceWageRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("AttendanceCoefficient")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal?>("AttendanceHours")
+                        .HasColumnType("decimal(18,1)");
+
+                    b.Property<string>("AttendancePositions")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("WageMonth")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WageYear")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId", "WageYear", "WageMonth")
+                        .IsUnique()
+                        .HasDatabaseName("UK_PayrollAttendanceWage_Employee_Month");
+
+                    b.ToTable("PayrollAttendanceWageRecords", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.Payroll.PayrollCollectiveScore", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Score")
+                        .HasColumnType("decimal(3,1)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId", "Year", "Month")
+                        .IsUnique()
+                        .HasDatabaseName("UK_PayrollCollectiveScore_Employee_Month");
+
+                    b.ToTable("PayrollCollectiveScores", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.Payroll.PayrollCollectiveWageRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("AttendanceHours")
+                        .HasColumnType("decimal(18,1)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal?>("Score")
+                        .HasColumnType("decimal(3,1)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("WageMonth")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WageYear")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId", "WageYear", "WageMonth")
+                        .IsUnique()
+                        .HasDatabaseName("UK_PayrollCollectiveWage_Employee_Month");
+
+                    b.ToTable("PayrollCollectiveWageRecords", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.Payroll.PayrollDailyWageRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SalaryMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTime>("WageDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId", "WageDate")
+                        .IsUnique()
+                        .HasDatabaseName("UK_PayrollDailyWage_Employee_Date");
+
+                    b.ToTable("PayrollDailyWageRecords", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.Payroll.PayrollMiscWorkRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Hours")
+                        .HasColumnType("decimal(18,1)");
+
+                    b.Property<string>("Remark")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTime>("WorkDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkDate")
+                        .HasDatabaseName("IX_PayrollMiscWork_WorkDate");
+
+                    b.ToTable("PayrollMiscWorkRecords", (string)null);
+                });
+
+            modelBuilder.Entity("MES.Data.Entities.Payroll.PayrollMonthlySummaryRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AttendanceDays")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("BaseWage")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("EmployeeId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("FullAttendanceBonus")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("HighTempAllowance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("InjurySubsidy")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("LeadBonus")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("MiscWorkAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("NightShiftAllowance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Penalty")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PositionAllowance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SeniorityBonus")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SocialSecurity")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalPaid")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalPayable")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("UpdatedBy")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("UpdatedTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId", "Year", "Month")
+                        .IsUnique()
+                        .HasDatabaseName("UK_PayrollMonthlySummary_Employee_Month");
+
+                    b.ToTable("PayrollMonthlySummaryRecords", (string)null);
+                });
+
             modelBuilder.Entity("MES.Data.Entities.Payroll.PieceRateFinalInspectionCategory", b =>
                 {
                     b.Property<int>("Id")
@@ -4770,8 +5187,8 @@ namespace MES.Data.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Operator")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("OuterDiameterRange")
                         .HasMaxLength(100)
@@ -5933,8 +6350,8 @@ namespace MES.Data.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Inspector")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("ManufacturingSpec")
                         .HasMaxLength(100)

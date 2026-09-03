@@ -943,8 +943,6 @@ public class PieceRateCategoryImportService : IPieceRateCategoryImportService
 
         public bool ClaimLocator(string locator) => _seenLocators.Add(locator);
 
-        public void Add(PendingCategory pending) => Categories.Add(pending);
-
         public void Recount()
         {
             ErrorCount = Rows.Count(r => !r.IsValid);

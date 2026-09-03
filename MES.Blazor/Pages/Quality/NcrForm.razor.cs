@@ -41,8 +41,16 @@ public partial class NcrForm
     private bool _isSaving;
     private NcrStatus _currentStatus;
 
-    // 责任类别字典下拉（配置表动态加载）与「新增责任类型」输入
-    private List<DictValueInfoDto> _responsibilityOptions = new();
+    // 责任类别字典下拉：初始预置内置 5 项中文（避免依赖异步字典导致的英文/空白空窗），异步字典加载成功后覆盖为完整配置（含自定义项）
+    private List<DictValueInfoDto> _responsibilityOptions = NcrResponsibilityKeys.All
+        .Select(k => new DictValueInfoDto
+        {
+            Value = k,
+            DisplayName = NcrResponsibilityKeys.ToChinese(k) ?? k,
+            DisplayOrder = 0,
+            IsEnabled = true
+        })
+        .ToList();
     private string _newResponsibilityName = "";
 
     // 待处理卡片
@@ -122,8 +130,8 @@ public partial class NcrForm
             var itemText = GetInspectionItemDisplay(inspectionItem, sourceType);
             _formData.ReportDepartment = string.IsNullOrEmpty(itemText) ? sourceText : $"{sourceText}-{itemText}";
 
-            // 反馈人 = 检验员
-            _formData.Reporter = inspector ?? "";
+            // 反馈人 = 检验员（实名串「姓名(编号)」→ 纯姓名简化）
+            _formData.Reporter = DisplayHelper.FormatPersonName(inspector);
 
             // 来源检验项目（卡片排重用）
             _formData.SourceInspectionItem = inspectionItem ?? "";
@@ -178,8 +186,8 @@ public partial class NcrForm
             var itemText = GetInspectionItemDisplay(item.InspectionItem, item.SourceType);
             _formData.ReportDepartment = string.IsNullOrEmpty(itemText) ? sourceText : $"{sourceText}-{itemText}";
 
-            // 反馈人
-            _formData.Reporter = item.Inspector ?? "";
+            // 反馈人（实名串「姓名(编号)」→ 纯姓名简化）
+            _formData.Reporter = DisplayHelper.FormatPersonName(item.Inspector);
 
             // 来源检验项目
             _formData.SourceInspectionItem = item.InspectionItem ?? "";
@@ -234,7 +242,7 @@ public partial class NcrForm
         // G1
         _formData.ReportDate = dto.ReportDate;
         _formData.ReportDepartment = dto.ReportDepartment;
-        _formData.Reporter = dto.Reporter;
+        _formData.Reporter = DisplayHelper.FormatPersonName(dto.Reporter);
         _formData.PipeCategory = dto.PipeCategory;
         _formData.BatchNo = dto.BatchNo;
         _formData.WorkOrderNo = dto.WorkOrderNo;
@@ -282,6 +290,25 @@ public partial class NcrForm
         _actionPlanDate = dto.ActionPlanDate?.ToString("yyyy-MM-dd") ?? "";
         _actionVerifyDate = dto.ActionVerifyDate?.ToString("yyyy-MM-dd") ?? "";
         _personCompleteDate = dto.PersonCompleteDate?.ToString("yyyy-MM-dd") ?? "";
+
+        EnsureSelectedResponsibilityMapped();
+    }
+
+    /// <summary>编辑加载后兜底：当前责任类别不在选项集合（字典禁用/缺失/异步未达）时补入中文项，杜绝英文直显</summary>
+    private void EnsureSelectedResponsibilityMapped()
+    {
+        var selected = _formData.ResponsibilityCategory;
+        if (string.IsNullOrWhiteSpace(selected)) return;
+        if (_responsibilityOptions.Any(o => string.Equals(o.Value, selected, StringComparison.OrdinalIgnoreCase))) return;
+        _responsibilityOptions.Insert(0, new DictValueInfoDto
+        {
+            Value = selected,
+            DisplayName = NcrResponsibilityKeys.ToChinese(selected)
+                ?? DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, selected)
+                ?? selected,
+            DisplayOrder = -1,
+            IsEnabled = true
+        });
     }
 
     /// <summary>

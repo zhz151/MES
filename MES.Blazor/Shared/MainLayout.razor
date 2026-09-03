@@ -183,9 +183,17 @@
             <!-- 工资结算 -->
             <AuthorizeView Roles="@Roles.Policies.SalaryView">
                 <MudNavGroup Title="工资结算" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
-                    <MudNavLink Href="/payroll/attendance">考勤表</MudNavLink>
                     <MudNavLink Href="/payroll/piece-rate-categories">生产计件类别</MudNavLink>
                     <MudNavLink Href="/payroll/final-inspection-categories">成检计件类别</MudNavLink>
+                    <MudNavLink Href="/payroll/attendance">考勤表</MudNavLink>
+                    <MudNavLink Href="/payroll/misc-work">杂辅工记录</MudNavLink>
+                    <MudNavLink Href="/payroll/collective-scores">集体计件评分</MudNavLink>
+                    <MudNavLink Href="/payroll/allowance">津贴与处罚</MudNavLink>
+                    <MudNavLink Href="/payroll/wages/non-piece">非计件工资</MudNavLink>
+                    <MudNavLink Href="/payroll/wages/piece">个人计件工资</MudNavLink>
+                    <MudNavLink Href="/payroll/collective-monthly">集体计件月结</MudNavLink>
+                    <MudNavLink Href="/payroll/attendance-monthly">靠工计件月结</MudNavLink>
+                    <MudNavLink Href="/payroll/monthly-summary">月工资津贴汇总</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
 

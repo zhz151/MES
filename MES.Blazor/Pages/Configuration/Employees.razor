@@ -285,6 +285,30 @@
                                 @item.SalaryRemark
                             }
                         }
+                        else if (col.Key == "AttendancePositions")
+                        {
+                            if (rowEditing && rowCache != null)
+                            {
+                                <MudSelect T="string"
+                                           Dense="true"
+                                           MultiSelection="true"
+                                           Variant="Variant.Outlined"
+                                           SelectedValues="@SplitAttendancePositions(rowCache.AttendancePositions)"
+                                           SelectedValuesChanged="@(v => rowCache.AttendancePositions = string.Join(",", v))"
+                                           Class="compact-input"
+                                           PopoverClass="cell-multi-select-popover"
+                                           Label="靠工岗位（可多选，计件活岗）">
+                                    @foreach (var opt in _attendancePositionOptions)
+                                    {
+                                        <MudSelectItem Value="@opt.Key">@opt.Text</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            }
+                            else
+                            {
+                                @FormatAttendancePositions(item.AttendancePositions)
+                            }
+                        }
                         else if (col.Key == "AttendanceCoefficient")
                         {
                             if (rowEditing && rowCache != null)
@@ -372,6 +396,7 @@
                                            SelectedValues="@SplitSections(rowCache.SectionName)"
                                            SelectedValuesChanged="@(v => rowCache.SectionName = string.Join(",", v))"
                                            Class="compact-input"
+                                           PopoverClass="cell-multi-select-popover"
                                            Label="生产工段（可多选）">
                                     @foreach (var opt in _sectionOptions)
                                     {
@@ -395,6 +420,7 @@
                                            SelectedValues="@SplitProcesses(rowCache.GroupName)"
                                            SelectedValuesChanged="@(v => rowCache.GroupName = string.Join(",", v))"
                                            Class="compact-input"
+                                           PopoverClass="cell-multi-select-popover"
                                            Label="工序组（可多选，空=全工序组通配）">
                                     @foreach (var opt in _processOptions)
                                     {

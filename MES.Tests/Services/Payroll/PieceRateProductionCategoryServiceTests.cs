@@ -451,6 +451,45 @@ public class PieceRateProductionCategoryServiceTests : TestBase
     }
 
     [Fact]
+    public async Task MatchPriceAsync_ColdDrawType_备注关键词命中()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var req = PickleRoughInTank(20);
+        req.Tiers =
+        [
+            new PieceRateProductionCategoryTierSaveRequest
+            {
+                DimensionKey = PieceRateDimensionKeys.ColdDrawType,
+                MatchValue = "减壁",
+                Ratio = 2m
+            }
+        ];
+        await svc.SaveAsync(null, req);
+
+        // 备注不含关键词 → 该维系数 1
+        var plain = await svc.MatchPriceAsync(new PieceRateProductionMatchRequest
+        {
+            SectionName = SectionKeys.Pickle,
+            ProductStatus = ProductStatuses.RoughTube,
+            Stage = PieceRateStageKeys.InTank,
+            Remark = "普通拉拔"
+        });
+        plain!.UnitPrice.Should().Be(20);
+
+        // 备注含关键词（前后缀均命中）→ ×2
+        var hit = await svc.MatchPriceAsync(new PieceRateProductionMatchRequest
+        {
+            SectionName = SectionKeys.Pickle,
+            ProductStatus = ProductStatuses.RoughTube,
+            Stage = PieceRateStageKeys.InTank,
+            Remark = "减壁处理"
+        });
+        hit!.UnitPrice.Should().Be(40m);            // 20 × 2
+    }
+
+    [Fact]
     public async Task MatchPriceAsync_数据违例命中多类别抛错()
     {
         using var ctx = CreateDbContext();

@@ -23,6 +23,7 @@ public static class DataExchangeValueHelper
             "ProcessType" => value switch { "Piercing" => "穿孔", _ => null },
             "Module" => value switch { "Order" => "订单", "Batch" => "批次", "WorkOrder" => "工单", _ => null },
             "InspectionItems" => ConvertInspectionItems(value, toKey: false),
+            "SourceInspectionItem" => ConvertInspectionItems(value, toKey: false),
             _ => null
         };
     }
@@ -38,6 +39,7 @@ public static class DataExchangeValueHelper
             "ProcessType" => value switch { "穿孔" => "Piercing", _ => null },
             "Module" => value switch { "订单" => "Order", "批次" => "Batch", "工单" => "WorkOrder", _ => null },
             "InspectionItems" => ConvertInspectionItems(value, toKey: true),
+            "SourceInspectionItem" => ConvertInspectionItems(value, toKey: true),
             _ => null
         };
     }

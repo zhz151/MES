@@ -210,7 +210,7 @@ public partial class AppDbContext
             entity.Property(e => e.SequenceNumber).IsRequired();
             entity.Property(e => e.ExecDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.EquipmentName).HasMaxLength(100);
-            entity.Property(e => e.Operator).HasMaxLength(50);
+            entity.Property(e => e.Operator).HasMaxLength(100);
             entity.Property(e => e.Shift).HasMaxLength(20);
             entity.Property(e => e.Quantity);
             entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
@@ -331,7 +331,7 @@ public partial class AppDbContext
             entity.Property(e => e.InDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.Status).IsRequired().HasConversion<string>().HasMaxLength(15).HasDefaultValue(PicklingStatus.Soaking);
             entity.Property(e => e.EquipmentName).HasMaxLength(100);
-            entity.Property(e => e.Operator).HasMaxLength(50);
+            entity.Property(e => e.Operator).HasMaxLength(100);
             entity.Property(e => e.Shift).HasMaxLength(20);
             entity.Property(e => e.Quantity);
             entity.Property(e => e.Weight).HasColumnType("decimal(18,3)");
@@ -374,7 +374,7 @@ public partial class AppDbContext
             entity.Property(e => e.ManufacturingSpec).HasMaxLength(100);
             entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
             entity.Property(e => e.EquipmentName).HasMaxLength(100);
-            entity.Property(e => e.Operator).HasMaxLength(50);
+            entity.Property(e => e.Operator).HasMaxLength(100);
             entity.Property(e => e.Shift).HasMaxLength(20);
             entity.Property(e => e.Quantity);
             entity.Property(e => e.Weight).HasColumnType("decimal(18,2)");

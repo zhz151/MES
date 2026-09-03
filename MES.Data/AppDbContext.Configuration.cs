@@ -211,6 +211,7 @@ public partial class AppDbContext
             entity.Property(e => e.PositionRemark).HasMaxLength(200);
             entity.Property(e => e.SalaryMode).HasMaxLength(50).HasConversion(new NullableEnumStringConverter<SalaryMode>());
             entity.Property(e => e.SalaryRemark).HasMaxLength(200);
+            entity.Property(e => e.AttendancePositions).HasMaxLength(200);
             entity.Property(e => e.AttendanceCoefficient).HasColumnType("decimal(18,4)");
             entity.Property(e => e.HourlyWage).HasColumnType("decimal(18,2)");
             entity.Property(e => e.DailyWage).HasColumnType("decimal(18,2)");

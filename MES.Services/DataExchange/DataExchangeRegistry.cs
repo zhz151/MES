@@ -503,7 +503,7 @@ public static class DataExchangeRegistry
             new("成品断切长度(mm)", "FinishedCutLength", typeof(decimal?), isRequired: false),
             new("切后支数", "PostCutQuantity", typeof(int?), isRequired: false),
             new("平头数", "FaceCutCount", typeof(int?), isRequired: false),
-            new("预成切", "IsPreCut", typeof(bool?), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("预成切", "IsPreCut", typeof(bool?), isRequired: false, valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("定尺切割匹配", "CutLengthMatchType", typeof(MES.Core.Enums.CutLengthMatchType), isEnum: true, isRequired: false, isSystem: true),
             new("备注", "Remark", typeof(string), isRequired: false),
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
@@ -1350,6 +1350,7 @@ public static class DataExchangeRegistry
             new("岗位备注", "PositionRemark", typeof(string), isRequired: false),
             new("工资结算模式", "SalaryMode", typeof(Core.Enums.SalaryMode), isEnum: true, isRequired: false),
             new("工资结算备注", "SalaryRemark", typeof(string), isRequired: false),
+            new("靠工岗位", "AttendancePositions", typeof(string), isRequired: false),
             new("靠工系数", "AttendanceCoefficient", typeof(decimal), isRequired: false),
             new("小时工资", "HourlyWage", typeof(decimal), isRequired: false),
             new("日工资", "DailyWage", typeof(decimal), isRequired: false),
@@ -1369,6 +1370,92 @@ public static class DataExchangeRegistry
             new("出勤小时", "WorkHours", typeof(decimal), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
         }, compositeKeyColumns: new[] { "EmployeeId", "AttendDate" }),
+
+        ["PayrollDailyWageRecord"] = new EntityDef("工资-每日工资表", "工资-每日工资表", typeof(MES.Data.Entities.Payroll.PayrollDailyWageRecord), 1, null, new List<ColumnDef>
+        {
+            new("员工工号", null!) { IsFkColumn = true, FkEntityKey = "Employee", FkLookupProperty = "Code", FkTargetProperty = "EmployeeId" },
+            new("日期", "WageDate", typeof(DateTime), isRequired: true),
+            new("每日工资", "Amount", typeof(decimal), isRequired: false),
+            new("计薪模式快照", "SalaryMode", typeof(Core.Enums.SalaryMode), isEnum: true, isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }, compositeKeyColumns: new[] { "EmployeeId", "WageDate" }),
+
+        ["PayrollCollectiveScore"] = new EntityDef("工资-月度评分", "工资-月度评分", typeof(MES.Data.Entities.Payroll.PayrollCollectiveScore), 1, null, new List<ColumnDef>
+        {
+            new("员工工号", null!) { IsFkColumn = true, FkEntityKey = "Employee", FkLookupProperty = "Code", FkTargetProperty = "EmployeeId" },
+            new("结算年", "Year", typeof(int)),
+            new("结算月", "Month", typeof(int)),
+            new("月度分值", "Score", typeof(decimal)),
+        }, compositeKeyColumns: new[] { "EmployeeId", "Year", "Month" }),
+
+        ["PayrollCollectiveWageRecord"] = new EntityDef("工资-集体计件月结", "工资-集体计件月结", typeof(MES.Data.Entities.Payroll.PayrollCollectiveWageRecord), 1, null, new List<ColumnDef>
+        {
+            new("员工工号", null!) { IsFkColumn = true, FkEntityKey = "Employee", FkLookupProperty = "Code", FkTargetProperty = "EmployeeId" },
+            new("结算年", "WageYear", typeof(int)),
+            new("结算月", "WageMonth", typeof(int)),
+            new("岗位", "Position", typeof(string), isRequired: false),
+            new("月度分值", "Score", typeof(decimal), isRequired: false),
+            new("出勤小时", "AttendanceHours", typeof(decimal), isRequired: false),
+            new("实得金额", "Amount", typeof(decimal), isRequired: false),
+        }, compositeKeyColumns: new[] { "EmployeeId", "WageYear", "WageMonth" }),
+
+        ["PayrollAttendanceWageRecord"] = new EntityDef("工资-靠工计件月结", "工资-靠工计件月结", typeof(MES.Data.Entities.Payroll.PayrollAttendanceWageRecord), 1, null, new List<ColumnDef>
+        {
+            new("员工工号", null!) { IsFkColumn = true, FkEntityKey = "Employee", FkLookupProperty = "Code", FkTargetProperty = "EmployeeId" },
+            new("结算年", "WageYear", typeof(int)),
+            new("结算月", "WageMonth", typeof(int)),
+            new("靠工岗位", "AttendancePositions", typeof(string), isRequired: false),
+            new("出勤小时", "AttendanceHours", typeof(decimal), isRequired: false),
+            new("靠工系数", "AttendanceCoefficient", typeof(decimal), isRequired: false),
+            new("实得金额", "Amount", typeof(decimal), isRequired: false),
+        }, compositeKeyColumns: new[] { "EmployeeId", "WageYear", "WageMonth" }),
+
+        ["PayrollMiscWorkRecord"] = new EntityDef("工资-杂辅工记录", "工资-杂辅工记录", typeof(MES.Data.Entities.Payroll.PayrollMiscWorkRecord), 1, null, new List<ColumnDef>
+        {
+            new("员工工号", null!) { IsFkColumn = true, FkEntityKey = "Employee", FkLookupProperty = "Code", FkTargetProperty = "EmployeeId" },
+            new("日期", "WorkDate", typeof(DateTime), isRequired: true),
+            new("内容", "Content", typeof(string), isRequired: true),
+            new("小时数", "Hours", typeof(decimal), isRequired: false),
+            new("杂辅工资", "Amount", typeof(decimal), isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }),
+
+        ["PayrollAllowanceRecord"] = new EntityDef("工资-津贴与处罚", "工资-津贴与处罚", typeof(MES.Data.Entities.Payroll.PayrollAllowanceRecord), 1, null, new List<ColumnDef>
+        {
+            new("员工工号", null!) { IsFkColumn = true, FkEntityKey = "Employee", FkLookupProperty = "Code", FkTargetProperty = "EmployeeId" },
+            new("结算年", "Year", typeof(int)),
+            new("结算月", "Month", typeof(int)),
+            new("满勤奖", "FullAttendanceBonus", typeof(decimal), isRequired: false),
+            new("工龄奖", "SeniorityBonus", typeof(decimal), isRequired: false),
+            new("夜班津贴", "NightShiftAllowance", typeof(decimal), isRequired: false),
+            new("岗位补贴", "PositionAllowance", typeof(decimal), isRequired: false),
+            new("高温费", "HighTempAllowance", typeof(decimal), isRequired: false),
+            new("工伤补贴", "InjurySubsidy", typeof(decimal), isRequired: false),
+            new("带班费", "LeadBonus", typeof(decimal), isRequired: false),
+            new("处罚", "Penalty", typeof(decimal), isRequired: false),
+            new("代缴社保", "SocialSecurity", typeof(decimal), isRequired: false),
+        }, compositeKeyColumns: new[] { "EmployeeId", "Year", "Month" }),
+
+        ["PayrollMonthlySummaryRecord"] = new EntityDef("工资-月工资汇总", "工资-月工资汇总", typeof(MES.Data.Entities.Payroll.PayrollMonthlySummaryRecord), 1, null, new List<ColumnDef>
+        {
+            new("员工工号", null!) { IsFkColumn = true, FkEntityKey = "Employee", FkLookupProperty = "Code", FkTargetProperty = "EmployeeId" },
+            new("结算年", "Year", typeof(int)),
+            new("结算月", "Month", typeof(int)),
+            new("出勤天数", "AttendanceDays", typeof(int)),
+            new("本月基础工资", "BaseWage", typeof(decimal)),
+            new("本月杂辅工资", "MiscWorkAmount", typeof(decimal)),
+            new("岗位补贴", "PositionAllowance", typeof(decimal)),
+            new("工龄奖", "SeniorityBonus", typeof(decimal)),
+            new("满勤奖", "FullAttendanceBonus", typeof(decimal)),
+            new("带班费", "LeadBonus", typeof(decimal)),
+            new("夜班津贴", "NightShiftAllowance", typeof(decimal)),
+            new("高温费", "HighTempAllowance", typeof(decimal)),
+            new("工伤补贴", "InjurySubsidy", typeof(decimal)),
+            new("处罚", "Penalty", typeof(decimal)),
+            new("代缴社保", "SocialSecurity", typeof(decimal)),
+            new("应发工资及津贴", "TotalPayable", typeof(decimal)),
+            new("实发工资及津贴", "TotalPaid", typeof(decimal)),
+        }, compositeKeyColumns: new[] { "EmployeeId", "Year", "Month" }),
 
 
         // === 系统参数(全局参数)（独立配置表） ===
@@ -1666,7 +1753,7 @@ public static class DataExchangeRegistry
         "InventoryPlan", "PurchaseSemiPlan", "PurchaseFinishedPlan", "RoundBarPiercingPlan", "InProcessReworkPlan",
         "SemiPlanProcessGroup", "InventoryPlanProcessGroup", "PiercingPlanProcessGroup", "InProcessReworkPlanProcessGroup",
         "Workstation", "Employee",
-        "AttendanceRecord",
+        "AttendanceRecord", "PayrollDailyWageRecord", "PayrollCollectiveScore", "PayrollCollectiveWageRecord", "PayrollAttendanceWageRecord", "PayrollMiscWorkRecord", "PayrollAllowanceRecord", "PayrollMonthlySummaryRecord",
         "ConfigParameter",
         "StandardRegister", "StandardRegisterItem",
         "GradeChemicalComposition", "GradePhysicalProperty", "StandardInspectionRequirement", "FactoryInspectionRequirement", "SubStandardQuickView",

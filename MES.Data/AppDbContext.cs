@@ -152,6 +152,13 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<PieceRateProductionCategoryKey> PieceRateProductionCategoryKeys { get; set; } = null!;
     public DbSet<PieceRateFinalInspectionCategory> PieceRateFinalInspectionCategories { get; set; } = null!;
     public DbSet<PieceRateFinalInspectionCategoryTier> PieceRateFinalInspectionCategoryTiers { get; set; } = null!;
+    public DbSet<PayrollDailyWageRecord> PayrollDailyWageRecords { get; set; } = null!;
+    public DbSet<PayrollCollectiveScore> PayrollCollectiveScores { get; set; } = null!;
+    public DbSet<PayrollCollectiveWageRecord> PayrollCollectiveWageRecords { get; set; } = null!;
+    public DbSet<PayrollAttendanceWageRecord> PayrollAttendanceWageRecords { get; set; } = null!;
+    public DbSet<PayrollMiscWorkRecord> PayrollMiscWorkRecords { get; set; } = null!;
+    public DbSet<PayrollAllowanceRecord> PayrollAllowanceRecords { get; set; } = null!;
+    public DbSet<PayrollMonthlySummaryRecord> PayrollMonthlySummaryRecords { get; set; } = null!;
 
     // ========== StandardRegister 上下文 ==========
     public DbSet<StandardGradeMapping> StandardGradeMappings { get; set; } = null!;
@@ -294,6 +301,13 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigurePieceRateProductionCategoryKey(builder);
         ConfigurePieceRateFinalInspectionCategory(builder);
         ConfigurePieceRateFinalInspectionCategoryTier(builder);
+        ConfigurePayrollDailyWageRecord(builder);
+        ConfigurePayrollCollectiveScore(builder);
+        ConfigurePayrollCollectiveWageRecord(builder);
+        ConfigurePayrollAttendanceWageRecord(builder);
+        ConfigurePayrollMiscWorkRecord(builder);
+        ConfigurePayrollAllowanceRecord(builder);
+        ConfigurePayrollMonthlySummaryRecord(builder);
 
         // 为所有继承 BaseEntity 的实体统一配置审计字段长度
         foreach (var entityType in builder.Model.GetEntityTypes())

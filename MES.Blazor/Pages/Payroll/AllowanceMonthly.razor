@@ -1,0 +1,108 @@
+@page "/payroll/allowance"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = Roles.Policies.SalaryView)]
+@using MES.Blazor.Helpers
+@using MES.Core.Constants
+@using MES.Core.DTOs.Payroll
+@using MES.Shared.Constants
+
+<MudContainer MaxWidth="MaxWidth.False" Class="py-4">
+    <MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true">
+        <MudText Typo="Typo.body2" Class="text-medium-emphasis mb-3">
+            按月录入各员工津贴与处罚金额（满勤奖/工龄奖/夜班津贴/岗位补贴/高温费/工伤补贴/带班费/处罚/代缴社保，金额自动取整到元）。
+            切换月份自动带出在册员工；已停用员工的当月历史行仍显示可改。
+        </MudText>
+        <div class="d-flex align-center flex-wrap gap-2">
+            <MudText Typo="Typo.h6" Class="font-weight-bold mr-2">津贴与处罚</MudText>
+            <MudButton Icon="@Icons.Material.Filled.ChevronLeft" Color="Color.Default" OnClick="PrevMonth" Disabled="_loading" />
+            <MudSelect T="int" Value="@_year" ValueChanged="OnYearChanged" Label="年份" Variant="Variant.Outlined" Dense="true" Style="width:110px">
+                @foreach (var y in _years)
+                {
+                    <MudSelectItem Value="@y">@y</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="int" Value="@_month" ValueChanged="OnMonthChanged" Label="月份" Variant="Variant.Outlined" Dense="true" Style="width:100px">
+                @foreach (var m in _months)
+                {
+                    <MudSelectItem Value="@m">@m 月</MudSelectItem>
+                }
+            </MudSelect>
+            <MudButton Icon="@Icons.Material.Filled.ChevronRight" Color="Color.Default" OnClick="NextMonth" Disabled="_loading" />
+            <MudTextField T="string" Label="页内筛选 - 工号/姓名/岗位"
+                          Value="_keyword" ValueChanged="OnKeywordChanged"
+                          Immediate="true" DebounceInterval="400"
+                          Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined" Dense="true" Style="width:220px" />
+            <MudSpacer />
+            <MudChip Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">当月 @_rows.Count 名员工</MudChip>
+            @if (_canEdit)
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" Variant="Variant.Outlined"
+                           Disabled="_loading" OnClick="ClearMonthAsync">清空本月</MudButton>
+                <MudButton StartIcon="@Icons.Material.Filled.Save" Color="Color.Success" Variant="Variant.Filled"
+                           Disabled="_loading || _rows.Count == 0" OnClick="SaveMonthAsync">保存本月</MudButton>
+            }
+        </div>
+    </MudPaper>
+
+    <MudProgressLinear Visible="_loading" Color="Color.Primary" />
+
+    <div class="attendance-scroll">
+        <table class="auto-table attendance-grid">
+            <thead>
+                <tr>
+                    <th class="sticky-left" style="width:80px">工号</th>
+                    <th class="sticky-left" style="width:90px">姓名</th>
+                    <th class="sticky-left" style="width:110px">岗位类别</th>
+                    <th class="sticky-left" style="width:120px">岗位</th>
+                    @foreach (var item in PayrollAllowanceItems.All)
+                    {
+                        <th class="text-center" style="width:90px; min-width:90px; background:#f2f7f7;">@item.Title</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in FilteredRows)
+                {
+                    var empId = row.EmployeeId;
+                    <tr class="@(row.IsActive ? null : "allowance-inactive-row")">
+                        <td class="sticky-left">@row.EmployeeCode</td>
+                        <td class="sticky-left">@row.EmployeeName</td>
+                        <td class="sticky-left">@DisplayHelper.GetPositionCategoryText(row.PositionCategory)</td>
+                        <td class="sticky-left">@DisplayHelper.GetPositionText(row.Position)</td>
+                        @foreach (var item in PayrollAllowanceItems.All)
+                        {
+                            var key = item.Key;
+                            <td class="attendance-cell-td">
+                                <input class="attendance-cell-input" type="text" inputmode="numeric" maxlength="9"
+                                       value="@GetCellText(empId, key)"
+                                       disabled="@(!_canEdit)"
+                                       @onchange="(ChangeEventArgs e) => OnCellChanged(empId, key, e)" />
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+            @if (FilteredRows.Count > 0)
+            {
+                <tfoot>
+                    <tr class="attendance-foot">
+                        <td class="sticky-left" colspan="4">整月合计(元)</td>
+                        @foreach (var item in PayrollAllowanceItems.All)
+                        {
+                            <td class="text-right" style="padding-right:8px;">@ColumnTotal(item.Key)</td>
+                        }
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+
+    @if (_rows.Count == 0 && !_loading)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-4">本月没有可录入员工。</MudAlert>
+    }
+    else if (FilteredRows.Count == 0 && !_loading)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-4">没有匹配的页内筛选结果。</MudAlert>
+    }
+</MudContainer>

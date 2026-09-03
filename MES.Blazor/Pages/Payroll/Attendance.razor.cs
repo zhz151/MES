@@ -37,6 +37,10 @@ public partial class Attendance : IDisposable
     private string _keyword = string.Empty;
     private bool _loading;
 
+    // 月份加载并发序号：切月/翻页会产生多个并发的 LoadMonthAsync，响应可能乱序返回，
+    // 旧月份请求晚到时若不丢弃会覆盖当前月份数据 → 界面标签月份与实际表格数据错位。
+    private int _loadSeq;
+
     // 岗位类别 / 岗位 下拉选项（参数表 enabled-values 优先，常量类兜底）
     private List<(string Key, string Text)> _positionCategoryOptions = BuildPositionCategoryOptions();
     private List<(string Key, string Text)> _positionOptions = BuildPositionOptions();
@@ -124,10 +128,13 @@ public partial class Attendance : IDisposable
 
     private async Task LoadMonthAsync()
     {
+        var seq = ++_loadSeq;
         _loading = true;
         try
         {
             var result = await AttendanceSvc.GetMonthAsync(_year, _month, _keyword);
+            if (seq != _loadSeq)
+                return; // 已有更新的切月请求，丢弃过期响应
             if (result.Success && result.Data != null)
             {
                 _employees = result.Data.Employees;
@@ -147,13 +154,20 @@ public partial class Attendance : IDisposable
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
+            if (seq == _loadSeq)
+                Snackbar.Add($"加载失败: {ex.Message}", Severity.Error);
         }
         finally
         {
-            _loading = false;
+            if (seq == _loadSeq)
+            {
+                _loading = false;
+                ApplyFilterAndSort();
+                // 切月是 fire-and-forget 调用：await 返回后的状态更新不在渲染管线内，
+                // 必须显式 StateHasChanged，否则画面停留在上一次加载的数据（数据滞后一个月显示）。
+                StateHasChanged();
+            }
         }
-        ApplyFilterAndSort();
     }
 
     // 按岗位类别/岗位筛选 + 排序列排序，产出显示行

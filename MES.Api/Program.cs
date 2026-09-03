@@ -4,6 +4,7 @@ using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -123,6 +124,20 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // [ApiController] 自动模型校验失败时默认返回 ProblemDetails（无 success/message，前端解析不出原因即"无提示"）。
+        // 统一改为 ApiResponse.success=false + 中文 message（优先取首个字段校验错误），保证全站前端能展示具体原因。
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var firstError = context.ModelState
+                .Where(kv => kv.Value?.Errors.Count > 0)
+                .Select(kv => kv.Value!.Errors[0].ErrorMessage)
+                .FirstOrDefault();
+            var message = string.IsNullOrWhiteSpace(firstError) ? "请求参数无效" : firstError;
+            return new BadRequestObjectResult(MES.Core.Models.ApiResponse<object>.Fail(message));
+        };
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -260,6 +275,12 @@ builder.Services.AddScoped<IPieceRateProductionCategoryService, MES.Services.Pay
 builder.Services.AddScoped<IPieceRateCategoryImportService, MES.Services.Payroll.PieceRateCategoryImportService>();
 builder.Services.AddScoped<IPieceRateFinalInspectionCategoryService, MES.Services.Payroll.PieceRateFinalInspectionCategoryService>();
 builder.Services.AddScoped<IPieceRateFinalInspectionCategoryImportService, MES.Services.Payroll.PieceRateFinalInspectionCategoryImportService>();
+builder.Services.AddScoped<IPayrollDailyWageService, MES.Services.Payroll.PayrollDailyWageService>();
+builder.Services.AddScoped<IPayrollCollectiveService, MES.Services.Payroll.PayrollCollectiveService>();
+builder.Services.AddScoped<IPayrollAttendanceService, MES.Services.Payroll.PayrollAttendanceService>();
+builder.Services.AddScoped<IPayrollMiscWorkService, MES.Services.Payroll.PayrollMiscWorkService>();
+builder.Services.AddScoped<IPayrollAllowanceService, MES.Services.Payroll.PayrollAllowanceService>();
+builder.Services.AddScoped<IPayrollMonthlySummaryService, MES.Services.Payroll.PayrollMonthlySummaryService>();
 builder.Services.AddScoped<IOperatorNameValidator, OperatorNameValidator>();
 builder.Services.AddScoped<IDailyProductionCapacityService, MES.Services.Configuration.DailyProductionCapacityService>();
 builder.Services.AddScoped<IStandardRegisterService, StandardRegisterService>();

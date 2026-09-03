@@ -105,6 +105,12 @@ public static class ApiEndpoints
     public const string Attendance = "api/attendance";
     public const string PieceRateProductionCategory = "api/piece-rate-category";
     public const string PieceRateFinalInspectionCategory = "api/piece-rate-final-inspection-category";
+    public const string PayrollDailyWage = "api/payroll-daily-wage";
+    public const string PayrollCollective = "api/payroll-collective";
+    public const string PayrollAttendance = "api/payroll-attendance";
+    public const string PayrollMiscWork = "api/payroll-misc-work";
+    public const string PayrollAllowance = "api/payroll-allowance";
+    public const string PayrollMonthlySummary = "api/payroll-monthly-summary";
 
     // ===== StandardRegister 标准号 =====
     public const string StandardRegister = "api/standard-register";

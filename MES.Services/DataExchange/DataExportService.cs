@@ -128,25 +128,22 @@ public class DataExportService : IDataExportService
                 {
                     sheet.Cells[row, col + 1].Value = dec.ToString("G29");
                 }
-                else if (colDef.Property == "SectionName" && value is string sectionName)
+                else if ((colDef.Property == "SectionName"
+                        || colDef.Property == "CurrentSectionName"
+                        || colDef.Property == "NextSectionName") && value is string sectionKeys)
                 {
-                    // SectionName 存储为英文 Key，导出显示中文
-                    sheet.Cells[row, col + 1].Value = await _sectionNameDisplay.ToDisplayAsync(sectionName);
+                    // 工段类 Key：可能是单个英文 Key，也可能是员工多工段的逗号分隔列表（如 "Cut,OilPipeCut"）。
+                    // 逐项转中文后按 "、" 连接（与员工管理页显示口径一致）；单值行行为不变。
+                    sheet.Cells[row, col + 1].Value = await TranslateKeyListAsync(sectionKeys, ToSectionDisplayAsync);
                 }
-                else if ((colDef.Property == "ProcessName" || colDef.Property == "ProcessGroupName") && value is string processName)
+                else if ((colDef.Property == "ProcessName"
+                        || colDef.Property == "ProcessGroupName"
+                        || colDef.Property == "CurrentGroupName"
+                        || colDef.Property == "NextProcess"
+                        || colDef.Property == "GroupName") && value is string processKeys)
                 {
-                    // ProcessName/ProcessGroupName 存储为英文 Key，导出显示中文
-                    sheet.Cells[row, col + 1].Value = await _processDefService.ToDisplayAsync(processName);
-                }
-                else if ((colDef.Property == "CurrentGroupName" || colDef.Property == "NextProcess") && value is string currentProcessName)
-                {
-                    // CurrentGroupName/NextProcess 存储为英文 Key，导出显示中文
-                    sheet.Cells[row, col + 1].Value = await _processDefService.ToDisplayAsync(currentProcessName);
-                }
-                else if ((colDef.Property == "CurrentSectionName" || colDef.Property == "NextSectionName") && value is string currentSectionName)
-                {
-                    // CurrentSectionName/NextSectionName 存储为英文 Key，导出显示中文
-                    sheet.Cells[row, col + 1].Value = await _sectionNameDisplay.ToDisplayAsync(currentSectionName);
+                    // 工序/工序组类 Key：GroupName=员工工序组逗号列表，同样逐项转中文（配置表 ProcessDefinitions 优先）
+                    sheet.Cells[row, col + 1].Value = await TranslateKeyListAsync(processKeys, ToProcessDisplayAsync);
                 }
                 else if (colDef.Property == "ProductStatus" && value is string productStatus)
                 {
@@ -163,6 +160,16 @@ public class DataExportService : IDataExportService
                     // ResponsibilityCategory 存储为英文 Key（NCR 责任类别字典），导出显示中文（配置表优先，兜底 NcrResponsibilityKeys）
                     sheet.Cells[row, col + 1].Value = DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, responsibilityCategory) ?? responsibilityCategory;
                 }
+                else if (colDef.Property == "Department" && value is string department)
+                {
+                    // 员工岗位类别（PositionCategoryKey 字典值）导出中文（配置表优先，兜底 PositionCategoryKeys）
+                    sheet.Cells[row, col + 1].Value = DictValueDisplayHelper.GetText(DictValueDefaults.PositionCategoryKey, department) ?? department;
+                }
+                else if (colDef.Property == "Position" && value is string position)
+                {
+                    // 员工岗位（PositionKey 字典值）导出中文（配置表优先，兜底 PositionKeys）
+                    sheet.Cells[row, col + 1].Value = DictValueDisplayHelper.GetText(DictValueDefaults.PositionKey, position) ?? position;
+                }
                 else if (colDef.Property != null && value is string dictKeyValue)
                 {
                     // 字典/Key 字段（string 属性但存英文 Key/枚举名）：DataSource/UsageMode/ProcessType/Module/InspectionItems → 中文；未识别的原样
@@ -178,6 +185,48 @@ public class DataExportService : IDataExportService
 
         sheet.Cells[1, 1, row - 1, def.Columns.Count].AutoFitColumns();
         return await package.GetAsByteArrayAsync();
+    }
+
+    /// <summary>列表分隔符：存储层英文逗号串，兼容中文顿号/全角逗号输入（导出仅为逗号分隔存量）</summary>
+    private static readonly char[] ListTokenSeparators = { ',', '、', '，' };
+
+    /// <summary>按分隔符拆分并 trim 列表 token（去空项）</summary>
+    private static List<string> SplitKeyList(string value) =>
+        value.Split(ListTokenSeparators, StringSplitOptions.RemoveEmptyEntries)
+            .Select(t => t.Trim())
+            .Where(t => t.Length > 0)
+            .ToList();
+
+    /// <summary>
+    /// 逗号/顿号分隔的英文 Key 列表 → 逐项经 translate 转中文后按 "、" 连接。
+    /// 单个英文 Key 行为与整串单译一致（单值行不受影响）。
+    /// </summary>
+    private static async Task<string> TranslateKeyListAsync(string? value, Func<string, Task<string?>> translate)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "";
+        var parts = SplitKeyList(value);
+        if (parts.Count == 0) return "";
+        var texts = new List<string>(parts.Count);
+        foreach (var token in parts)
+        {
+            var cn = await translate(token);
+            texts.Add(string.IsNullOrEmpty(cn) ? token : cn);
+        }
+        return string.Join("、", texts);
+    }
+
+    /// <summary>工段 Key → 中文（配置表 StandardWorkDays 优先 → SectionDefs 规范兜底；未知/已中文原样）</summary>
+    private async Task<string?> ToSectionDisplayAsync(string token)
+    {
+        var map = await _sectionNameDisplay.GetSectionNameMapAsync();
+        return map.TryGetValue(token, out var cn) ? cn : SectionKeys.ToChinese(token) ?? token;
+    }
+
+    /// <summary>工序/工序组 Key → 中文（配置表 ProcessDefinitions 优先 → ProcessKeys 规范兜底；未知/已中文原样）</summary>
+    private async Task<string?> ToProcessDisplayAsync(string token)
+    {
+        var map = await _processDefService.GetProcessNameMapAsync();
+        return map.TryGetValue(token, out var cn) ? cn : ProcessKeys.ToChinese(token) ?? token;
     }
 
     #endregion

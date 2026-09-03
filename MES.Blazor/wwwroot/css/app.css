@@ -295,6 +295,26 @@ input[type="number"]::-webkit-outer-spin-button {
     white-space: nowrap !important;
 }
 
+/* 员工管理多选（生产工段/工序组/靠工岗位）：表格单元格内弹层窄导致中文选项文字被截断——
+   加宽弹层让选项完整可见 + 压缩勾选框（mud-list-item-icon）与文字之间的占位间距 */
+.cell-multi-select-popover {
+    min-width: 340px !important;
+    max-width: 480px !important;
+}
+.cell-multi-select-popover .mud-list-item {
+    min-height: 32px !important;
+    padding-top: 1px !important;
+    padding-bottom: 1px !important;
+}
+.cell-multi-select-popover .mud-list-item-icon {
+    min-width: 20px !important;
+    margin-right: 0 !important;
+}
+.cell-multi-select-popover .mud-list-item-text {
+    white-space: normal !important;
+    word-break: break-word !important;
+}
+
 /* 操作工/检验员多选输入框：突破 compact-input 130px 上限，加宽让多人姓名可见；压缩姓名与边框/箭头间距 */
 .operator-input.compact-input {
     max-width: 190px !important;
@@ -1245,6 +1265,39 @@ td.col-edit-actions { background: #E8EAF6 !important; }
     background: #ECEFF1;
     font-weight: 600;
     color: #37474F;
+}
+
+/* 「津贴与处罚」月度网格：已停用员工的当月历史行灰显（仍可编辑） */
+.attendance-grid tr.allowance-inactive-row {
+    background-color: #FAFAFA;
+}
+
+.attendance-grid tr.allowance-inactive-row td.sticky-left {
+    color: #9E9E9E;
+}
+
+/* 「月工资津贴汇总」只读汇总网格：压缩列宽整表免横向滚动
+   （列宽由 thead th 行内 style 定义 + fixed 布局撑满容器；金额列表头允许多行换行） */
+.attendance-grid.monthly-summary-grid {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+    font-size: 0.8125rem;
+}
+.monthly-summary-grid th,
+.monthly-summary-grid td {
+    padding: 2px 3px;
+}
+.monthly-summary-grid thead th {
+    white-space: normal;
+    line-height: 1.2;
+    vertical-align: middle;
+}
+.monthly-summary-grid thead th.sticky-left {
+    white-space: nowrap;
+}
+.monthly-summary-grid tfoot td {
+    padding: 3px;
 }
 
 /* 考勤表头可点击排序（工号/姓名/岗位类别/岗位） */

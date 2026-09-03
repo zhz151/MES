@@ -28,6 +28,12 @@ public class Employee : BaseEntity
     /// <summary>工资结算备注</summary>
     public string? SalaryRemark { get; set; }
 
+    /// <summary>
+    /// 靠工岗位（存岗位英文 Key 逗号串，如 "AcidWashing,Grinding"；仅靠工计件模式使用）——
+    /// 靠工员工去帮工的计件岗位（个人计件/集体计件岗），月结引擎按选中岗位合并算平均小时工资
+    /// </summary>
+    public string? AttendancePositions { get; set; }
+
     /// <summary>靠工系数（仅靠工计件模式使用：靠工基准时薪 × 出勤 × 系数；默认 1.0）</summary>
     public decimal? AttendanceCoefficient { get; set; } = 1.0m;
 

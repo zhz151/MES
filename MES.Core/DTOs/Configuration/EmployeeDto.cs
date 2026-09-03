@@ -15,6 +15,8 @@ public class EmployeeDto
     public string? PositionRemark { get; set; }
     public SalaryMode? SalaryMode { get; set; }
     public string? SalaryRemark { get; set; }
+    /// <summary>靠工岗位（岗位英文 Key 逗号串；仅靠工计件模式使用）</summary>
+    public string? AttendancePositions { get; set; }
     /// <summary>靠工系数（仅靠工计件模式使用，默认 1.0）</summary>
     public decimal? AttendanceCoefficient { get; set; } = 1.0m;
     /// <summary>小时工资（仅计小时模式使用）</summary>
