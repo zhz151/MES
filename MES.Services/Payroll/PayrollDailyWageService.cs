@@ -208,7 +208,7 @@ public class PayrollDailyWageService : IPayrollDailyWageService
         // 5 源计价扫描统一走共享采集器（与集体月结同源，防双通道口径漂移）
         var result = await new PieceRateCollector(_context).CollectAsync(monthStart, monthEnd, employees);
         if (result.UnpricedCount > 0)
-            warnings.Add($"{year}年{month}月有 {result.UnpricedCount} 行产量/检验未能匹配计件单价或缺少数量（按0元计）");
+            warnings.Add($"{year}年{month}月有 {result.UnpricedCount} 行产量/检验记录到数量但未匹配到计件单价（按0元计）");
 
         // 逐行份额 = 行额 / 写名总人头，仅个人计件发放对象按行日期归日桶
         foreach (var row in result.Rows)

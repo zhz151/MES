@@ -161,6 +161,9 @@ public class PieceRateFinalInspectionMatchRequest
     /// <summary>检验支数（批次实际检验支数 Quantity）</summary>
     public int? InspectionCount { get; set; }
 
+    /// <summary>检验重量（kg；元/吨类别按重量折算整行金额，留空=该单位无法折算）</summary>
+    public decimal? WeightKg { get; set; }
+
     /// <summary>工厂牌号（特殊牌号）</summary>
     public string? PlantGrade { get; set; }
 

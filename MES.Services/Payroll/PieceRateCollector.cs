@@ -16,15 +16,16 @@ namespace MES.Services.Payroll;
 /// 统一从当月 生产记录 / 去油酸洗入缸 / 去油酸洗完工 / 过程检验 / 成检 五类产量源逐行按现行启用类别定价，
 /// 并把「写名人头解析 → 归属（是否命中目标员工）→ 切份前置信息」一次算好返回。
 /// 消费方（个人日结 / 集体月结）只做两件不同的事：按日 or 按月归集、发给 PieceIndividual or PieceCollective(按岗位)。
-/// ⚠️ 口径与旧 ComputeIndividualPieceEngineAsync 完全一致：无归属对象（eligible 空）的行整行跳过且不计 unpriced；
-/// unpriced 仅在「有归属对象但命中不到单价/缺数量」时计数。此共享化是防双通道口径漂移的单一事实源。
+/// ⚠️ 口径（2026-09-04 定尺接线 + 提醒拆分）：无归属对象（eligible 空）的行整行跳过且不计 unpriced；
+/// unpriced 仅在「有归属对象且该行已记录到量（Weight/Quantity 任一 &gt;0）但命中不到启用类别」时计数；
+/// 无产出量（漏记/虚拟补录数量空）与 命中类别但数量缺失折算 0 → 静默不计（数量问题不发工资也不提醒）。
+/// 生产源 4 类 → 请求经 <see cref="ProductionMatchRequestMapper"/> 共享单源（含切行定尺 Length/FixedLengthCount、
+/// 光亮 SpecialState 接线），成检源 → 请求经 <see cref="FinalInspectionMatchRequestMapper"/> 共享单源——
+/// 试算与结算同映射，防双通道口径漂移的单一事实源。
 /// </summary>
 public sealed class PieceRateCollector
 {
     private readonly AppDbContext _context;
-
-    /// <summary>范围尺/非定尺/解析失败 长度折算兜底（mm，业务规约 2026-09-03：6000 = 6m 常规管长）</summary>
-    private const decimal FallbackLengthMm = 6000m;
 
     public PieceRateCollector(AppDbContext context)
     {
@@ -68,29 +69,24 @@ public sealed class PieceRateCollector
             var (headcount, eligible) = ResolveParticipants(r.Operator, byCode, byName);
             if (eligible.Count == 0) continue;
 
-            var spec = !string.IsNullOrWhiteSpace(r.ManufacturingSpec) ? r.ManufacturingSpec
-                : r.ProductionBatch?.Specification;
-            var request = new PieceRateProductionMatchRequest
-            {
-                SectionName = SectionKeys.ToKey(r.SectionName) ?? r.SectionName,
-                ProcessName = r.ProcessName,
-                ProductStatus = r.ProductStatus,
-                Stage = null,
-                PlantGrade = string.IsNullOrWhiteSpace(r.PlantGrade) ? r.ProductionBatch?.PlantGrade : r.PlantGrade,
-                EquipmentName = r.EquipmentName,
-                Remark = r.Remark,
-                OuterDiameter = spec == null ? null : SpecificationParser.ParseOuterDiameter(spec),
-                WallThickness = spec == null ? null : SpecificationParser.ParseWallThickness(spec)
-            };
+            // 记录→请求经 ProductionMatchRequestMapper 共享单源（含切行 Length/FixedLengthCount/光亮 SpecialState 接线）
+            var request = ProductionMatchRequestMapper.BuildFromProductionRecord(r, r.ProductionBatch);
             var hit = PieceRateMatchEngine.MatchProduction(prodCategories, request);
-            var total = hit == null ? (decimal?)null
-                : AmountForUnit(hit.Unit, hit.UnitPrice, r.Weight, r.Quantity, null);
-            if (total is null || total <= 0) { result.UnpricedCount++; continue; }
+            if (hit == null)
+            {
+                // 未定价：无工资。仅「已记录到量（任一计量>0）但命中不到启用类别」是真缺口进提醒；
+                // 无产出量（漏记/虚拟补录空）静默不计
+                if (HasRecordedOutput(r.Weight, r.Quantity)) result.UnpricedCount++;
+                continue;
+            }
+            var total = PieceRateAmountHelper.AmountForUnit(hit.Unit, hit.UnitPrice, r.Weight, r.Quantity, null);
+            if (total is null || total <= 0) continue; // 命中类别但数量缺失/不足折算 → 数量问题静默（不发工资不进提醒）
 
             result.Rows.Add(new PricedPieceRow { TotalHeadcount = headcount, Eligible = eligible, Amount = total.Value, Date = r.ExecDate });
         }
 
-        // ---- 成检记录（Length 档量纲 mm；Fixed=实际定尺长，Range/NonFixed 缺省 6000 折算；Quantity=检验支数）----
+        // ---- 成检记录（Length 档量纲 mm；Fixed=实际定尺长，Range/NonFixed 缺省 6000 折算；Quantity=检验支数）。
+        // 记录→计价请求经 FinalInspectionMatchRequestMapper 共享单源（与「按记录模拟测算」同映射，防双通道漂移）----
         var inspections = await _context.FinalInspections.AsNoTracking()
             .Include(f => f.ProductionBatch)
             .Where(f => f.InspectionDate >= monthStart && f.InspectionDate < monthEnd)
@@ -100,24 +96,15 @@ public sealed class PieceRateCollector
             var (headcount, eligible) = ResolveParticipants(f.Operator, byCode, byName);
             if (eligible.Count == 0) continue;
 
-            var spec = f.ProductionBatch?.Specification;
-            var lengthStatus = f.ProductionBatch?.LengthStatus;
-            var lengthMm = ResolveLengthMm(f.FixedLength, lengthStatus);
-            var request = new PieceRateFinalInspectionMatchRequest
-            {
-                ItemKey = f.InspectionItem.ToString(),
-                LengthStatus = lengthStatus,
-                Length = lengthMm,
-                InspectionCount = f.Quantity,
-                OuterDiameter = spec == null ? null : SpecificationParser.ParseOuterDiameter(spec),
-                WallThickness = spec == null ? null : SpecificationParser.ParseWallThickness(spec),
-                PlantGrade = f.ProductionBatch?.PlantGrade,
-                EquipmentName = f.EquipmentName
-            };
+            var request = FinalInspectionMatchRequestMapper.BuildRequest(f, f.ProductionBatch);
             var hit = PieceRateMatchEngine.MatchFinalInspection(finalCategories, request);
-            var total = hit == null ? (decimal?)null
-                : AmountForUnit(hit.Unit, hit.UnitPrice, f.Weight, f.Quantity, lengthMm);
-            if (total is null || total <= 0) { result.UnpricedCount++; continue; }
+            if (hit == null)
+            {
+                if (HasRecordedOutput(f.Weight, f.Quantity)) result.UnpricedCount++;
+                continue;
+            }
+            var total = PieceRateAmountHelper.AmountForUnit(hit.Unit, hit.UnitPrice, request.WeightKg, request.InspectionCount, request.Length);
+            if (total is null || total <= 0) continue; // 数量问题静默
 
             result.Rows.Add(new PricedPieceRow { TotalHeadcount = headcount, Eligible = eligible, Amount = total.Value, Date = f.InspectionDate });
         }
@@ -131,21 +118,16 @@ public sealed class PieceRateCollector
             var (headcount, eligible) = ResolveParticipants(r.Operator, byCode, byName);
             if (eligible.Count == 0) continue;
 
-            var request = new PieceRateProductionMatchRequest
-            {
-                SectionName = SectionKeys.ToKey(r.SectionName) ?? r.SectionName,
-                ProcessName = r.ProcessName,
-                ProductStatus = r.ProductStatus,
-                Stage = PieceRateStageKeys.InTank,
-                PlantGrade = r.PlantGrade,
-                EquipmentName = r.EquipmentName,
-                OuterDiameter = r.ManufacturingSpec == null ? null : SpecificationParser.ParseOuterDiameter(r.ManufacturingSpec),
-                WallThickness = r.ManufacturingSpec == null ? null : SpecificationParser.ParseWallThickness(r.ManufacturingSpec)
-            };
+            // 记录→请求经 ProductionMatchRequestMapper 共享单源（Stage=InTank）
+            var request = ProductionMatchRequestMapper.BuildFromPicklingIn(r);
             var hit = PieceRateMatchEngine.MatchProduction(prodCategories, request);
-            var total = hit == null ? (decimal?)null
-                : AmountForUnit(hit.Unit, hit.UnitPrice, r.Weight, r.Quantity, null);
-            if (total is null || total <= 0) { result.UnpricedCount++; continue; }
+            if (hit == null)
+            {
+                if (HasRecordedOutput(r.Weight, r.Quantity)) result.UnpricedCount++;
+                continue;
+            }
+            var total = PieceRateAmountHelper.AmountForUnit(hit.Unit, hit.UnitPrice, r.Weight, r.Quantity, null);
+            if (total is null || total <= 0) continue; // 数量问题静默
 
             result.Rows.Add(new PricedPieceRow { TotalHeadcount = headcount, Eligible = eligible, Amount = total.Value, Date = r.InDate });
         }
@@ -159,21 +141,16 @@ public sealed class PieceRateCollector
             var (headcount, eligible) = ResolveParticipants(r.Operator, byCode, byName);
             if (eligible.Count == 0) continue;
 
-            var request = new PieceRateProductionMatchRequest
-            {
-                SectionName = SectionKeys.ToKey(r.SectionName) ?? r.SectionName,
-                ProcessName = r.ProcessName,
-                ProductStatus = r.ProductStatus,
-                Stage = PieceRateStageKeys.OutTank,
-                PlantGrade = r.PlantGrade,
-                EquipmentName = r.EquipmentName,
-                OuterDiameter = r.ManufacturingSpec == null ? null : SpecificationParser.ParseOuterDiameter(r.ManufacturingSpec),
-                WallThickness = r.ManufacturingSpec == null ? null : SpecificationParser.ParseWallThickness(r.ManufacturingSpec)
-            };
+            // 记录→请求经 ProductionMatchRequestMapper 共享单源（Stage=OutTank）
+            var request = ProductionMatchRequestMapper.BuildFromPicklingOut(r);
             var hit = PieceRateMatchEngine.MatchProduction(prodCategories, request);
-            var total = hit == null ? (decimal?)null
-                : AmountForUnit(hit.Unit, hit.UnitPrice, r.Weight, r.Quantity, null);
-            if (total is null || total <= 0) { result.UnpricedCount++; continue; }
+            if (hit == null)
+            {
+                if (HasRecordedOutput(r.Weight, r.Quantity)) result.UnpricedCount++;
+                continue;
+            }
+            var total = PieceRateAmountHelper.AmountForUnit(hit.Unit, hit.UnitPrice, r.Weight, r.Quantity, null);
+            if (total is null || total <= 0) continue; // 数量问题静默
 
             result.Rows.Add(new PricedPieceRow { TotalHeadcount = headcount, Eligible = eligible, Amount = total.Value, Date = r.CompleteDate });
         }
@@ -188,29 +165,28 @@ public sealed class PieceRateCollector
             var (headcount, eligible) = ResolveParticipants(r.Inspector, byCode, byName);
             if (eligible.Count == 0) continue;
 
-            var spec = !string.IsNullOrWhiteSpace(r.ManufacturingSpec) ? r.ManufacturingSpec
-                : r.ProductionBatch?.Specification;
-            var request = new PieceRateProductionMatchRequest
-            {
-                SectionName = SectionKeys.ToKey(r.SectionName) ?? r.SectionName,
-                ProcessName = r.ProcessName,
-                ProductStatus = r.ProductStatus,
-                Stage = null,
-                PlantGrade = string.IsNullOrWhiteSpace(r.PlantGrade) ? r.ProductionBatch?.PlantGrade : r.PlantGrade,
-                EquipmentName = r.EquipmentName,
-                OuterDiameter = spec == null ? null : SpecificationParser.ParseOuterDiameter(spec),
-                WallThickness = spec == null ? null : SpecificationParser.ParseWallThickness(spec)
-            };
+            // 记录→请求经 ProductionMatchRequestMapper 共享单源（无作业阶段；规格/牌号空回退批次）
+            var request = ProductionMatchRequestMapper.BuildFromProcessInspection(r, r.ProductionBatch);
             var hit = PieceRateMatchEngine.MatchProduction(prodCategories, request);
-            var total = hit == null ? (decimal?)null
-                : AmountForUnit(hit.Unit, hit.UnitPrice, r.Weight, r.Quantity, null);
-            if (total is null || total <= 0) { result.UnpricedCount++; continue; }
+            if (hit == null)
+            {
+                if (HasRecordedOutput(r.Weight, r.Quantity)) result.UnpricedCount++;
+                continue;
+            }
+            var total = PieceRateAmountHelper.AmountForUnit(hit.Unit, hit.UnitPrice, r.Weight, r.Quantity, null);
+            if (total is null || total <= 0) continue; // 数量问题静默
 
             result.Rows.Add(new PricedPieceRow { TotalHeadcount = headcount, Eligible = eligible, Amount = total.Value, Date = r.InspectionDate });
         }
 
         return result;
     }
+
+    // ==================== 行量判定 ====================
+
+    /// <summary>该行是否已记录到实际产出量（Weight/Quantity 任一 &gt;0；null 视为 0）。漏记/虚拟补录数量空 → false。</summary>
+    private static bool HasRecordedOutput(decimal? weightKg, int? quantity)
+        => (weightKg ?? 0m) > 0m || (quantity ?? 0) > 0;
 
     // ==================== 计件行 → 参与人归属 ====================
 
@@ -252,45 +228,9 @@ public sealed class PieceRateCollector
         }
         return (totalHeadcount, eligible);
     }
-
-    /// <summary>成检单支长（mm）：定尺读 FixedLength 文本首段数字，范围尺/非定尺/解析失败按 6000 兜底</summary>
-    private static decimal? ResolveLengthMm(string? fixedLength, string? lengthStatus)
-    {
-        if (string.Equals(lengthStatus, nameof(LengthStatus.Fixed), StringComparison.OrdinalIgnoreCase))
-        {
-            var mm = TryParseFirstNumber(fixedLength);
-            if (mm.HasValue) return mm.Value;
-        }
-        return FallbackLengthMm;
-    }
-
-    private static decimal? TryParseFirstNumber(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return null;
-        // 取首个数字（含小数）段，兼容 "9150mm" / "6000" / "11036 mm"
-        var num = string.Concat(text.Where(char.IsDigit).Take(12));
-        return decimal.TryParse(num, out var v) ? v : null;
-    }
-
-    /// <summary>结算单价 → 行总金额（不四舍五入，累加保留精度，显示层 G29）。缺数量/长度返回 null。</summary>
-    private static decimal? AmountForUnit(string unit, decimal unitPrice,
-        decimal? weightKg, int? quantity, decimal? lengthMm)
-    {
-        return PieceRateUnitKeys.GetQuantityDimension(unit) switch
-        {
-            PieceRateUnitKeys.QuantityDimension.Weight =>
-                weightKg.HasValue ? weightKg.Value / 1000m * unitPrice : null,          // 元/吨：kg/1000 × 价
-            PieceRateUnitKeys.QuantityDimension.Meters =>
-                quantity.HasValue && lengthMm.HasValue
-                    ? quantity.Value * lengthMm.Value / 1_000_000m * unitPrice : null,  // 元/千米：支×mm/1e6 = km × 价
-            PieceRateUnitKeys.QuantityDimension.PieceCount =>
-                quantity.HasValue ? quantity.Value * unitPrice : null,                   // 元/支：支数 × 价
-            _ => null                                                                     // 元/头 无类别用
-        };
-    }
 }
 
-/// <summary>一次采集的结果：当月已定价且含归属对象的行 + 未定价行计数</summary>
+/// <summary>一次采集的结果：当月已定价且含归属对象的行 + 「有量没价」行计数（仅已记录到量但命中不到启用类别者）</summary>
 public sealed class CollectResult
 {
     public List<PricedPieceRow> Rows { get; } = new();

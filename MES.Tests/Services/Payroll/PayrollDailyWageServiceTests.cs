@@ -354,7 +354,7 @@ public class PayrollDailyWageServiceTests : TestBase
 
         var row = RowOf(month, "YG005");
         row.DayEngineAmount[12].Should().BeNull();
-        month.Warnings.Should().Contain(w => w.Contains("1 行产量/检验未能匹配计件单价"));
+        month.Warnings.Should().Contain(w => w.Contains("1 行产量/检验记录到数量但未匹配到计件单价"));
     }
 
     // ==================== SaveMonth（落库快照） ====================

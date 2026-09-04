@@ -31,4 +31,11 @@ public interface IPieceRateProductionCategoryService
     /// 命中不到启用类别返回 null（=未定价）。命中 &gt; 1 = 数据违例防御性报错。
     /// </summary>
     Task<PieceRateProductionMatchResultDto?> MatchPriceAsync(PieceRateProductionMatchRequest request);
+
+    /// <summary>模拟测算候选产量记录（产量源必选 + 关键字过滤 SQL 下推 + 分页；默认记录日期降序）</summary>
+    Task<PagedResult<PieceRateProductionTrialRecordDto>> GetTrialRecordsAsync(PieceRateProductionTrialRecordQuery query);
+
+    /// <summary>模拟测算：按一条真实产量记录计价（与月结采集同 ProductionMatchRequestMapper 单源映射）。
+    /// 记录不存在抛 BusinessException；命中不到启用类别返回 null（=未定价）。</summary>
+    Task<PieceRateProductionMatchResultDto?> MatchProductionRecordAsync(PieceRateProductionTrialSource source, int recordId);
 }

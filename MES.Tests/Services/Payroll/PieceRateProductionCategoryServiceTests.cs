@@ -3,10 +3,13 @@ using Microsoft.EntityFrameworkCore;
 using Moq;
 using MES.Core.Constants;
 using MES.Core.DTOs.Payroll;
+using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Interfaces.Configuration;
 using MES.Data;
+using MES.Data.Entities.Batch;
 using MES.Data.Entities.Payroll;
+using MES.Data.Entities.Quality;
 using MES.Services.Payroll;
 using MES.Tests.Tests;
 
@@ -592,5 +595,229 @@ public class PieceRateProductionCategoryServiceTests : TestBase
         detail!.Tiers.Should().HaveCount(2);                       // 含停用行（编辑页展示）
         detail.Tiers.First().DimensionKey.Should().Be(PieceRateDimensionKeys.OuterDiameter); // 按维度声明序
         detail.TierCount.Should().Be(1);                           // 仅启用档行计数
+    }
+
+    // ==================== 模拟测算（按产量记录点选计价，2026-09-04） ====================
+
+    /// <summary>种一个生产批次（浏览/计价用例导航主键：InMemory 必填导航 .Include 内联接会剔除孤儿，须真建主）</summary>
+    private static async Task<ProductionBatch> SeedProductionBatchAsync(AppDbContext ctx, string spec = "60*3")
+    {
+        var batch = new ProductionBatch
+        {
+            BatchNo = "BATCH-PICK-" + Guid.NewGuid().ToString("N")[..8],
+            MaterialName = "不锈钢管",
+            PlantGrade = "304",
+            Specification = spec,
+            Status = BatchStatus.InProgress,
+            ProductionType = "Internal",
+            ManufacturingItem = "OrderFinished",
+            WorkOrderNo = "WO-1",
+            SalesOrderNo = "SO-1",
+            ProductionMainNo = "M-1",
+            OrderItemIds = "1",
+            Salesman = "张三",
+            SettlementMethod = "Weighing",
+            StandardCode = "GB/T 14976",
+            DeliveryState = "Hard",
+            LengthStatus = nameof(LengthStatus.Fixed),
+            TechnicalRequirements = "无",
+            SignDate = DateTime.Today,
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            TotalQuantity = 100,
+            TotalMeters = 1000m,
+            TotalWeight = 5000m,
+            TotalItemCount = 1,
+            ItemDetails = null
+        };
+        ctx.ProductionBatches.Add(batch);
+        await ctx.SaveChangesAsync();
+        return batch;
+    }
+
+    /// <summary>种一条入缸记录（酸洗·入缸，供记录计价/浏览用例）</summary>
+    private static async Task<PicklingInRecord> SeedPicklingInAsync(AppDbContext ctx, int idSeed,
+        decimal? weight = null, string productStatus = ProductStatuses.RoughTube,
+        string manufacturingSpec = "60*3", string? operatorName = null, string? remark = null,
+        ProductionBatch? batch = null)
+    {
+        var rec = new PicklingInRecord
+        {
+            SectionName = SectionKeys.Pickle,
+            ProcessName = "Degrease",
+            ProductStatus = productStatus,
+            ManufacturingSpec = manufacturingSpec,
+            PlantGrade = "304",
+            EquipmentName = "酸洗槽1",
+            Operator = operatorName,
+            Remark = remark,
+            InDate = new DateTime(2026, 9, 1).AddDays(idSeed),
+            Weight = weight
+        };
+        if (batch != null)
+        {
+            rec.ProductionBatchId = batch.Id;
+            rec.ProductionBatch = batch;
+        }
+        ctx.PicklingInRecords.Add(rec);
+        await ctx.SaveChangesAsync();
+        return rec;
+    }
+
+    /// <summary>记录计价与手工 MatchPrice 一致（共享 Mapper/口径）且折算整行计件额</summary>
+    [Fact]
+    public async Task MatchProductionRecordAsync_入缸记录命中_单金额折算_与手工口径一致()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        // 酸洗·荒管·入缸·PerTon，OD>54 ×1.2
+        var req = PickleRoughInTank(35);
+        req.Tiers =
+        [
+            new PieceRateProductionCategoryTierSaveRequest { DimensionKey = PieceRateDimensionKeys.OuterDiameter, RangeText = ">54", Ratio = 1.2m }
+        ];
+        await svc.SaveAsync(null, req);
+
+        var rec = await SeedPicklingInAsync(ctx, 0, weight: 1000);   // spec 60*3 → OD60 命中 1.2
+
+        var hit = await svc.MatchProductionRecordAsync(PieceRateProductionTrialSource.PicklingIn, rec.Id);
+        hit.Should().NotBeNull();
+        hit!.BasePrice.Should().Be(35);
+        hit.TotalRatio.Should().Be(1.2m);
+        hit.UnitPrice.Should().Be(42m);                             // 35 × 1.2
+        hit.Unit.Should().Be(PieceRateUnitKeys.PerTon);
+        hit.SimulatedAmount.Should().Be(42m);                       // 1000kg/1000 × 42 = 42 元
+
+        // 一致性：手工 MatchPrice 同请求（共享 Mapper 单源）→ 单价一致、SimulatedAmount 恒 null（无计量字段）
+        var manual = await svc.MatchPriceAsync(new PieceRateProductionMatchRequest
+        {
+            SectionName = SectionKeys.Pickle,
+            ProductStatus = ProductStatuses.RoughTube,
+            Stage = PieceRateStageKeys.InTank,
+            OuterDiameter = 60,
+            WallThickness = 3
+        });
+        manual.Should().NotBeNull();
+        manual!.UnitPrice.Should().Be(hit.UnitPrice);
+        manual.SimulatedAmount.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task MatchProductionRecordAsync_未定价null_记录不存在抛错()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var req = PickleRoughInTank(35);
+        await svc.SaveAsync(null, req);
+
+        // 产类 Finished 不匹配类别约束 RoughTube → 未定价 null
+        var rec = await SeedPicklingInAsync(ctx, 0, productStatus: ProductStatuses.Finished);
+        var miss = await svc.MatchProductionRecordAsync(PieceRateProductionTrialSource.PicklingIn, rec.Id);
+        miss.Should().BeNull();
+
+        // 记录不存在 → BusinessException
+        var act = async () => await svc.MatchProductionRecordAsync(PieceRateProductionTrialSource.PicklingIn, 999999);
+        var ex = await act.Should().ThrowAsync<BusinessException>();
+        ex.Which.Message.Should().Contain("入缸记录不存在");
+
+        // 非法产量源参数由 Controller 拦截；此处确认枚举外其它 case 走记录不存在（防御兜底不做断言）
+    }
+
+    [Fact]
+    public async Task GetTrialRecordsAsync_按源浏览_关键字命中_分页与中文补齐()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        // 生产记录 1 条 + 入缸 3 条（B 操作人命中关键字）；均须真挂生产批次（必填导航 .Include 在 InMemory 剔除孤儿）
+        var batch = await SeedProductionBatchAsync(ctx);
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            SectionName = SectionKeys.ColdRollDraw,
+            ProcessName = "ColdDraw",
+            ProductStatus = ProductStatuses.InProgress,
+            ManufacturingSpec = "60*3",
+            Operator = "王五",
+            ExecDate = new DateTime(2026, 9, 2),
+            ProductionBatchId = batch.Id,
+            ProductionBatch = batch
+        });
+        var a = await SeedPicklingInAsync(ctx, 0, operatorName: "张三", remark: "一批酸洗", batch: batch);
+        var b = await SeedPicklingInAsync(ctx, 1, operatorName: "李四", batch: batch);
+        var c = await SeedPicklingInAsync(ctx, 2, operatorName: "张三", batch: batch);
+        await ctx.SaveChangesAsync();
+
+        // 源过滤：仅入缸 3 条（默认记录日期降序 → 最新 InDate 在前）
+        var onlyIn = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
+        {
+            Source = nameof(PieceRateProductionTrialSource.PicklingIn),
+            PageSize = 50
+        });
+        onlyIn.TotalCount.Should().Be(3);
+        onlyIn.Items.Should().OnlyContain(i => i.SourceKey == nameof(PieceRateProductionTrialSource.PicklingIn));
+        onlyIn.Items.First().RecordDate.Should().Be(c.InDate);      // 日期降序
+        onlyIn.Items.Select(i => i.Id).Should().Contain(a.Id);
+
+        // 关键字命中操作人「张三」（本地列下推）
+        var byOperator = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
+        {
+            Source = nameof(PieceRateProductionTrialSource.PicklingIn),
+            Keyword = "张三",
+            PageSize = 50
+        });
+        byOperator.TotalCount.Should().Be(2);
+        byOperator.Items.Should().OnlyContain(i => i.Operator == "张三");
+
+        // 关键字命中备注（本地列下推）
+        var byRemark = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
+        {
+            Source = nameof(PieceRateProductionTrialSource.PicklingIn),
+            Keyword = "一批",
+            PageSize = 50
+        });
+        byRemark.TotalCount.Should().Be(1);
+        byRemark.Items.Single().Id.Should().Be(a.Id);
+
+        // 源过滤仅返回生产记录 + 中文补齐
+        var prod = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
+        {
+            Source = nameof(PieceRateProductionTrialSource.ProductionRecord),
+            PageSize = 50
+        });
+        prod.TotalCount.Should().Be(1);
+        var row = prod.Items.Single();
+        row.SourceKey.Should().Be(nameof(PieceRateProductionTrialSource.ProductionRecord));
+        row.SourceChinese.Should().Be("生产记录");
+        row.SectionKey.Should().Be(SectionKeys.ColdRollDraw);
+        row.SectionKeyChinese.Should().Be(SectionKeys.ToChinese(SectionKeys.ColdRollDraw)); // 中文补齐
+        row.StageKey.Should().BeNull();                             // 生产记录无作业阶段
+        row.StageChinese.Should().BeNull();
+        row.Operator.Should().Be("王五");
+        row.RecordDate.Should().Be(new DateTime(2026, 9, 2));
+
+        // 入缸行阶段接线 + 中文
+        var inRow = byOperator.Items.First();
+        inRow.StageKey.Should().Be(PieceRateStageKeys.InTank);
+        inRow.StageChinese.Should().Be(PieceRateStageKeys.ToChinese(PieceRateStageKeys.InTank));
+
+        // 分页：日期降序首页 = [c, b]，第 2 页余 [a]
+        var page = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
+        {
+            Source = nameof(PieceRateProductionTrialSource.PicklingIn),
+            PageIndex = 1,
+            PageSize = 2
+        });
+        page.TotalCount.Should().Be(3);
+        page.Items.Should().HaveCount(2);
+        page.Items.First().Id.Should().Be(c.Id);                    // 最新 InDate 首行
+        page.Items.Select(i => i.Id).Should().NotContain(a.Id);     // a 已落第 2 页
+
+        // 缺/非法 Source → BusinessException
+        var noSource = async () => await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery());
+        (await noSource.Should().ThrowAsync<BusinessException>()).Which.Message.Should().Contain("选择产量源");
+
+        var badSource = async () => await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery { Source = "Nope" });
+        (await badSource.Should().ThrowAsync<BusinessException>()).Which.Message.Should().Contain("无效的产量源");
     }
 }

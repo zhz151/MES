@@ -94,4 +94,40 @@ public class PieceRateProductionCategoryService
             return ApiResponse<PieceRateProductionCategoryOptionsDto>.Fail($"网络错误: {ex.Message}");
         }
     }
+
+    /// <summary>模拟测算候选产量记录（产量源必选 + 关键字；分页，默认记录日期降序）</summary>
+    public async Task<ApiResponse<PagedResult<PieceRateProductionTrialRecordDto>>> GetTrialRecordsAsync(
+        PieceRateProductionTrialRecordQuery query)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/trial-records?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={Uri.EscapeDataString(query.SortBy)}&isDescending={query.IsDescending}";
+            if (!string.IsNullOrWhiteSpace(query.Keyword))
+                url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
+            if (!string.IsNullOrWhiteSpace(query.Source))
+                url += $"&source={Uri.EscapeDataString(query.Source)}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<PieceRateProductionTrialRecordDto>>>(url);
+            return response ?? ApiResponse<PagedResult<PieceRateProductionTrialRecordDto>>.Fail("获取产量记录失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<PagedResult<PieceRateProductionTrialRecordDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    /// <summary>模拟测算：按一条真实产量记录计价；null = 未定价（无启用类别/值未命中档）</summary>
+    public async Task<ApiResponse<PieceRateProductionMatchResultDto?>> MatchProductionRecordAsync(
+        string source, int recordId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<PieceRateProductionMatchResultDto?>>(
+                $"{BaseUrl}/trial-records/{Uri.EscapeDataString(source)}/{recordId}/price");
+            return response ?? ApiResponse<PieceRateProductionMatchResultDto?>.Fail("计价失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<PieceRateProductionMatchResultDto?>.Fail($"网络错误: {ex.Message}");
+        }
+    }
 }

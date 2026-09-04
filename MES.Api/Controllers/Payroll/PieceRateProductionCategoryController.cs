@@ -157,6 +157,28 @@ public class PieceRateProductionCategoryController : ControllerBase
         return Ok(ApiResponse<PieceRateProductionCategoryOptionsDto>.Ok(result));
     }
 
+    /// <summary>模拟测算候选产量记录（产量源必选 + 关键字过滤 + 分页；默认记录日期降序）</summary>
+    [HttpGet("trial-records")]
+    [Authorize(Roles = Roles.Policies.SalaryView)]
+    public async Task<ActionResult<ApiResponse<PagedResult<PieceRateProductionTrialRecordDto>>>> GetTrialRecords(
+        [FromQuery] PieceRateProductionTrialRecordQuery query)
+    {
+        var result = await _service.GetTrialRecordsAsync(query);
+        return Ok(ApiResponse<PagedResult<PieceRateProductionTrialRecordDto>>.Ok(result));
+    }
+
+    /// <summary>模拟测算：按一条真实产量记录计价（与月结采集同映射单源）；null = 未定价</summary>
+    [HttpGet("trial-records/{source}/{id:int}/price")]
+    [Authorize(Roles = Roles.Policies.SalaryView)]
+    public async Task<ActionResult<ApiResponse<PieceRateProductionMatchResultDto?>>> MatchByRecord(
+        string source, int id)
+    {
+        if (!Enum.TryParse<PieceRateProductionTrialSource>(source, ignoreCase: true, out var trialSource))
+            return BadRequest(ApiResponse<bool>.Fail($"无效的产量源: {source}"));
+        var result = await _service.MatchProductionRecordAsync(trialSource, id);
+        return Ok(ApiResponse<PieceRateProductionMatchResultDto?>.Ok(result));
+    }
+
     /// <summary>试算匹配：一条报工 → 命中类别单价；返回 null = 未定价</summary>
     [HttpPost("match-price")]
     [Authorize(Roles = Roles.Policies.SalaryView)]

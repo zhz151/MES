@@ -7,7 +7,9 @@ using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.Payroll;
 using MES.Core.Models;
 using MES.Data;
+using MES.Data.Entities.Batch;
 using MES.Data.Entities.Payroll;
+using MES.Data.Entities.Quality;
 using MES.Services.Helpers;
 
 namespace MES.Services.Payroll;
@@ -560,6 +562,13 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
     // ==================== 试算匹配 ====================
 
     public async Task<PieceRateProductionMatchResultDto?> MatchPriceAsync(PieceRateProductionMatchRequest request)
+        => await MatchByRequestAsync(request, weightKg: null, quantity: null);
+
+    /// <summary>核心匹配计价（手动 match-price 与按产量记录点选试算共用，2026-09-04 拆出防双通道漂移）。
+    /// 命中后按带量参数折算 SimulatedAmount（与月结采集同 PieceRateAmountHelper 口径、length 恒 null；
+    /// 生产记录行无元/千米长度维，结算本就不折算）；手动请求无量恒 null。</summary>
+    private async Task<PieceRateProductionMatchResultDto?> MatchByRequestAsync(
+        PieceRateProductionMatchRequest request, decimal? weightKg, int? quantity)
     {
         var sectionKey = SectionKeys.ToKey(request.SectionName) ?? request.SectionName;
         if (string.IsNullOrEmpty(sectionKey))
@@ -639,9 +648,294 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
             UnitPrice = unitPrice,
             Unit = matched.Unit,
             UnitChinese = PieceRateUnitKeys.ToChinese(matched.Unit) ?? matched.Unit,
+            SimulatedAmount = PieceRateAmountHelper.AmountForUnit(matched.Unit, unitPrice, weightKg, quantity, null),
             Hits = hits,
             Remark = matched.Remark
         };
+    }
+
+    // ==================== 模拟测算（按产量记录点选计价，2026-09-04） ====================
+
+    /// <summary>候选产量记录（全局任意记录）：产量源必选 + 关键字过滤 SQL 下推 + 分页；默认记录日期降序 + Id 降序。
+    /// 关键字只下推记录本地列（操作人/设备/备注/制造规格；PicklingOut/ProcessInspection 另含自冗余批次号），
+    /// 导航批次号/规格仅投影展示（避免导航列下推在 InMemory 下不可靠）。与月结采集同 Mapper 映射单源。</summary>
+    public async Task<PagedResult<PieceRateProductionTrialRecordDto>> GetTrialRecordsAsync(
+        PieceRateProductionTrialRecordQuery query)
+    {
+        if (string.IsNullOrWhiteSpace(query.Source)
+            || !Enum.TryParse<PieceRateProductionTrialSource>(query.Source.Trim(), ignoreCase: true, out var source))
+            throw new BusinessException(string.IsNullOrWhiteSpace(query.Source)
+                ? "请选择产量源"
+                : $"无效的产量源: {query.Source}");
+
+        var kw = string.IsNullOrWhiteSpace(query.Keyword) ? null : query.Keyword.Trim();
+
+        switch (source)
+        {
+            case PieceRateProductionTrialSource.ProductionRecord:
+            {
+                var q = _context.ProductionRecords.AsNoTracking()
+                    .Include(r => r.ProductionBatch)
+                    .AsQueryable();
+                if (kw != null)
+                    q = q.Where(x => (x.Operator != null && x.Operator.Contains(kw))
+                                     || (x.EquipmentName != null && x.EquipmentName.Contains(kw))
+                                     || (x.Remark != null && x.Remark.Contains(kw))
+                                     || (x.ManufacturingSpec != null && x.ManufacturingSpec.Contains(kw)));
+                var total = await q.CountAsync();
+                var rows = await q
+                    .OrderByDescending(x => x.ExecDate)
+                    .ThenByDescending(x => x.Id)
+                    .Skip(query.Skip)
+                    .Take(query.PageSize)
+                    .ToListAsync();
+                var sectionMap = await _sectionNameDisplay.GetSectionNameMapAsync();
+                return Result(source, rows.Select(r => MapTrial(r, r.ProductionBatch, sectionMap)).ToList(), total, query);
+            }
+            case PieceRateProductionTrialSource.PicklingIn:
+            {
+                var q = _context.PicklingInRecords.AsNoTracking()
+                    .Include(r => r.ProductionBatch)
+                    .AsQueryable();
+                if (kw != null)
+                    q = q.Where(x => (x.Operator != null && x.Operator.Contains(kw))
+                                     || (x.EquipmentName != null && x.EquipmentName.Contains(kw))
+                                     || (x.Remark != null && x.Remark.Contains(kw))
+                                     || (x.ManufacturingSpec != null && x.ManufacturingSpec.Contains(kw)));
+                var total = await q.CountAsync();
+                var rows = await q
+                    .OrderByDescending(x => x.InDate)
+                    .ThenByDescending(x => x.Id)
+                    .Skip(query.Skip)
+                    .Take(query.PageSize)
+                    .ToListAsync();
+                var sectionMap = await _sectionNameDisplay.GetSectionNameMapAsync();
+                return Result(source, rows.Select(r => MapTrial(r, r.ProductionBatch, sectionMap)).ToList(), total, query);
+            }
+            case PieceRateProductionTrialSource.PicklingOut:
+            {
+                var q = _context.PicklingOutRecords.AsNoTracking()
+                    .AsQueryable();
+                if (kw != null)
+                    q = q.Where(x => (x.Operator != null && x.Operator.Contains(kw))
+                                     || (x.EquipmentName != null && x.EquipmentName.Contains(kw))
+                                     || (x.Remark != null && x.Remark.Contains(kw))
+                                     || (x.ManufacturingSpec != null && x.ManufacturingSpec.Contains(kw))
+                                     || (x.BatchNo != null && x.BatchNo.Contains(kw)));
+                var total = await q.CountAsync();
+                var rows = await q
+                    .OrderByDescending(x => x.CompleteDate)
+                    .ThenByDescending(x => x.Id)
+                    .Skip(query.Skip)
+                    .Take(query.PageSize)
+                    .ToListAsync();
+                var sectionMap = await _sectionNameDisplay.GetSectionNameMapAsync();
+                return Result(source, rows.Select(r => MapTrial(r, sectionMap)).ToList(), total, query);
+            }
+            default:
+            {
+                var q = _context.ProcessInspections.AsNoTracking()
+                    .Include(p => p.ProductionBatch)
+                    .AsQueryable();
+                if (kw != null)
+                    q = q.Where(x => (x.Inspector != null && x.Inspector.Contains(kw))
+                                     || (x.EquipmentName != null && x.EquipmentName.Contains(kw))
+                                     || (x.Remark != null && x.Remark.Contains(kw))
+                                     || (x.ManufacturingSpec != null && x.ManufacturingSpec.Contains(kw))
+                                     || (x.BatchNo != null && x.BatchNo.Contains(kw)));
+                var total = await q.CountAsync();
+                var rows = await q
+                    .OrderByDescending(x => x.InspectionDate)
+                    .ThenByDescending(x => x.Id)
+                    .Skip(query.Skip)
+                    .Take(query.PageSize)
+                    .ToListAsync();
+                var sectionMap = await _sectionNameDisplay.GetSectionNameMapAsync();
+                return Result(source, rows.Select(p => MapTrial(p, p.ProductionBatch, sectionMap)).ToList(), total, query);
+            }
+        }
+    }
+
+    private static PagedResult<PieceRateProductionTrialRecordDto> Result(
+        PieceRateProductionTrialSource source, List<PieceRateProductionTrialRecordDto> items,
+        int totalCount, PieceRateProductionTrialRecordQuery query)
+        => new()
+        {
+            Items = items,
+            TotalCount = totalCount,
+            PageIndex = query.PageIndex,
+            PageSize = query.PageSize
+        };
+
+    /// <summary>产量源中文</summary>
+    private static string SourceChinese(PieceRateProductionTrialSource source)
+        => PieceRateProductionTrialSourceExtensions.ToChinese(source);
+
+    private static (string Key, string Chinese) SectionOf(
+        string? rawSection, IReadOnlyDictionary<string, string> sectionMap)
+    {
+        var key = SectionKeys.ToKey(rawSection) ?? rawSection ?? string.Empty;
+        var cn = sectionMap.TryGetValue(key, out var name)
+            ? name
+            : (SectionKeys.ToChinese(key) ?? key);
+        return (key, cn);
+    }
+
+    private static string? ProductStatusChinese(string? key)
+        => string.IsNullOrWhiteSpace(key) ? null : (ProductStatuses.ToChinese(key) ?? key);
+
+    private static string? StageChinese(string? stageKey)
+        => string.IsNullOrWhiteSpace(stageKey) ? null : (PieceRateStageKeys.ToChinese(stageKey) ?? stageKey);
+
+    private static PieceRateProductionTrialRecordDto MapTrial(
+        ProductionRecord r, ProductionBatch? batch, IReadOnlyDictionary<string, string> sectionMap)
+    {
+        var (key, cn) = SectionOf(r.SectionName, sectionMap);
+        var spec = !string.IsNullOrWhiteSpace(r.ManufacturingSpec) ? r.ManufacturingSpec : batch?.Specification;
+        return new PieceRateProductionTrialRecordDto
+        {
+            Id = r.Id,
+            SourceKey = nameof(PieceRateProductionTrialSource.ProductionRecord),
+            SourceChinese = SourceChinese(PieceRateProductionTrialSource.ProductionRecord),
+            RecordDate = r.ExecDate,
+            BatchNo = batch?.BatchNo,
+            SectionKey = key,
+            SectionKeyChinese = cn,
+            ProcessName = r.ProcessName,
+            ProductStatus = r.ProductStatus,
+            ProductStatusChinese = ProductStatusChinese(r.ProductStatus),
+            Specification = spec,
+            Quantity = r.Quantity,
+            Weight = r.Weight,
+            Operator = r.Operator,
+            EquipmentName = r.EquipmentName,
+            Remark = r.Remark
+        };
+    }
+
+    private static PieceRateProductionTrialRecordDto MapTrial(
+        PicklingInRecord r, ProductionBatch? batch, IReadOnlyDictionary<string, string> sectionMap)
+    {
+        var (key, cn) = SectionOf(r.SectionName, sectionMap);
+        var spec = !string.IsNullOrWhiteSpace(r.ManufacturingSpec) ? r.ManufacturingSpec : batch?.Specification;
+        return new PieceRateProductionTrialRecordDto
+        {
+            Id = r.Id,
+            SourceKey = nameof(PieceRateProductionTrialSource.PicklingIn),
+            SourceChinese = SourceChinese(PieceRateProductionTrialSource.PicklingIn),
+            RecordDate = r.InDate,
+            BatchNo = batch?.BatchNo,
+            SectionKey = key,
+            SectionKeyChinese = cn,
+            ProcessName = r.ProcessName,
+            ProductStatus = r.ProductStatus,
+            ProductStatusChinese = ProductStatusChinese(r.ProductStatus),
+            StageKey = PieceRateStageKeys.InTank,
+            StageChinese = StageChinese(PieceRateStageKeys.InTank),
+            Specification = spec,
+            Quantity = r.Quantity,
+            Weight = r.Weight,
+            Operator = r.Operator,
+            EquipmentName = r.EquipmentName,
+            Remark = r.Remark
+        };
+    }
+
+    private static PieceRateProductionTrialRecordDto MapTrial(
+        PicklingOutRecord r, IReadOnlyDictionary<string, string> sectionMap)
+    {
+        var (key, cn) = SectionOf(r.SectionName, sectionMap);
+        return new PieceRateProductionTrialRecordDto
+        {
+            Id = r.Id,
+            SourceKey = nameof(PieceRateProductionTrialSource.PicklingOut),
+            SourceChinese = SourceChinese(PieceRateProductionTrialSource.PicklingOut),
+            RecordDate = r.CompleteDate,
+            BatchNo = r.BatchNo,
+            SectionKey = key,
+            SectionKeyChinese = cn,
+            ProcessName = r.ProcessName,
+            ProductStatus = r.ProductStatus,
+            ProductStatusChinese = ProductStatusChinese(r.ProductStatus),
+            StageKey = PieceRateStageKeys.OutTank,
+            StageChinese = StageChinese(PieceRateStageKeys.OutTank),
+            Specification = r.ManufacturingSpec,
+            Quantity = r.Quantity,
+            Weight = r.Weight,
+            Operator = r.Operator,
+            EquipmentName = r.EquipmentName,
+            Remark = r.Remark
+        };
+    }
+
+    private static PieceRateProductionTrialRecordDto MapTrial(
+        ProcessInspection p, ProductionBatch? batch, IReadOnlyDictionary<string, string> sectionMap)
+    {
+        var (key, cn) = SectionOf(p.SectionName, sectionMap);
+        var spec = !string.IsNullOrWhiteSpace(p.ManufacturingSpec) ? p.ManufacturingSpec : batch?.Specification;
+        return new PieceRateProductionTrialRecordDto
+        {
+            Id = p.Id,
+            SourceKey = nameof(PieceRateProductionTrialSource.ProcessInspection),
+            SourceChinese = SourceChinese(PieceRateProductionTrialSource.ProcessInspection),
+            RecordDate = p.InspectionDate,
+            BatchNo = p.BatchNo,
+            SectionKey = key,
+            SectionKeyChinese = cn,
+            ProcessName = p.ProcessName,
+            ProductStatus = p.ProductStatus,
+            ProductStatusChinese = ProductStatusChinese(p.ProductStatus),
+            Specification = spec,
+            Quantity = p.Quantity,
+            Weight = p.Weight,
+            Operator = p.Inspector,
+            EquipmentName = p.EquipmentName,
+            Remark = p.Remark
+        };
+    }
+
+    /// <summary>模拟测算：按一条真实产量记录计价（与月结采集同 ProductionMatchRequestMapper 单源映射，
+    /// 含切行定尺/光亮接线）。记录不存在抛 BusinessException；命中不到启用类别返回 null（=未定价）。</summary>
+    public async Task<PieceRateProductionMatchResultDto?> MatchProductionRecordAsync(
+        PieceRateProductionTrialSource source, int recordId)
+    {
+        switch (source)
+        {
+            case PieceRateProductionTrialSource.ProductionRecord:
+            {
+                var rec = await _context.ProductionRecords.AsNoTracking()
+                    .Include(r => r.ProductionBatch)
+                    .FirstOrDefaultAsync(r => r.Id == recordId)
+                    ?? throw new BusinessException($"生产记录不存在: {recordId}");
+                var request = ProductionMatchRequestMapper.BuildFromProductionRecord(rec, rec.ProductionBatch);
+                return await MatchByRequestAsync(request, rec.Weight, rec.Quantity);
+            }
+            case PieceRateProductionTrialSource.PicklingIn:
+            {
+                var rec = await _context.PicklingInRecords.AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.Id == recordId)
+                    ?? throw new BusinessException($"去油/酸洗入缸记录不存在: {recordId}");
+                var request = ProductionMatchRequestMapper.BuildFromPicklingIn(rec);
+                return await MatchByRequestAsync(request, rec.Weight, rec.Quantity);
+            }
+            case PieceRateProductionTrialSource.PicklingOut:
+            {
+                var rec = await _context.PicklingOutRecords.AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.Id == recordId)
+                    ?? throw new BusinessException($"去油/酸洗完工记录不存在: {recordId}");
+                var request = ProductionMatchRequestMapper.BuildFromPicklingOut(rec);
+                return await MatchByRequestAsync(request, rec.Weight, rec.Quantity);
+            }
+            default:
+            {
+                var rec = await _context.ProcessInspections.AsNoTracking()
+                    .Include(p => p.ProductionBatch)
+                    .FirstOrDefaultAsync(p => p.Id == recordId)
+                    ?? throw new BusinessException($"过程检验记录不存在: {recordId}");
+                var request = ProductionMatchRequestMapper.BuildFromProcessInspection(rec, rec.ProductionBatch);
+                return await MatchByRequestAsync(request, rec.Weight, rec.Quantity);
+            }
+        }
     }
 
     private static PieceRateProductionCategoryTier? SelectHitTier(

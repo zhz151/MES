@@ -93,7 +93,7 @@ public class PayrollCollectiveService : IPayrollCollectiveService
         var collector = new PieceRateCollector(_context);
         var result = await collector.CollectAsync(monthStart, monthEnd, archiveEmployees);
         if (result.UnpricedCount > 0)
-            warnings.Add($"{year}年{month}月有 {result.UnpricedCount} 行产量/检验未能匹配计件单价或缺少数量（按0元计）");
+            warnings.Add($"{year}年{month}月有 {result.UnpricedCount} 行产量/检验记录到数量但未匹配到计件单价（按0元计）");
         foreach (var row in result.Rows)
         {
             var share = row.Amount / row.TotalHeadcount;

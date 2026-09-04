@@ -89,6 +89,163 @@
                 </MudItem>
             </MudGrid>
 
+            <!-- 模拟测算区（按产量记录点选计价，2026-09-04） -->
+            <MudExpansionPanels MultiExpansion="false" Class="mt-3">
+                <MudExpansionPanel OnExpandedChanged="OnTrialExpandedChanged">
+                    <TitleContent>
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@Icons.Material.Filled.Calculate" Class="mr-2" Color="Color.Primary" Size="Size.Small" />
+                            <MudText Typo="Typo.subtitle1">模拟测算（按产量记录点选计价）</MudText>
+                        </div>
+                    </TitleContent>
+                    <ChildContent>
+                        <MudGrid Class="pt-3">
+                            <MudItem xs="12" md="4">
+                                <MudSelect T="string"
+                                           Label="产量源筛选"
+                                           Value="_trialSourceKey"
+                                           ValueChanged="@OnTrialSourceChanged"
+                                           AdornmentIcon="@Icons.Material.Filled.FilterList">
+                                    @foreach (var src in _trialSources)
+                                    {
+                                        <MudSelectItem Value="@src.Key" Text="@src.Name">@src.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                            <MudItem xs="12" md="8">
+                                <MudTextField T="string"
+                                              Label="关键字 - 批次号/操作人/设备/备注/规格"
+                                              Value="_trialKeyword"
+                                              ValueExpression="@(() => _trialKeyword)"
+                                              ValueChanged="@OnTrialKeywordChanged"
+                                              Immediate="true"
+                                              DebounceInterval="500"
+                                              Adornment="Adornment.End"
+                                              AdornmentIcon="@Icons.Material.Filled.Search" />
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudText Typo="Typo.caption" Class="mt-3 mb-1">
+                            选中一条真实产量记录点「试算」→ 按现行启用类别给出结算单价与整行计件额（与当月结算同口径、未按写名人头均分）
+                        </MudText>
+
+                        <MudTable @ref="_trialTable"
+                                  T="PieceRateProductionTrialRecordDto"
+                                  ServerData="@LoadTrialRecords"
+                                  Dense="true"
+                                  Hover="true"
+                                  Class="auto-table"
+                                  Elevation="0"
+                                  RowsPerPage="10"
+                                  RowsPerPageLabel="每页行数:">
+                            <ToolBarContent>
+                                <MudText Typo="Typo.body2" Class="ml-auto">
+                                    共 @_trialTotalCount 条记录
+                                </MudText>
+                            </ToolBarContent>
+                            <HeaderContent>
+                                <MudTh>记录日期</MudTh>
+                                <MudTh>批次号</MudTh>
+                                <MudTh>工段</MudTh>
+                                <MudTh>工序</MudTh>
+                                <MudTh>产类</MudTh>
+                                <MudTh>阶段</MudTh>
+                                <MudTh>规格</MudTh>
+                                <MudTh>支数</MudTh>
+                                <MudTh>重量(kg)</MudTh>
+                                <MudTh>操作人</MudTh>
+                                <MudTh Style="width: 90px;">操作</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="rec">
+                                <MudTd>@rec.RecordDate.ToString("yyyy-MM-dd")</MudTd>
+                                <MudTd>@rec.BatchNo</MudTd>
+                                <MudTd><b>@rec.SectionKeyChinese</b></MudTd>
+                                <MudTd>@rec.ProcessName</MudTd>
+                                <MudTd>@rec.ProductStatusChinese</MudTd>
+                                <MudTd>@rec.StageChinese</MudTd>
+                                <MudTd>@rec.Specification</MudTd>
+                                <MudTd>@rec.Quantity</MudTd>
+                                <MudTd>@(rec.Weight?.ToString("G29"))</MudTd>
+                                <MudTd>@rec.Operator</MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Calculate"
+                                                   Title="按此记录试算"
+                                                   Color="Color.Primary"
+                                                   Size="Size.Small"
+                                                   Disabled="@_pricingLoading"
+                                                   OnClick="() => PriceRecordAsync(rec)" />
+                                </MudTd>
+                            </RowTemplate>
+                            <PagerContent>
+                                <MudTablePager PageSizeOptions="new int[]{10,20,50}" />
+                            </PagerContent>
+                        </MudTable>
+
+                        @if (_pricingLoading)
+                        {
+                            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-3" />
+                        }
+                        else if (_pricingError != null)
+                        {
+                            <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mt-3">
+                                <MudText Typo="Typo.body2">@_pricingError</MudText>
+                            </MudAlert>
+                        }
+                        else if (_pricingDone)
+                        {
+                            @if (_selectedRecord != null)
+                            {
+                                <MudText Typo="Typo.caption" Class="mt-3">
+                                    记录：@_selectedRecord.SourceChinese ｜ @_selectedRecord.SectionKeyChinese
+                                    ｜ 批次 @_selectedRecord.BatchNo ｜ 规格 @_selectedRecord.Specification
+                                    ｜ 支数 @(_selectedRecord.Quantity?.ToString() ?? "-") ｜ 重量 @(_selectedRecord.Weight?.ToString("G29") ?? "-")kg
+                                </MudText>
+                            }
+                            @if (_matchResult == null)
+                            {
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-2">
+                                    <MudText Typo="Typo.body2">该记录未定价（无启用类别或记录值未命中任何档）</MudText>
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Class="mt-2">
+                                    <MudText Typo="Typo.body2">
+                                        命中类别（Id=@_matchResult.CategoryId）：@_matchResult.DisplayName
+                                    </MudText>
+                                    <MudText Typo="Typo.body2" Class="mt-1">
+                                        基准价 <b>@_matchResult.BasePrice.ToString("G29")</b> × 总系数 <b>@_matchResult.TotalRatio.ToString("G29")</b> = 结算单价
+                                        <b>@_matchResult.UnitPrice.ToString("G29") @_matchResult.UnitChinese</b>
+                                    </MudText>
+                                    @if (_matchResult.SimulatedAmount is { } simAmt)
+                                    {
+                                        <MudText Typo="Typo.subtitle2" Class="mt-2" Style="color: #2e7d32;">
+                                            整行计件额（与月结口径一致、未按写名人头均分）：<b>@simAmt.ToString("G29") 元</b>
+                                        </MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.caption" Class="mt-1">
+                                            @TrialSimulatedAmountHint(_matchResult.Unit)
+                                        </MudText>
+                                    }
+                                    @if (_matchResult.Hits.Count > 0)
+                                    {
+                                        <div class="d-flex flex-wrap align-center mt-2" style="gap: 4px;">
+                                            <MudText Typo="Typo.caption" Class="mr-1">命中档:</MudText>
+                                            @foreach (var hit in _matchResult.Hits)
+                                            {
+                                                <MudChip Variant="Variant.Outlined" Size="Size.Small">@hit.DimensionKeyChinese：@hit.RangeText ×@hit.Ratio.ToString("G29")</MudChip>
+                                            }
+                                        </div>
+                                    }
+                                </MudAlert>
+                            }
+                        }
+                    </ChildContent>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+
             <!-- 数据表格 -->
             <div id="piece-rate-category-list-table">
             <MudTable @ref="table"
