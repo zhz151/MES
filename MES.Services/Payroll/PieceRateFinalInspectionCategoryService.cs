@@ -8,6 +8,7 @@ using MES.Core.Interfaces.Payroll;
 using MES.Core.Models;
 using MES.Data;
 using MES.Data.Entities.Payroll;
+using MES.Data.Entities.Quality;
 using MES.Services.Helpers;
 
 namespace MES.Services.Payroll;
@@ -358,9 +359,18 @@ public class PieceRateFinalInspectionCategoryService : IPieceRateFinalInspection
     // ==================== 试算匹配 ====================
 
     public async Task<PieceRateFinalInspectionMatchResultDto?> MatchPriceAsync(PieceRateFinalInspectionMatchRequest request)
+        => await MatchByRequestAsync(request);
+
+    /// <summary>核心匹配计价（手动 match-price 与按成检记录试算共用，2026-09-04 拆出）</summary>
+    private async Task<PieceRateFinalInspectionMatchResultDto?> MatchByRequestAsync(PieceRateFinalInspectionMatchRequest request)
     {
         var itemKey = NormalizeItemKey(request.ItemKey);
         if (itemKey == null) return null;
+
+        // 长度兜底（与结算采集器/试算前端同口径，2026-09-04 共享单源）：Range/NonFixed 未填长度按 6000 折算，
+        // 使 Length 档匹配与金额折算一致；Fixed/空状态不兜底（长度留空则元/千米金额无法折算）
+        if (!request.Length.HasValue)
+            request.Length = PieceRateAmountHelper.DefaultTrialLengthMm(request.LengthStatus);
 
         // SQL 仅下推成检项目 + 启用；同项目启用唯一（过滤唯一索引兜底）
         var candidates = await _context.PieceRateFinalInspectionCategories.AsNoTracking()
@@ -397,6 +407,8 @@ public class PieceRateFinalInspectionCategoryService : IPieceRateFinalInspection
         }
 
         var unitPrice = matched.BasePrice * totalRatio;
+        var simulatedAmount = PieceRateAmountHelper.AmountForUnit(
+            matched.Unit, unitPrice, request.WeightKg, request.InspectionCount, request.Length);
 
         return new PieceRateFinalInspectionMatchResultDto
         {
@@ -408,9 +420,102 @@ public class PieceRateFinalInspectionCategoryService : IPieceRateFinalInspection
             UnitPrice = unitPrice,
             Unit = matched.Unit,
             UnitChinese = PieceRateUnitKeys.ToChinese(matched.Unit) ?? matched.Unit,
+            SimulatedAmount = simulatedAmount,
             Hits = hits,
             Remark = matched.Remark
         };
+    }
+
+    // ==================== 模拟测算（按成检记录点选，2026-09-04） ====================
+
+    /// <summary>候选成检记录（全局任意记录）：成检项目/关键字过滤 SQL 下推 + 分页；默认检验日期降序。
+    /// 关键字覆盖记录本地列（生产编号/设备/操作人），规格列仅展示（避免导航列下推在 InMemory 下不可靠）。</summary>
+    public async Task<PagedResult<FinalInspectionPriceTrialRecordDto>> GetTrialRecordsAsync(
+        FinalInspectionPriceTrialRecordQuery query)
+    {
+        var q = _context.FinalInspections.AsNoTracking()
+            .Include(f => f.ProductionBatch)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(query.ItemKey)
+            && Enum.TryParse<InspectionItem>(query.ItemKey.Trim(), ignoreCase: true, out var itemKey))
+        {
+            q = q.Where(f => f.InspectionItem == itemKey);
+        }
+
+        var kw = string.IsNullOrWhiteSpace(query.Keyword) ? null : query.Keyword.Trim();
+        if (kw != null)
+        {
+            q = q.Where(f => f.BatchNo.Contains(kw)
+                             || (f.EquipmentName != null && f.EquipmentName.Contains(kw))
+                             || (f.Operator != null && f.Operator.Contains(kw)));
+        }
+
+        var totalCount = await q.CountAsync();
+
+        var rows = await q
+            .OrderByDescending(f => f.InspectionDate)
+            .ThenByDescending(f => f.Id)
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .Select(f => new
+            {
+                f.Id,
+                f.InspectionDate,
+                f.InspectionItem,
+                f.BatchNo,
+                f.Quantity,
+                f.Weight,
+                f.EquipmentName,
+                f.Operator,
+                f.FixedLength,
+                Specification = f.ProductionBatch.Specification,
+                LengthStatus = f.ProductionBatch.LengthStatus
+            })
+            .ToListAsync();
+
+        var items = rows.Select(x => new FinalInspectionPriceTrialRecordDto
+        {
+            Id = x.Id,
+            InspectionDate = x.InspectionDate,
+            ItemKey = x.InspectionItem.ToString(),
+            ItemKeyChinese = EnumHelper.GetDisplayName(x.InspectionItem),
+            BatchNo = x.BatchNo,
+            Specification = x.Specification,
+            LengthStatusKey = x.LengthStatus,
+            LengthStatusChinese = ToLengthStatusChinese(x.LengthStatus),
+            FixedLength = x.FixedLength,
+            Quantity = x.Quantity,
+            Weight = x.Weight,
+            EquipmentName = x.EquipmentName,
+            Operator = x.Operator
+        }).ToList();
+
+        return new PagedResult<FinalInspectionPriceTrialRecordDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            PageIndex = query.PageIndex,
+            PageSize = query.PageSize
+        };
+    }
+
+    private static string? ToLengthStatusChinese(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return null;
+        return EnumHelper.TryParse<LengthStatus>(key) is { } v ? EnumHelper.GetDisplayName(v) : key;
+    }
+
+    /// <summary>模拟测算：按一条真实成检记录计价（与月结采集同 FinalInspectionMatchRequestMapper 单源映射）。
+    /// 记录不存在抛 BusinessException；命中不到启用类别返回 null（=未定价）。</summary>
+    public async Task<PieceRateFinalInspectionMatchResultDto?> MatchFinalInspectionRecordAsync(int recordId)
+    {
+        var inspection = await _context.FinalInspections.AsNoTracking()
+            .Include(f => f.ProductionBatch)
+            .FirstOrDefaultAsync(f => f.Id == recordId)
+            ?? throw new BusinessException($"成检记录不存在: {recordId}");
+        var request = FinalInspectionMatchRequestMapper.BuildRequest(inspection, inspection.ProductionBatch);
+        return await MatchByRequestAsync(request);
     }
 
     private static PieceRateFinalInspectionCategoryTier? SelectHitTier(

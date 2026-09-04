@@ -167,4 +167,23 @@ public class PieceRateFinalInspectionCategoryController : ControllerBase
         var result = await _service.MatchPriceAsync(request);
         return Ok(ApiResponse<PieceRateFinalInspectionMatchResultDto?>.Ok(result));
     }
+
+    /// <summary>模拟测算候选成检记录（全局任意记录：成检项目/关键字过滤 + 服务端分页，默认检验日期降序）</summary>
+    [HttpGet("trial-records")]
+    [Authorize(Roles = Roles.Policies.SalaryView)]
+    public async Task<ActionResult<ApiResponse<PagedResult<FinalInspectionPriceTrialRecordDto>>>> GetTrialRecords(
+        [FromQuery] FinalInspectionPriceTrialRecordQuery query)
+    {
+        var result = await _service.GetTrialRecordsAsync(query);
+        return Ok(ApiResponse<PagedResult<FinalInspectionPriceTrialRecordDto>>.Ok(result));
+    }
+
+    /// <summary>模拟测算：按一条真实成检记录计价（与月结采集同 FinalInspectionMatchRequestMapper 单源映射）；返回 null = 未定价</summary>
+    [HttpGet("trial-records/{id:int}/price")]
+    [Authorize(Roles = Roles.Policies.SalaryView)]
+    public async Task<ActionResult<ApiResponse<PieceRateFinalInspectionMatchResultDto?>>> MatchByRecord(int id)
+    {
+        var result = await _service.MatchFinalInspectionRecordAsync(id);
+        return Ok(ApiResponse<PieceRateFinalInspectionMatchResultDto?>.Ok(result));
+    }
 }

@@ -6,7 +6,9 @@ using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Helpers;
 using MES.Data;
+using MES.Data.Entities.Batch;
 using MES.Data.Entities.Payroll;
+using MES.Data.Entities.Quality;
 using MES.Services.Payroll;
 using MES.Tests.Tests;
 
@@ -413,6 +415,95 @@ public class PieceRateFinalInspectionCategoryServiceTests : TestBase
         ex.Which.Message.Should().Contain("命中多个启用类别");
     }
 
+    [Fact]
+    public async Task MatchPriceAsync_模拟金额_元支乘支数()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        await svc.SaveAsync(null, BuildRequest(basePrice: 0.5m, unit: PieceRateUnitKeys.PerPiece));
+
+        var hit = await svc.MatchPriceAsync(new PieceRateFinalInspectionMatchRequest
+        {
+            ItemKey = nameof(InspectionItem.Ultrasonic),
+            InspectionCount = 80
+        });
+        hit.Should().NotBeNull();
+        hit!.UnitPrice.Should().Be(0.5m);
+        hit.SimulatedAmount.Should().Be(40m); // 0.5 × 80 支
+    }
+
+    [Fact]
+    public async Task MatchPriceAsync_模拟金额_元吨按重量折算()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        await svc.SaveAsync(null, BuildRequest(basePrice: 3500m, unit: PieceRateUnitKeys.PerTon));
+
+        var hit = await svc.MatchPriceAsync(new PieceRateFinalInspectionMatchRequest
+        {
+            ItemKey = nameof(InspectionItem.Ultrasonic),
+            WeightKg = 3000m
+        });
+        hit.Should().NotBeNull();
+        hit!.UnitPrice.Should().Be(3500m);
+        hit.SimulatedAmount.Should().Be(10500m); // 3000kg = 3 吨 × 3500
+    }
+
+    [Fact]
+    public async Task MatchPriceAsync_模拟金额_元千米Range缺长按6000折算()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        await svc.SaveAsync(null, BuildRequest(basePrice: 0.001m, unit: PieceRateUnitKeys.PerKm));
+
+        var hit = await svc.MatchPriceAsync(new PieceRateFinalInspectionMatchRequest
+        {
+            ItemKey = nameof(InspectionItem.Ultrasonic),
+            LengthStatus = "范围尺",      // Range → 未填 Length → 服务端按 6000 折算
+            InspectionCount = 1000
+        });
+        hit.Should().NotBeNull();
+        // 1000 支 × 6000mm / 1e6 = 6 km × 0.001 元/km
+        hit!.SimulatedAmount.Should().Be(0.006m);
+    }
+
+    [Fact]
+    public async Task MatchPriceAsync_模拟金额_缺数量返回null()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        await svc.SaveAsync(null, BuildRequest(basePrice: 0.5m, unit: PieceRateUnitKeys.PerPiece));
+
+        var hit = await svc.MatchPriceAsync(new PieceRateFinalInspectionMatchRequest
+        {
+            ItemKey = nameof(InspectionItem.Ultrasonic) // 未填支数
+        });
+        hit.Should().NotBeNull();
+        hit!.UnitPrice.Should().Be(0.5m);
+        hit.SimulatedAmount.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task MatchPriceAsync_模拟金额_元千米Fixed缺长不兜底null()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        await svc.SaveAsync(null, BuildRequest(basePrice: 0.001m, unit: PieceRateUnitKeys.PerKm));
+
+        var hit = await svc.MatchPriceAsync(new PieceRateFinalInspectionMatchRequest
+        {
+            ItemKey = nameof(InspectionItem.Ultrasonic),
+            LengthStatus = nameof(LengthStatus.Fixed) // Fixed 无长度 → 不兜底 → 无法折算
+        });
+        hit.Should().NotBeNull();
+        hit.SimulatedAmount.Should().BeNull();
+    }
+
     // ==================== 列表 / 详情 ====================
 
     [Fact]
@@ -490,5 +581,169 @@ public class PieceRateFinalInspectionCategoryServiceTests : TestBase
         options.LengthStatuses.First(o => o.Key == "Fixed").Name.Should().Be("定尺");
         options.Units.Should().NotBeEmpty();
         options.States.Should().NotBeEmpty();
+    }
+
+    // ==================== 模拟测算：按成检记录点选计价（2026-09-04） ====================
+
+    /// <summary>播种一条生产批次（含规格/长度状态/牌号）+ 一条成检记录（含支数/重量/设备号）</summary>
+    private static async Task<FinalInspection> SeedBatchAndInspectionAsync(AppDbContext ctx,
+        InspectionItem item, string batchNo = "BATCH-REC", string lengthStatus = "Fixed",
+        string? fixedLength = "9150mm", int? quantity = 100, int? weight = 3000,
+        string? equipmentName = "超声波探伤机", string? operatorName = null)
+    {
+        var batch = new ProductionBatch
+        {
+            BatchNo = batchNo,
+            MaterialName = "不锈钢管",
+            PlantGrade = "304",
+            Specification = "219*8",
+            Status = BatchStatus.InProgress,
+            ProductionType = "Internal",
+            ManufacturingItem = "OrderFinished",
+            WorkOrderNo = "WO-" + batchNo,
+            SalesOrderNo = "SO-" + batchNo,
+            ProductionMainNo = "M-" + batchNo,
+            OrderItemIds = "1",
+            Salesman = "张三",
+            SettlementMethod = "Weighing",
+            StandardCode = "GB/T 14976",
+            DeliveryState = "Hard",
+            LengthStatus = lengthStatus,
+            TechnicalRequirements = "无",
+            SignDate = DateTime.Today,
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            OuterDiameterNegative = 0.5m,
+            OuterDiameterPositive = 0.5m,
+            WallThicknessNegative = 0.3m,
+            WallThicknessPositive = 0.3m,
+            TotalQuantity = 100,
+            TotalMeters = 1000m,
+            TotalWeight = 5000m,
+            TotalItemCount = 1
+        };
+        ctx.ProductionBatches.Add(batch);
+        await ctx.SaveChangesAsync();
+
+        var entity = new FinalInspection
+        {
+            InspectionItem = item,
+            InspectionDate = DateTime.Today,
+            BatchNo = batchNo,
+            ProductionBatchId = batch.Id,
+            FixedLength = fixedLength,
+            Quantity = quantity,
+            Weight = weight,
+            EquipmentName = equipmentName,
+            Operator = operatorName
+        };
+        ctx.FinalInspections.Add(entity);
+        await ctx.SaveChangesAsync();
+        return entity;
+    }
+
+    [Fact]
+    public async Task MatchFinalInspectionRecordAsync_记录计价_与手工等值请求完全一致()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        // 类别：超声波 + 外径>54×1.2 + 壁厚>4.3×1.15，元/吨
+        var req = BuildRequest(basePrice: 3500, unit: PieceRateUnitKeys.PerTon);
+        req.Tiers =
+        [
+            new PieceRateFinalInspectionCategoryTierSaveRequest { DimensionKey = PieceRateInspectionDimensionKeys.OuterDiameter, RangeText = ">54", Ratio = 1.2m },
+            new PieceRateFinalInspectionCategoryTierSaveRequest { DimensionKey = PieceRateInspectionDimensionKeys.WallThickness, RangeText = ">4.3", Ratio = 1.15m }
+        ];
+        await svc.SaveAsync(null, req);
+
+        // 记录：批次 219*8 / Fixed / 304；支数 100、重量 3000kg、设备 超声波探伤机
+        var inspection = await SeedBatchAndInspectionAsync(ctx, InspectionItem.Ultrasonic,
+            equipmentName: "超声波探伤机");
+
+        var byRecord = await svc.MatchFinalInspectionRecordAsync(inspection.Id);
+        byRecord.Should().NotBeNull();
+        byRecord!.BasePrice.Should().Be(3500);
+        byRecord.TotalRatio.Should().Be(1.38m);          // 1.2 × 1.15
+        byRecord.UnitPrice.Should().Be(4830m);           // 3500 × 1.38
+        byRecord.SimulatedAmount.Should().Be(14490m);    // 3000kg = 3 吨 × 4830
+
+        // 与手工 match-price 喂等值字段结果完全相等（记录计价走共享映射单源）
+        var byManual = await svc.MatchPriceAsync(new PieceRateFinalInspectionMatchRequest
+        {
+            ItemKey = nameof(InspectionItem.Ultrasonic),
+            LengthStatus = nameof(LengthStatus.Fixed),
+            Length = 9150m,
+            OuterDiameter = 219m,
+            WallThickness = 8m,
+            InspectionCount = 100,
+            WeightKg = 3000m,
+            PlantGrade = "304",
+            EquipmentName = "超声波探伤机"
+        });
+        byManual.Should().NotBeNull();
+        byManual!.CategoryId.Should().Be(byRecord.CategoryId);
+        byManual.BasePrice.Should().Be(byRecord.BasePrice);
+        byManual.TotalRatio.Should().Be(byRecord.TotalRatio);
+        byManual.UnitPrice.Should().Be(byRecord.UnitPrice);
+        byManual.SimulatedAmount.Should().Be(byRecord.SimulatedAmount);
+        byManual.Hits.Select(h => h.DimensionKey).Should().BeEquivalentTo(byRecord.Hits.Select(h => h.DimensionKey));
+    }
+
+    [Fact]
+    public async Task MatchFinalInspectionRecordAsync_项目无启用类别_返回null未定价()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var inspection = await SeedBatchAndInspectionAsync(ctx, InspectionItem.HydrostaticPressure);
+
+        var result = await svc.MatchFinalInspectionRecordAsync(inspection.Id);
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task MatchFinalInspectionRecordAsync_记录不存在_抛业务异常()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = async () => await svc.MatchFinalInspectionRecordAsync(9999);
+        var ex = await act.Should().ThrowAsync<BusinessException>();
+        ex.Which.Message.Should().Contain("成检记录不存在");
+    }
+
+    [Fact]
+    public async Task GetTrialRecordsAsync_项目与关键字筛选_中文与长度状态补齐()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        await SeedBatchAndInspectionAsync(ctx, InspectionItem.Ultrasonic, batchNo: "FB001",
+            equipmentName: "超声波探伤机", operatorName: "张三");
+        await SeedBatchAndInspectionAsync(ctx, InspectionItem.HydrostaticPressure, batchNo: "FB002",
+            lengthStatus: "Range", fixedLength: null, equipmentName: "水压机", operatorName: "李四");
+
+        var all = await svc.GetTrialRecordsAsync(new FinalInspectionPriceTrialRecordQuery { PageSize = 50 });
+        all.TotalCount.Should().Be(2);
+
+        var onlyUs = await svc.GetTrialRecordsAsync(new FinalInspectionPriceTrialRecordQuery
+        {
+            PageSize = 50,
+            ItemKey = nameof(InspectionItem.Ultrasonic)
+        });
+        onlyUs.TotalCount.Should().Be(1);
+        onlyUs.Items.Single().ItemKeyChinese.Should().Be("超声波");
+        onlyUs.Items.Single().BatchNo.Should().Be("FB001");
+        onlyUs.Items.Single().FixedLength.Should().Be("9150mm");
+
+        var byOp = await svc.GetTrialRecordsAsync(new FinalInspectionPriceTrialRecordQuery
+        {
+            PageSize = 50,
+            Keyword = "李四"
+        });
+        byOp.TotalCount.Should().Be(1);
+        byOp.Items.Single().ItemKey.Should().Be(nameof(InspectionItem.HydrostaticPressure));
+        byOp.Items.Single().LengthStatusKey.Should().Be("Range");
+        byOp.Items.Single().LengthStatusChinese.Should().Be("范围尺");
     }
 }

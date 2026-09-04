@@ -31,4 +31,11 @@ public interface IPieceRateFinalInspectionCategoryService
     /// 命中不到启用类别返回 null（=未定价）；同项目多余启用 = 数据违例防御性报错。
     /// </summary>
     Task<PieceRateFinalInspectionMatchResultDto?> MatchPriceAsync(PieceRateFinalInspectionMatchRequest request);
+
+    /// <summary>模拟测算候选成检记录（全局任意记录：分页 + 成检项目/关键字过滤，服务端 SQL 下推）</summary>
+    Task<PagedResult<FinalInspectionPriceTrialRecordDto>> GetTrialRecordsAsync(FinalInspectionPriceTrialRecordQuery query);
+
+    /// <summary>模拟测算：按一条真实成检记录计价（与月结采集同 FinalInspectionMatchRequestMapper 单源映射）。
+    /// 记录不存在抛 BusinessException；命中不到启用类别返回 null（=未定价）。</summary>
+    Task<PieceRateFinalInspectionMatchResultDto?> MatchFinalInspectionRecordAsync(int recordId);
 }

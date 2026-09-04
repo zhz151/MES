@@ -87,116 +87,131 @@
                 </MudItem>
             </MudGrid>
 
-            <!-- 试算匹配区（按一条成检验证类别单价） -->
+            <!-- 模拟测算区（按成检记录点选计价，2026-09-04） -->
             <MudExpansionPanels MultiExpansion="false" Class="mt-3">
-                <MudExpansionPanel>
+                <MudExpansionPanel OnExpandedChanged="OnTrialExpandedChanged">
                     <TitleContent>
                         <div class="d-flex align-center">
                             <MudIcon Icon="@Icons.Material.Filled.Calculate" Class="mr-2" Color="Color.Primary" Size="Size.Small" />
-                            <MudText Typo="Typo.subtitle1">试算匹配（按一条成检验证类别单价）</MudText>
+                            <MudText Typo="Typo.subtitle1">模拟测算（按成检记录点选计价）</MudText>
                         </div>
                     </TitleContent>
                     <ChildContent>
                         <MudGrid Class="pt-3">
-                            <MudItem xs="12" md="3">
+                            <MudItem xs="12" md="4">
                                 <MudSelect T="string"
-                                           Label="成检项目（必选）"
-                                           Value="_trialItemKey" ValueChanged="@(v => _trialItemKey = v)"
-                                           AdornmentIcon="@Icons.Material.Filled.VerifiedUser">
+                                           Label="成检项目筛选"
+                                           Value="_trialItemFilter"
+                                           ValueChanged="@OnTrialItemFilterChanged"
+                                           Clearable="true"
+                                           AdornmentIcon="@Icons.Material.Filled.FilterList">
                                     @foreach (var opt in _itemOptions)
                                     {
                                         <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
                                     }
                                 </MudSelect>
                             </MudItem>
-                            <MudItem xs="12" md="3">
-                                <MudSelect T="string"
-                                           Label="长度状态"
-                                           Value="_trialLengthStatus" ValueChanged="@(v => _trialLengthStatus = v)"
-                                           Clearable="true"
-                                           AdornmentIcon="@Icons.Material.Filled.Straighten">
-                                    @foreach (var opt in _lengthStatusOptions)
-                                    {
-                                        <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
-                                    }
-                                </MudSelect>
-                            </MudItem>
-                            <MudItem xs="12" md="3">
-                                <MudSelect T="string"
-                                           Label="特殊制造状态"
-                                           Value="_trialSpecialState" ValueChanged="@(v => _trialSpecialState = v)"
-                                           Clearable="true"
-                                           AdornmentIcon="@Icons.Material.Filled.Tune">
-                                    @foreach (var opt in _stateOptions)
-                                    {
-                                        <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
-                                    }
-                                </MudSelect>
-                            </MudItem>
-                            <MudItem xs="12" md="3">
+                            <MudItem xs="12" md="8">
                                 <MudTextField T="string"
-                                              Label="工厂牌号（特殊牌号）"
-                                              Value="_trialPlantGrade" ValueChanged="@(v => _trialPlantGrade = v)" />
-                            </MudItem>
-                            <MudItem xs="12" md="3">
-                                <MudNumericField T="decimal?"
-                                                 Label="外径（mm）"
-                                                 @bind-Value="_trialOuterDiameter"
-                                                 Format="G29"
-                                                 HideSpinButtons="true" />
-                            </MudItem>
-                            <MudItem xs="12" md="3">
-                                <MudNumericField T="decimal?"
-                                                 Label="壁厚（mm）"
-                                                 @bind-Value="_trialWallThickness"
-                                                 Format="G29"
-                                                 HideSpinButtons="true" />
-                            </MudItem>
-                            <MudItem xs="12" md="3">
-                                <MudNumericField T="decimal?"
-                                                 Label="长度（mm）"
-                                                 HelperText="定尺=实际定尺长；范围尺/非定尺留空自动按 6000"
-                                                 @bind-Value="_trialLength"
-                                                 Format="G29"
-                                                 HideSpinButtons="true" />
-                            </MudItem>
-                            <MudItem xs="12" md="3">
-                                <MudNumericField T="int?"
-                                                 Label="检验支数（批次实检）"
-                                                 @bind-Value="_trialInspectionCount"
-                                                 HideSpinButtons="true" />
-                            </MudItem>
-                            <MudItem xs="12" md="3">
-                                <MudTextField T="string"
-                                              Label="设备名称（特殊设备号）"
-                                              Value="_trialEquipmentName" ValueChanged="@(v => _trialEquipmentName = v)" />
-                            </MudItem>
-                            <MudItem xs="12" md="3" Class="d-flex align-center mt-1">
-                                <MudButton Variant="Variant.Filled"
-                                           Color="Color.Primary"
-                                           StartIcon="@Icons.Material.Filled.Calculate"
-                                           Disabled="@_matchLoading"
-                                           OnClick="StartMatchAsync">
-                                    开始试算
-                                </MudButton>
+                                              Label="关键字 - 生产编号/设备/操作人"
+                                              Value="_trialKeyword"
+                                              ValueExpression="@(() => _trialKeyword)"
+                                              ValueChanged="@OnTrialKeywordChanged"
+                                              Immediate="true"
+                                              DebounceInterval="500"
+                                              Adornment="Adornment.End"
+                                              AdornmentIcon="@Icons.Material.Filled.Search" />
                             </MudItem>
                         </MudGrid>
 
-                        @if (_matchLoading)
+                        <MudText Typo="Typo.caption" Class="mt-3 mb-1">
+                            选中一条真实成检记录点「试算」→ 按现行启用类别给出结算单价与整行计件额（与当月结算同口径、未按写名人头均分）
+                        </MudText>
+
+                        <MudTable @ref="_trialTable"
+                                  T="FinalInspectionPriceTrialRecordDto"
+                                  ServerData="@LoadTrialRecords"
+                                  Dense="true"
+                                  Hover="true"
+                                  Class="auto-table"
+                                  Elevation="0"
+                                  RowsPerPage="10"
+                                  RowsPerPageLabel="每页行数:">
+                            <ToolBarContent>
+                                <MudText Typo="Typo.body2" Class="ml-auto">
+                                    共 @_trialTotalCount 条成检记录
+                                </MudText>
+                            </ToolBarContent>
+                            <HeaderContent>
+                                <MudTh>检验日期</MudTh>
+                                <MudTh>检验项目</MudTh>
+                                <MudTh>生产编号</MudTh>
+                                <MudTh>规格</MudTh>
+                                <MudTh>长度状态·定尺长</MudTh>
+                                <MudTh>检验支数</MudTh>
+                                <MudTh>重量(kg)</MudTh>
+                                <MudTh>设备</MudTh>
+                                <MudTh>操作人</MudTh>
+                                <MudTh Style="width: 90px;">操作</MudTh>
+                            </HeaderContent>
+                            <RowTemplate Context="rec">
+                                <MudTd>@rec.InspectionDate.ToString("yyyy-MM-dd")</MudTd>
+                                <MudTd><b>@rec.ItemKeyChinese</b></MudTd>
+                                <MudTd>@rec.BatchNo</MudTd>
+                                <MudTd>@rec.Specification</MudTd>
+                                <MudTd>
+                                    @rec.LengthStatusChinese
+                                    @if (!string.IsNullOrWhiteSpace(rec.FixedLength))
+                                    {
+                                        @("·")@rec.FixedLength
+                                    }
+                                </MudTd>
+                                <MudTd>@rec.Quantity</MudTd>
+                                <MudTd>@rec.Weight</MudTd>
+                                <MudTd>@rec.EquipmentName</MudTd>
+                                <MudTd>@rec.Operator</MudTd>
+                                <MudTd>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Calculate"
+                                                   Title="按此记录试算"
+                                                   Color="Color.Primary"
+                                                   Size="Size.Small"
+                                                   Disabled="@_pricingLoading"
+                                                   OnClick="() => PriceRecordAsync(rec)" />
+                                </MudTd>
+                            </RowTemplate>
+                            <PagerContent>
+                                <MudTablePager PageSizeOptions="new int[]{10,20,50}" />
+                            </PagerContent>
+                        </MudTable>
+
+                        @if (_pricingLoading)
                         {
                             <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-3" />
                         }
-                        else if (_matchDone)
+                        else if (_pricingError != null)
                         {
+                            <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Class="mt-3">
+                                <MudText Typo="Typo.body2">@_pricingError</MudText>
+                            </MudAlert>
+                        }
+                        else if (_pricingDone)
+                        {
+                            @if (_selectedRecord != null)
+                            {
+                                <MudText Typo="Typo.caption" Class="mt-3">
+                                    记录：@_selectedRecord.ItemKeyChinese ｜ @_selectedRecord.BatchNo ｜ 规格 @_selectedRecord.Specification
+                                    ｜ 支数 @(_selectedRecord.Quantity?.ToString() ?? "-") ｜ 重量 @(_selectedRecord.Weight?.ToString() ?? "-")kg
+                                </MudText>
+                            }
                             @if (_matchResult == null)
                             {
-                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-3">
-                                    <MudText Typo="Typo.body2">该项目未定价（无启用类别或未命中任何档）</MudText>
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-2">
+                                    <MudText Typo="Typo.body2">该记录未定价（该成检项目无启用类别或记录值未命中任何档）</MudText>
                                 </MudAlert>
                             }
                             else
                             {
-                                <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Class="mt-3">
+                                <MudAlert Severity="Severity.Success" Variant="Variant.Outlined" Class="mt-2">
                                     <MudText Typo="Typo.body2">
                                         命中类别（Id=@_matchResult.CategoryId）：@_matchResult.ItemKeyChinese
                                     </MudText>
@@ -204,6 +219,18 @@
                                         基准价 <b>@_matchResult.BasePrice.ToString("G29")</b> × 总系数 <b>@_matchResult.TotalRatio.ToString("G29")</b> = 结算单价
                                         <b>@_matchResult.UnitPrice.ToString("G29") @_matchResult.UnitChinese</b>
                                     </MudText>
+                                    @if (_matchResult.SimulatedAmount is { } simAmt)
+                                    {
+                                        <MudText Typo="Typo.subtitle2" Class="mt-2" Style="color: #2e7d32;">
+                                            整行计件额（与月结口径一致、未按写名人头均分）：<b>@simAmt.ToString("G29") 元</b>
+                                        </MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.caption" Class="mt-1">
+                                            @TrialSimulatedAmountHint(_matchResult.Unit)
+                                        </MudText>
+                                    }
                                     @if (_matchResult.Hits.Count > 0)
                                     {
                                         <div class="d-flex flex-wrap align-center mt-2" style="gap: 4px;">

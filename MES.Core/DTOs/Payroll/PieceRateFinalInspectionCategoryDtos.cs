@@ -192,8 +192,58 @@ public class PieceRateFinalInspectionMatchResultDto
 
     public string UnitChinese { get; set; } = string.Empty;
 
+    /// <summary>模拟计件工资 = 整行计价额（结算单价 × 数量折算，AmountForUnit 口径；未按写名人头均分）。
+    /// null=未定价或缺数量/长度输入无法折算。</summary>
+    public decimal? SimulatedAmount { get; set; }
+
     /// <summary>命中的维档清单</summary>
     public List<PieceRateProductionMatchTierHitDto> Hits { get; set; } = new();
 
     public string? Remark { get; set; }
+}
+
+/// <summary>模拟测算候选成检记录查询（2026-09-04 全局任意记录：跨期按成检项目 / 关键字检索）</summary>
+public class FinalInspectionPriceTrialRecordQuery : QueryParams
+{
+    /// <summary>成检项目过滤（InspectionItem 枚举名；空=全部）</summary>
+    public string? ItemKey { get; set; }
+}
+
+/// <summary>模拟测算候选成检记录行（点选后按 Id 计价，与月结采集同映射单源）</summary>
+public class FinalInspectionPriceTrialRecordDto
+{
+    public int Id { get; set; }
+
+    public DateTime InspectionDate { get; set; }
+
+    /// <summary>成检项目（InspectionItem 枚举名）</summary>
+    public string ItemKey { get; set; } = string.Empty;
+
+    /// <summary>成检项目中文</summary>
+    public string ItemKeyChinese { get; set; } = string.Empty;
+
+    /// <summary>生产编号（记录自带）</summary>
+    public string BatchNo { get; set; } = string.Empty;
+
+    /// <summary>规格（所属批次）</summary>
+    public string? Specification { get; set; }
+
+    /// <summary>长度状态（所属批次；LengthStatus 枚举名）</summary>
+    public string? LengthStatusKey { get; set; }
+
+    /// <summary>长度状态中文</summary>
+    public string? LengthStatusChinese { get; set; }
+
+    /// <summary>定尺长度（批次长度状态=定尺时填写）</summary>
+    public string? FixedLength { get; set; }
+
+    /// <summary>检验支数</summary>
+    public int? Quantity { get; set; }
+
+    /// <summary>理论检验重量(kg)</summary>
+    public int? Weight { get; set; }
+
+    public string? EquipmentName { get; set; }
+
+    public string? Operator { get; set; }
 }

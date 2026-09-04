@@ -6,7 +6,9 @@ using MES.Blazor.Models;
 using MES.Blazor.Services;
 using MES.Blazor.Services.Payroll;
 using MES.Blazor.Shared;
+using MES.Core.Constants;
 using MES.Core.DTOs.Payroll;
+using MES.Core.Helpers;
 using MES.Core.Models;
 
 namespace MES.Blazor.Pages.Payroll;
@@ -14,7 +16,7 @@ namespace MES.Blazor.Pages.Payroll;
 /// <summary>
 /// 成检计件类别（2026-09-03 引入）列表页：类别 = 成检项目(InspectionItem 单选) + 基准价 + 维档系数。
 /// 列显隐 + 全字段排序 + 模糊搜索（成检项目/备注，服务端内存过滤）+ 成检项目/启停筛选，
-/// 页内附带「试算匹配」展开区（POST match-price 按一条成检验证类别单价）。
+/// 页内附带「模拟测算」展开区（2026-09-04 按成检记录点选计价，与月结采集同映射单源）。
 /// </summary>
 public partial class FinalInspectionCategories
 {
@@ -37,20 +39,17 @@ public partial class FinalInspectionCategories
     /// <summary>启停筛选（空=全部；"true"/"false"）</summary>
     private string? _activeFilter;
 
-    // ========== 试算匹配区状态 ==========
-    private List<PieceRateCategoryOptionItemDto> _lengthStatusOptions = new();
-    private List<PieceRateCategoryOptionItemDto> _stateOptions = new();
-    private string? _trialItemKey;
-    private string? _trialLengthStatus;
-    private string? _trialSpecialState;
-    private string? _trialPlantGrade;
-    private decimal? _trialOuterDiameter;
-    private decimal? _trialWallThickness;
-    private decimal? _trialLength;
-    private int? _trialInspectionCount;
-    private string? _trialEquipmentName;
-    private bool _matchLoading;
-    private bool _matchDone;
+    // ========== 模拟测算区状态（按成检记录点选计价，2026-09-04） ==========
+    private MudTable<FinalInspectionPriceTrialRecordDto>? _trialTable;
+    private List<FinalInspectionPriceTrialRecordDto> _trialPageItems = new();
+    private int _trialTotalCount;
+    private string? _trialItemFilter;
+    private string _trialKeyword = string.Empty;
+    private bool _trialDataLoaded;
+    private FinalInspectionPriceTrialRecordDto? _selectedRecord;
+    private bool _pricingLoading;
+    private bool _pricingDone;
+    private string? _pricingError;
     private PieceRateFinalInspectionMatchResultDto? _matchResult;
 
     // 排序状态（默认按成检项目列升序）
@@ -249,13 +248,11 @@ public partial class FinalInspectionCategories
             _restoredPageIndex = Math.Max(0, savedState.PageIndex - 1);
         }
 
-        // 选项源（成检项目/长度状态/特殊制造状态）来自 options 端点
+        // 选项源（成检项目）来自 options 端点；类别表与模拟测算记录筛选共用
         var optionsResult = await Service.GetOptionsAsync();
         if (optionsResult.Success && optionsResult.Data != null)
         {
             _itemOptions = optionsResult.Data.Items;
-            _lengthStatusOptions = optionsResult.Data.LengthStatuses;
-            _stateOptions = optionsResult.Data.States;
             // 将当前已保存的成检项目筛选加入候选（防止历史值无候选）
             if (!string.IsNullOrEmpty(_itemFilter) &&
                 _itemOptions.All(o => !string.Equals(o.Key, _itemFilter, StringComparison.Ordinal)))
@@ -350,64 +347,107 @@ public partial class FinalInspectionCategories
         }
     }
 
-    // ========== 试算匹配 ==========
+    // ========== 模拟测算（按成检记录点选计价，2026-09-04） ==========
 
-    private async Task StartMatchAsync()
+    /// <summary>展开面板首次展开时加载候选记录</summary>
+    private async Task OnTrialExpandedChanged(bool expanded)
     {
-        if (string.IsNullOrWhiteSpace(_trialItemKey))
+        if (expanded && !_trialDataLoaded && _trialTable != null)
         {
-            Snackbar.Add("请先选择成检项目", Severity.Warning);
-            return;
+            _trialDataLoaded = true;
+            await _trialTable.ReloadServerData();
         }
-        _matchLoading = true;
-        _matchDone = false;
-        _matchResult = null;
+    }
+
+    private async Task OnTrialItemFilterChanged(string? value)
+    {
+        _trialItemFilter = value;
+        if (_trialTable != null) await _trialTable.ReloadServerData();
+    }
+
+    private async Task OnTrialKeywordChanged(string value)
+    {
+        _trialKeyword = value ?? string.Empty;
+        if (_trialTable != null) await _trialTable.ReloadServerData();
+    }
+
+    /// <summary>候选成检记录服务端分页（默认检验日期降序）</summary>
+    private async Task<TableData<FinalInspectionPriceTrialRecordDto>> LoadTrialRecords(TableState state)
+    {
         try
         {
-            var request = new PieceRateFinalInspectionMatchRequest
+            var query = new FinalInspectionPriceTrialRecordQuery
             {
-                ItemKey = _trialItemKey!,
-                LengthStatus = string.IsNullOrWhiteSpace(_trialLengthStatus) ? null : _trialLengthStatus,
-                SpecialState = string.IsNullOrWhiteSpace(_trialSpecialState) ? null : _trialSpecialState,
-                PlantGrade = string.IsNullOrWhiteSpace(_trialPlantGrade) ? null : _trialPlantGrade.Trim(),
-                OuterDiameter = _trialOuterDiameter,
-                WallThickness = _trialWallThickness,
-                // 长度状态 Range/NonFixed 未填长度 → 默认 6000mm（业务规约 2026-09-03：范围尺/非定尺折算参与 Length 档）
-                Length = _trialLength ?? DefaultLengthByStatus(_trialLengthStatus),
-                InspectionCount = _trialInspectionCount,
-                EquipmentName = string.IsNullOrWhiteSpace(_trialEquipmentName) ? null : _trialEquipmentName.Trim()
+                PageIndex = state.Page + 1,
+                PageSize = state.PageSize,
+                Keyword = string.IsNullOrWhiteSpace(_trialKeyword) ? null : _trialKeyword,
+                ItemKey = string.IsNullOrWhiteSpace(_trialItemFilter) ? null : _trialItemFilter
             };
-            var result = await Service.MatchPriceAsync(request);
-            _matchDone = true;
-            if (result.Success)
+            var result = await Service.GetTrialRecordsAsync(query);
+            if (result.Success && result.Data != null)
             {
-                // Data == null 表示该项目未定价
-                _matchResult = result.Data;
+                _trialPageItems = result.Data.Items;
+                _trialTotalCount = result.Data.TotalCount;
             }
             else
             {
-                Snackbar.Add(result.Message ?? "试算失败", Severity.Error);
+                _trialPageItems = new();
+                _trialTotalCount = 0;
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"试算失败: {ex.Message}", Severity.Error);
+            Snackbar.Add($"加载成检记录失败: {ex.Message}", Severity.Error);
+            _trialPageItems = new();
+            _trialTotalCount = 0;
+        }
+        return new TableData<FinalInspectionPriceTrialRecordDto>
+        {
+            Items = _trialPageItems,
+            TotalItems = _trialTotalCount
+        };
+    }
+
+    /// <summary>行「试算」：按该真实成检记录计价（与月结采集同映射单源）</summary>
+    private async Task PriceRecordAsync(FinalInspectionPriceTrialRecordDto record)
+    {
+        _selectedRecord = record;
+        _pricingLoading = true;
+        _pricingDone = false;
+        _pricingError = null;
+        _matchResult = null;
+        try
+        {
+            var result = await Service.MatchFinalInspectionRecordAsync(record.Id);
+            _pricingDone = true;
+            if (result.Success)
+            {
+                // Data == null 表示该记录未定价
+                _matchResult = result.Data;
+            }
+            else
+            {
+                _pricingError = result.Message ?? "计价失败";
+            }
+        }
+        catch (Exception ex)
+        {
+            _pricingError = $"计价失败: {ex.Message}";
         }
         finally
         {
-            _matchLoading = false;
+            _pricingLoading = false;
         }
     }
 
-    /// <summary>试算长度缺省值：长度状态为范围尺/非定尺（枚举名英文 Key）且未填长度 → 6000mm；否则 null（不兜底）。</summary>
-    private static decimal? DefaultLengthByStatus(string? status)
-    {
-        if (string.IsNullOrWhiteSpace(status)) return null;
-        var s = status.Trim();
-        var isNonFixed = string.Equals(s, "Range", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(s, "NonFixed", StringComparison.OrdinalIgnoreCase);
-        return isNonFixed ? 6000m : null;
-    }
+    /// <summary>总价缺失提示：记录缺检验支数/重量，仅单价无法折算整行金额（按结算单位细化）</summary>
+    private static string TrialSimulatedAmountHint(string? unit)
+        => unit switch
+        {
+            PieceRateUnitKeys.PerTon => "该记录缺检验重量(kg)，无法折算整行金额",
+            PieceRateUnitKeys.PerPiece or PieceRateUnitKeys.PerKm => "该记录缺检验支数/长度，无法折算整行金额",
+            _ => "该记录缺数量，无法折算整行金额"
+        };
 
     // ========== 持久化 ==========
 

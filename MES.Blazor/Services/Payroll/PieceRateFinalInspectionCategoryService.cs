@@ -108,4 +108,36 @@ public class PieceRateFinalInspectionCategoryService
             return ApiResponse<PieceRateFinalInspectionMatchResultDto?>.Fail($"网络错误: {ex.Message}");
         }
     }
+
+    public async Task<ApiResponse<PagedResult<FinalInspectionPriceTrialRecordDto>>> GetTrialRecordsAsync(
+        FinalInspectionPriceTrialRecordQuery query)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/trial-records?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={Uri.EscapeDataString(query.SortBy)}&isDescending={query.IsDescending}";
+            if (!string.IsNullOrWhiteSpace(query.Keyword))
+                url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
+            if (!string.IsNullOrWhiteSpace(query.ItemKey))
+                url += $"&itemKey={Uri.EscapeDataString(query.ItemKey)}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<FinalInspectionPriceTrialRecordDto>>>(url);
+            return response ?? ApiResponse<PagedResult<FinalInspectionPriceTrialRecordDto>>.Fail("获取成检记录失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<PagedResult<FinalInspectionPriceTrialRecordDto>>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<PieceRateFinalInspectionMatchResultDto?>> MatchFinalInspectionRecordAsync(int recordId)
+    {
+        try
+        {
+            var response = await _http.GetFromJsonAsync<ApiResponse<PieceRateFinalInspectionMatchResultDto?>>($"{BaseUrl}/trial-records/{recordId}/price");
+            return response ?? ApiResponse<PieceRateFinalInspectionMatchResultDto?>.Fail("计价失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<PieceRateFinalInspectionMatchResultDto?>.Fail($"网络错误: {ex.Message}");
+        }
+    }
 }
