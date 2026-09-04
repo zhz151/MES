@@ -1,8 +1,8 @@
 # MES 前端页面结构参考
 
-> 生成日期：2026-08-19（V25）
-> 最后更新：2026-09-03（V41）
-> 用途：Quick Reference - 快速了解项目前端页面组织结构和上下文归属
+> 版本：V44（2026-09-04；生成 2026-08-19）
+> 用途/状态：Quick Reference - 按导航菜单分组的前端页面结构参考，§1 上下文总览 / §2 各上下文页面块 / §3 列表页全量清单。
+> 上次实质变更（V44）：生产计件类别 #76 模拟测算搜索与金额口径三项增强——工段/工序中文子串反查、元/头折算接线、断切率同源。
 
 ---
 
@@ -54,8 +54,6 @@
 │                                                           │
 │  列表页: Orders, Customers, PendingDelivery               │
 │                                                           │
-│  2026-06-21 变更：产品标准(Standards)已删除；牌号对照(GradeMappings)移至生产标准菜单│
-│  2026-08-26 变更：待发货项自仓库上下文迁入订单上下文（页面/控制器/服务/DTO），更名「订单成品(实时库存)」│
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -81,9 +79,7 @@
 │  WorkOrderFinishPlanCreate.razor   /workorders/{id}/finish-plan/create │
 │  WorkOrderReworkPlanCreate.razor   /workorders/{id}/rework-plan/create │
 │  WorkOrderInProcessReworkPlanCreate.razor /workorders/{id}/in-process-rework-plan/create │
-│  WorkOrderInProcessReworkPlanCreate.razor /workorders/{id}/in-process-rework-plan/edit/{PlanId:int} │
 │  WorkOrderInMainWorkOrderPlanCreate.razor /workorders/{id}/in-main-work-order-plan/create │
-│  WorkOrderInMainWorkOrderPlanCreate.razor /workorders/{id}/in-main-work-order-plan/edit/{PlanId:int} │
 │                                                           │
 │  MaterialPlanOverview.razor /material-plan-overview [列表页]│
 │                                                           │
@@ -193,7 +189,7 @@
 │  NcrForm.razor                   /quality/ncr/create               [创建页]       │
 │  NcrForm.razor                   /quality/ncr/{Id:int}             [详情页]       │
 │                                                           │
-│  --- 理化检测模块（V7.0 新增） ---                          │
+│  --- 理化检测模块 ---                                      │
 │  ChemicalAnalyses.razor          /quality/chemical-analysis    [列表页]      │
 │  ChemicalAnalysisCreate.razor    /quality/chemical-analysis/create [创建页]  │
 │  HardnessTests.razor             /quality/hardness-test        [列表页]      │
@@ -213,7 +209,7 @@
 │  FlaringTests.razor              /quality/flaring-test         [列表页]      │
 │  FlaringTestCreate.razor         /quality/flaring-test/create  [创建页]      │
 │                                                           │
-│  --- 质量证明书模块（V17 新增） ---                          │
+│  --- 质量证明书模块 ---                                      │
 │  Certificates.razor              /quality/certificates        [列表页]      │
 │  CertificateCreate.razor         /quality/certificates/create [创建页]      │
 │  CertificateDetail.razor         /quality/certificates/{Id:int} [详情页]    │
@@ -262,8 +258,7 @@
 路由前缀: /warehouse, /warehouse/{Code}, /warehouse/inbound, /warehouse/outbound,
          /warehouse/inbound-history, /warehouse/outbound-history
 菜单: 仓库管理 → [原料库, 成品库, 在制品库, 次品库, 物料进出存报表]
-      （2026-08-23 在制品库移至次品库上方；物料进出存报表并入仓库管理，位于次品库之下；报表系统已删除；
-       2026-08-26 待发货项迁出至订单管理，更名「订单成品(实时库存)」）
+      （报表系统已删除并入仓库管理；原「待发货项」已迁至订单管理上下文，更名「订单成品(实时库存)」）
 
 ┌─ 仓库管理 ───────────────────────────────────────────────┐
 │                                                           │
@@ -411,20 +406,19 @@
 ```
 路由前缀: /payroll
 菜单: 工资结算 → [生产计件类别, 成检计件类别, 考勤表, 杂辅工记录, 集体计件评分, 津贴与处罚, 非计件工资, 个人计件工资, 集体计件月结, 靠工计件月结, 月工资津贴汇总]
-     （2026-09-04 调整：二级菜单重排 + 个人计价→个人计件 / 月工资汇总→月工资津贴汇总 改名）
      （独立主菜单，位于扫码管理下方、参数表上方）
 
 ┌─ 工资结算 ───────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                                                                                              │
 │ Attendance.razor                /payroll/attendance                 [考勤表月视图网格页]                     │
-│ MonthlyWages.razor              /payroll/wages/non-piece            [非计件工资月视图网格页（四期）]          │
+│ MonthlyWages.razor              /payroll/wages/non-piece            [非计件工资月视图网格页]          │
 │                                /payroll/wages/piece                 [个人计件工资月视图网格页（单组件双路由）] │
-│ CollectiveScores.razor          /payroll/collective-scores          [集体计件评分页（五期）]                  │
-│ CollectiveMonthly.razor         /payroll/collective-monthly         [集体计件月结页（五期）]                  │
-│ PieceAttendanceMonthly.razor    /payroll/attendance-monthly         [靠工计件月结页（六期）]                  │
-│ MiscWorkMonthly.razor           /payroll/misc-work                  [杂辅工记录台账页（七期）]                │
-│ AllowanceMonthly.razor          /payroll/allowance                  [津贴与处罚月度网格页（八期）]            │
-│ MonthlySummary.razor            /payroll/monthly-summary            [月工资津贴汇总页（九期）]                    │
+│ CollectiveScores.razor          /payroll/collective-scores          [集体计件评分页]                  │
+│ CollectiveMonthly.razor         /payroll/collective-monthly         [集体计件月结页]                  │
+│ PieceAttendanceMonthly.razor    /payroll/attendance-monthly         [靠工计件月结页]                  │
+│ MiscWorkMonthly.razor           /payroll/misc-work                  [杂辅工记录台账页]                │
+│ AllowanceMonthly.razor          /payroll/allowance                  [津贴与处罚月度网格页]            │
+│ MonthlySummary.razor            /payroll/monthly-summary            [月工资津贴汇总页]                    │
 │ PieceRateProductionCategories.razor  /payroll/piece-rate-categories  [生产计件类别列表页]                    │
 │ PieceRateProductionCategoryEdit.razor                                                                        │
 │         /payroll/piece-rate-categories/create        [创建页]                                                │
@@ -433,63 +427,10 @@
 │ FinalInspectionCategoryEdit.razor /payroll/final-inspection-categories/create、/edit/{Id:int} [成检类别编辑页]│
 │                                                                                                              │
 │ 列表页: Attendance, PieceRateProductionCategories                                                            │
-│ 2026-09-02 变更：计件单价体系「单表→两表」重构：删除旧 3 页                                                  │
-│ （PieceRateStandards / PieceRateStandardEdit / PieceRateSectionEditor，                                      │
-│   /payroll/piece-rate-standards* 路由）与旧单表实体 PieceRateStandard；                                      │
-│ 改「生产计件类别」两表模型：PieceRateProductionCategory（类别定义）                                          │
-│ + 子表 PieceRateProductionTier（维档）                                                                       │
-│ 类别 = 工段 × 工序/产类/阶段约束 + 基准价 + 维档系数；                                                       │
-│ 结算单价 = 类别基准价 × 命中维档系数连乘（不配某维 = 系数 1）；                                              │
-│ 唯一性：工段×工序×产类×阶段同覆盖仅允许一个启用类别                                                          │
-│ 列表页：自动组合名/工段中文/基准价/单位/维档数/启停/备注/时间列                                              │
-│ + 列显隐/排序 + 工段下拉/启停下拉 + 模糊搜索（自动组合名/工段/备注）                                         │
-│ 模拟测算面板（2026-09-04 V1.5）：筛选/表格间 MudExpansionPanels「模拟测算（按产量记录点选计价）」             │
-│   产量源下拉（生产记录/去油酸洗入缸/去油酸洗完工/过程检验，默认生产记录）+ 关键字（操作人/设备/备注）          │
-│   候选分页表格（记录日期/批次号/工段/工序/产类/阶段/规格/支数/重量kg/操作人）→ 行「试算」                      │
-│   = 现行启用类别单价（基准价 × 总系数）+ 整行计件额 SimulatedAmount（与月结同口径、未按写名人头均分）；          │
-│   未定价=Info「无启用类别或值未命中档」；缺重量/支数/千米无长度=灰字折算提示；命中档 chips（维度中文：区间×系数）│
-│ 行操作：编辑 → 独立编辑页 /payroll/piece-rate-categories/edit/{Id}；                                         │
-│         删除弹确认框（级联删维档）                                                                           │
-│ 编辑页（/payroll/piece-rate-categories/create、/edit/{Id:int}）：                                            │
-│ 上区类别定义 = 工段单选 + 工序/产类/作业阶段多选（空=全选）                                                  │
-│ + 基准价/结算单位/启用/备注 + 自动组合名实时预览；                                                           │
-│ 下区维度档 9 维：外径/壁厚/长度/断切率/定尺（区间维） + 特殊牌号/特殊制造状态/设备号/冷拔类型（值维）          │
-│   （冷拔类型档行填备注关键词：报工备注含该词即乘系数、未命中=1、多词取最长；2026-09-04）                       │
-│   加档行区间原文/取值（等值维）                                                                            │
-│ + 系数 + 启停；同维区间重叠/取值重复本地即时标红，                                                           │
-│ 跨类别覆盖冲突由服务端权威校验；保存整类一次落库（类别+维档）                                                │
-│ 成检计件类别（2026-09-03 第三期）：FinalInspectionCategories/FinalInspectionCategoryEdit                     │
-│   = 成检项目单键 + 基准价 + 8 维档（区间 外径/壁厚/长度/检验支数 + 等值 长度状态/特殊牌号/状态/设备号）       │
-│ 每日工资两表（2026-09-03 四期）MonthlyWages.razor 单组件双路由：                                            │
-│   仿考勤网格单元格=每日工资额 + 引擎自动带出 + 常编辑 + 显式「引擎重算」(ConfirmDialog) + 「保存本月」快照；  │
-│   非计件(Hourly=小时×时薪、Daily=日薪×min(出勤,8)/8)；个人计件(PieceIndividual 当月产量/成检逐行折算，       │
-│   成检合作行按人数均分)；员工集=归口∈组 启用员工 ∪ 当月历史快照 SalaryMode∈组（换归口历史月仍显示）          │
-│ 集体计件月结（2026-09-03 五期）CollectiveScores + CollectiveMonthly：                                      │
-│   集体 = 岗位(Position) × 月度评分(1–10 一位小数如8.5) × 月结快照（PieceCollective 按月结算，不进按日表）；  │
-│   岗位池 = 当月 5 源计价扫描集体成员份额；个人月得 = 池 × (实出勤小时×分值) ÷ Σ同岗位权重；                  │
-│   评分页=员工按岗位分组卡片+分值输入；月结页=每岗位结算卡片成员行（金额整元可改，默认 已存?Saved:引擎草稿）  │
-│   + 顶部「引擎重算」(ConfirmDialog)/「全量重算(清历史)」(双重确认 PayrollFullRecalcDialogs)/「保存本月」      │
-│ 靠工计件月结（2026-09-03 六期）PieceAttendanceMonthly：                                                     │
-│   靠工 = 靠工岗位(员工管理多选，计件活岗) × 本人出勤 × 靠工系数（PieceAttendance 按月结算，不进按日表）；    │
-│   平均时薪参照 = 选中岗位(个人+集体并集)当月计件总工资 ÷ 同批岗位计件人员总出勤（分子分母各自合并）；          │
-│   单表员工行：靠工岗位(中文)/出勤/靠工系数/平均时薪(只读 G29)/实得金额(整元可改)；                           │
-│   + 顶部「引擎重算」(ConfirmDialog)/「全量重算(清历史)」(双重确认 PayrollFullRecalcDialogs)/「保存本月」      │
-│ 杂辅工记录（2026-09-03 七期）MiscWorkMonthly：台账列表页，行 = 一条杂辅任务登记；                          │
-│   金额 = 手工录入源头、保留小数不取整（Hours decimal(18,1)/Amount decimal(18,2)），同人同日可多条；         │
-│   按月查看 + 新增/行内编辑/删除 + 当月合计 chips（N 条 · Σ小时 · Σ金额，整月口径）；                        │
-│   员工选人下拉 = 全量启用员工、日期文本 yyyy-MM-dd；页内关键词筛选（工号/姓名/内容，整月合计不变）         │
-│ 津贴与处罚（2026-09-03 八期）AllowanceMonthly：月度金额网格，行=员工、列=固定 9 金额项目；                   │
-│   （满勤奖/工龄奖/夜班津贴/岗位补贴/高温费/工伤补贴/带班费/处罚/代缴社保，参考 Excel《津贴与处罚.xlsx》）； │
-│   金额强制整元（RoundYuan、空/0=null、禁负数）；员工月历 = IsActive 在册 ∪ 当月已有记录（停用行浅灰可改）； │
-│   考勤同款 attendance-grid 宽表（sticky 工号/姓名/岗位类别/岗位 + 原生 input 逐格即时整元、方向键导航复用） │
-│   + tfoot 各列整月合计 + 页内关键词筛选（工号/姓名/岗位）；保存=整月 upsert、清空本月=提交空行              │
-│ 月工资津贴汇总（2026-09-04 九期）MonthlySummary：员工某结算月「完整应发/实发」汇总表（参考 Excel《工资条及打印.xlsx》）│
-│   17 列 = 工号/姓名/月份(常量)/出勤天数 + 本月基础工资 + 本月杂辅工资 + 岗位补贴/工龄奖/满勤奖/带班费/夜班津贴/│
-│   高温费/工伤补贴（7 正津贴）+ 处罚/代缴社保（存负）+ 应发工资及津贴 + 实发工资及津贴；                         │
-│   基础工资按各子页「已保存金额」归口（Fixed=MonthlyWage、集体→集体快照、靠工→靠工快照、其余→每日Σ）；         │
-│   出勤天数=当月考勤去重日期数；应发=基础+杂辅+7 正津贴；实发=应发+处罚+代缴；金额 0 网格留空、列合计 tfoot；  │
-│   顶部徽标 已保存/未保存 +「保存本月」整月替换快照(SalaryEdit)/「全部打印」A4 横向整表/「个人打印」每行带表头  │
-│   工资条（未保存禁用提示先保存，打印/数据工具读快照冻结口径）；员工=在册 ∪ 当月有源（停用行灰显），写操作门控 │
+│  计件类别体系 = 「类别主表 + 维档子表」两表模型：类别 = 工段×工序/产类/阶段约束（空=全选；生产计件）或成检项目（成检单键）+ 基准价 + 结算单位 + 启停；
+│  结算单价 = 基准价 × 命中维档系数连乘（不配某维 = 系数 1）；同覆盖仅允许一个启用类别；
+│  编辑页 = 上区类别定义 + 下区同页整组编辑维档（区间/等值维），同维重叠/重复本地标红、跨类别覆盖冲突服务端权威校验，保存整类一次落库（删除级联删档）。
+│  各页特性明细（模拟测算按记录点选计价、每日工资引擎带出/保存快照、集体/靠工月结重算、津贴整元规约、月汇总整表打印等）见 §3 #76-#85；考勤月视图网格见本块首行 Attendance。
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -542,7 +483,7 @@
 
 ## 3. 列表页完整清单（需检查加载/排序/筛选）
 
-共 **74 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
+共 **79 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
 
 | # | 页面文件 | 路由 | 上下文 | 内联编辑 | 备注 |
 |---|---------|------|-------|---------|------|
@@ -581,8 +522,6 @@
 | 34 | StandardWorkDays.razor | /standard-work-days | 配置 | ✅ | 查改一体表 |
 | 35 | StandardWorkDayDeliveryStates.razor | /standard-work-day-delivery-states | 配置 | ✅ | 查改一体表 |
 | 36 | ConfigParameters.razor | /config-parameters | 配置 | ✅ | 查改一体表 |
-| 37 | SectionFlowAnalysis.razor | /section-flow-analysis | 计划排程 | | 已删除（2026-08-24），组件/页面全套删除，批次计划页内嵌折叠卡片同步删除（2026-08-31） |
-| 38 | SectionProductionStatus.razor | /section-production-status | 计划排程 | | 已删除（2026-08-24），数据改经批次计划页内嵌折叠与报表总览消费 |
 | 40 | WorkOrderSchedules.razor | /scheduling-plans | 计划排程 | | LEFT JOIN 实时查询模式（WorkOrderExecutionSummary + WorkOrderPlan 薄表），G15 内联编辑 + 计划安排按钮 |
 | 41 | DailyOutputEstimates.razor | /daily-output-estimates | 配置 | ✅ | 查改一体表 |
 | 42 | Workstations.razor | /workstations | 配置 | ✅ | 查改一体表 |
@@ -617,16 +556,16 @@
 | 73 | ColdRollCapacities.razor | /cold-roll-capacities | 配置 | | 冷轧产能档案（四维 ProcessType/BilletSpec/RollingSpec/IsFinished 唯一），查改一体表；排程建议产能平衡输入 |
 | 74 | ColdRollMachineConfigs.razor | /cold-roll-machine-configs | 配置 | | 冷轧机台数配置（ProcessType 唯一），查改一体表；排程建议产能平衡输入（方式A兜底 daily） |
 | 75 | ColdRollMachineGroupConfigs.razor | /cold-roll-machine-group-configs | 配置 | | 冷轧机台组配置（GroupKey 唯一），归组配置表驱动；工序多选（仅启用的冷轧/冷拔工序，显示走 GetProcessNameText 中文）+供给目标组列（供需链显式化，组角色字段已移除；链合法性校验：凡配目标则目标存在+无环，允许多链/多级链，2030→冷拔(None) 末端合法）；保存/删除失效三引擎缓存键；工序禁用时自动从组内移除（ProcessDefinitionService） |
-| 76 | PieceRateProductionCategories.razor | /payroll/piece-rate-categories | 工资结算 | | 生产计件类别列表页（2026-09-02 单表→两表重构：PieceRateProductionCategory + PieceRateProductionTier 维档子表；类别 = 工段×工序/产类/阶段约束 + 基准价 + 维档系数，结算单价 = 类别基准价 × 命中维档系数连乘，不配某维=系数1，工段×工序×产类×阶段同覆盖仅允许一个启用类别）；列：自动组合名/工段中文/基准价(G29)/单位/维档数/是否启用/备注/更新时间/创建时间 + 列显隐/排序；顶部工段下拉 + 启停下拉 + 模糊搜索（自动组合名/工段/备注）；行操作：编辑走独立页 `/payroll/piece-rate-categories/edit/{Id}`、删除弹 ConfirmDialog（级联删维档），新增走 `/payroll/piece-rate-categories/create`；旧单表 UI 计件标准（PieceRateStandards 原 /payroll/piece-rate-standards）已于 2026-09-02 删除 |
-| 77 | FinalInspectionCategories.razor | /payroll/final-inspection-categories | 工资结算 | | 成检计件类别列表页（2026-09-03 第三期）：主表 PieceRateFinalInspectionCategory = 成检项目 InspectionItem 单键 + 基准价 + 单位 + 启停（同项目启用唯一）+ 子表 8 维档（区间 外径/壁厚/长度/检验支数整数闭带 + 等值 长度状态/特殊牌号/特殊制造状态/特殊设备号）；列 + 行内展开「模拟测算」（2026-09-04 V1.3 改**按成检记录点选计价**：候选=全局任意跨期成检记录，顶部成检项目下拉 + 关键字(生产编号/设备/操作人)，服务端分页记录小表，行「试算」按 Id 计价 → 命中类别 基准价×总系数=单价 + 整行计件额(与月结同口径、未按人头均分)/缺数量灰字提示/未定价提示；手动填维度试算表单已删，match-price 端点保留）+ 专用批量导出/导入弹窗 |
+| 76 | PieceRateProductionCategories.razor | /payroll/piece-rate-categories | 工资结算 | | 生产计件类别列表页（两表模型：PieceRateProductionCategory + PieceRateProductionTier 维档子表；类别 = 工段×工序/产类/阶段约束 + 基准价 + 维档系数，结算单价 = 类别基准价 × 命中维档系数连乘，不配某维=系数1，工段×工序×产类×阶段同覆盖仅允许一个启用类别）；列：自动组合名/工段中文/基准价(G29)/单位/维档数/是否启用/备注/更新时间/创建时间 + 列显隐/排序；顶部工段下拉 + 启停下拉 + 模糊搜索（自动组合名/工段/备注）；行操作：编辑走独立页 `/payroll/piece-rate-categories/edit/{Id}`、删除弹 ConfirmDialog（级联删维档），新增走 `/payroll/piece-rate-categories/create` |
+| 77 | FinalInspectionCategories.razor | /payroll/final-inspection-categories | 工资结算 | | 成检计件类别列表页：主表 PieceRateFinalInspectionCategory = 成检项目 InspectionItem 单键 + 基准价 + 单位 + 启停（同项目启用唯一）+ 子表 8 维档（区间 外径/壁厚/长度/检验支数整数闭带 + 等值 长度状态/特殊牌号/特殊制造状态/特殊设备号）；列 + 行内展开「模拟测算」按**成检记录点选计价**：候选=全局任意跨期成检记录，顶部成检项目下拉 + 关键字(生产编号/设备/操作人)，服务端分页记录小表，行「试算」按 Id 计价 → 命中类别 基准价×总系数=单价 + 整行计件额(与月结同口径、未按人头均分)/缺数量灰字提示/未定价提示；手动填维度试算表单已删，match-price 端点保留）+ 专用批量导出/导入弹窗 |
 | 78 | FinalInspectionCategoryEdit.razor | /payroll/final-inspection-categories/create、/edit/{Id:int} | 工资结算 | | 成检计件类别编辑页：定义（成检项目单选 + 基准价/单位/启停/备注）+ 8 维档同页整组编辑，保存整类落库（档行整组替换） |
-| 79 | MonthlyWages.razor | /payroll/wages/non-piece、/payroll/wages/piece | 工资结算 | | 每日工资两表月视图网格页（2026-09-03 四期，单组件双路由）：仿考勤网格（attendance-scroll/grid + enableAttendanceKeyNav）单元格=每日工资额（原生 input 失焦提交），引擎自动带出 + 常编辑 + 显式「引擎重算」（ConfirmDialog 覆盖网格）+「保存本月」落库（Amount>0 存/空删，SalaryMode 归口快照）；非计件=Hourly 小时×时薪 / Daily 日薪×min(出勤,8)/8，个人计件=PieceIndividual 当月产量+成检按现行单价逐行折算（成检合作行按人数均分、Range/NonFixed 定尺 6000mm 兜底、PerTon/PerPiece/PerKm 换算）；顶部 年/月/«»/工号姓名搜索/岗位类别/岗位筛选 + 表头排序；员工集=归口∈组启用员工 ∪ 当月历史快照（换归口历史月仍显示）；写操作 SalaryEdit 门控 |
-| 80 | CollectiveScores.razor | /payroll/collective-scores | 工资结算 | | 集体计件评分页（2026-09-03 五期）：年月选择 → 员工按岗位分组卡片（工号/姓名/岗位/分值输入 1–10 一位小数如 8.5 + 已评分/新录入/未评分备注）→「保存评分」整月 upsert；只显示在册集体成员 + 当月已有评分历史员工补集；写操作 SalaryEdit 门控 |
-| 81 | CollectiveMonthly.razor | /payroll/collective-monthly | 工资结算 | | 集体计件月结页（2026-09-03 五期）：年月选择 → 每岗位结算卡片（成员行 出勤/分值/权重只读 + 实得金额整元可改，默认 已存?Saved:引擎草稿；卡标题=岗位中文+岗位池+Σw）；顶部「引擎重算」(ConfirmDialog 覆盖在册集体成员)/「全量重算(清历史)」(双重确认 PayrollFullRecalcDialogs 清历史快照成员)/「保存本月」；写操作 SalaryEdit 门控 |
-| 82 | PieceAttendanceMonthly.razor | /payroll/attendance-monthly | 工资结算 | | 靠工计件月结页（2026-09-03 六期）：年月选择 → 单张 auto-table 员工行（靠工无岗位池不分组）：工号/姓名/靠工岗位(中文)/出勤/靠工系数/平均时薪(G29 只读)/实得金额(整元可改，默认 已存?Saved:RoundYuan引擎草稿)/备注(历史快照·未配岗·无计件参照·无出勤)；员工集=在册靠工 ∪ 当月快照员工（停用/换模式历史月仍显示）；顶部「引擎重算」/「全量重算(清历史)」双重确认/「保存本月」；写操作 SalaryEdit 门控 |
-| 83 | MiscWorkMonthly.razor | /payroll/misc-work | 工资结算 | ✅ | 杂辅工记录台账页（2026-09-03 七期）：杂项辅助手工登记（完整月工资 = 各类工资 + 杂辅）。MudTable 台账列表页，行=一条杂辅任务（日期/工号/姓名/内容/小时/金额 G29/备注），金额=手工录入源头保留小数不取整、同人同日可多条；行内编辑（编辑不改员工归属）+ 新增面板（员工下拉=全量启用员工）+ ConfirmDialog 删除；顶部 MudPaper 描述文字 + 月份导航（Chevron + 年月 MudSelect）+ 当月合计 chips（N 条 · Σ小时 · Σ金额，整月口径）+ 页内关键词筛选（工号/姓名/内容，客户端，合计不变）；日期 MudTextField string yyyy-MM-dd（禁 MudDatePicker）；写操作 SalaryEdit 门控 |
-| 84 | AllowanceMonthly.razor | /payroll/allowance | 工资结算 | ✅ | 津贴与处罚月度网格页（2026-09-03 八期）：月度金额录入，行=员工、列=固定 9 金额项目（满勤奖/工龄奖/夜班津贴/岗位补贴/高温费/工伤补贴/带班费/处罚/代缴社保，参考 Excel《津贴与处罚.xlsx》），宽表每人每月一行（EmployeeId+Year+Month 唯一）；金额强制整元（RoundYuan AwayFromZero、空/0=null、禁负数，OnCellChanged 即时规约与后端 NormalizeAmount 同口径）；员工月历 = IsActive 在册 ∪ 当月已有记录（停用员工当月行浅灰回显可改）；考勤同款 attendance-grid 宽表（attendance-scroll/grid 类 + 原生 input 每格失焦提交 + enableAttendanceKeyNav 方向键导航复用；sticky-left 工号/姓名/岗位类别/岗位列，岗位中文经 DictValueDisplayHelper）+ tfoot 各列整月合计 + 页内关键词筛选（工号/姓名/岗位，客户端，合计不变）+ @foreach 渲染防闭包 + OverrideMap 事件订阅重渲染；顶部「清空本月」(ConfirmDialog Error，提交空 Rows)「保存本月」(Snackbar 计数) SalaryEdit 门控 |
-| 85 | MonthlySummary.razor | /payroll/monthly-summary | 工资结算 | ✅ | 月工资津贴汇总页（2026-09-04 九期）：员工某结算月「完整应发/实发」汇总表（参考 Excel《工资条及打印.xlsx》17 列：工号/姓名/月份常量/出勤天数/本月基础工资/本月杂辅工资 + 岗位补贴·工龄奖·满勤奖·带班费·夜班津贴·高温费·工伤补贴 7 正津贴 + 处罚·代缴社保(存负)/应发/实发）；基础工资按各子页「已保存金额」归口（Fixed=Employee.MonthlyWage、PieceCollective→集体月结快照、PieceAttendance→靠工月结快照、Hourly/Daily/PieceIndividual→每日工资当月Σ），出勤天数=当月考勤去重日期数；应发=基础+杂辅+7 正津贴，实发=应发+处罚+代缴（后两列存负）；行集=IsActive 在册 ∪ 当月任一来源有行（停用行灰显），工号升序 + 页内关键词（工号/姓名）+ 金额 0 网格留空 + tfoot 列合计；顶部年/月导航 + 已保存/未保存徽标 +「保存本月」(SalaryEdit，整月重算替换快照 PayrollMonthlySummaryRecord 每人每月一行 UK)+「全部打印」A4 横向整表 +「个人打印」每员工一条带表头工资条（两打印读已保存快照、未保存禁用提示「先保存本月」）；写操作 SalaryEdit 门控 |
+| 79 | MonthlyWages.razor | /payroll/wages/non-piece、/payroll/wages/piece | 工资结算 | | 每日工资两表月视图网格页（单组件双路由）：仿考勤网格（attendance-scroll/grid + enableAttendanceKeyNav）单元格=每日工资额（原生 input 失焦提交），引擎自动带出 + 常编辑 + 显式「引擎重算」（ConfirmDialog 覆盖网格）+「保存本月」落库（Amount>0 存/空删，SalaryMode 归口快照）；非计件=Hourly 小时×时薪 / Daily 日薪×min(出勤,8)/8，个人计件=PieceIndividual 当月产量+成检按现行单价逐行折算（成检合作行按人数均分、Range/NonFixed 定尺 6000mm 兜底、PerTon/PerPiece/PerKm 换算）；顶部 年/月/«»/工号姓名搜索/岗位类别/岗位筛选 + 表头排序；员工集=归口∈组启用员工 ∪ 当月历史快照（换归口历史月仍显示）；写操作 SalaryEdit 门控 |
+| 80 | CollectiveScores.razor | /payroll/collective-scores | 工资结算 | | 集体计件评分页：年月选择 → 员工按岗位分组卡片（工号/姓名/岗位/分值输入 1–10 一位小数如 8.5 + 已评分/新录入/未评分备注）→「保存评分」整月 upsert；只显示在册集体成员 + 当月已有评分历史员工补集；写操作 SalaryEdit 门控 |
+| 81 | CollectiveMonthly.razor | /payroll/collective-monthly | 工资结算 | | 集体计件月结页：年月选择 → 每岗位结算卡片（成员行 出勤/分值/权重只读 + 实得金额整元可改，默认 已存?Saved:引擎草稿；卡标题=岗位中文+岗位池+Σw）；顶部「引擎重算」(ConfirmDialog 覆盖在册集体成员)/「全量重算(清历史)」(双重确认 PayrollFullRecalcDialogs 清历史快照成员)/「保存本月」；写操作 SalaryEdit 门控 |
+| 82 | PieceAttendanceMonthly.razor | /payroll/attendance-monthly | 工资结算 | | 靠工计件月结页：年月选择 → 单张 auto-table 员工行（靠工无岗位池不分组）：工号/姓名/靠工岗位(中文)/出勤/靠工系数/平均时薪(G29 只读)/实得金额(整元可改，默认 已存?Saved:RoundYuan引擎草稿)/备注(历史快照·未配岗·无计件参照·无出勤)；员工集=在册靠工 ∪ 当月快照员工（停用/换模式历史月仍显示）；顶部「引擎重算」/「全量重算(清历史)」双重确认/「保存本月」；写操作 SalaryEdit 门控 |
+| 83 | MiscWorkMonthly.razor | /payroll/misc-work | 工资结算 | ✅ | 杂辅工记录台账页：杂项辅助手工登记（完整月工资 = 各类工资 + 杂辅）。MudTable 台账列表页，行=一条杂辅任务（日期/工号/姓名/内容/小时/金额 G29/备注），金额=手工录入源头保留小数不取整、同人同日可多条；行内编辑（编辑不改员工归属）+ 新增面板（员工下拉=全量启用员工）+ ConfirmDialog 删除；顶部 MudPaper 描述文字 + 月份导航（Chevron + 年月 MudSelect）+ 当月合计 chips（N 条 · Σ小时 · Σ金额，整月口径）+ 页内关键词筛选（工号/姓名/内容，客户端，合计不变）；日期 MudTextField string yyyy-MM-dd（禁 MudDatePicker）；写操作 SalaryEdit 门控 |
+| 84 | AllowanceMonthly.razor | /payroll/allowance | 工资结算 | ✅ | 津贴与处罚月度网格页：月度金额录入，行=员工、列=固定 9 金额项目（满勤奖/工龄奖/夜班津贴/岗位补贴/高温费/工伤补贴/带班费/处罚/代缴社保，参考 Excel《津贴与处罚.xlsx》），宽表每人每月一行（EmployeeId+Year+Month 唯一）；金额强制整元（RoundYuan AwayFromZero、空/0=null、禁负数，OnCellChanged 即时规约与后端 NormalizeAmount 同口径）；员工月历 = IsActive 在册 ∪ 当月已有记录（停用员工当月行浅灰回显可改）；考勤同款 attendance-grid 宽表（attendance-scroll/grid 类 + 原生 input 每格失焦提交 + enableAttendanceKeyNav 方向键导航复用；sticky-left 工号/姓名/岗位类别/岗位列，岗位中文经 DictValueDisplayHelper）+ tfoot 各列整月合计 + 页内关键词筛选（工号/姓名/岗位，客户端，合计不变）+ @foreach 渲染防闭包 + OverrideMap 事件订阅重渲染；顶部「清空本月」(ConfirmDialog Error，提交空 Rows)「保存本月」(Snackbar 计数) SalaryEdit 门控 |
+| 85 | MonthlySummary.razor | /payroll/monthly-summary | 工资结算 | ✅ | 月工资津贴汇总页：员工某结算月「完整应发/实发」汇总表（参考 Excel《工资条及打印.xlsx》17 列：工号/姓名/月份常量/出勤天数/本月基础工资/本月杂辅工资 + 岗位补贴·工龄奖·满勤奖·带班费·夜班津贴·高温费·工伤补贴 7 正津贴 + 处罚·代缴社保(存负)/应发/实发）；基础工资按各子页「已保存金额」归口（Fixed=Employee.MonthlyWage、PieceCollective→集体月结快照、PieceAttendance→靠工月结快照、Hourly/Daily/PieceIndividual→每日工资当月Σ），出勤天数=当月考勤去重日期数；应发=基础+杂辅+7 正津贴，实发=应发+处罚+代缴（后两列存负）；行集=IsActive 在册 ∪ 当月任一来源有行（停用行灰显），工号升序 + 页内关键词（工号/姓名）+ 金额 0 网格留空 + tfoot 列合计；顶部年/月导航 + 已保存/未保存徽标 +「保存本月」(SalaryEdit，整月重算替换快照 PayrollMonthlySummaryRecord 每人每月一行 UK)+「全部打印」A4 横向整表 +「个人打印」每员工一条带表头工资条（两打印读已保存快照、未保存禁用提示「先保存本月」）；写操作 SalaryEdit 门控 |
 
 ---
 
@@ -670,49 +609,3 @@
 ---
 
 > 使用方式：询问关于页面结构、上下文归属、列表页检查范围等问题时，可引用此文档作为参考基础。
->
-> **最后更新：2026-09-04（V42）** — 工资结算上下文补充月工资津贴汇总页（九期，MonthlySummary.razor /payroll/monthly-summary：员工某结算月完整应发/实发汇总表，参考 Excel《工资条及打印.xlsx》17 列；基础工资按各子页「已保存金额」归口、出勤=当月考勤去重日期数、应发不含扣减且处罚/代缴两列存负；整月替换落库快照 PayrollMonthlySummaryRecord（每人每月一行）+ 全部打印 A4 横向整表 / 个人打印每行带表头工资条（打印/DataTool 读快照冻结口径））；§1 上下文表工资结算 10 页 9 列表页 → 11 页 10 列表页、§2.11 块（菜单补「月工资津贴汇总」/页面行/说明）、§2.12 导航、§3 #85 同步更新
->
-> **最后更新：2026-09-03（V41）** — 工资结算上下文补充津贴与处罚月度网格页（八期，AllowanceMonthly.razor /payroll/allowance：行=员工、列=固定 9 金额项目——满勤奖/工龄奖/夜班津贴/岗位补贴/高温费/工伤补贴/带班费/处罚/代缴社保，参考 Excel《津贴与处罚.xlsx》；金额强制整元 RoundYuan、空/0=null、禁负数；员工月历 = IsActive 在册 ∪ 当月已有记录、停用行浅灰可改；考勤同款 attendance-grid 宽表 + 原生 input 即时整元规约 + 方向键导航复用 + tfoot 列合计 + 页内关键词筛选；保存=整月 upsert、清空本月=提交空行）；§1 上下文表工资结算 9 页 8 列表页 → 10 页 9 列表页、§2.11 块（菜单补「津贴与处罚」/页面行/说明）、§2.12 导航、§3 #84 同步更新
->
-> **最后更新：2026-09-03（V40）** — 工资结算上下文补充杂辅工记录台账页（七期，MiscWorkMonthly.razor /payroll/misc-work：手工登记杂项辅助、金额手工录入保留小数不取整、同人同日可多条；月份导航 + 当月合计 chips + 新增/行内编辑/删除 + 页内筛选）；§1 上下文表工资结算 8 页 7 列表页 → 9 页 8 列表页、§2.11 块（菜单补「杂辅工记录」/页面行/说明）、§2.12 导航、§3 #83 同步更新
->
-> **最后更新：2026-09-03（V39）** — 工资结算上下文补充集体计件两页（五期登记补齐，CollectiveScores /payroll/collective-scores + CollectiveMonthly /payroll/collective-monthly，均已随集体落地存在，本次在文档补登记）与靠工计件月结页（六期，PieceAttendanceMonthly.razor /payroll/attendance-monthly：靠工=靠工岗位 × 本人出勤 × 靠工系数，员工管理「靠工岗位」多选列候选=计件活岗 GET api/employee/piece-positions，平均时薪参照=选中岗位当月计件总工资÷同批岗位计件人员总出勤）；§1 上下文表工资结算 6 页 4 列表页 → 8 页 7 列表页、§2.11 块（菜单/页面行/说明）、§2.12 导航、§3 #80~#82 同步更新（列表页总数 71→74）
->
-> **最后更新：2026-09-04（V39）** — 生产计件类别列表页 #76 新增「模拟测算（按产量记录点选计价）」MudExpansionPanels 面板：产量源下拉 4 类（生产记录/去油酸洗入缸/去油酸洗完工/过程检验，默认生产记录）+ 关键字（操作人/设备/备注）+ 候选分页表格（记录日期/批次号/工段/工序/产类/阶段/规格/支数/重量kg/操作人），行「试算」按现行启用类别出单价 + 整行计件额 SimulatedAmount（与月结同口径、未按写名人头均分，未定价=Info、缺量灰字提示、命中档 chips）
->
-> **最后更新：2026-09-03（V38）** — 工资结算上下文补充页面：新增成检计件类别（第三期，FinalInspectionCategories 列表 + FinalInspectionCategoryEdit 编辑，路由 /payroll/final-inspection-categories*，#77/#78）与每日工资两表（第四期，MonthlyWages.razor 单组件双路由 /payroll/wages/non-piece 非计件工资 + /payroll/wages/piece 个人计件工资，仿考勤网格单元格=每日工资额 + 引擎自动带出 + 常编辑/显式重算/保存快照，#79）；§1 上下文表 3 页 2 列表页 → 6 页 4 列表页、§2.11 块、§2.12 导航、§3 #77~#79 同步更新
->
-> **最后更新：2026-09-02（V37）** — 计件单价体系「单表→两表」重构：删除旧 3 页（PieceRateStandards 列表页 / PieceRateStandardEdit create·edit/{id} / PieceRateSectionEditor /editor/{SectionName}，路由 /payroll/piece-rate-standards*）与旧单表实体 PieceRateStandard；改「生产计件类别」两表模型：类别 = 工段 × 工序/产类/阶段约束 + 基准价 + 维档系数（维档子表 PieceRateProductionTier），结算单价 = 类别基准价 × 命中维档系数连乘，工段×工序×产类×阶段同覆盖仅允许一个启用类别；前端 PieceRateProductionCategories 列表页 + PieceRateProductionCategoryEdit 定义+维档同页编辑，路由 /payroll/piece-rate-categories 与 /payroll/piece-rate-categories/create、/edit/{Id:int}，菜单/导航改「生产计件类别」；§1 上下文表 2 页 1 列表页 → 3 页 2 列表页、§2.11 块、§2.12 导航、§3 #76 同步更新；原 V30-V36 单表 UI 演进注记已随页面删除并入本条
->
-> **最后更新：2026-08-30（V29）** — 批次计划工段筛选 Tab 配置驱动：#45 描述更新——Tab 由编译期 17 项改为 `GET api/batch-plan/section-tab-options` 动态加载（冷轧/冷拔=工序组定义启用工序逐工序、普通工段=工段工量天数启用工段扣除冷轧拔/检验/入库且内抛/内修磨独立、末尾固定荒管检/在制检），新增工序自动出现；委外在产汇总列同源
->
-> **最后更新：2026-08-26（V28）** — 待发货项迁移：自仓库上下文迁入订单上下文（§2.1 新增 PendingDelivery，§2.7 移除），更名「订单成品(实时库存)」，路由改 `/orders/pending-delivery`，页面/控制器/服务/DTO 全部迁至 Orders 命名空间，权限跟随订单角色（OrderView），API 路径保持 `api/pending-delivery`；#65 行同步
->
-> **最后更新：2026-08-23（V27）** — 产量报表删除：报表系统上下文消亡（后端 ReportController/ReportService/ReportPrintHelper/DailyProductionReportDto、前端 ProductionOutput.razor + ReportService 全删，菜单「报表系统」组移除，页面清单移除 #63，报表系统小节并入仓库上下文）
->
-> **最后更新：2026-08-23（V26）** — 仓库管理菜单调整：在制品库移至次品库上方（原料库→成品库→在制品库→次品库→物料进出存报表→待发货项），物料进出存报表菜单自报表系统移入仓库管理组（报表系统仅余产量报表）；待发货项 #65 订单关联组新增「工单关注」列（取工单执行状况读模型「实时关注」组「主号-关注」档位，按工单号关联，可筛选/排序/打印）
->
-> **最后更新：2026-08-19（V25）** — 子项查询 #66 字段两组分组 + 4 态显示：委外信息组12列（新增「下单日期」=主表下单日期、「要求到货日」=主表收回期限、「委外备注」默认隐藏）+ 执行状态组6列（新增「退货量」按委外单号→退货-原仓库批→原仓库批SourceOrderNo汇总、「属强制完成」；「截止回收日」归入执行状态组，置于执行状态后）；执行状态新增「超量到货」档（回收>需求×105% 且超出量>100kg，优先于完成判定，MudChip 与采购订单一致）；采购订单 #22 下单日期去 MudChip 改普通文本
->
-> **最后更新：2026-08-19（V24）** — 采购订单 #22 G2 执行状态新增 2 列：「退货量」（按采购单号→仓库批→退货出库汇总支/重量，0 显"-"）+「属强制完成」（是/-）；出库历史 #28 + 批量出库页「退货-原批次号」改名「退货-原仓库批」
->
-> **最后更新：2026-08-19（V23）** — 仓库出库模块列调整：出库历史 #28 + 批量出库页出库类型精简 8→5 值（删报废出库/检验领用/移库出库，存量移库归入其它出库）；新增「退货-原批次号」列（位于出库工单号后，可编辑+搜索/排序/筛选）；「委外穿孔号」改名「委外-穿孔号」
->
-> **最后更新：2026-08-19（V23）** — 采购订单 #22 列表字段调整：改三组（G1采购信息13列含新采购备注、G2执行状态3列含新到货截止日、G3来源销售订单17列默认隐藏）；状态新增「超量到货」档（到料>采购×105% 且超出量>100kg，优先于完成判定）；已到货量 0支/0kg 显示"-"
->
-> **最后更新：2026-08-17（V22）** — 成检计划 #46 描述更新：四档Tab→五档Tab（新增完成检验待入库档）、列分组 G1-G4→G1-G6（含技术要求检验项组）、新增待检批支重汇总卡片说明；原锁计划 #33 汇总按钮改名「待投料量汇总」移右上角 + 展开卡片含待投料/成购两矩阵表 + 打印
->
-> **最后更新：2026-08-15（V21）** — 文档失效内容清理：§1 计划排程 8→6 页（工段待产量/工段流转分析已从菜单移除，§2.3 同步删菜单项并注明页面/接口保留）；配置上下文 8→13 页（新增生产-段落日产配置/生产-组合归类表/生产-工序组定义/参数-枚举显示配置/参数-字典显示配置）；§2.10 与 §2.12 参数表菜单、路由前缀、列表页清单同步更新；§3 列表页 #37/#38 标注"已从菜单移除"、#45 检验类 Tab 描述更正（过程检/成品检已删）、补入 #67-#71 五个新配置列表页，计数 66→71
->
-> **最后更新：2026-08-15（V21）** — 生产标准上下文新增工厂检验项要求模块（FactoryInspectionRequirements + FactoryInspectionRequirementCreate，列表页数 8→9，总页数 16→18，清单表 71→72 重编号）；作为订单技术要求默认值数据源
->
-> **最后更新：2026-08-18（V21）** — 质量证明书模块补打印设置对话框（CertificatePrintSettingsDialog，无路由，MudDialog 弹层：打印版式 Tab + 字段布局 Tab）；#64 Certificates 描述补打印能力；模块清单同步
->
-> **最后更新：2026-08-18（V22）** — 订单列表新增「订单接单·出库及现负荷汇总」折叠卡片（5 指标 × 本年 12 月：接单量/出库量 + 成品库存(完工/未完工)/订单负荷量(实时)，0 显「-」）+ 打印功能；#1 Orders.razor 备注同步（第 4 组「工单执行」→「订单执行」）
->
-> **最后更新：2026-08-09（V20）** — 工单上下文子页补入在产主工单计划页（WorkOrderInMainWorkOrderPlanCreate，create+edit 双路由，页面数 16→17）；§3 #66 定尺工单分页汇总描述由「仅 PlannedQuantity 可求和」更正为多列可求和（G1需求支数/G3切后支数/G4成检支数列/G5入库支数列，G6主号级聚合不参与求和）
->
-> **最后更新：2026-08-01（V19）** — 工单上下文新增定尺工单联通视图（FixedLengthWorkOrderView，1页，列表页数 4→5）；§3 列表页清单补入该页并修正编号错乱（原 #6 缺失、#7 重复，现 #1-#66 连续），计数 64→66
->
-> **最后更新：2026-07-17（V18）** — 新增质量证明书模块(3页) + 理化检测创建页(8页) + 待发货项列表页 + 生产标准创建页(2页)；生产标准全列筛选支持；code-behind 分离迁移状态更新
