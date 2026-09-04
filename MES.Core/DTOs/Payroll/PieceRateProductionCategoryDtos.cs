@@ -364,6 +364,10 @@ public class PieceRateProductionTrialRecordDto
     /// <summary>数量（支数）</summary>
     public int? Quantity { get; set; }
 
+    /// <summary>平头数（仅 ProductionRecord 源荒管断切有：1=一端 2=两端；空默认 1）。
+    /// 元/头（PerHead）折算头数 = 加工支数 Quantity × 平头数（用于展示口径依据）。</summary>
+    public int? FaceCutCount { get; set; }
+
     /// <summary>重量(kg)</summary>
     public decimal? Weight { get; set; }
 

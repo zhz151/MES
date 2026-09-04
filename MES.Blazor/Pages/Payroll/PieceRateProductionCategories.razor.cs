@@ -454,6 +454,7 @@ public partial class PieceRateProductionCategories
         {
             PieceRateUnitKeys.PerTon => "该记录缺重量(kg)，无法折算整行金额",
             PieceRateUnitKeys.PerPiece => "该记录缺支数，无法折算整行金额",
+            PieceRateUnitKeys.PerHead => "该记录缺支数，无法折算整行金额（元/头 = 支数 × 平头数 × 单价）",
             PieceRateUnitKeys.PerKm => "该记录无长度维（生产记录行），元/千米单位无法折算整行金额",
             _ => "该记录缺数量，无法折算整行金额"
         };

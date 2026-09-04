@@ -114,7 +114,7 @@
                             </MudItem>
                             <MudItem xs="12" md="8">
                                 <MudTextField T="string"
-                                              Label="关键字 - 批次号/操作人/设备/备注/规格"
+                                              Label="模糊搜索 - 批次号/操作人/工段/工序/规格/标签（工段·工序支持中文）"
                                               Value="_trialKeyword"
                                               ValueExpression="@(() => _trialKeyword)"
                                               ValueChanged="@OnTrialKeywordChanged"
@@ -160,7 +160,7 @@
                                 <MudTd>@rec.RecordDate.ToString("yyyy-MM-dd")</MudTd>
                                 <MudTd>@rec.BatchNo</MudTd>
                                 <MudTd><b>@rec.SectionKeyChinese</b></MudTd>
-                                <MudTd>@rec.ProcessName</MudTd>
+                                <MudTd>@ProcessDisplayHelper.GetProcessNameText(rec.ProcessName)</MudTd>
                                 <MudTd>@rec.ProductStatusChinese</MudTd>
                                 <MudTd>@rec.StageChinese</MudTd>
                                 <MudTd>@rec.Specification</MudTd>
@@ -198,7 +198,7 @@
                                 <MudText Typo="Typo.caption" Class="mt-3">
                                     记录：@_selectedRecord.SourceChinese ｜ @_selectedRecord.SectionKeyChinese
                                     ｜ 批次 @_selectedRecord.BatchNo ｜ 规格 @_selectedRecord.Specification
-                                    ｜ 支数 @(_selectedRecord.Quantity?.ToString() ?? "-") ｜ 重量 @(_selectedRecord.Weight?.ToString("G29") ?? "-")kg
+                                    ｜ 支数 @(_selectedRecord.Quantity?.ToString() ?? "-")@if (_selectedRecord.FaceCutCount is { } fcc) {<span>｜ 平头数 @fcc（元/头折算头数=支数×平头数）</span>} ｜ 重量 @(_selectedRecord.Weight?.ToString("G29") ?? "-")kg
                                 </MudText>
                             }
                             @if (_matchResult == null)

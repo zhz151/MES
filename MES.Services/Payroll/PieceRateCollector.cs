@@ -79,7 +79,8 @@ public sealed class PieceRateCollector
                 if (HasRecordedOutput(r.Weight, r.Quantity)) result.UnpricedCount++;
                 continue;
             }
-            var total = PieceRateAmountHelper.AmountForUnit(hit.Unit, hit.UnitPrice, r.Weight, r.Quantity, null);
+            // 元/头（荒管断切）→ 头数 = 加工支数 × 平头数（FaceCutCount 空默认 1，本助手内兜底）
+            var total = PieceRateAmountHelper.AmountForUnit(hit.Unit, hit.UnitPrice, r.Weight, r.Quantity, null, r.FaceCutCount);
             if (total is null || total <= 0) continue; // 命中类别但数量缺失/不足折算 → 数量问题静默（不发工资不进提醒）
 
             result.Rows.Add(new PricedPieceRow { TotalHeadcount = headcount, Eligible = eligible, Amount = total.Value, Date = r.ExecDate });
@@ -111,6 +112,7 @@ public sealed class PieceRateCollector
 
         // ---- 去油/酸洗入缸（生产类别 · Stage=InTank，入缸端操作独立计酬）----
         var picklingIns = await _context.PicklingInRecords.AsNoTracking()
+            .Include(r => r.ProductionBatch)
             .Where(r => r.InDate >= monthStart && r.InDate < monthEnd)
             .ToListAsync();
         foreach (var r in picklingIns)
@@ -118,8 +120,8 @@ public sealed class PieceRateCollector
             var (headcount, eligible) = ResolveParticipants(r.Operator, byCode, byName);
             if (eligible.Count == 0) continue;
 
-            // 记录→请求经 ProductionMatchRequestMapper 共享单源（Stage=InTank）
-            var request = ProductionMatchRequestMapper.BuildFromPicklingIn(r);
+            // 记录→请求经 ProductionMatchRequestMapper 共享单源（Stage=InTank；Length 三级取数经所属批）
+            var request = ProductionMatchRequestMapper.BuildFromPicklingIn(r, r.ProductionBatch);
             var hit = PieceRateMatchEngine.MatchProduction(prodCategories, request);
             if (hit == null)
             {
@@ -134,6 +136,8 @@ public sealed class PieceRateCollector
 
         // ---- 去油/酸洗完工（生产类别 · Stage=OutTank，出缸端操作独立计酬；冗余字段创建时从入缸复制冻结）----
         var picklingOuts = await _context.PicklingOutRecords.AsNoTracking()
+            .Include(r => r.PicklingInRecord)
+                .ThenInclude(pi => pi.ProductionBatch)
             .Where(r => r.CompleteDate >= monthStart && r.CompleteDate < monthEnd)
             .ToListAsync();
         foreach (var r in picklingOuts)
@@ -141,8 +145,8 @@ public sealed class PieceRateCollector
             var (headcount, eligible) = ResolveParticipants(r.Operator, byCode, byName);
             if (eligible.Count == 0) continue;
 
-            // 记录→请求经 ProductionMatchRequestMapper 共享单源（Stage=OutTank）
-            var request = ProductionMatchRequestMapper.BuildFromPicklingOut(r);
+            // 记录→请求经 ProductionMatchRequestMapper 共享单源（Stage=OutTank；Length 三级取数经入缸所属批，Out 记录冗余自 In）
+            var request = ProductionMatchRequestMapper.BuildFromPicklingOut(r, r.PicklingInRecord?.ProductionBatch);
             var hit = PieceRateMatchEngine.MatchProduction(prodCategories, request);
             if (hit == null)
             {

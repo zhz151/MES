@@ -1397,13 +1397,16 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 .ToList();
 
             // 截止回收日下拉：按委外单号反查仓库批实际入库日期 InboundDate
+            // 注意：DateTime.ToString 无法在 SQL Server LINQ 内翻译，须先投影日期到内存再格式化
             var returnDeadlineDates = subOrderNos.Count > 0
-                ? await _context.InventoryBatches.AsNoTracking()
+                ? (await _context.InventoryBatches.AsNoTracking()
                     .Where(b => b.SourceOrderNo != null && subOrderNos.Contains(b.SourceOrderNo))
-                    .Select(b => b.InboundDate.ToString("yyyy-MM-dd"))
+                    .Select(b => b.InboundDate)
                     .Distinct()
+                    .ToListAsync())
+                    .Select(x => x.ToString("yyyy-MM-dd"))
                     .OrderBy(x => x)
-                    .ToListAsync()
+                    .ToList()
                 : new List<string>();
 
             // 工单实时关注筛选上下文：按来源工单号关联工单执行状况读模型（无记录不参与 DISTINCT）

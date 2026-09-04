@@ -562,13 +562,14 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
     // ==================== 试算匹配 ====================
 
     public async Task<PieceRateProductionMatchResultDto?> MatchPriceAsync(PieceRateProductionMatchRequest request)
-        => await MatchByRequestAsync(request, weightKg: null, quantity: null);
+        => await MatchByRequestAsync(request, weightKg: null, quantity: null, faceCutCount: null);
 
     /// <summary>核心匹配计价（手动 match-price 与按产量记录点选试算共用，2026-09-04 拆出防双通道漂移）。
     /// 命中后按带量参数折算 SimulatedAmount（与月结采集同 PieceRateAmountHelper 口径、length 恒 null；
-    /// 生产记录行无元/千米长度维，结算本就不折算）；手动请求无量恒 null。</summary>
+    /// 生产记录行无元/千米长度维，结算本就不折算）；手动请求无量恒 null。
+    /// faceCutCount 仅供元/头（PerHead）折头数 = 加工支数 × 平头数（空默认 1），其余单位忽略。</summary>
     private async Task<PieceRateProductionMatchResultDto?> MatchByRequestAsync(
-        PieceRateProductionMatchRequest request, decimal? weightKg, int? quantity)
+        PieceRateProductionMatchRequest request, decimal? weightKg, int? quantity, int? faceCutCount = null)
     {
         var sectionKey = SectionKeys.ToKey(request.SectionName) ?? request.SectionName;
         if (string.IsNullOrEmpty(sectionKey))
@@ -648,7 +649,7 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
             UnitPrice = unitPrice,
             Unit = matched.Unit,
             UnitChinese = PieceRateUnitKeys.ToChinese(matched.Unit) ?? matched.Unit,
-            SimulatedAmount = PieceRateAmountHelper.AmountForUnit(matched.Unit, unitPrice, weightKg, quantity, null),
+            SimulatedAmount = PieceRateAmountHelper.AmountForUnit(matched.Unit, unitPrice, weightKg, quantity, null, faceCutCount),
             Hits = hits,
             Remark = matched.Remark
         };
@@ -657,8 +658,12 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
     // ==================== 模拟测算（按产量记录点选计价，2026-09-04） ====================
 
     /// <summary>候选产量记录（全局任意记录）：产量源必选 + 关键字过滤 SQL 下推 + 分页；默认记录日期降序 + Id 降序。
-    /// 关键字只下推记录本地列（操作人/设备/备注/制造规格；PicklingOut/ProcessInspection 另含自冗余批次号），
-    /// 导航批次号/规格仅投影展示（避免导航列下推在 InMemory 下不可靠）。与月结采集同 Mapper 映射单源。</summary>
+    /// 关键字模糊匹配列 = 记录本地列（操作人/检验员、设备、备注、制造规格、工段 SectionName、工序 ProcessName、
+    /// 标签 TagNo；PicklingOut/ProcessInspection 另有自冗余批次号），生产记录/入缸的批次号经所属批次导航检索
+    /// （null 判空避免 InMemory 孤儿导航；与月结采集同 Mapper 映射单源）。
+    /// 2026-09-04 中文反查：工段/工序存储为英文 Key 而页面显示中文（含配置表改名 OverrideMap），故中文关键字
+    /// 先经显示名 Map（页面同款）子串反查命中英文 Key 集合，再对存储列做 Key 命中；无命中时用不可能哨兵保
+    /// EF IN 非空（真库 SQL 空 IN 报错）。</summary>
     public async Task<PagedResult<PieceRateProductionTrialRecordDto>> GetTrialRecordsAsync(
         PieceRateProductionTrialRecordQuery query)
     {
@@ -669,6 +674,18 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
                 : $"无效的产量源: {query.Source}");
 
         var kw = string.IsNullOrWhiteSpace(query.Keyword) ? null : query.Keyword.Trim();
+
+        // 工段/工序中文子串 → 命中英文 Key 候选集（页面显示名 Map 反查，含配置改名；工段 Map 亦供行显示）。
+        // 映射源缓存（IMemoryCache），每次搜索一次获取可忽略。
+        var sectionMap = await _sectionNameDisplay.GetSectionNameMapAsync();
+        List<string> sectionKwKeys = new();
+        List<string> processKwKeys = new();
+        if (kw != null)
+        {
+            sectionKwKeys = KeywordKeys(sectionMap, kw);
+            var processMap = await _processDefinitionService.GetProcessNameMapAsync();
+            processKwKeys = KeywordKeys(processMap, kw);
+        }
 
         switch (source)
         {
@@ -681,7 +698,11 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
                     q = q.Where(x => (x.Operator != null && x.Operator.Contains(kw))
                                      || (x.EquipmentName != null && x.EquipmentName.Contains(kw))
                                      || (x.Remark != null && x.Remark.Contains(kw))
-                                     || (x.ManufacturingSpec != null && x.ManufacturingSpec.Contains(kw)));
+                                     || (x.ManufacturingSpec != null && x.ManufacturingSpec.Contains(kw))
+                                     || (x.SectionName != null && (x.SectionName.Contains(kw) || sectionKwKeys.Contains(x.SectionName)))
+                                     || (x.ProcessName != null && (x.ProcessName.Contains(kw) || processKwKeys.Contains(x.ProcessName)))
+                                     || (x.TagNo != null && x.TagNo.Contains(kw))
+                                     || (x.ProductionBatch != null && x.ProductionBatch.BatchNo != null && x.ProductionBatch.BatchNo.Contains(kw)));
                 var total = await q.CountAsync();
                 var rows = await q
                     .OrderByDescending(x => x.ExecDate)
@@ -689,7 +710,6 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
                     .Skip(query.Skip)
                     .Take(query.PageSize)
                     .ToListAsync();
-                var sectionMap = await _sectionNameDisplay.GetSectionNameMapAsync();
                 return Result(source, rows.Select(r => MapTrial(r, r.ProductionBatch, sectionMap)).ToList(), total, query);
             }
             case PieceRateProductionTrialSource.PicklingIn:
@@ -701,7 +721,11 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
                     q = q.Where(x => (x.Operator != null && x.Operator.Contains(kw))
                                      || (x.EquipmentName != null && x.EquipmentName.Contains(kw))
                                      || (x.Remark != null && x.Remark.Contains(kw))
-                                     || (x.ManufacturingSpec != null && x.ManufacturingSpec.Contains(kw)));
+                                     || (x.ManufacturingSpec != null && x.ManufacturingSpec.Contains(kw))
+                                     || (x.SectionName != null && (x.SectionName.Contains(kw) || sectionKwKeys.Contains(x.SectionName)))
+                                     || (x.ProcessName != null && (x.ProcessName.Contains(kw) || processKwKeys.Contains(x.ProcessName)))
+                                     || (x.TagNo != null && x.TagNo.Contains(kw))
+                                     || (x.ProductionBatch != null && x.ProductionBatch.BatchNo != null && x.ProductionBatch.BatchNo.Contains(kw)));
                 var total = await q.CountAsync();
                 var rows = await q
                     .OrderByDescending(x => x.InDate)
@@ -709,7 +733,6 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
                     .Skip(query.Skip)
                     .Take(query.PageSize)
                     .ToListAsync();
-                var sectionMap = await _sectionNameDisplay.GetSectionNameMapAsync();
                 return Result(source, rows.Select(r => MapTrial(r, r.ProductionBatch, sectionMap)).ToList(), total, query);
             }
             case PieceRateProductionTrialSource.PicklingOut:
@@ -721,6 +744,9 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
                                      || (x.EquipmentName != null && x.EquipmentName.Contains(kw))
                                      || (x.Remark != null && x.Remark.Contains(kw))
                                      || (x.ManufacturingSpec != null && x.ManufacturingSpec.Contains(kw))
+                                     || (x.SectionName != null && (x.SectionName.Contains(kw) || sectionKwKeys.Contains(x.SectionName)))
+                                     || (x.ProcessName != null && (x.ProcessName.Contains(kw) || processKwKeys.Contains(x.ProcessName)))
+                                     || (x.TagNo != null && x.TagNo.Contains(kw))
                                      || (x.BatchNo != null && x.BatchNo.Contains(kw)));
                 var total = await q.CountAsync();
                 var rows = await q
@@ -729,7 +755,6 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
                     .Skip(query.Skip)
                     .Take(query.PageSize)
                     .ToListAsync();
-                var sectionMap = await _sectionNameDisplay.GetSectionNameMapAsync();
                 return Result(source, rows.Select(r => MapTrial(r, sectionMap)).ToList(), total, query);
             }
             default:
@@ -742,6 +767,9 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
                                      || (x.EquipmentName != null && x.EquipmentName.Contains(kw))
                                      || (x.Remark != null && x.Remark.Contains(kw))
                                      || (x.ManufacturingSpec != null && x.ManufacturingSpec.Contains(kw))
+                                     || (x.SectionName != null && (x.SectionName.Contains(kw) || sectionKwKeys.Contains(x.SectionName)))
+                                     || (x.ProcessName != null && (x.ProcessName.Contains(kw) || processKwKeys.Contains(x.ProcessName)))
+                                     || (x.TagNo != null && x.TagNo.Contains(kw))
                                      || (x.BatchNo != null && x.BatchNo.Contains(kw)));
                 var total = await q.CountAsync();
                 var rows = await q
@@ -750,10 +778,22 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
                     .Skip(query.Skip)
                     .Take(query.PageSize)
                     .ToListAsync();
-                var sectionMap = await _sectionNameDisplay.GetSectionNameMapAsync();
                 return Result(source, rows.Select(p => MapTrial(p, p.ProductionBatch, sectionMap)).ToList(), total, query);
             }
         }
+    }
+
+    /// <summary>显示名 Map 子串反查命中英文 Key 候选集（工段/工序存储为英文 Key，中文关键字须先经此反查）。
+    /// 无任何命中时返回不可能哨兵列表，保证 EF Core IN 子句非空（真库 SQL Server 空 IN 会语法报错）。</summary>
+    private static List<string> KeywordKeys(IReadOnlyDictionary<string, string> map, string keyword)
+    {
+        const string none = "__MES_NO_MATCH__";
+        var hits = map
+            .Where(kv => kv.Value != null && kv.Value.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            .Select(kv => kv.Key)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return hits.Count > 0 ? hits : new List<string> { none };
     }
 
     private static PagedResult<PieceRateProductionTrialRecordDto> Result(
@@ -806,6 +846,7 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
             ProductStatusChinese = ProductStatusChinese(r.ProductStatus),
             Specification = spec,
             Quantity = r.Quantity,
+            FaceCutCount = r.FaceCutCount,
             Weight = r.Weight,
             Operator = r.Operator,
             EquipmentName = r.EquipmentName,
@@ -908,22 +949,26 @@ public class PieceRateProductionCategoryService : IPieceRateProductionCategorySe
                     .FirstOrDefaultAsync(r => r.Id == recordId)
                     ?? throw new BusinessException($"生产记录不存在: {recordId}");
                 var request = ProductionMatchRequestMapper.BuildFromProductionRecord(rec, rec.ProductionBatch);
-                return await MatchByRequestAsync(request, rec.Weight, rec.Quantity);
+                // 元/头（荒管断切）= 加工支数 × 平头数（FaceCutCount 空默认 1），AmountForUnit 内兜底
+                return await MatchByRequestAsync(request, rec.Weight, rec.Quantity, rec.FaceCutCount);
             }
             case PieceRateProductionTrialSource.PicklingIn:
             {
                 var rec = await _context.PicklingInRecords.AsNoTracking()
+                    .Include(r => r.ProductionBatch)
                     .FirstOrDefaultAsync(r => r.Id == recordId)
                     ?? throw new BusinessException($"去油/酸洗入缸记录不存在: {recordId}");
-                var request = ProductionMatchRequestMapper.BuildFromPicklingIn(rec);
+                var request = ProductionMatchRequestMapper.BuildFromPicklingIn(rec, rec.ProductionBatch);
                 return await MatchByRequestAsync(request, rec.Weight, rec.Quantity);
             }
             case PieceRateProductionTrialSource.PicklingOut:
             {
                 var rec = await _context.PicklingOutRecords.AsNoTracking()
+                    .Include(r => r.PicklingInRecord)
+                        .ThenInclude(pi => pi.ProductionBatch)
                     .FirstOrDefaultAsync(r => r.Id == recordId)
                     ?? throw new BusinessException($"去油/酸洗完工记录不存在: {recordId}");
-                var request = ProductionMatchRequestMapper.BuildFromPicklingOut(rec);
+                var request = ProductionMatchRequestMapper.BuildFromPicklingOut(rec, rec.PicklingInRecord?.ProductionBatch);
                 return await MatchByRequestAsync(request, rec.Weight, rec.Quantity);
             }
             default:

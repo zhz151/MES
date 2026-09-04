@@ -6,7 +6,7 @@ namespace MES.Core.Helpers;
 /// <summary>
 /// 计件工资「结算单价 → 整行金额」折算共享单源（2026-09-04 试算/结算共用引入）。
 /// 口径说明：工资 = 单价 × 数量，数量维由结算单位 PieceRateUnitKeys 决定——元/吨→重量(kg/1000)、
-/// 元/千米→长度(支×mm/1e6=km)、元/支→支数、元/头→头数（无类别用，返回 null）。
+/// 元/千米→长度(支×mm/1e6=km)、元/支→支数、元/头→头数 = 加工支数 × 平头数（FaceCutCount 空默认 1）。
 /// 原为 PieceRateCollector.AmountForUnit 等私有实现，抽为 Core 共享防试算端点与结算采集双通道漂移；
 /// 采集器改调本助手（行为零变化，回归测试兜底）。不四舍五入，累加保留精度，显示层 ToString("G29")。
 /// </summary>
@@ -45,9 +45,12 @@ public static class PieceRateAmountHelper
         return null;
     }
 
-    /// <summary>结算单价 → 行总金额（不四舍五入，累加保留精度，显示层 G29）。缺数量/长度返回 null。</summary>
+    /// <summary>
+    /// 结算单价 → 行总金额（不四舍五入，累加保留精度，显示层 G29）。缺数量/长度返回 null。
+    /// 元/头（PerHead）：头数 = 加工支数 quantity × 平头数 faceCutCount（空默认 1，缺支数返回 null）。
+    /// </summary>
     public static decimal? AmountForUnit(string unit, decimal unitPrice,
-        decimal? weightKg, int? quantity, decimal? lengthMm)
+        decimal? weightKg, int? quantity, decimal? lengthMm, int? faceCutCount = null)
     {
         return PieceRateUnitKeys.GetQuantityDimension(unit) switch
         {
@@ -58,7 +61,9 @@ public static class PieceRateAmountHelper
                     ? quantity.Value * lengthMm.Value / 1_000_000m * unitPrice : null,  // 元/千米：支×mm/1e6 = km × 价
             PieceRateUnitKeys.QuantityDimension.PieceCount =>
                 quantity.HasValue ? quantity.Value * unitPrice : null,                   // 元/支：支数 × 价
-            _ => null                                                                     // 元/头 无类别用
+            PieceRateUnitKeys.QuantityDimension.HeadCount =>
+                quantity.HasValue ? quantity.Value * (faceCutCount ?? 1) * unitPrice : null, // 元/头：支数×平头数 × 价
+            _ => null
         };
     }
 }

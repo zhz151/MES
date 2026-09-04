@@ -678,7 +678,9 @@ public class PieceRateProductionCategoryServiceTests : TestBase
         ];
         await svc.SaveAsync(null, req);
 
-        var rec = await SeedPicklingInAsync(ctx, 0, weight: 1000);   // spec 60*3 → OD60 命中 1.2
+        // 入缸记录须挂真实批次（Service Include(ProductionBatch) 在 InMemory 剔除孤儿导航）
+        var batch = await SeedProductionBatchAsync(ctx, spec: "60*3");
+        var rec = await SeedPicklingInAsync(ctx, 0, weight: 1000, batch: batch);   // spec 60*3 → OD60 命中 1.2
 
         var hit = await svc.MatchProductionRecordAsync(PieceRateProductionTrialSource.PicklingIn, rec.Id);
         hit.Should().NotBeNull();
@@ -711,8 +713,9 @@ public class PieceRateProductionCategoryServiceTests : TestBase
         var req = PickleRoughInTank(35);
         await svc.SaveAsync(null, req);
 
-        // 产类 Finished 不匹配类别约束 RoughTube → 未定价 null
-        var rec = await SeedPicklingInAsync(ctx, 0, productStatus: ProductStatuses.Finished);
+        // 产类 Finished 不匹配类别约束 RoughTube → 未定价 null（入缸记录须挂真实批次，防 InMemory Include 剔除孤儿）
+        var batch = await SeedProductionBatchAsync(ctx);
+        var rec = await SeedPicklingInAsync(ctx, 0, productStatus: ProductStatuses.Finished, batch: batch);
         var miss = await svc.MatchProductionRecordAsync(PieceRateProductionTrialSource.PicklingIn, rec.Id);
         miss.Should().BeNull();
 
@@ -779,6 +782,34 @@ public class PieceRateProductionCategoryServiceTests : TestBase
         byRemark.TotalCount.Should().Be(1);
         byRemark.Items.Single().Id.Should().Be(a.Id);
 
+        // 关键字命中批次号（入缸无自冗余 BatchNo，经所属批次导航检索）
+        var byBatchNo = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
+        {
+            Source = nameof(PieceRateProductionTrialSource.PicklingIn),
+            Keyword = batch.BatchNo,
+            PageSize = 50
+        });
+        byBatchNo.TotalCount.Should().Be(3);
+        byBatchNo.Items.Should().OnlyContain(i => i.BatchNo == batch.BatchNo);
+
+        // 关键字命中工段/工序本地 Key（工段=Pickle、工序=Degrease 种子）
+        var byProcess = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
+        {
+            Source = nameof(PieceRateProductionTrialSource.PicklingIn),
+            Keyword = "Degrease",
+            PageSize = 50
+        });
+        byProcess.TotalCount.Should().Be(3);
+        byProcess.Items.Should().OnlyContain(i => i.ProcessName == "Degrease");
+
+        var bySection = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
+        {
+            Source = nameof(PieceRateProductionTrialSource.PicklingIn),
+            Keyword = SectionKeys.Pickle,
+            PageSize = 50
+        });
+        bySection.TotalCount.Should().Be(3);
+
         // 源过滤仅返回生产记录 + 中文补齐
         var prod = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
         {
@@ -795,6 +826,16 @@ public class PieceRateProductionCategoryServiceTests : TestBase
         row.StageChinese.Should().BeNull();
         row.Operator.Should().Be("王五");
         row.RecordDate.Should().Be(new DateTime(2026, 9, 2));
+
+        // 生产记录源（默认源）批次号经导航检索——页面搜索体验主修复
+        var byProdBatch = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
+        {
+            Source = nameof(PieceRateProductionTrialSource.ProductionRecord),
+            Keyword = batch.BatchNo,
+            PageSize = 50
+        });
+        byProdBatch.TotalCount.Should().Be(1);
+        byProdBatch.Items.Single().Id.Should().Be(row.Id);
 
         // 入缸行阶段接线 + 中文
         var inRow = byOperator.Items.First();
@@ -819,5 +860,174 @@ public class PieceRateProductionCategoryServiceTests : TestBase
 
         var badSource = async () => await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery { Source = "Nope" });
         (await badSource.Should().ThrowAsync<BusinessException>()).Which.Message.Should().Contain("无效的产量源");
+    }
+
+    // ==================== 2026-09-04 补：中文关键字反查 + 断切率/元头接线 ====================
+
+    /// <summary>种一条生产记录（Cut·ColdRoll50 / 冷拔 等，须真挂批次）</summary>
+    private static async Task<ProductionRecord> SeedProductionRecordAsync(AppDbContext ctx,
+        string sectionName, string processName, string productStatus, DateTime execDate, ProductionBatch batch,
+        int? quantity = null, decimal? weight = null, int? faceCutCount = null, decimal? cuttingMultiple = null)
+    {
+        var rec = new ProductionRecord
+        {
+            SectionName = sectionName,
+            ProcessName = processName,
+            ProductStatus = productStatus,
+            ManufacturingSpec = "60*3",
+            Operator = "王五",
+            ExecDate = execDate,
+            Quantity = quantity,
+            Weight = weight,
+            FaceCutCount = faceCutCount,
+            CuttingMultiple = cuttingMultiple,
+            ProductionBatchId = batch.Id,
+            ProductionBatch = batch
+        };
+        ctx.ProductionRecords.Add(rec);
+        await ctx.SaveChangesAsync();
+        return rec;
+    }
+
+    [Fact]
+    public async Task GetTrialRecordsAsync_中文关键字_工段工序子串反查()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+        var batch = await SeedProductionBatchAsync(ctx);
+
+        // 工序英文 Key（页面显示中文）：冷拔 ColdDraw / 50冷轧 ColdRoll50
+        var coldDraw = await SeedProductionRecordAsync(ctx, SectionKeys.ColdRollDraw, ProcessKeys.ColdDraw,
+            ProductStatuses.InProgress, new DateTime(2026, 9, 2), batch);
+        var coldRoll50 = await SeedProductionRecordAsync(ctx, SectionKeys.Cut, ProcessKeys.ColdRoll50,
+            ProductStatuses.Finished, new DateTime(2026, 9, 1), batch);
+
+        // 工序中文「冷拔」→ 反查 ColdDraw 英文 Key → 仅命中冷拔行
+        var byProcessCn = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
+        {
+            Source = nameof(PieceRateProductionTrialSource.ProductionRecord),
+            Keyword = "冷拔",
+            PageSize = 50
+        });
+        byProcessCn.TotalCount.Should().Be(1);
+        byProcessCn.Items.Single().ProcessName.Should().Be(ProcessKeys.ColdDraw);
+
+        // 工序中文「50冷轧」子串 → 反查 ColdRoll50 → 命中 50 冷轧行（工段「冷轧拔」不误伤）
+        var byColdRollCn = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
+        {
+            Source = nameof(PieceRateProductionTrialSource.ProductionRecord),
+            Keyword = "50冷轧",
+            PageSize = 50
+        });
+        byColdRollCn.TotalCount.Should().Be(1);
+        byColdRollCn.Items.Single().Id.Should().Be(coldRoll50.Id);
+
+        // 工段中文「断切」→ 反查 Cut 英文 Key → 命中 Cut 工段行（50冷轧行属 Cut）
+        var bySectionCn = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
+        {
+            Source = nameof(PieceRateProductionTrialSource.ProductionRecord),
+            Keyword = "断切",
+            PageSize = 50
+        });
+        bySectionCn.TotalCount.Should().Be(1);
+        bySectionCn.Items.Single().Id.Should().Be(coldRoll50.Id);
+
+        // 无中文命中的关键字 → 空（哨兵防 SQL 空 IN）
+        var none = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
+        {
+            Source = nameof(PieceRateProductionTrialSource.ProductionRecord),
+            Keyword = "无此工段名",
+            PageSize = 50
+        });
+        none.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetTrialRecordsAsync_配置改名显示名_反查仍命中()
+    {
+        using var ctx = CreateDbContext();
+        var batch = await SeedProductionBatchAsync(ctx);
+        var rec = await SeedProductionRecordAsync(ctx, SectionKeys.Cut, ProcessKeys.ColdRoll50,
+            ProductStatuses.Finished, new DateTime(2026, 9, 1), batch);
+
+        // 配置表改名显示名（OverrideMap 生效）→ 反查仍用页面同款显示名 Map 命中英文 Key
+        var procMock = new Mock<IProcessDefinitionService>();
+        var renamed = new Dictionary<string, string>(ProcessKeys.KeyToChinese, StringComparer.OrdinalIgnoreCase)
+        {
+            [ProcessKeys.ColdRoll50] = "50冷轧-新车间"
+        };
+        procMock.Setup(x => x.GetProcessNameMapAsync()).ReturnsAsync(renamed);
+        var svc = new PieceRateProductionCategoryService(ctx, SectionDisplayMock(), procMock.Object);
+
+        var hit = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
+        {
+            Source = nameof(PieceRateProductionTrialSource.ProductionRecord),
+            Keyword = "新车间",
+            PageSize = 50
+        });
+        hit.TotalCount.Should().Be(1);
+        hit.Items.Single().Id.Should().Be(rec.Id);
+    }
+
+    [Fact]
+    public async Task MatchProductionRecordAsync_荒管断切元头_支数乘平头数折金额()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        // Cut × 荒管 × 元/头 PerHead 0.4（真库 cat33 同款：ProductStatus 约束 RoughTube，无工序/阶段约束）
+        await svc.SaveAsync(null, new PieceRateProductionCategorySaveRequest
+        {
+            SectionKey = SectionKeys.Cut,
+            ProcessKeys = [],
+            ProductStatusKeys = [ProductStatuses.RoughTube],
+            StageKeys = [],
+            BasePrice = 0.4m,
+            Unit = PieceRateUnitKeys.PerHead,
+            IsActive = true
+        });
+
+        var batch = await SeedProductionBatchAsync(ctx);
+        var rec = await SeedProductionRecordAsync(ctx, SectionKeys.Cut, ProcessKeys.RoughTubeProcessing,
+            ProductStatuses.RoughTube, new DateTime(2026, 9, 1), batch,
+            quantity: 10, weight: 1000, faceCutCount: 2);
+
+        var hit = await svc.MatchProductionRecordAsync(PieceRateProductionTrialSource.ProductionRecord, rec.Id);
+        hit.Should().NotBeNull();
+        hit!.Unit.Should().Be(PieceRateUnitKeys.PerHead);
+        hit.UnitPrice.Should().Be(0.4m);                        // 无维档 → 单价=基准价
+        hit.SimulatedAmount.Should().Be(8m);                    // 10 支 × 2 平头 = 20 头 × 0.4
+
+        // 平头数空 → 默认 1：5 支 × 1 × 0.4 = 2 元
+        var recNoFace = await SeedProductionRecordAsync(ctx, SectionKeys.Cut, ProcessKeys.RoughTubeProcessing,
+            ProductStatuses.RoughTube, new DateTime(2026, 9, 2), batch, quantity: 5, weight: 1000);
+        var hitNoFace = await svc.MatchProductionRecordAsync(PieceRateProductionTrialSource.ProductionRecord, recNoFace.Id);
+        hitNoFace.Should().NotBeNull();
+        hitNoFace!.SimulatedAmount.Should().Be(2m);
+
+        // 缺支数 → null（无法折头数）
+        var recNoQty = await SeedProductionRecordAsync(ctx, SectionKeys.Cut, ProcessKeys.RoughTubeProcessing,
+            ProductStatuses.RoughTube, new DateTime(2026, 9, 3), batch, weight: 1000);
+        var hitNoQty = await svc.MatchProductionRecordAsync(PieceRateProductionTrialSource.ProductionRecord, recNoQty.Id);
+        hitNoQty!.SimulatedAmount.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetTrialRecords_生产记录行_平头数接线展示()
+    {
+        using var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+        var batch = await SeedProductionBatchAsync(ctx);
+        var rec = await SeedProductionRecordAsync(ctx, SectionKeys.Cut, ProcessKeys.RoughTubeProcessing,
+            ProductStatuses.RoughTube, new DateTime(2026, 9, 1), batch, quantity: 10, faceCutCount: 2);
+
+        var rows = await svc.GetTrialRecordsAsync(new PieceRateProductionTrialRecordQuery
+        {
+            Source = nameof(PieceRateProductionTrialSource.ProductionRecord),
+            PageSize = 50
+        });
+        var row = rows.Items.Single(i => i.Id == rec.Id);
+        row.FaceCutCount.Should().Be(2);                        // 生产记录行暴露平头数（前端展示折算依据）
+        row.Quantity.Should().Be(10);
     }
 }

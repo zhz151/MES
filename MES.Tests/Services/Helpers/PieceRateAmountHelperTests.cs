@@ -55,9 +55,24 @@ public class PieceRateAmountHelperTests
     }
 
     [Fact]
-    public void AmountForUnit_元头无类别用返回null()
+    public void AmountForUnit_元头乘支数乘平头数()
     {
-        var amount = PieceRateAmountHelper.AmountForUnit(PieceRateUnitKeys.PerHead, 5m, 1000m, 2, 6000m);
+        // 元/头：头数 = 加工支数 × 平头数（FaceCutCount）；平头数空默认 1
+        var amount = PieceRateAmountHelper.AmountForUnit(PieceRateUnitKeys.PerHead, 0.4m, 1000m, 10, 6000m, 2);
+        amount.Should().Be(8m); // 10 支 × 2 平头 = 20 头 × 0.4
+    }
+
+    [Fact]
+    public void AmountForUnit_元头平头数空默认1()
+    {
+        var amount = PieceRateAmountHelper.AmountForUnit(PieceRateUnitKeys.PerHead, 0.4m, 1000m, 5, 6000m);
+        amount.Should().Be(2m); // 5 支 × 1 × 0.4
+    }
+
+    [Fact]
+    public void AmountForUnit_元头缺支数返回null()
+    {
+        var amount = PieceRateAmountHelper.AmountForUnit(PieceRateUnitKeys.PerHead, 0.4m, 1000m, null, 6000m, 2);
         amount.Should().BeNull();
     }
 
