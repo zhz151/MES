@@ -443,6 +443,11 @@
 │ 唯一性：工段×工序×产类×阶段同覆盖仅允许一个启用类别                                                          │
 │ 列表页：自动组合名/工段中文/基准价/单位/维档数/启停/备注/时间列                                              │
 │ + 列显隐/排序 + 工段下拉/启停下拉 + 模糊搜索（自动组合名/工段/备注）                                         │
+│ 模拟测算面板（2026-09-04 V1.5）：筛选/表格间 MudExpansionPanels「模拟测算（按产量记录点选计价）」             │
+│   产量源下拉（生产记录/去油酸洗入缸/去油酸洗完工/过程检验，默认生产记录）+ 关键字（操作人/设备/备注）          │
+│   候选分页表格（记录日期/批次号/工段/工序/产类/阶段/规格/支数/重量kg/操作人）→ 行「试算」                      │
+│   = 现行启用类别单价（基准价 × 总系数）+ 整行计件额 SimulatedAmount（与月结同口径、未按写名人头均分）；          │
+│   未定价=Info「无启用类别或值未命中档」；缺重量/支数/千米无长度=灰字折算提示；命中档 chips（维度中文：区间×系数）│
 │ 行操作：编辑 → 独立编辑页 /payroll/piece-rate-categories/edit/{Id}；                                         │
 │         删除弹确认框（级联删维档）                                                                           │
 │ 编辑页（/payroll/piece-rate-categories/create、/edit/{Id:int}）：                                            │
@@ -613,7 +618,7 @@
 | 74 | ColdRollMachineConfigs.razor | /cold-roll-machine-configs | 配置 | | 冷轧机台数配置（ProcessType 唯一），查改一体表；排程建议产能平衡输入（方式A兜底 daily） |
 | 75 | ColdRollMachineGroupConfigs.razor | /cold-roll-machine-group-configs | 配置 | | 冷轧机台组配置（GroupKey 唯一），归组配置表驱动；工序多选（仅启用的冷轧/冷拔工序，显示走 GetProcessNameText 中文）+供给目标组列（供需链显式化，组角色字段已移除；链合法性校验：凡配目标则目标存在+无环，允许多链/多级链，2030→冷拔(None) 末端合法）；保存/删除失效三引擎缓存键；工序禁用时自动从组内移除（ProcessDefinitionService） |
 | 76 | PieceRateProductionCategories.razor | /payroll/piece-rate-categories | 工资结算 | | 生产计件类别列表页（2026-09-02 单表→两表重构：PieceRateProductionCategory + PieceRateProductionTier 维档子表；类别 = 工段×工序/产类/阶段约束 + 基准价 + 维档系数，结算单价 = 类别基准价 × 命中维档系数连乘，不配某维=系数1，工段×工序×产类×阶段同覆盖仅允许一个启用类别）；列：自动组合名/工段中文/基准价(G29)/单位/维档数/是否启用/备注/更新时间/创建时间 + 列显隐/排序；顶部工段下拉 + 启停下拉 + 模糊搜索（自动组合名/工段/备注）；行操作：编辑走独立页 `/payroll/piece-rate-categories/edit/{Id}`、删除弹 ConfirmDialog（级联删维档），新增走 `/payroll/piece-rate-categories/create`；旧单表 UI 计件标准（PieceRateStandards 原 /payroll/piece-rate-standards）已于 2026-09-02 删除 |
-| 77 | FinalInspectionCategories.razor | /payroll/final-inspection-categories | 工资结算 | | 成检计件类别列表页（2026-09-03 第三期）：主表 PieceRateFinalInspectionCategory = 成检项目 InspectionItem 单键 + 基准价 + 单位 + 启停（同项目启用唯一）+ 子表 8 维档（区间 外径/壁厚/长度/检验支数整数闭带 + 等值 长度状态/特殊牌号/特殊制造状态/特殊设备号）；列 + 行内展开试算区 match-price + 专用批量导出/导入弹窗 |
+| 77 | FinalInspectionCategories.razor | /payroll/final-inspection-categories | 工资结算 | | 成检计件类别列表页（2026-09-03 第三期）：主表 PieceRateFinalInspectionCategory = 成检项目 InspectionItem 单键 + 基准价 + 单位 + 启停（同项目启用唯一）+ 子表 8 维档（区间 外径/壁厚/长度/检验支数整数闭带 + 等值 长度状态/特殊牌号/特殊制造状态/特殊设备号）；列 + 行内展开「模拟测算」（2026-09-04 V1.3 改**按成检记录点选计价**：候选=全局任意跨期成检记录，顶部成检项目下拉 + 关键字(生产编号/设备/操作人)，服务端分页记录小表，行「试算」按 Id 计价 → 命中类别 基准价×总系数=单价 + 整行计件额(与月结同口径、未按人头均分)/缺数量灰字提示/未定价提示；手动填维度试算表单已删，match-price 端点保留）+ 专用批量导出/导入弹窗 |
 | 78 | FinalInspectionCategoryEdit.razor | /payroll/final-inspection-categories/create、/edit/{Id:int} | 工资结算 | | 成检计件类别编辑页：定义（成检项目单选 + 基准价/单位/启停/备注）+ 8 维档同页整组编辑，保存整类落库（档行整组替换） |
 | 79 | MonthlyWages.razor | /payroll/wages/non-piece、/payroll/wages/piece | 工资结算 | | 每日工资两表月视图网格页（2026-09-03 四期，单组件双路由）：仿考勤网格（attendance-scroll/grid + enableAttendanceKeyNav）单元格=每日工资额（原生 input 失焦提交），引擎自动带出 + 常编辑 + 显式「引擎重算」（ConfirmDialog 覆盖网格）+「保存本月」落库（Amount>0 存/空删，SalaryMode 归口快照）；非计件=Hourly 小时×时薪 / Daily 日薪×min(出勤,8)/8，个人计件=PieceIndividual 当月产量+成检按现行单价逐行折算（成检合作行按人数均分、Range/NonFixed 定尺 6000mm 兜底、PerTon/PerPiece/PerKm 换算）；顶部 年/月/«»/工号姓名搜索/岗位类别/岗位筛选 + 表头排序；员工集=归口∈组启用员工 ∪ 当月历史快照（换归口历史月仍显示）；写操作 SalaryEdit 门控 |
 | 80 | CollectiveScores.razor | /payroll/collective-scores | 工资结算 | | 集体计件评分页（2026-09-03 五期）：年月选择 → 员工按岗位分组卡片（工号/姓名/岗位/分值输入 1–10 一位小数如 8.5 + 已评分/新录入/未评分备注）→「保存评分」整月 upsert；只显示在册集体成员 + 当月已有评分历史员工补集；写操作 SalaryEdit 门控 |
@@ -673,6 +678,8 @@
 > **最后更新：2026-09-03（V40）** — 工资结算上下文补充杂辅工记录台账页（七期，MiscWorkMonthly.razor /payroll/misc-work：手工登记杂项辅助、金额手工录入保留小数不取整、同人同日可多条；月份导航 + 当月合计 chips + 新增/行内编辑/删除 + 页内筛选）；§1 上下文表工资结算 8 页 7 列表页 → 9 页 8 列表页、§2.11 块（菜单补「杂辅工记录」/页面行/说明）、§2.12 导航、§3 #83 同步更新
 >
 > **最后更新：2026-09-03（V39）** — 工资结算上下文补充集体计件两页（五期登记补齐，CollectiveScores /payroll/collective-scores + CollectiveMonthly /payroll/collective-monthly，均已随集体落地存在，本次在文档补登记）与靠工计件月结页（六期，PieceAttendanceMonthly.razor /payroll/attendance-monthly：靠工=靠工岗位 × 本人出勤 × 靠工系数，员工管理「靠工岗位」多选列候选=计件活岗 GET api/employee/piece-positions，平均时薪参照=选中岗位当月计件总工资÷同批岗位计件人员总出勤）；§1 上下文表工资结算 6 页 4 列表页 → 8 页 7 列表页、§2.11 块（菜单/页面行/说明）、§2.12 导航、§3 #80~#82 同步更新（列表页总数 71→74）
+>
+> **最后更新：2026-09-04（V39）** — 生产计件类别列表页 #76 新增「模拟测算（按产量记录点选计价）」MudExpansionPanels 面板：产量源下拉 4 类（生产记录/去油酸洗入缸/去油酸洗完工/过程检验，默认生产记录）+ 关键字（操作人/设备/备注）+ 候选分页表格（记录日期/批次号/工段/工序/产类/阶段/规格/支数/重量kg/操作人），行「试算」按现行启用类别出单价 + 整行计件额 SimulatedAmount（与月结同口径、未按写名人头均分，未定价=Info、缺量灰字提示、命中档 chips）
 >
 > **最后更新：2026-09-03（V38）** — 工资结算上下文补充页面：新增成检计件类别（第三期，FinalInspectionCategories 列表 + FinalInspectionCategoryEdit 编辑，路由 /payroll/final-inspection-categories*，#77/#78）与每日工资两表（第四期，MonthlyWages.razor 单组件双路由 /payroll/wages/non-piece 非计件工资 + /payroll/wages/piece 个人计件工资，仿考勤网格单元格=每日工资额 + 引擎自动带出 + 常编辑/显式重算/保存快照，#79）；§1 上下文表 3 页 2 列表页 → 6 页 4 列表页、§2.11 块、§2.12 导航、§3 #77~#79 同步更新
 >
