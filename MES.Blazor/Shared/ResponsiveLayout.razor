@@ -40,22 +40,46 @@ else
 
     private async Task<bool> DetectMobile()
     {
+        // 布局判定放 wasm（内容指纹 URL，不会被中间缓存滞留旧版），不依赖 index.html 里的 JS 全局函数。
+        // 实时读取窗口宽度 / UA / 触屏信息：
+        //   - 宽 <960                                 → 移动布局
+        //   - UA 含移动端/Quark/微信                     → 移动布局
+        //   - pointer:coarse 触屏主输入                  → 移动布局
+        //   - maxTouchPoints>0 且宽 <1600               → 移动布局（覆盖手机“桌面版网站”的 980/1280/1440 视口）
+        //   - max-device-width<=767（设备物理屏宽）         → 移动布局
+        //     ⚠️ 夸克“电脑模式”会剥掉 UA 的 Quark 字样、把布局视口拉宽到 ~1280、把主指针模拟成鼠标
+        //     （coarse=false、touch=0），上述 UA/宽度/触屏判定全部失效。device-width 反映设备物理
+        //     屏幕宽，任何 UA/视口伪装都改不了真手机的 ~390px，是钉死手机布局的最可靠信号。
+        //   - 横屏例外（2026-09-05 用户拍板）：手机/触屏平板横屏且 innerWidth≥700 时改用桌面布局
+        //     （MainLayout 电脑版表格观感；侧栏默认收起、Responsive 抽屉 <960 为浮层不占位）。
+        //     旋转回竖屏立即回落移动布局。夸克等锁竖屏浏览器 orientation 恒 portrait → 不受影响。
+        const string expr =
+            "(window.innerWidth<960)||" +
+            "(window.matchMedia&&window.matchMedia('(max-device-width: 767px)').matches)||" +
+            "/Android|iPhone|iPad|iPod|Mobile|Mobi|Windows Phone|Quark|MicroMessenger/i.test(navigator.userAgent)||" +
+            "(window.matchMedia&&window.matchMedia('(pointer: coarse)').matches)||" +
+            "((navigator.maxTouchPoints||0)>0&&window.innerWidth<1600)" +
+            // 命中移动条件后，若处于横屏大宽（landscape 且 ≥700px）→ 切桌面布局渲染宽表格；其余保持移动布局
+            "&&!(window.matchMedia&&window.matchMedia('(orientation: landscape)').matches&&window.innerWidth>=700)";
         try
         {
-            return await JSRuntime.InvokeAsync<bool>("checkMobile");
+            return await JSRuntime.InvokeAsync<bool>("eval", expr);
         }
         catch
         {
-            return false;
+            // JS 异常时保守走移动布局（MobileLayout 无常驻侧栏），避免窄屏回落桌面布局出现半屏菜单
+            return true;
         }
     }
 
     [JSInvokable]
     public async Task OnResize(bool isMobile)
     {
-        if (_isMobile != isMobile)
+        // 忽略 JS 传入的旧判定值，resize 时实时重算，避免旧版 index.html 函数把结果切回桌面布局
+        var fresh = await DetectMobile();
+        if (_isMobile != fresh)
         {
-            _isMobile = isMobile;
+            _isMobile = fresh;
             await InvokeAsync(StateHasChanged);
         }
     }

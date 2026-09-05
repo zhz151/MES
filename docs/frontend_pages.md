@@ -1,8 +1,9 @@
 # MES 前端页面结构参考
 
-> 版本：V44（2026-09-04；生成 2026-08-19）
+> 版本：V45（2026-09-05；生成 2026-08-19）
 > 用途/状态：Quick Reference - 按导航菜单分组的前端页面结构参考，§1 上下文总览 / §2 各上下文页面块 / §3 列表页全量清单。
-> 上次实质变更（V44）：生产计件类别 #76 模拟测算搜索与金额口径三项增强——工段/工序中文子串反查、元/头折算接线、断切率同源。
+> 上次实质变更（V45）：前端导航菜单**单源树化**——菜单统一由 `MES.Blazor/Shared/AppMenu.cs`（`AppMenu.Root`）驱动，桌面/手机共用一棵树（见 §6），根治手机菜单漂移（订单组残留「牌号对照」等）；手机横屏大宽（landscape 且 innerWidth≥700）自动切桌面布局（`ResponsiveLayout`）。菜单结构/页面归属本身未变。
+> 历史变更（V44）：生产计件类别 #76 模拟测算搜索与金额口径三项增强——工段/工序中文子串反查、元/头折算接线、断切率同源。
 
 ---
 
@@ -604,7 +605,8 @@
 | 枚举映射 | `MES.Blazor/Helpers/DisplayHelper.cs` |
 | ExcelFilter | `MES.Blazor/Components/ExcelFilter.razor` |
 | 开发规范 | `docs/04_开发规范.md` |
-| 导航布局 | `MES.Blazor/Shared/MainLayout.razor` |
+| 菜单树（单一数据源） | `MES.Blazor/Shared/AppMenu.cs` + `AppMenuNode.cs`（桌面/手机共用 `AppMenu.Root`；**改动菜单只许改这里**，回归断言 `MES.Tests/Components/AppMenuTests.cs`） |
+| 布局外壳 / 菜单渲染 | `ResponsiveLayout.razor`（移动判定 + 横屏切桌面）→ `MainLayout.razor`（桌面）/ `MobileLayout.razor`（手机）；菜单渲染 `DesktopMenuNode.razor` / `MobileMenuNode.razor` |
 
 ---
 

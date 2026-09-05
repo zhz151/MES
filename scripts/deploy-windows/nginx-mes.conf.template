@@ -1,0 +1,105 @@
+# nginx.conf for MES (generated from this template by 05-setup-nginx.ps1)
+# placeholders: {DOMAIN} {SSL_CERT} {SSL_KEY} {WEBROOT} {API_PORT}
+worker_processes  1;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    keepalive_timeout  65;
+    server_tokens   off;
+
+    gzip  on;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_types
+        application/wasm
+        application/octet-stream
+        text/plain
+        text/css
+        application/javascript
+        application/json
+        image/svg+xml;
+
+    # --- http -> https ---
+    server {
+        listen       80;
+        server_name  {DOMAIN};
+        return 301 https://$host$request_uri;
+    }
+
+    # --- https site ---
+    server {
+        listen       443 ssl;
+        server_name  {DOMAIN};
+
+        ssl_certificate      {SSL_CERT_ABS};
+        ssl_certificate_key  {SSL_KEY_ABS};
+        ssl_protocols        TLSv1.2 TLSv1.3;
+
+        # Excel import/export uploads can be large
+        client_max_body_size 100m;
+
+        # Blazor WASM static content
+        root   {WEBROOT};
+        index  index.html;
+
+        # API reverse proxy (Kestrel on loopback)
+        location /api/ {
+            proxy_pass        http://127.0.0.1:{API_PORT};
+            proxy_http_version 1.1;
+            proxy_set_header  Host              $host;
+            proxy_set_header  X-Real-IP         $remote_addr;
+            proxy_set_header  X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header  X-Forwarded-Proto $scheme;
+            proxy_read_timeout  300s;
+            proxy_send_timeout  300s;
+        }
+
+        # Hangfire dashboard (Basic auth enforced by the app; may add IP whitelist here)
+        location /hangfire {
+            proxy_pass        http://127.0.0.1:{API_PORT};
+            proxy_http_version 1.1;
+            proxy_set_header  Host              $host;
+            proxy_set_header  X-Forwarded-Proto $scheme;
+        }
+
+        # Blazor WASM SPA fallback - deep links like /login, /orders, /scan are
+        # client-side routes with no physical file, so serve index.html for any
+        # path that is not a real file/dir (otherwise direct nav / refresh = 404).
+        #
+        # PWA app-shell / runtime config (index.html / service-worker.js /
+        # appsettings.json / manifest.json) are NOT fingerprinted: if an intermediate
+        # cache keeps an old copy the app keeps loading the OLD wasm (new UI never shows).
+        # NOTE: `location = /path { add_header ... }` exact-match + add_header is NOT
+        # reliably emitted for static responses on some nginx builds (prefix match works),
+        # so no-cache lives in `location /`: index.html is served here whether requested
+        # directly or via the try_files internal redirect below, and always revalidates.
+        # Real .wasm/.dll/.css are served by /_framework/ or /css/ blocks below, unaffected.
+        location / {
+            try_files $uri $uri/ /index.html;
+            add_header Cache-Control "no-cache";
+        }
+
+        # Blazor loader assets live under /_framework/ but blazor.boot.json / blazor.webassembly.js
+        # are NOT fingerprinted - if an intermediate/PWA cache holds an old copy, the app keeps
+        # loading the OLD wasm build forever (new UI never shows). So _framework must revalidate:
+        # actual .wasm/.dll downloads carry a ?id=<hash> cache-buster (Blazor loader), so their
+        # .br/.gz rules below still give long cache via the query-busted URL.
+        location /_framework/ { add_header Cache-Control "no-cache"; }
+        location /css/        { add_header Cache-Control "public, max-age=31536000, immutable"; }
+        location /icon-192.png { add_header Cache-Control "public, max-age=2592000"; }
+        location /favicon.png  { add_header Cache-Control "public, max-age=2592000"; }
+
+        # Blazor WASM compressed twins (.br/.gz) - must be served with a matching
+        # Content-Encoding header, otherwise the Blazor loader cannot decompress
+        # them and the app fails to start with a Blazor boot error.
+        location ~* \.br$ { add_header Content-Encoding br   always; add_header Cache-Control "public, max-age=31536000, immutable" always; }
+        location ~* \.gz$ { add_header Content-Encoding gzip always; add_header Cache-Control "public, max-age=31536000, immutable" always; }
+    }
+}

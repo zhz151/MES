@@ -1,0 +1,42 @@
+@* 桌面菜单树递归渲染：组→MudNavGroup，叶→MudNavLink；节点 Policy 非空时以 AuthorizeView 包裹。
+   与 MobileMenuNode 共用 AppMenu.Root 同一棵树，菜单永不双份漂移。 *@
+
+@if (Node.IsLeaf)
+{
+    if (Node.Policy is null)
+    {
+        <MudNavLink Href="@Node.Href" Match="@Match">@Node.Label</MudNavLink>
+    }
+    else
+    {
+        <AuthorizeView Roles="@Node.Policy">
+            <MudNavLink Href="@Node.Href" Match="@Match">@Node.Label</MudNavLink>
+        </AuthorizeView>
+    }
+}
+else if (Node.Policy is null)
+{
+    <MudNavGroup Title="@Node.Label" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
+        @foreach (var child in Node.Children)
+        {
+            <DesktopMenuNode Node="child" />
+        }
+    </MudNavGroup>
+}
+else
+{
+    <AuthorizeView Roles="@Node.Policy">
+        <MudNavGroup Title="@Node.Label" ExpandedIcon="@Icons.Material.Filled.ExpandMore" CollapsedIcon="@Icons.Material.Filled.ChevronRight">
+            @foreach (var child in Node.Children)
+            {
+                <DesktopMenuNode Node="child" />
+            }
+        </MudNavGroup>
+    </AuthorizeView>
+}
+
+@code {
+    [Parameter] public AppMenuNode Node { get; set; } = null!;
+
+    private NavLinkMatch Match => Node.MatchAll ? NavLinkMatch.All : NavLinkMatch.Prefix;
+}

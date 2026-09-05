@@ -34,18 +34,35 @@
     
     <!-- 关键：先加载 MudBlazor JS，再加载 Blazor -->
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
-    <script src="js/print.js?v=13"></script>
+    <script src="js/print.js?v=14"></script>
     <script src="js/table-nav.js?v=12"></script>
-    <script src="js/scanner.js"></script>
+    <script src="js/scanner.js?v=5"></script>
     <script src="js/filter-popup.js"></script>
     <script src="js/pwa-install.js"></script>
     <script>
         // 响应式布局检测 - 监听窗口大小变化
         (function () {
             var MOBILE_BREAKPOINT = 960;
-            window.checkMobile = function () {
-                return window.innerWidth < MOBILE_BREAKPOINT;
-            };
+            function isMobileViewport() {
+                if (window.innerWidth < MOBILE_BREAKPOINT) return true;
+                // 设备物理屏宽 <=767（真手机无论怎么开“电脑模式”都成立，是钉死移动布局的最可靠信号）
+                if (window.matchMedia && window.matchMedia('(max-device-width: 767px)').matches) return true;
+                // 手机即使强制“桌面版网站”会把 UA 改写为桌面版（去掉 Android/Mobile/Quark），
+                // 但硬件仍是触屏主输入 → 用 pointer:coarse 兜底，仍走移动布局，
+                // 避免手机上出现常驻半屏侧栏（MainLayout）。
+                if (/Android|iPhone|iPad|iPod|Mobile|Mobi|Windows Phone|Quark|MicroMessenger/i.test(navigator.userAgent)) return true;
+                if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return true;
+                // 个别浏览器“桌面版网站”会把 UA 改写、coarse 也可能不稳，
+                // 再用触点数兜底：触屏手机必 >0。窗口上限取 1600：
+                // 手机“桌面版”viewport 常见 980/1280/1440 都归移动；而真桌面（>=1600）
+                // 及带鼠标的触屏一体机不被误伤，仍保持桌面布局。
+                if ((navigator.maxTouchPoints || 0) > 0 && window.innerWidth < 1600) return true;
+                return false;
+            }
+            window.checkMobile = isMobileViewport;
+            // 桌面宽屏判定（MainLayout 用）：>=1280 才常驻侧栏；否则默认收起、由汉堡展开，
+            // 兜底手机被误判进桌面布局时不再出现常驻深色侧栏
+            window.isWideDesktopViewport = function () { return window.innerWidth >= 1280; };
             window.listenResize = function (dotnetRef, method) {
                 window._resizeRef = dotnetRef;
                 window._resizeMethod = method;
@@ -58,7 +75,7 @@
             };
             window._onResize = function () {
                 if (window._resizeRef && window._resizeMethod) {
-                    var isMobile = window.innerWidth < MOBILE_BREAKPOINT;
+                    var isMobile = isMobileViewport();
                     window._resizeRef.invokeMethodAsync(window._resizeMethod, isMobile);
                 }
             };

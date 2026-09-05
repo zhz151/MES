@@ -7,6 +7,12 @@ html, body {
     font-size: 17px;
 }
 
+/* 禁止页面级横向滚动/横向滑动把离屏内容（如闭合状态移动抽屉的深色面板）边缘滑进视口；
+   宽表格已由各自 .mud-table-container(overflow-x:auto) 内部滚动，不受此规则影响 */
+html, body {
+    overflow-x: hidden;
+}
+
 h1:focus {
     outline: none;
 }

@@ -1745,8 +1745,9 @@
         if (effectiveWoNo3 != WorkOrderNoSentinel.NotWorkOrder && editProcessGroups.Count > 0)
         {
             var specForLastPg = request.Specification ?? originalBatch!.Specification;
-            var lastPg = editProcessGroups.MaxBy(pg => pg.SequenceNumber);
-            if (lastPg != null && !string.IsNullOrWhiteSpace(lastPg.ManufacturingSpec)
+            // 最大工序 = 列表最后一行（与后端保存按行序重排 seq=i+1 一致；不可用 MaxBy(SequenceNumber)，新增/调取/复制的行序号恒为 0 会误判）
+            var lastPg = editProcessGroups[^1];
+            if (!string.IsNullOrWhiteSpace(lastPg.ManufacturingSpec)
                 && !string.Equals(lastPg.ManufacturingSpec, specForLastPg, StringComparison.OrdinalIgnoreCase))
                 errors.Add($"最大工序序号的制造规格「{lastPg.ManufacturingSpec}」必须等于工单成品规格「{specForLastPg}」");
         }

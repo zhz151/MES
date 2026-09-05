@@ -187,6 +187,48 @@ public class PicklingServiceTests : TestBase
     }
 
     [Fact]
+    public async Task CreateAsync_请求牌号空串_回退批次牌号()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx); // 批次牌号=304
+        var pg = await SeedProcessGroupAsync(ctx, batch.Id);
+
+        // 先创建冷轧拔生产记录（酸洗的前置条件：冷拔工序必须先有冷轧拔工段）
+        ctx.ProductionRecords.Add(new ProductionRecord
+        {
+            ProductionBatchId = batch.Id,
+            ProcessGroupId = pg.Id,
+            ProcessName = "冷拔",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            SequenceNumber = 1,
+            ExecDate = DateTime.Today,
+            Quantity = 20,
+            Weight = 2000m
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+
+        // 桌面端入缸空牌号会序列化成空串（非 null），不得挡住服务端回退到批次牌号
+        var result = await svc.CreateAsync(new CreatePicklingInRecordRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "冷拔",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Pickle,
+            InDate = DateTime.Today,
+            PlantGrade = "",
+            Quantity = 20,
+            Weight = 2000m
+        });
+
+        result.Should().NotBeNull();
+        var saved = await ctx.PicklingInRecords.FirstAsync();
+        saved.PlantGrade.Should().Be("304");
+    }
+
+    [Fact]
     public async Task CreateAsync_批次不存在_抛出BusinessException()
     {
         var ctx = CreateDbContext();

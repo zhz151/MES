@@ -625,23 +625,16 @@
                             </div>
                         }
 
-                        @* ========== 断切专用字段（仅普通报工） ========== *@
-                        @if (_workstationContext!.ReportType == ReportTemplateType.ProductionRecord && _selectedSection == SectionKeys.Cut)
+                        @* ========== 断切参数（成品：预成切 + 成品长度 + 切后支数） ========== *@
+                        @if (_workstationContext!.ReportType == ReportTemplateType.ProductionRecord
+                             && _selectedSection == SectionKeys.Cut && IsCutFinishedSection)
                         {
-                            <MudText Typo="Typo.body2" Color="Color.Info" Class="mt-3 mb-1 font-weight-bold">断切参数</MudText>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-                                <MudNumericField T="decimal?" Format="G29"
-                                                 @bind-Value="_cuttingMultiple"
-                                                 Label="断切倍数"
-                                                 Variant="Variant.Outlined"
-                                                 HideSpinButtons="true"
-                                                 Style="font-size: 0.875rem; height: 44px;" />
-                                <MudNumericField T="decimal?" Format="G29"
-                                                 @bind-Value="_finishedCutLength"
-                                                 Label="成品长度(mm)"
-                                                 Variant="Variant.Outlined"
-                                                 HideSpinButtons="true"
-                                                 Style="font-size: 0.875rem; height: 44px;" />
+                            <MudText Typo="Typo.body2" Color="Color.Info" Class="mt-3 mb-1 font-weight-bold">断切参数（成品切割）</MudText>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center;">
+                                <MudSwitch T="bool" @bind-Value="_isPreCut"
+                                           Label="预成切"
+                                           Color="Color.Primary"
+                                           Style="font-size: 0.875rem;" />
                                 <MudNumericField T="int?"
                                                  @bind-Value="_postCutQuantity"
                                                  Label="切后支数"
@@ -649,6 +642,47 @@
                                                  HideSpinButtons="true"
                                                  Style="font-size: 0.875rem; height: 44px;" />
                             </div>
+                            <MudNumericField T="decimal?" Format="G29"
+                                             @bind-Value="_finishedCutLength"
+                                             Label="成品长度(mm)"
+                                             Variant="Variant.Outlined"
+                                             HideSpinButtons="true"
+                                             Class="mt-2"
+                                             Style="font-size: 0.875rem; height: 44px;" />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                                成品长度 = 正式切割长，计入计件 Length 档及成切支数；勾选「预成切」则本次切割不计成切支数
+                            </MudText>
+                        }
+
+                        @* ========== 断切参数（荒管/在制：平头数） ========== *@
+                        @if (_workstationContext!.ReportType == ReportTemplateType.ProductionRecord
+                             && _selectedSection == SectionKeys.Cut && !IsCutFinishedSection)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Info" Class="mt-3 mb-1 font-weight-bold">断切参数（@(IsRoughTubeCutSection ? "荒管" : "在制")）</MudText>
+                            <MudNumericField T="int?"
+                                             @bind-Value="_faceCutCount"
+                                             Label="平头数"
+                                             Variant="Variant.Outlined"
+                                             HideSpinButtons="true"
+                                             Style="font-size: 0.875rem; height: 44px;" />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                                平头数 = 每支需平头端数（1 = 一端平头，2 = 两端平头）。结算按「头数 = 支数 × 平头数」，荒管断切以头计价
+                            </MudText>
+                        }
+
+                        @* ========== 油管断专用字段（断切倍数，仅普通报工） ========== *@
+                        @if (_workstationContext!.ReportType == ReportTemplateType.ProductionRecord && _selectedSection == SectionKeys.OilPipeCut)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Info" Class="mt-3 mb-1 font-weight-bold">油管断参数</MudText>
+                            <MudNumericField T="decimal?" Format="G29"
+                                             @bind-Value="_cuttingMultiple"
+                                             Label="断切倍数"
+                                             Variant="Variant.Outlined"
+                                             HideSpinButtons="true"
+                                             Style="font-size: 0.875rem; height: 44px;" />
+                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                                断切倍数为油管断专用（计入计件断切率维，空 = 1）；其余工段报工请勿填写
+                            </MudText>
                         }
 
                         <MudTextField @bind-Value="_remark"
@@ -825,6 +859,18 @@
                                          Label="是否紧急"
                                          Color="Color.Primary" />
                         </div>
+
+                        @if (string.Equals(_workstationContext?.SectionName, SectionKeys.ColdRollDraw, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <div class="mt-2">
+                                <MudSwitch @bind-Value="_sectionOutsourceIsInternal"
+                                           Label="厂内加工（虚拟委外，仅冷轧拔）"
+                                           Color="Color.Primary" />
+                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                                    厂内：委外单位填车间名称，发出即完（状态=略，无需回收），不产生厂外委外/采购计划
+                                </MudText>
+                            </div>
+                        }
 
                         <MudTextField @bind-Value="_sectionOutsourceRemark"
                                       Label="备注（可选）"
@@ -1162,6 +1208,37 @@
                                           Style="font-size: 0.875rem; height: 44px;" />
                         </div>
 
+                        @if (_materialReceiveGroupOptions.Count > 1)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2 mb-1">检验工序组（该批含多道检验工序组，需指定到料组）</MudText>
+                            <div class="d-flex flex-wrap" style="gap: 8px;">
+                                @foreach (var g in _materialReceiveGroupOptions)
+                                {
+                                    var selected = _selectedMaterialReceiveGroup?.Id == g.Id;
+                                    <MudButton Variant="@(selected ? Variant.Filled : Variant.Outlined)"
+                                               Color="@(selected ? Color.Primary : Color.Default)"
+                                               Size="Size.Small"
+                                               Disabled="@_isSubmitting"
+                                               OnClick="() => OnSelectMaterialReceiveGroup(g)"
+                                               Style="font-size: 0.8rem; height: 36px; white-space: nowrap;">
+                                        第@(g.SequenceNumber)道·@ProcessDisplayHelper.GetProcessNameText(g.ProcessName)
+                                    </MudButton>
+                                }
+                            </div>
+                        }
+                        else if (_materialReceiveGroupOptions.Count == 1)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Info" Class="mt-2">
+                                检验工序组：第@(_materialReceiveGroupOptions[0].SequenceNumber)道 · @ProcessDisplayHelper.GetProcessNameText(_materialReceiveGroupOptions[0].ProcessName)（唯一匹配，自动选中）
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Warning" Class="mt-2">
+                                未找到规格匹配成品检验工序组，将无法创建成检到料
+                            </MudText>
+                        }
+
                         <MudTextField @bind-Value="_materialRemark"
                                       Label="备注（可选）"
                                       Variant="Variant.Outlined"
@@ -1238,6 +1315,19 @@
                                           Variant="Variant.Outlined"
                                           Style="font-size: 0.875rem; height: 44px;" />
                         </div>
+
+                        <MudSelect T="string"
+                                   @bind-Value="_finalInspectionTypeText"
+                                   Label="成检类型"
+                                   Variant="Variant.Outlined"
+                                   Class="mt-2"
+                                   Style="font-size: 0.875rem; height: 44px;">
+                            <MudSelectItem Value="@FinalInspectionTypeAuto">自动判定（预检/终检由到料集合推导）</MudSelectItem>
+                            @foreach (var opt in DisplayHelper.GetEnumOptions<InspectionType>())
+                            {
+                                <MudSelectItem Value="@opt.Value">@opt.Display</MudSelectItem>
+                            }
+                        </MudSelect>
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" class="mt-2">
                             <MudNumericField T="int?"
@@ -1470,6 +1560,16 @@
     private ProcessGroupOption? _selectedProcessGroup;
     private ScanResolveResultDto? _resolveResult;
 
+    /// <summary>当前解析工序组是否属"成品"产类（ProductStatus=Finished），断切参数按此分流</summary>
+    private bool IsCutFinishedSection
+        => _resolveResult != null
+           && string.Equals(_resolveResult.ProductStatus, ProductStatuses.Finished, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>当前解析工序组是否属"荒管"产类（ProductStatus=RoughTube），仅用于断切分流标签显示</summary>
+    private bool IsRoughTubeCutSection
+        => _resolveResult != null
+           && string.Equals(_resolveResult.ProductStatus, ProductStatuses.RoughTube, StringComparison.OrdinalIgnoreCase);
+
     // ========== 表单字段 ==========
     private string? _selectedSection;
     private string _execDateText = DateTime.Today.ToString("yyyy-MM-dd");
@@ -1489,9 +1589,11 @@
     private int? _soakTime;
 
     // 断切专用字段
-    private decimal? _cuttingMultiple;
-    private decimal? _finishedCutLength;
-    private int? _postCutQuantity;
+    private decimal? _cuttingMultiple;   // 油管断专用断切倍数（结算断切率维，空=1）
+    private decimal? _finishedCutLength; // 成品断切：成品长度(mm)=正式切割长
+    private int? _postCutQuantity;       // 成品断切：切后支数
+    private bool _isPreCut;              // 成品断切：是否预成切（勾选=不计成切支数）
+    private int? _faceCutCount;          // 荒管/在制断切：平头数（结算按头数=支数×平头数）
 
     // ========== 过程检验专用状态 ==========
     private string _inspectionDate = DateTime.Today.ToString("yyyy-MM-dd");
@@ -1522,6 +1624,7 @@
     private decimal? _sectionOutsourceSendWeight;
     private string? _sectionOutsourceSpec;
     private bool _sectionOutsourceIsUrgent;
+    private bool _sectionOutsourceIsInternal; // 厂内虚拟委外（外发厂=厂内，不产生厂外采购/委外计划）
     private string? _sectionOutsourceRemark;
 
     // ========== 委外回收专用状态 ==========
@@ -1539,7 +1642,10 @@
     private string? _submittedSection;
 
     // ========== 成品检验专用状态 ==========
+    /// <summary>成检类型"自动判定"哨兵值（服务端按到料集合推导）；选具体项则为显式预检/终检</summary>
+    private const string FinalInspectionTypeAuto = "AUTO";
     private string? _finalInspectionItem;
+    private string _finalInspectionTypeText = FinalInspectionTypeAuto;
     private string _finalInspectionDate = DateTime.Today.ToString("yyyy-MM-dd");
     private int? _finalInspectionQuantity;
     private decimal? _finalInspectionWeight;
@@ -1567,6 +1673,8 @@
     // ========== 成检到料专用状态 ==========
     private string _materialReceiveDate = DateTime.Today.ToString("yyyy-MM-dd");
     private string? _materialRemark;
+    private List<ProcessGroupOption> _materialReceiveGroupOptions = new(); // 检验工序组候选（IsInspectionGroup && 规格匹配）
+    private ProcessGroupOption? _selectedMaterialReceiveGroup;             // 用户选择的检验工序组（多检验组批须选组）
 
     private DotNetObjectReference<ScanExecute>? _dotNetRef;
 
@@ -1832,6 +1940,26 @@
         await ResolveBatchCode(_manualInput.Trim());
     }
 
+    /// <summary>成检到料可选检验工序组：Inspection 有值（IsInspectionGroup）且制造规格==批次成品规格；
+    /// 与服务端自动匹配同序（非附加成检优先，再按序号），默认取首项即服务端自动结果。</summary>
+    private List<ProcessGroupOption> BuildMaterialReceiveGroupCandidates()
+    {
+        if (_batchGroupResult == null) return new List<ProcessGroupOption>();
+        var spec = _batchGroupResult.Specification;
+        return _batchGroupResult.ProcessGroups
+            .Where(g => g.IsInspectionGroup
+                && string.Equals(g.ManufacturingSpec, spec, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(g => string.Equals(g.ProcessName, ProcessKeys.AdditionalFinalInspection, StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+            .ThenBy(g => g.SequenceNumber)
+            .ToList();
+    }
+
+    private void OnSelectMaterialReceiveGroup(ProcessGroupOption group)
+    {
+        _selectedMaterialReceiveGroup = group;
+        StateHasChanged();
+    }
+
     private async Task LoadBatchAndFilterGroups(string batchNo, int? specificGroupId = null)
     {
         var response = await ScanService.GetBatchProcessGroupsAsync(batchNo);
@@ -1885,6 +2013,10 @@
         // ====== 成检到料：解析后直接显示批次信息 ======
         if (_workstationContext?.ReportType == ReportTemplateType.MaterialReceiveCheck)
         {
+            // 检验工序组候选 + 默认选中（对齐服务端自动匹配）
+            _materialReceiveGroupOptions = BuildMaterialReceiveGroupCandidates();
+            _selectedMaterialReceiveGroup = _materialReceiveGroupOptions.FirstOrDefault();
+
             await StopCamera();
             _manualInput = null;
             StateHasChanged();
@@ -2034,6 +2166,7 @@
     {
         // 设置默认值
         _finalInspectionDate = DateTime.Today.ToString("yyyy-MM-dd");
+        _finalInspectionTypeText = FinalInspectionTypeAuto;
         _finalInspectionQuantity = null;
         _finalInspectionWeight = null;
         _finalInspectionQualifiedQty = null;
@@ -2091,6 +2224,8 @@
         _cuttingMultiple = null;
         _finishedCutLength = null;
         _postCutQuantity = null;
+        _isPreCut = false;
+        _faceCutCount = null;
         _remark = null;
 
         // 重置工段委外字段
@@ -2101,6 +2236,7 @@
         _sectionOutsourceSendWeight = null;
         _sectionOutsourceSpec = null;
         _sectionOutsourceIsUrgent = false;
+        _sectionOutsourceIsInternal = false;
         _sectionOutsourceRemark = null;
 
         // 重置过程检验字段
@@ -2346,6 +2482,8 @@
                     CuttingMultiple = _cuttingMultiple,
                     FinishedCutLength = _finishedCutLength,
                     PostCutQuantity = _postCutQuantity,
+                    IsPreCut = IsCutFinishedSection ? _isPreCut : (bool?)null,
+                    FaceCutCount = _selectedSection == SectionKeys.Cut && !IsCutFinishedSection ? _faceCutCount : null,
                     Remark = _remark,
                     DataSource = "SCAN"
                 };
@@ -2453,6 +2591,7 @@
                     OutsourceSpec = _sectionOutsourceSpec,
                     ExpectedReturnDate = DateTime.TryParse(_sectionOutsourceExpectedReturnDate, out var erd) ? erd : null,
                     IsUrgent = _sectionOutsourceIsUrgent,
+                    IsInternal = _sectionOutsourceIsInternal,
                     Remark = _sectionOutsourceRemark,
                     DataSource = "SCAN"
                 };
@@ -2552,6 +2691,10 @@
             {
                 if (_batchGroupResult == null) return false;
 
+                // 检验工序组：多组可选由用户点选，单组/默认取候选首项（=服务端自动匹配结果）；
+                // 无候选 → 不传 ProcessGroupId，交由服务端按规格匹配并报清晰错误
+                var mrGroup = _selectedMaterialReceiveGroup ?? _materialReceiveGroupOptions.FirstOrDefault();
+
                 var request = new CreateMaterialReceiveCheckRequest
                 {
                     BatchNo = _batchGroupResult.BatchNo,
@@ -2559,6 +2702,9 @@
                     Shift = ShiftHelper.GetShiftByTime(),
                     Checker = string.Join("、", _operators.Select(o => $"{o.Name}({o.Code})")),
                     Remark = _materialRemark,
+                    ProcessGroupId = mrGroup?.Id ?? 0,
+                    ProcessName = mrGroup?.ProcessName,
+                    SequenceNumber = mrGroup?.SequenceNumber,
                     DataSource = "SCAN"
                 };
 
@@ -2591,12 +2737,21 @@
                     }
                 }
 
+                // 成检类型：非"AUTO"时显式传预检/终检，服务端按到料集合强校验；AUTO=自动判定（推荐）
+                InspectionType? inspectionType = null;
+                if (!string.IsNullOrWhiteSpace(_finalInspectionTypeText)
+                    && _finalInspectionTypeText != FinalInspectionTypeAuto)
+                {
+                    inspectionType = Enum.Parse<InspectionType>(_finalInspectionTypeText);
+                }
+
                 var request = new CreateFinalInspectionRequest
                 {
                     BatchNo = _batchGroupResult.BatchNo,
                     PlantGrade = _batchGroupResult.PlantGrade,
                     FixedLength = _batchLookupResult?.FixedLength,
                     InspectionItem = inspectionItem,
+                    InspectionType = inspectionType,
                     InspectionDate = DateTime.TryParse(_finalInspectionDate, out var fid) ? fid : DateTime.Today,
                     EquipmentName = _workstationContext?.EquipmentName,
                     Operator = string.Join("、", _operators.Select(o => $"{o.Name}({o.Code})")),
@@ -2666,6 +2821,8 @@
         _cuttingMultiple = null;
         _finishedCutLength = null;
         _postCutQuantity = null;
+        _isPreCut = false;
+        _faceCutCount = null;
         _remark = null;
         _execDateText = DateTime.Today.ToString("yyyy-MM-dd");
         _manualInput = null;
@@ -2702,6 +2859,8 @@
         _cuttingMultiple = null;
         _finishedCutLength = null;
         _postCutQuantity = null;
+        _isPreCut = false;
+        _faceCutCount = null;
         _remark = null;
         _execDateText = DateTime.Today.ToString("yyyy-MM-dd");
         _manualInput = null;
@@ -2732,6 +2891,8 @@
         _cuttingMultiple = null;
         _finishedCutLength = null;
         _postCutQuantity = null;
+        _isPreCut = false;
+        _faceCutCount = null;
         _remark = null;
         _manualInput = null;
         ResetPicklingOutState();
@@ -2779,6 +2940,7 @@
         _sectionOutsourceSendWeightAuto = false;
         _sectionOutsourceSpec = null;
         _sectionOutsourceIsUrgent = false;
+        _sectionOutsourceIsInternal = false;
         _sectionOutsourceRemark = null;
     }
 
@@ -2819,6 +2981,7 @@
         // 检验项目由工位绑定直击，跨批次保留；切换工位时由 ResolveWorkstationCode 重新赋值
         _finalInspectionItem = _workstationContext?.InspectionItemDisplay;
         _finalInspectionDate = DateTime.Today.ToString("yyyy-MM-dd");
+        _finalInspectionTypeText = FinalInspectionTypeAuto;
         _finalInspectionQuantity = null;
         _finalInspectionWeight = null;
         _finalInspectionWeightAuto = false;
@@ -2847,6 +3010,8 @@
     {
         _materialReceiveDate = DateTime.Today.ToString("yyyy-MM-dd");
         _materialRemark = null;
+        _materialReceiveGroupOptions = new List<ProcessGroupOption>();
+        _selectedMaterialReceiveGroup = null;
     }
 
     // ========== JS Interop 结果类型 ==========

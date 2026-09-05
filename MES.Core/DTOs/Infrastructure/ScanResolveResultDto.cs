@@ -25,6 +25,9 @@ public class ScanResolveResultDto
 
     /// <summary>单支重量(kg)，用于扫码报工自动计算总重量 = 支数 × UnitWeight</summary>
     public decimal? UnitWeight { get; set; }
+
+    /// <summary>产类预判（英文 Key：Finished=成品 / RoughTube=荒管 / InProgress=在制），扫码断切按此分流显示参数</summary>
+    public string? ProductStatus { get; set; }
 }
 
 /// <summary>

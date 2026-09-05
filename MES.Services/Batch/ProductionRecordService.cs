@@ -387,7 +387,7 @@ public class ProductionRecordService : IProductionRecordService
             PostCutQuantity = request.PostCutQuantity,
             FaceCutCount = request.FaceCutCount,
             TagNo = request.TagNo ?? batch.TagNo,
-            PlantGrade = request.PlantGrade ?? batch.PlantGrade,
+            PlantGrade = string.IsNullOrWhiteSpace(request.PlantGrade) ? batch.PlantGrade : request.PlantGrade,
             Remark = request.Remark,
             DataSource = request.DataSource ?? "MANUAL"
         };
@@ -861,7 +861,7 @@ public class ProductionRecordService : IProductionRecordService
                 PostCutQuantity = request.PostCutQuantity,
                 FaceCutCount = request.FaceCutCount,
                 TagNo = request.TagNo ?? batch.TagNo,
-                PlantGrade = request.PlantGrade ?? batch.PlantGrade,
+                PlantGrade = string.IsNullOrWhiteSpace(request.PlantGrade) ? batch.PlantGrade : request.PlantGrade,
                 Remark = request.Remark,
                 DataSource = "MANUAL"
             });
@@ -955,7 +955,7 @@ public class ProductionRecordService : IProductionRecordService
         entity.FaceCutCount = request.FaceCutCount ?? entity.FaceCutCount;
         entity.IsPreCut = request.IsPreCut ?? entity.IsPreCut;
         entity.TagNo = request.TagNo ?? entity.TagNo;
-        entity.PlantGrade = request.PlantGrade ?? entity.PlantGrade;
+        entity.PlantGrade = string.IsNullOrWhiteSpace(request.PlantGrade) ? entity.PlantGrade : request.PlantGrade;
         entity.Remark = request.Remark ?? entity.Remark;
 
         // 预成切一致性校验（工段不可编辑，用 entity 生效工段；长度用生效值）

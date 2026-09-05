@@ -26,6 +26,15 @@ public partial class EquipmentScan : IDisposable
     // 设备信息
     private ScanEquipmentResolveResultDto? _equipment;
 
+    // DotNetObjectReference 必须由 C# 字段持有，否则 GC 后 JS 回调 invokeMethodAsync 打到已释放对象
+    // （扫码命中 → 页面无任何反应的经典 bug：Create 后不存字段即被回收）
+    private DotNetObjectReference<EquipmentScan>? _dotNetRef;
+
+    protected override void OnInitialized()
+    {
+        _dotNetRef = DotNetObjectReference.Create(this);
+    }
+
     private async Task StartCamera()
     {
         _isCameraStarted = true;
@@ -36,7 +45,7 @@ public partial class EquipmentScan : IDisposable
         {
             var result = await JS.InvokeAsync<ScanResult>("window.startScanner",
                 "equipment-scan-video", "equipment-scan-canvas",
-                DotNetObjectReference.Create(this), "OnScanResult");
+                _dotNetRef, "OnScanResult");
             if (result?.success == false)
             {
                 _resolveError = result.error ?? "启动摄像头失败";
@@ -134,5 +143,6 @@ public partial class EquipmentScan : IDisposable
             _ = JS.InvokeVoidAsync("window.stopScanner");
         }
         catch { }
+        _dotNetRef?.Dispose();
     }
 }

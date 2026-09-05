@@ -1071,6 +1071,12 @@ public class FinalInspectionService : IFinalInspectionService
                         ? nameof(InspectionType.PreInspection)
                         : nameof(InspectionType.FormalInspection));
 
+        // 各批次到料类型集合（大写、去空，用于"显式成检类型必须∈到料集合"校验，与单条 CreateAsync 口径一致）
+        var inspTypeSetByBatchId = batchInspTypes
+            .Where(x => !string.IsNullOrWhiteSpace(x.InspectionType))
+            .GroupBy(x => x.ProductionBatchId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.InspectionType!.ToUpperInvariant()).ToHashSet());
+
         // 重复校验：日期 + 批次 + 检验项目 + 操作人 → 重复
         var errors = new List<string>();
         var activeEmployees = await _operatorNameValidator.LoadActiveAsync();
@@ -1143,10 +1149,14 @@ public class FinalInspectionService : IFinalInspectionService
             if (fixedLengthErr != null)
                 errors.Add($"第{i + 1}行：{fixedLengthErr}");
 
-            // 7) 成检类型校验：允许不传（自动判定），传了必须是合法枚举值
+            // 7) 成检类型校验：允许不传（自动判定），传了必须是合法枚举值，且须∈该批成检到料集合（与单条 CreateAsync 一致，防止创建即制造不符）
             if (request.InspectionType.HasValue
                 && !Enum.IsDefined(typeof(MES.Core.Enums.InspectionType), request.InspectionType.Value))
                 errors.Add($"第{i + 1}行：无效的成检类型: {request.InspectionType}");
+            else if (request.InspectionType.HasValue
+                && inspTypeSetByBatchId.TryGetValue(batchId, out var inspTypeSet)
+                && !inspTypeSet.Contains(request.InspectionType.Value.ToString().ToUpperInvariant()))
+                errors.Add($"第{i + 1}行：批次 {request.BatchNo} 成检到料不含「{request.InspectionType}」类型，不能指定");
 
             // 8) 必须存在成检到料，无到料则不允许提交成品检验
             if (!batchInspTypes.Any(x => x.ProductionBatchId == batchId))
@@ -1161,6 +1171,15 @@ public class FinalInspectionService : IFinalInspectionService
         var entities = requests.Select(r =>
         {
             var batch = batchLookup[r.BatchNo];
+
+            // 单支重（与单条创建 CreateAsync 同口径）：定尺=产品单支量，非定尺=理论单支重；
+            // 仅对应数量有值时自动折算，避免批量路径漏填重量落 0（2026-09-05 补折算）
+            decimal? unitWeight = null;
+            if (batch.ProductUnitWeight.HasValue)
+                unitWeight = batch.ProductUnitWeight.Value;
+            else if (batch.TheoreticalUnitWeight.HasValue)
+                unitWeight = batch.TheoreticalUnitWeight.Value;
+
             return new FinalInspection
             {
                 InspectionItem = r.InspectionItem,
@@ -1183,18 +1202,18 @@ public class FinalInspectionService : IFinalInspectionService
                 Shift = r.Shift,
                 Operator = r.Operator,
                 Quantity = r.Quantity ?? 0,
-                Weight = r.Weight ?? 0,
+                Weight = r.Weight ?? (unitWeight.HasValue && r.Quantity.HasValue ? (int?)(unitWeight.Value * r.Quantity.Value) : 0),
                 QualifiedQuantity = r.QualifiedQuantity ?? 0,
-                QualifiedWeight = r.QualifiedWeight ?? 0,
+                QualifiedWeight = r.QualifiedWeight ?? (unitWeight.HasValue && r.QualifiedQuantity.HasValue ? (int?)(unitWeight.Value * r.QualifiedQuantity.Value) : 0),
                 QualifiedConcessionQuantity = r.QualifiedConcessionQuantity ?? 0,
                 ConcessionRemark = r.ConcessionRemark,
                 DefectReworkQuantity = r.DefectReworkQuantity ?? 0,
                 DefectWarehouseQuantity = r.DefectWarehouseQuantity ?? 0,
                 DefectScrapQuantity = r.DefectScrapQuantity ?? 0,
                 DefectDescription = r.DefectDescription,
-                DefectReworkWeight = r.DefectReworkWeight ?? 0,
-                DefectWarehouseWeight = r.DefectWarehouseWeight ?? 0,
-                DefectScrapWeight = r.DefectScrapWeight ?? 0,
+                DefectReworkWeight = r.DefectReworkWeight ?? (unitWeight.HasValue && r.DefectReworkQuantity.HasValue ? (int?)(unitWeight.Value * r.DefectReworkQuantity.Value) : 0),
+                DefectWarehouseWeight = r.DefectWarehouseWeight ?? (unitWeight.HasValue && r.DefectWarehouseQuantity.HasValue ? (int?)(unitWeight.Value * r.DefectWarehouseQuantity.Value) : 0),
+                DefectScrapWeight = r.DefectScrapWeight ?? (unitWeight.HasValue && r.DefectScrapQuantity.HasValue ? (int?)(unitWeight.Value * r.DefectScrapQuantity.Value) : 0),
                 OuterDiameterRange = r.OuterDiameterRange,
                 WallThicknessRange = r.WallThicknessRange,
                 LengthAllowanceRange = r.LengthAllowanceRange,

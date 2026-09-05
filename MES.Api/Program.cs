@@ -3,11 +3,13 @@
 using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Net;
 using System.Text;
 using System.Text.Json.Serialization;
 using MES.Api.Middlewares;
@@ -330,6 +332,14 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// 反向代理（nginx）转发头识别：使生产环境 UseHttpsRedirection 能识别 X-Forwarded-Proto=https，
+// 避免请求经反代后后端看到 scheme 恒为 http 造成 307 重定向循环。仅信任本机回环代理。
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    KnownProxies = { IPAddress.Loopback }
+});
 
 // QuestPDF 许可设置（社区版免费）
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;

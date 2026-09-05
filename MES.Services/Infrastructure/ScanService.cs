@@ -40,6 +40,7 @@ using MES.Data.Entities.Equipment;
 using MES.Data.Entities.Auth;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.WorkOrder;
+using MES.Services.Helpers;
 
 namespace MES.Services.Infrastructure;
 
@@ -69,12 +70,20 @@ public class ScanService : IScanService
     {
         var batch = await FindBatchAsync(batchNo);
 
-        var group = await _context.ProcessGroups
+        // 加载批次全部工序组：产类预判（ProductStatusHelper）需比对成品规格工序组/荒管处理组等
+        var groups = await _context.ProcessGroups
             .AsNoTracking()
-            .FirstOrDefaultAsync(pg => pg.Id == processGroupId && pg.ProductionBatchId == batch.Id)
+            .Where(pg => pg.ProductionBatchId == batch.Id)
+            .ToListAsync();
+
+        var group = groups.FirstOrDefault(pg => pg.Id == processGroupId)
             ?? throw new BusinessException($"未找到工序组（ID={processGroupId}）");
 
-        return BuildResult(batch, group);
+        // 产类预判（英文 Key）：扫码断切/切割参数按此分流显示（成品→成切参数、荒管→平头数）
+        var productStatus = ProductStatusHelper.Calculate(
+            group.ProcessName, group.ManufacturingSpec, batch.ManufacturingItem, groups, batch.Specification);
+
+        return BuildResult(batch, group, productStatus);
     }
 
     public async Task<ScanBatchResolveResultDto> GetBatchProcessGroupsAsync(string batchNo)
@@ -93,7 +102,8 @@ public class ScanService : IScanService
             SequenceNumber = g.SequenceNumber,
             ProcessName = g.ProcessName,
             ManufacturingSpec = g.ManufacturingSpec,
-            SectionNames = GetAvailableSectionNames(g)
+            SectionNames = GetAvailableSectionNames(g),
+            IsInspectionGroup = g.Inspection.HasValue
         }).ToList();
 
         // 计算单支重量（总重量/总支数，Round 4），用于扫码自动算重（同 BuildResult 口径）
@@ -161,7 +171,7 @@ public class ScanService : IScanService
             ?? throw new BusinessException($"未找到批次：{batchNo}");
     }
 
-    private static ScanResolveResultDto BuildResult(ProductionBatch batch, ProcessGroup group)
+    private static ScanResolveResultDto BuildResult(ProductionBatch batch, ProcessGroup group, string productStatus)
     {
         var availableSections = new List<SectionOption>();
         foreach (var field in SectionFields)
@@ -195,7 +205,8 @@ public class ScanService : IScanService
             ProcessName = group.ProcessName,
             ManufacturingSpec = group.ManufacturingSpec,
             AvailableSections = availableSections,
-            UnitWeight = unitWeight
+            UnitWeight = unitWeight,
+            ProductStatus = productStatus
         };
     }
 

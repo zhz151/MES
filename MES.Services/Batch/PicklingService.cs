@@ -411,7 +411,7 @@ public class PicklingService : IPicklingService
             Quantity = request.Quantity ?? 0,
             Weight = request.Weight ?? 0,
             TagNo = request.TagNo ?? batch.TagNo,
-            PlantGrade = request.PlantGrade ?? batch.PlantGrade,
+            PlantGrade = string.IsNullOrWhiteSpace(request.PlantGrade) ? batch.PlantGrade : request.PlantGrade,
             Remark = request.Remark,
             DataSource = request.DataSource ?? "MANUAL",
             ProductStatus = ProductStatusHelper.Calculate(
@@ -669,7 +669,7 @@ public class PicklingService : IPicklingService
                 Quantity = request.Quantity ?? 0,
                 Weight = request.Weight ?? 0,
                 TagNo = request.TagNo ?? batch.TagNo,
-                PlantGrade = request.PlantGrade ?? batch.PlantGrade,
+                PlantGrade = string.IsNullOrWhiteSpace(request.PlantGrade) ? batch.PlantGrade : request.PlantGrade,
                 Remark = request.Remark,
                 DataSource = request.DataSource ?? "MANUAL",
                 ProductStatus = ProductStatusHelper.Calculate(

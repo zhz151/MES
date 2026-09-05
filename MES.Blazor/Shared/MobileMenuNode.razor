@@ -1,0 +1,57 @@
+@* 移动菜单树递归渲染：组→MudExpansionPanel，叶→MudNavLink（闭合后由 MobileLayout 的
+   纯 CSS 面板包裹，Depth 控制缩进）。节点 Policy 非空时以 AuthorizeView 包裹。
+   与 DesktopMenuNode 共用 AppMenu.Root 同一棵树。 *@
+
+@if (Node.IsLeaf)
+{
+    if (Node.Policy is null)
+    {
+        <MudNavLink Href="@Node.Href" Style="@LeafStyle" OnClick="@OnNavigate">@Node.Label</MudNavLink>
+    }
+    else
+    {
+        <AuthorizeView Roles="@Node.Policy">
+            <MudNavLink Href="@Node.Href" Style="@LeafStyle" OnClick="@OnNavigate">@Node.Label</MudNavLink>
+        </AuthorizeView>
+    }
+}
+else if (Node.Policy is null)
+{
+    <MudExpansionPanel Style="background: transparent; color: #ccc;" Class="@(Depth > 0 ? "ml-2" : "")">
+        <TitleContent><div style="@TitleStyle">@Node.Label</div></TitleContent>
+        <ChildContent>
+            @foreach (var child in Node.Children)
+            {
+                <MobileMenuNode Node="child" OnNavigate="@OnNavigate" Depth="@(Depth + 1)" />
+            }
+        </ChildContent>
+    </MudExpansionPanel>
+}
+else
+{
+    <AuthorizeView Roles="@Node.Policy">
+        <MudExpansionPanel Style="background: transparent; color: #ccc;" Class="@(Depth > 0 ? "ml-2" : "")">
+            <TitleContent><div style="@TitleStyle">@Node.Label</div></TitleContent>
+            <ChildContent>
+                @foreach (var child in Node.Children)
+                {
+                    <MobileMenuNode Node="child" OnNavigate="@OnNavigate" Depth="@(Depth + 1)" />
+                }
+            </ChildContent>
+        </MudExpansionPanel>
+    </AuthorizeView>
+}
+
+@code {
+    [Parameter] public AppMenuNode Node { get; set; } = null!;
+    [Parameter] public EventCallback<Microsoft.AspNetCore.Components.Web.MouseEventArgs> OnNavigate { get; set; }
+    [Parameter] public int Depth { get; set; }
+
+    // 叶子样式：按层级递增左缩进（根级 16px，每深入一层 +16px），视觉区分嵌套
+    private string LeafStyle => $"color: #ccc; padding: 8px 16px; padding-left: {16 * (Depth + 1)}px;";
+
+    // 组标题：根级 1.0 缩进；嵌套组缩进 + 字号略小，突出层级
+    private string TitleStyle => Depth == 0
+        ? "padding: 10px 16px; color: #ccc;"
+        : "padding: 8px 16px; font-size: 0.9rem; color: #999;";
+}

@@ -52,4 +52,7 @@ public class ProcessGroupOption
 
     /// <summary>该工序组包含的工段名称列表（用于按工位工段过滤）</summary>
     public List<string> SectionNames { get; set; } = new();
+
+    /// <summary>是否检验工序组（ProcessGroup.Inspection 有值）：成检到料可选组/自动匹配以此为准</summary>
+    public bool IsInspectionGroup { get; set; }
 }

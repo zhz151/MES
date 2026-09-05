@@ -1,0 +1,36 @@
+@* AuthorizeRouteView 的 NotAuthorized 渲染内容：
+     未认证 → 立即跳登录页（消除空白 / 英文 Not Authorized）；
+     已认证但无当前页角色权限 → 显示中文“无访问权限”提示（不误踢回登录）。 *@
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthProvider
+
+<div class="d-flex align-center justify-center" style="min-height: 70vh;">
+    @if (_redirecting)
+    {
+        <MudText Typo="Typo.body2" Color="Color.Secondary">正在跳转登录页…</MudText>
+    }
+    else
+    {
+        <div class="text-center">
+            <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Color="Color.Error" />
+            <MudText Typo="Typo.h6" Class="mt-4">您没有权限访问此页面</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">请使用有相应权限的账号登录，或联系管理员分配角色。</MudText>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _redirecting = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated != true)
+        {
+            // /login 本身允许匿名，无死循环
+            Navigation.NavigateTo("/login", forceLoad: false);
+            return; // 保持“跳转中”文案，导航切走即销毁
+        }
+        _redirecting = false; // 已登录但角色不足 → 显示无权限提示
+    }
+}

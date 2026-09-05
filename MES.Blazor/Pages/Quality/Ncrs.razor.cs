@@ -55,9 +55,11 @@ public partial class Ncrs
     private async Task PrintSelected()
     {
         if (!selectedIds.Any()) { Snackbar.Add("请先选择要打印的记录", Severity.Warning); return; }
+        // 富布局单据打印（后端 NcrPrintHelper 忽略 columns）：只发 ids，不携带 Columns → print.js 35 列校验自动跳过；
+        // 第三参 true 显式声明富布局语义，防未来误加 columns 被列表打印列数上限误拦
         var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Ncr}/print-selected-file";
-        var json = JsonSerializer.Serialize(new { ids = selectedIds.ToArray(), columns = GetPrintColumnDefs() });
-        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+        var json = JsonSerializer.Serialize(new { ids = selectedIds.ToArray() });
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json, true);
     }
 
     /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>

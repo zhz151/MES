@@ -1025,7 +1025,8 @@
             var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Batch}/print-process-card-file";
             var json = JsonSerializer.Serialize(request);
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+            // 富布局（分区块字段）打印：Columns 为区块字段布局参数，非列表打印列，跳过 print.js 35 列校验
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json, true);
         }
         catch (Exception ex)
         {

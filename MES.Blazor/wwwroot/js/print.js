@@ -151,18 +151,22 @@ window.printRawHtml = function (htmlContent, title, pageOrientation) {
 // ===== PDF 打印（fetch + Blob URL + iframe 同页覆盖层——标准做法）=====
 // C# 传入 API 地址和 JSON 请求体，JS 直接 fetch 获取二进制 PDF
 
-window.openPdfFromApi = function (apiUrl, jsonBody) {
-    // 列数前置校验：列表打印请求携带 Columns（PascalCase，兼容 camelCase），列数超过 A4 可显示上限时页面内警示并中止请求。
-    // 阈值与后端 TablePrintHelper.MaxPrintColumns(35) 同步（列过多时各列被压到单字符放不下 → QuestPDF 布局冲突）；不携带 Columns 的请求（单据/批量计划打印）跳过校验。
-    var MAX_PRINT_COLUMNS = 35;
-    try {
-        var reqBody = JSON.parse(jsonBody);
-        var cols = reqBody.Columns || reqBody.columns;
-        if (cols && Array.isArray(cols) && cols.length > MAX_PRINT_COLUMNS) {
-            showPrintNotice('当前可见列过多（' + cols.length + ' 列，打印上限 ' + MAX_PRINT_COLUMNS + ' 列），请通过列显隐精简后再打印', 'warning');
-            return;
-        }
-    } catch (e) { }
+window.openPdfFromApi = function (apiUrl, jsonBody, skipColumnCheck) {
+    // 列数前置校验：仅适用于「列表打印」（TablePrintHelper 单层平铺，列过多时各列被压到单字符放不下 → QuestPDF 布局冲突）。
+    // 阈值与后端 TablePrintHelper.MaxPrintColumns(35) 同步。下列两类请求必须跳过校验（由调用方传第三参 skipColumnCheck=true）：
+    //   1) 富布局/单据打印：请求也携带 Columns（如工艺卡的 ProcessCardColumnDef），但那些列只是"区块内字段布局参数"，分块/分行渲染不受 35 列限制；
+    //   2) 不携带 Columns 的请求（单据/批量计划打印，json 为 "{}"）本就走不到此分支。
+    if (!skipColumnCheck) {
+        var MAX_PRINT_COLUMNS = 35;
+        try {
+            var reqBody = JSON.parse(jsonBody);
+            var cols = reqBody.Columns || reqBody.columns;
+            if (cols && Array.isArray(cols) && cols.length > MAX_PRINT_COLUMNS) {
+                showPrintNotice('当前可见列过多（' + cols.length + ' 列，打印上限 ' + MAX_PRINT_COLUMNS + ' 列），请通过列显隐精简后再打印', 'warning');
+                return;
+            }
+        } catch (e) { }
+    }
 
     // 修正 API 基地址：若 Blazor 端口与 API 端口不同，替换 origin
     var apiBase = window.MES_API_URL;

@@ -1,6 +1,7 @@
 using Blazored.LocalStorage;
 using MES.Blazor;
 using MES.Blazor.Services;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
@@ -30,8 +31,16 @@ builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
 
-var apiBaseUrl = builder.Configuration.GetValue<string>("ApiSettings:BaseUrl") ?? "https://localhost:7001";
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
+var apiBaseUrl = builder.Configuration.GetValue<string>("ApiSettings:BaseUrl");
+builder.Services.AddScoped(sp =>
+{
+    // 同源部署（03 发布会把 BaseUrl 改写为空）时回退到站点基址，
+    // 否则 new Uri("") 会抛 net_uri_EmptyUri 导致应用启动即崩。
+    var baseAddress = string.IsNullOrWhiteSpace(apiBaseUrl)
+        ? sp.GetRequiredService<NavigationManager>().BaseUri
+        : apiBaseUrl;
+    return new HttpClient { BaseAddress = new Uri(baseAddress) };
+});
 builder.Services.AddScoped<AuthHttpClient>();
 
 // ========== 订单上下文 ==========

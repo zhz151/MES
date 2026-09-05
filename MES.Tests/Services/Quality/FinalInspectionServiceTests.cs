@@ -733,6 +733,23 @@ public class FinalInspectionServiceTests : TestBase
             .WithMessage("*无成检到料*");
     }
 
+    [Fact]
+    public async Task BatchCreateAsync_显式成检类型不在到料集合_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH001");
+        await SeedMrCheckAsync(ctx, batch, nameof(InspectionType.FormalInspection)); // 到料仅正式成检
+        var svc = CreateService(ctx);
+
+        var act = () => svc.BatchCreateAsync(new List<CreateFinalInspectionRequest>
+        {
+            new() { InspectionItem = InspectionItem.Dimension, InspectionDate = DateTime.Today, BatchNo = "BATCH001", Quantity = 10, QualifiedQuantity = 10, InspectionType = MES.Core.Enums.InspectionType.PreInspection }
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*成检到料不含「PreInspection」类型，不能指定*");
+    }
+
     // ========== LookupBatchAsync ==========
 
     [Fact]
