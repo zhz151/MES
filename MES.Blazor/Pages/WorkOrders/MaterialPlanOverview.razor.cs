@@ -33,22 +33,6 @@ public partial class MaterialPlanOverview
     private bool _summaryLoading;               // 防止并发重复加载
     private RawMaterialLockPendingSummaryDto? _pendingSummary;
 
-    // ========== 工单原锁-错疑投料卡片（工单执行状况读模型：原料锁定 + 到料实投一致性 2错误+2疑问 明细） ==========
-    private bool _showErrorDoubtCard;              // 卡片显隐（默认折叠）
-    private bool _errorDoubtLoading;               // 防止并发重复加载
-    private List<ErrorDoubtInputItemDto>? _errorDoubtItems;
-    private string _errorDoubtSortKey = "WorkOrderNo";   // 卡片排序键（默认工单号升序）
-    private bool _errorDoubtSortDesc;                    // 卡片排序方向
-    private Dictionary<string, HashSet<string>> _errorDoubtColumnFilters = new();   // 卡片逐列筛选（ExcelFilter）
-    private int _errorDoubtDisplayCount = 5;             // 卡片显示行数（默认 5，防视觉污染）
-    private static readonly int[] _errorDoubtDisplayOptions = { 5, 10, 15, 20 };
-    private const string _errorDoubtNullFilter = "__EXCEL_FILTER_NULL__";   // ExcelFilter 空值占位符（与组件一致）
-
-    // ========== 在产在检-错疑待料卡片（工单执行状况读模型：主号-关注=主号完成/生产执行/成品检验 三档 × 理论原料未至/工单到料未投 的工单数+累计重量） ==========
-    private bool _showInProdInspectionCard;        // 卡片显隐（默认折叠）
-    private bool _inProdInspectionLoading;         // 防止并发重复加载
-    private List<InProductionInspectionDoubtItemDto>? _inProdInspectionItems;
-
     // ========== 卡片点击联动筛选（仿订单首页小表点击，覆盖式 + 提示条） ==========
     private MaterialPlanLinkFilterDto? _linkFilter;   // 联动筛选条件（null=未联动）
     private string? _linkLabel;                       // 联动提示条文案（卡片中文标签）
@@ -91,7 +75,7 @@ public partial class MaterialPlanOverview
     // ========== 列定义 ==========
 
     // 列偏好持久化 key（带版本号：列定义变更后自动丢弃旧偏好，强制采用新默认显隐/顺序）
-    private const string ColumnPrefsKey = "materialPlanOverview_v4";
+    private const string ColumnPrefsKey = "materialPlanOverview_v6";
 
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
@@ -105,7 +89,7 @@ public partial class MaterialPlanOverview
         new() { Key = "ProductionMainNo",   Label = "主号",       SortKey = "ProductionMainNo", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
         new() { Key = "ProductionSubNo",    Label = "次号",       SortKey = "ProductionSubNo", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据", Visible = false },
         new() { Key = "Salesman",           Label = "业务员",     SortKey = "Salesman", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
-        new() { Key = "EndCustomer",        Label = "最终用户",   SortKey = "EndCustomer", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+        new() { Key = "EndCustomer",        Label = "最终用户",   SortKey = "EndCustomer", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据", Visible = false },
         new() { Key = "MaterialName",       Label = "钢管制造",   SortKey = "MaterialName", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "基础数据", Visible = false,
             EnumOptions = DisplayHelper.GetEnumFilterOptions<PipeManufacturingType>() },
         new() { Key = "SettlementMethod",   Label = "结算方式",   SortKey = "SettlementMethod", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "基础数据", Visible = false,
@@ -122,7 +106,7 @@ public partial class MaterialPlanOverview
             EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>() },
         new() { Key = "TotalItemCount",     Label = "含项次数",   SortKey = "TotalItemCount", Width = "80", GroupKey = 1, GroupName = "基础数据", Visible = false },
         new() { Key = "MinLength",          Label = "最小长度",   SortKey = "MinLength", Width = "80", GroupKey = 1, GroupName = "基础数据", Visible = false },
-        new() { Key = "MaxLength",          Label = "最大长度",   SortKey = "MaxLength", Width = "80", GroupKey = 1, GroupName = "基础数据" },
+        new() { Key = "MaxLength",          Label = "最大长度",   SortKey = "MaxLength", Width = "80", GroupKey = 1, GroupName = "基础数据", Visible = false },
         new() { Key = "TotalQuantity",      Label = "总支数",     SortKey = "TotalQuantity", Width = "80", GroupKey = 1, GroupName = "基础数据" },
         new() { Key = "TotalWeight",        Label = "总重量",     SortKey = "TotalWeight", Width = "80", GroupKey = 1, GroupName = "基础数据" },
 
@@ -133,21 +117,11 @@ public partial class MaterialPlanOverview
             GroupKey = 2, GroupName = "实时关注", Level = ColumnLevel.MainNo },
         new() { Key = "UrgencyLevel",           Label = "主号-计划性",    SortKey = "UrgencyLevel",           FilterType = "string", Width = "110",
             GroupKey = 2, GroupName = "实时关注", Level = ColumnLevel.MainNo },
-        new() { Key = "TotalMissingWeight", Label = "理论原料未至", SortKey = "TotalMissingWeight", FilterType = "number", Width = "90",
-            GroupKey = 2, GroupName = "实时关注" },
-        new() { Key = "PendingInputWeight", Label = "工单到料未投",   SortKey = "PendingInputWeight", FilterType = "number", Width = "80",
-            GroupKey = 2, GroupName = "实时关注" },
-        new() { Key = "InputWeight",        Label = "工单投料量",     SortKey = "InputWeight",        FilterType = "number", Width = "80",
-            GroupKey = 2, GroupName = "实时关注" },
-        new() { Key = "InputOutputRatio",   Label = "工单投料比",     SortKey = "InputOutputRatio",   FilterType = "number", Width = "80",
-            GroupKey = 2, GroupName = "实时关注" },
-        new() { Key = "InputStatus",        Label = "工单投料状态",   SortKey = "InputStatus",        FilterType = "enum", Width = "120",
-            EnumOptions = DisplayHelper.GetFlowStatusOptions(), GroupKey = 2, GroupName = "实时关注" },
 
         // ========== 3 用料计划 ==========
         new() { Key = "OrderMaterialPlanStatus", Label = "订单-关联用料态", SortKey = "OrderMaterialPlanStatus", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "用料计划", Visible = false,
             EnumOptions = DisplayHelper.GetMaterialPlanStatusOptions(), Level = ColumnLevel.Order },
-        new() { Key = "MainNoMaterialPlanStatus",Label = "主号-关联用料态", SortKey = "MainNoMaterialPlanStatus", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "用料计划",
+        new() { Key = "MainNoMaterialPlanStatus",Label = "主号-关联用料态", SortKey = "MainNoMaterialPlanStatus", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "用料计划", Visible = false,
             EnumOptions = DisplayHelper.GetMaterialPlanStatusOptions(), Level = ColumnLevel.MainNo },
         new() { Key = "MaterialPlanStatus",      Label = "工单用料计划",   SortKey = "MaterialPlanStatus", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "用料计划",
             EnumOptions = DisplayHelper.GetMaterialPlanStatusOptions() },
@@ -155,7 +129,7 @@ public partial class MaterialPlanOverview
         new() { Key = "LatestPlanDate",          Label = "计划日期",       SortKey = "LatestPlanDate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "用料计划" },
         new() { Key = "PlanProportion",          Label = "分类用料占比",   SortKey = "MaterialPlanProportion", Width = "120", GroupKey = 3, GroupName = "用料计划" },
         new() { Key = "MaterialPlanCoveredCount",Label = "料态种数",      SortKey = "MaterialPlanCoveredCount", Width = "80", GroupKey = 3, GroupName = "用料计划", Visible = false },
-        new() { Key = "LatestRequiredDate",      Label = "要求到货日",    SortKey = "LatestRequiredDate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "用料计划", Visible = false },
+        new() { Key = "LatestRequiredDate",      Label = "要求到货日",    SortKey = "LatestRequiredDate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "用料计划" },
         new() { Key = "TheoreticalCutoffDate",  Label = "理论截止投料日", SortKey = "TheoreticalCutoffDate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "用料计划" },
         new() { Key = "MaxStandardCycle",       Label = "工单最大工艺周期", SortKey = "MaxStandardCycle", Width = "80", GroupKey = 3, GroupName = "用料计划", Visible = false },
         new() { Key = "MainNoMaxStandardCycle", Label = "主号最大工艺周期", SortKey = "MainNoMaxStandardCycle", Width = "80", GroupKey = 3, GroupName = "用料计划", Visible = false, Level = ColumnLevel.MainNo },
@@ -207,6 +181,15 @@ public partial class MaterialPlanOverview
         if (_pageSums.TryGetValue(col.Key, out var sum)) return sum;
         return "-";
     }
+
+    /// <summary>单元格对齐：数值类字段居中，其它字段靠左</summary>
+    private static string GetAlignClass(ColumnDef col) => col.Key switch
+    {
+        "TotalItemCount" or "MinLength" or "MaxLength" or "TotalQuantity" or "TotalWeight" or
+        "MaterialPlanRate" or "MaterialPlanCoveredCount" or
+        "MaxStandardCycle" or "MainNoMaxStandardCycle" or "CapacityWorkDays" => "text-center",
+        _ => ""
+    };
 
     // ========== 服务端数据加载 ==========
 
@@ -558,6 +541,11 @@ public partial class MaterialPlanOverview
             }
         }
 
+        // 默认视角：主号-关注 = 原料锁定（档位 2）。仅当「主号-关注」列筛选未持久化时套用，
+        // 用户已持久化该列筛选（含查看全部）则以用户为准；用料计划工作台默认聚焦「待规划原料」工单
+        if (!_columnFilters.ContainsKey("ScheduleStage"))
+            _columnFilters["ScheduleStage"] = new HashSet<string> { "2" };
+
         // 状态恢复后重新加载表格数据（首次渲染时 ServerData 可能已用默认值加载）
         if (savedState != null && table != null)
             await table.ReloadServerData();
@@ -631,219 +619,6 @@ public partial class MaterialPlanOverview
         }
     }
 
-    // ========== 错误疑问投料卡片（工单执行状况读模型） ==========
-
-    private void ToggleErrorDoubtCard()
-    {
-        _showErrorDoubtCard = !_showErrorDoubtCard;
-        if (_showErrorDoubtCard && _errorDoubtItems == null && !_errorDoubtLoading)
-            _ = LoadErrorDoubtInputAsync();
-    }
-
-    private async Task LoadErrorDoubtInputAsync()
-    {
-        _errorDoubtLoading = true;
-        try
-        {
-            var result = await WorkOrderService.GetErrorDoubtInputItemsAsync();
-            if (result.Success && result.Data != null)
-            {
-                _errorDoubtItems = result.Data;
-                // 重新加载后重置排序/筛选/行数，回到默认视图
-                _errorDoubtSortKey = "WorkOrderNo";
-                _errorDoubtSortDesc = false;
-                _errorDoubtColumnFilters.Clear();
-                _errorDoubtDisplayCount = 5;
-            }
-            else
-                Snackbar.Add(result?.Message ?? "获取错误疑问投料失败", Severity.Error);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"获取错误疑问投料失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _errorDoubtLoading = false;
-            // fire-and-forget 加载完成后不会自动触发重新渲染，必须手动 StateHasChanged
-            StateHasChanged();
-        }
-    }
-
-    // ========== 在产在检-错疑待料卡片（工单执行状况读模型：主号-关注=主号完成/生产执行/成品检验 三档 × 理论原料未至/工单到料未投） ==========
-
-    private void ToggleInProdInspectionCard()
-    {
-        _showInProdInspectionCard = !_showInProdInspectionCard;
-        if (_showInProdInspectionCard && _inProdInspectionItems == null && !_inProdInspectionLoading)
-            _ = LoadInProdInspectionAsync();
-    }
-
-    private async Task LoadInProdInspectionAsync()
-    {
-        _inProdInspectionLoading = true;
-        try
-        {
-            var result = await WorkOrderService.GetInProductionInspectionDoubtItemsAsync();
-            if (result.Success && result.Data != null)
-                _inProdInspectionItems = result.Data;
-            else
-                Snackbar.Add(result?.Message ?? "获取在产在检错疑待料失败", Severity.Error);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"获取在产在检错疑待料失败: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _inProdInspectionLoading = false;
-            // fire-and-forget 加载完成后不会自动触发重新渲染，必须手动 StateHasChanged
-            StateHasChanged();
-        }
-    }
-
-    /// <summary>「在产在检-错疑待料」卡片重量列显示（kg，G29 去零；0 不显示防视觉污染）</summary>
-    private static string FormatStageDoubtWeight(decimal v) => v == 0 ? string.Empty : ((int)v).ToString("G29");
-
-    /// <summary>卡片数据值显示：例「25单/8500Kg」；无数据 → "-"</summary>
-    private static string FormatStageDoubtCell(int count, decimal weight) =>
-        count > 0 ? $"{count}单/{((int)weight).ToString("G29")}Kg" : "-";
-
-    /// <summary>卡片重量列显示（kg，G29 去零；0 不显示防视觉污染）</summary>
-    private static string FormatErrorDoubtWeight(decimal v) => v == 0 ? string.Empty : ((int)v).ToString("G29");
-
-    /// <summary>到料实投一致性档位配色：2/3 疑问=橙黄，4/5 错误=红</summary>
-    private static Color GetErrorDoubtConsistencyColor(int status) => status switch
-    {
-        2 or 3 => Color.Warning,
-        4 or 5 => Color.Error,
-        _ => Color.Default
-    };
-
-    /// <summary>打印「工单原锁-错疑投料」卡片明细：抓取隐藏完整表（绑定排序+筛选后全部行，不受显示行数截断影响）</summary>
-    private async Task PrintErrorDoubtTable()
-    {
-        try
-        {
-            var table = await JS.InvokeAsync<string>("getTableHtml", "#mpol-error-doubt-print-table");
-            if (string.IsNullOrEmpty(table))
-            {
-                Snackbar.Add("未找到可打印的错疑投料表格", Severity.Warning);
-                return;
-            }
-            await JS.InvokeVoidAsync("printRawHtml", table, "用料计划总览-工单原锁-错疑投料");
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
-    }
-
-    /// <summary>卡片排序+筛选后的全部行（打印与计数用，不受显示行数截断影响）</summary>
-    private List<ErrorDoubtInputItemDto> _errorDoubtSortedFiltered
-    {
-        get
-        {
-            if (_errorDoubtItems == null) return new();
-            IEnumerable<ErrorDoubtInputItemDto> q = _errorDoubtItems;
-            // 逐列筛选（ExcelFilter 多选，值与组件下拉选项一致）
-            foreach (var kvp in _errorDoubtColumnFilters)
-            {
-                var vals = kvp.Value;
-                q = q.Where(x => vals.Contains(ErrorDoubtFilterValue(x, kvp.Key) ?? _errorDoubtNullFilter));
-            }
-            return SortErrorDoubt(q);
-        }
-    }
-
-    /// <summary>卡片显示行（排序+筛选后截断，默认 10 行防视觉污染）</summary>
-    private List<ErrorDoubtInputItemDto> _errorDoubtVisibleItems =>
-        _errorDoubtSortedFiltered.Take(_errorDoubtDisplayCount).ToList();
-
-    /// <summary>卡片列头点击切换排序（同列再点切换升/降，异列重置为升序）</summary>
-    private void ToggleErrorDoubtSort(string key)
-    {
-        if (_errorDoubtSortKey == key)
-            _errorDoubtSortDesc = !_errorDoubtSortDesc;
-        else
-        {
-            _errorDoubtSortKey = key;
-            _errorDoubtSortDesc = false;
-        }
-    }
-
-    /// <summary>ExcelFilter 逐列筛选变更：更新筛选字典，派生集合自动重算</summary>
-    private void OnErrorDoubtFilterChanged(string fieldKey, HashSet<string> selectedValues)
-    {
-        if (selectedValues.Count > 0)
-            _errorDoubtColumnFilters[fieldKey] = selectedValues;
-        else
-            _errorDoubtColumnFilters.Remove(fieldKey);
-    }
-
-    /// <summary>卡片 12 列筛选值提取（与 ExcelFilter 下拉选项 Value 一致；null 用占位符匹配「(空值)」选项）</summary>
-    private static string? ErrorDoubtFilterValue(ErrorDoubtInputItemDto x, string key) => key switch
-    {
-        "WorkOrderNo" => x.WorkOrderNo,
-        "SalesOrderNo" => x.SalesOrderNo,
-        "ProductionMainNo" => x.ProductionMainNo,
-        "PlantGrade" => x.PlantGrade,
-        "Specification" => x.Specification,
-        "TotalWeight" => ((int)x.TotalWeight).ToString("G29"),
-        "TotalPlanWeight" => ((int)x.TotalPlanWeight).ToString("G29"),
-        "CutoffArrivalDate" => x.CutoffArrivalDate?.ToString("yyyy-MM-dd"),
-        "TotalAvailableWeight" => ((int)x.TotalAvailableWeight).ToString("G29"),
-        "ActualInputWeight" => ((int)x.ActualInputWeight).ToString("G29"),
-        "PlanInputConsistency" => x.PlanInputConsistency.ToString(),
-        "TotalMissingWeight" => ((int)x.TotalMissingWeight).ToString("G29"),
-        _ => x.WorkOrderNo
-    };
-
-    /// <summary>卡片内存排序：数值列按 decimal、日期列按 DateTime、档位列按 int、其余文本按字符串（升序空值排前可接受）</summary>
-    private List<ErrorDoubtInputItemDto> SortErrorDoubt(IEnumerable<ErrorDoubtInputItemDto> q)
-    {
-        var key = _errorDoubtSortKey;
-        return key switch
-        {
-            "TotalWeight" or "TotalPlanWeight" or "TotalAvailableWeight" or "ActualInputWeight" or "TotalMissingWeight" =>
-                _errorDoubtSortDesc
-                    ? q.OrderByDescending(x => ErrorDoubtNumericValue(x, key)).ToList()
-                    : q.OrderBy(x => ErrorDoubtNumericValue(x, key)).ToList(),
-            "CutoffArrivalDate" =>
-                _errorDoubtSortDesc
-                    ? q.OrderByDescending(x => x.CutoffArrivalDate).ThenByDescending(x => x.WorkOrderNo).ToList()
-                    : q.OrderBy(x => x.CutoffArrivalDate).ThenBy(x => x.WorkOrderNo).ToList(),
-            "PlanInputConsistency" =>
-                _errorDoubtSortDesc
-                    ? q.OrderByDescending(x => x.PlanInputConsistency).ToList()
-                    : q.OrderBy(x => x.PlanInputConsistency).ToList(),
-            _ =>
-                _errorDoubtSortDesc
-                    ? q.OrderByDescending(x => ErrorDoubtTextValue(x, key), StringComparer.OrdinalIgnoreCase).ToList()
-                    : q.OrderBy(x => ErrorDoubtTextValue(x, key), StringComparer.OrdinalIgnoreCase).ToList()
-        };
-    }
-
-    private static decimal ErrorDoubtNumericValue(ErrorDoubtInputItemDto x, string key) => key switch
-    {
-        "TotalWeight" => x.TotalWeight,
-        "TotalPlanWeight" => x.TotalPlanWeight,
-        "TotalAvailableWeight" => x.TotalAvailableWeight,
-        "ActualInputWeight" => x.ActualInputWeight,
-        "TotalMissingWeight" => x.TotalMissingWeight,
-        _ => 0m
-    };
-
-    private static string? ErrorDoubtTextValue(ErrorDoubtInputItemDto x, string key) => key switch
-    {
-        "WorkOrderNo" => x.WorkOrderNo,
-        "SalesOrderNo" => x.SalesOrderNo,
-        "ProductionMainNo" => x.ProductionMainNo,
-        "PlantGrade" => x.PlantGrade,
-        "Specification" => x.Specification,
-        _ => x.WorkOrderNo
-    };
-
     /// <summary>打印「待投料量汇总」卡片（前端 printRawHtml 打印待投料矩阵 + 成购矩阵两个 DOM 表格，不含截日）</summary>
     private async Task PrintSummaryTable()
     {
@@ -859,7 +634,7 @@ public partial class MaterialPlanOverview
             var html = "<div style=\"font-weight:600; margin-bottom:4px;\">待投料</div>" + pending;
             if (!string.IsNullOrEmpty(purchase))
                 html += "<div style=\"font-weight:600; margin:10px 0 4px;\">成购（外购成品）</div>" + purchase;
-            await JS.InvokeVoidAsync("printRawHtml", html, "用料计划总览-待投料量汇总");
+            await JS.InvokeVoidAsync("printRawHtml", html, "用料计划-待投料量汇总");
         }
         catch (Exception ex)
         {
@@ -930,29 +705,6 @@ public partial class MaterialPlanOverview
         await ApplyLinkCoreAsync();
     }
 
-    /// <summary>「在产在检-错疑待料」卡片单元格点击：按 主号-关注档位 + 字段&gt;0 联动筛选下方工单列表（后端 linkFilter 生效）。
-    /// hasMissing=理论原料未至（TotalMissingWeight&gt;0），hasPending=工单到料未投（PendingInputWeight&gt;0），二选一；该行该字段无数据不联动</summary>
-    private async Task ApplyStageDoubtLink(int scheduleStage, bool hasMissing, bool hasPending)
-    {
-        if (scheduleStage is not (1 or 3 or 4)) return;
-        var row = _inProdInspectionItems?.FirstOrDefault(x => x.ScheduleStage == scheduleStage);
-        if (row == null) return;
-        if (hasMissing && row.MissingOrderCount <= 0) return;
-        if (hasPending && row.PendingInputOrderCount <= 0) return;
-
-        _linkFilter = new MaterialPlanLinkFilterDto
-        {
-            ScheduleStage = scheduleStage,
-            HasMissingWeight = hasMissing,
-            HasPendingInputWeight = hasPending,
-        };
-
-        var stageText = IntStatusDisplayHelper.GetScheduleStageText(scheduleStage);
-        var fieldText = hasMissing ? "理论原料未至" : "工单到料未投";
-        _linkLabel = $"{stageText}·{fieldText}";
-
-        await ApplyLinkCoreAsync();
-    }
 
     /// <summary>点击矩阵行（备注）：该行有数据才联动（待投料口径：排除「单一成品采购」工单）</summary>
     private async Task OnMatrixRowClick(int remarkIndex)
@@ -1465,7 +1217,7 @@ public partial class MaterialPlanOverview
 
             var request = new WorkOrderPrintListRequest
             {
-                Title = "用料计划总览-工单列表",
+                Title = "用料计划-工单列表",
                 Items = selectedItems,
                 Columns = _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList()
             };

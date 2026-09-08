@@ -142,7 +142,7 @@
                     </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>
+                        <MudTd Class="@(col.Key is "AttendanceCoefficient" or "HourlyWage" or "DailyWage" or "MonthlyWage" ? "text-center" : null)">
                         @if (col.Key == "Code")
                         {
                             if (rowEditing && rowCache != null)

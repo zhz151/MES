@@ -84,22 +84,25 @@ public partial class WorkOrders : IAsyncDisposable
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
+    // 列显隐默认布局版本：调整默认显隐后须递增，使已持久化列偏好失效、新默认立即生效（2026-09-08）
+    private const string ColumnPrefsVersion = "v1";
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "WorkOrderNo",       Label = "工单号",   SortKey = "WorkOrderNo",       FilterType = "string", Width = "120" },
         new() { Key = "SalesOrderNo",      Label = "订单号",   SortKey = "SalesOrderNo",      FilterType = "string", Width = "120" },
         new() { Key = "ProductionMainNo",  Label = "主号",     SortKey = "ProductionMainNo",  FilterType = "string", Width = "120" },
-        new() { Key = "ProductionSubNo",   Label = "次号",     SortKey = "ProductionSubNo",   FilterType = "string", Width = "120" },
+        new() { Key = "ProductionSubNo",   Label = "次号",     SortKey = "ProductionSubNo",   FilterType = "string", Width = "120", Visible = false },
         new() { Key = "SignDate",          Label = "签订日期", SortKey = "SignDate", FilterType = "date", Width = "120" },
         new() { Key = "Salesman",          Label = "业务员",   SortKey = "Salesman",          FilterType = "string", Width = "120" },
-        new() { Key = "EndCustomer",       Label = "最终客户", SortKey = "EndCustomer",       FilterType = "string", Width = "120" },
+        new() { Key = "EndCustomer",       Label = "最终客户", SortKey = "EndCustomer",       FilterType = "string", Width = "120", Visible = false },
         new() { Key = "DeliveryDate",      Label = "交货日期", SortKey = "DeliveryDate", FilterType = "date", Width = "120" },
         new() { Key = "DelayPenalty",      Label = "延期罚款", SortKey = "DelayPenalty",      FilterType = "boolean", Width = "60", BoolTrueLabel = "是", BoolFalseLabel = "否" },
         new() { Key = "SettlementMethod",  Label = "结算方式", SortKey = "SettlementMethod",  FilterType = "enum", Width = "120",
                EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>() },
         new() { Key = "PlantGrade",        Label = "工厂牌号", SortKey = "PlantGrade",        FilterType = "string", Width = "120" },
         new() { Key = "MaterialName",      Label = "钢管制造", SortKey = "MaterialName",      FilterType = "enum", Width = "120",
-               EnumOptions = DisplayHelper.GetEnumFilterOptions<PipeManufacturingType>() },
+               EnumOptions = DisplayHelper.GetEnumFilterOptions<PipeManufacturingType>(), Visible = false },
         new() { Key = "Specification",     Label = "规格",     SortKey = "Specification",     FilterType = "string", Width = "120" },
         new() { Key = "LengthStatus",      Label = "长度状态", SortKey = "LengthStatus",      FilterType = "enum", Width = "120",
                EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>() },
@@ -163,6 +166,13 @@ public partial class WorkOrders : IAsyncDisposable
         if (_pageSums.TryGetValue(col.Key, out var sum)) return sum;
         return "-";
     }
+
+    /// <summary>单元格对齐：数值类字段居中，其它字段靠左</summary>
+    private static string GetAlignClass(ColumnDef col) => col.Key switch
+    {
+        "MinLength" or "MaxLength" or "TotalQuantity" or "TotalWeight" or "TotalItemCount" => "text-center",
+        _ => ""
+    };
 
     // ========== 服务端数据加载 ==========
 
@@ -443,7 +453,7 @@ public partial class WorkOrders : IAsyncDisposable
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("workorders", null, _allColumns);
+        await ColumnPrefs.SaveAsync("workorders", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -565,7 +575,7 @@ public partial class WorkOrders : IAsyncDisposable
     {
         // 初始化列定义
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("workorders", null);
+        var saved = await ColumnPrefs.LoadAsync("workorders", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)

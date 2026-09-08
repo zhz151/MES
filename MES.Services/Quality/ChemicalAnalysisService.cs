@@ -91,7 +91,7 @@ public class ChemicalAnalysisService : IChemicalAnalysisService
             queryable = queryable.Where(r => r.AnalysisDate >= query.InspectionDateFrom.Value);
 
         if (query.InspectionDateTo.HasValue)
-            queryable = queryable.Where(r => r.AnalysisDate <= query.InspectionDateTo.Value);
+            queryable = queryable.Where(r => r.AnalysisDate < query.InspectionDateTo.Value.AddDays(1));
 
         queryable = queryable.ApplyFilters(query.Filters);
         var totalCount = await queryable.CountAsync();

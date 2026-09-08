@@ -29,6 +29,13 @@ public interface IFixedLengthWorkOrderService
     Task<List<FixedLengthWorkOrderListDto>> GetListAsync();
 
     /// <summary>
+    /// 使定尺列表缓存（CacheKeys.FixedLengthWorkOrderList，5 分钟绝对过期）主动失效。
+    /// 该列表实时聚合 ProductionRecords(断切成品)/FinalInspections(正式尺寸成检)/InventoryBatches(入库)/WorkOrders 等数据源，
+    /// 各数据源写路径（保存/删除/重建）必须调用本方法，否则 TTL 窗口内回看页面仍为旧数据。
+    /// </summary>
+    void InvalidateCaches();
+
+    /// <summary>
     /// 生成打印 PDF（前端已准备数据，枚举字段已转中文）
     /// </summary>
     Task<byte[]> PrintFileAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns);

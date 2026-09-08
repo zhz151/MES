@@ -468,6 +468,11 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         _context.InventoryBatches.Add(entity);
         await _context.SaveChangesAsync();
 
+        // 订单类成品（OrderFinished/SpecialDeliveryStatus）入库 → 定尺联通视图 G5 成品入库聚合源，主动失效其列表缓存（2026-09-08 缓存新鲜度治理）
+        if (entity.MaterialType == InventoryMaterialTypes.OrderFinished
+            || entity.MaterialType == InventoryMaterialTypes.SpecialDeliveryStatus)
+            _fixedLengthWorkOrderService.InvalidateCaches();
+
         // 入库一致性通知（仅提醒）
         await CheckInboundConsistencyAndNotifyAsync(entity);
 
@@ -599,6 +604,11 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             }
         }
 
+        // 订单类成品批量入库 → 定尺联通视图 G5 成品入库聚合源，主动失效其列表缓存（2026-09-08 缓存新鲜度治理）
+        if (createdEntities.Any(e => e.MaterialType == InventoryMaterialTypes.OrderFinished
+            || e.MaterialType == InventoryMaterialTypes.SpecialDeliveryStatus))
+            _fixedLengthWorkOrderService.InvalidateCaches();
+
         // 入库一致性通知（仅提醒）
         foreach (var created in createdEntities)
             await CheckInboundConsistencyAndNotifyAsync(created);
@@ -643,6 +653,9 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         var oldWeight = entity.InitialWeight;
         var oldMeters = entity.Meters;
         var oldRemainingMeters = entity.RemainingMeters;
+        // 变更前是否订单类成品（OrderFinished/SpecialDeliveryStatus，参与定尺联通视图 G5 聚合），物料类型可在此翻转（2026-09-08 缓存新鲜度治理）
+        var wasAffectsFixedLengthView = entity.MaterialType == InventoryMaterialTypes.OrderFinished
+            || entity.MaterialType == InventoryMaterialTypes.SpecialDeliveryStatus;
 
         // 仅允许变更 Group 3（手动输入）字段，Group 1（来源信息）和 Group 2（自动填充）只读
         entity.BatchNo = request.BatchNo ?? entity.BatchNo;
@@ -777,6 +790,12 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
             await _context.SaveChangesAsync();
         }
 
+        // 订单类成品入库信息变更（物料类型翻转/工单关联断连/数量长度改动任一路径）→ 定尺联通视图 G5 聚合源变化，主动失效（2026-09-08 缓存新鲜度治理）
+        var nowAffectsFixedLengthView = entity.MaterialType == InventoryMaterialTypes.OrderFinished
+            || entity.MaterialType == InventoryMaterialTypes.SpecialDeliveryStatus;
+        if (wasAffectsFixedLengthView || nowAffectsFixedLengthView)
+            _fixedLengthWorkOrderService.InvalidateCaches();
+
         // 入库一致性通知（仅提醒）
         await CheckInboundConsistencyAndNotifyAsync(entity);
 
@@ -814,8 +833,14 @@ public class InventoryBatchWriteService : IInventoryBatchWriteService
         var sourceOrderNo = entity.SourceOrderNo;
         var workOrderNo = entity.WorkOrderNo;
         var productionBatchNo = entity.ProductionBatchNo;
+        // 删除前是否订单类成品（参与定尺联通视图 G5 成品入库聚合），删除后须主动失效（2026-09-08 缓存新鲜度治理）
+        var wasAffectsFixedLengthView = entity.MaterialType == InventoryMaterialTypes.OrderFinished
+            || entity.MaterialType == InventoryMaterialTypes.SpecialDeliveryStatus;
         _context.InventoryBatches.Remove(entity);
         await _context.SaveChangesAsync();
+
+        if (wasAffectsFixedLengthView)
+            _fixedLengthWorkOrderService.InvalidateCaches();
 
         await TryRefreshExecutionSummaryAsync(workOrderNo);
         await TryRefreshQualityProcessTrackingAsync(productionBatchNo);

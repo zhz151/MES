@@ -198,7 +198,10 @@
         left: 0;
         z-index: 3;
         background-color: #f5f5f5;
+        /* auto 布局超宽表会把列压到内容最小宽，width 只是期望值不是下限；
+           min-width 拉高第 1 列硬下限，保证与 sticky-col-mat 的 left:110px 精确贴合 */
         width: 110px;
+        min-width: 110px;
         font-weight: 600;
     }
     .sticky-col-mat {
@@ -207,6 +210,7 @@
         z-index: 2;
         background-color: white;
         width: 110px;
+        min-width: 110px;
         font-weight: 600;
     }
     .monthly-stock-table thead th {

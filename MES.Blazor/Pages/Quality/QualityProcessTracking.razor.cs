@@ -46,7 +46,18 @@ public partial class QualityProcessTracking
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
+    // ========== 数值列（生产支重/检验各支数/入库支重/检测项数，数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    { "ProductionCutQuantity", "ProductionWeight", "InspectionCount", "TotalQuantity",
+      "QualifiedQuantity", "DefectReworkQuantity", "DefectWarehouseQuantity",
+      "DefectScrapQuantity", "InboundQuantity", "InboundWeight" };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+
+
     // ========== 列定义 ==========
+
+    // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_quality-process-tracking_v1）
+    private const string ColumnPrefsVersion = "v1";
 
     private static List<ColumnDef> GetAllColumnDefs()
     {
@@ -76,18 +87,18 @@ public partial class QualityProcessTracking
             new() { Key = "ProductionWeight",     Label = "生产重量(kg)",  SortKey = "productionweight",     FilterType = "number",  Width = "80",  GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "FurnaceNo",            Label = "炉号",           SortKey = "furnaceno",            FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "SourceUnit",           Label = "来料单位",       SortKey = "sourceunit",           FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "WorkOrderNo",          Label = "工单号",         SortKey = "workorderno",          FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "WorkOrderNo",          Label = "工单号",         SortKey = "workorderno",          FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
             new() { Key = "SalesOrderNo",         Label = "订单号",         SortKey = "salesorderno",         FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "ProductionMainNo",     Label = "主号",           SortKey = "productionmainno",     FilterType = "string",  Width = "120", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "Salesman",             Label = "业务员",         SortKey = "salesman",             FilterType = "string",  Width = "100", GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "EndCustomer",          Label = "最终用户",       SortKey = "endcustomer",          FilterType = "string",  Width = "150", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "EndCustomer",          Label = "最终用户",       SortKey = "endcustomer",          FilterType = "string",  Width = "150", GroupKey = 1, GroupName = "批次信息", Visible = false },
         };
 
         // G2: 检验来料
         var g2 = new List<ColumnDef>
         {
             new() { Key = "ReceiveDate",           Label = "到料日期",       SortKey = "receivedate",           FilterType = "date",    Width = "120", GroupKey = 2, GroupName = "检验来料" },
-            new() { Key = "Shift",                 Label = "班次",           SortKey = "shift",                 FilterType = "enum",   Width = "120", GroupKey = 2, GroupName = "检验来料",
+            new() { Key = "Shift",                 Label = "班次",           SortKey = "shift",                 FilterType = "enum",   Width = "120", GroupKey = 2, GroupName = "检验来料", Visible = false,
     EnumOptions = DisplayHelper.GetEnumFilterOptions<ShiftType>() },
             new() { Key = "Checker",               Label = "确认人",         SortKey = "checker",               FilterType = "string",  Width = "120", GroupKey = 2, GroupName = "检验来料" },
             new() { Key = "IsForceCompleted",      Label = "强制完成",       SortKey = "isforcecompleted",      FilterType = "boolean", Width = "100", GroupKey = 2, GroupName = "检验来料", BoolTrueLabel = "是", BoolFalseLabel = "否" },
@@ -132,7 +143,7 @@ public partial class QualityProcessTracking
         {
             new() { Key = "QualityStatus", Label = "执行状态", SortKey = "qualitystatus", FilterType = "enum", Width = "120", GroupKey = 6, GroupName = "执行状态",
                 EnumOptions = new() { new(){ Value = "略", Display = "略" }, new(){ Value = "异常完成", Display = "异常完成" }, new(){ Value = "入库存疑", Display = "入库存疑" }, new(){ Value = "待检验", Display = "待检验" }, new(){ Value = "检验中", Display = "检验中" }, new(){ Value = "完成检验", Display = "完成检验" } } },
-        new() { Key = "UpdatedTime",   Label = "更新日期",   SortKey = "updatedtime",                                 Width = "120", GroupKey = 6, GroupName = "执行状态" },
+        new() { Key = "UpdatedTime",   Label = "更新日期",   SortKey = "updatedtime",                                 Width = "120", GroupKey = 6, GroupName = "执行状态", Visible = false },
         };
 
         var all = new List<ColumnDef>();
@@ -412,7 +423,7 @@ public partial class QualityProcessTracking
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("quality-process-tracking", null, _allColumns);
+        await ColumnPrefs.SaveAsync("quality-process-tracking", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -494,7 +505,7 @@ public partial class QualityProcessTracking
         _allColumns = GetAllColumnDefs();
 
         // 恢复列显隐/顺序
-        var savedPrefs = await ColumnPrefs.LoadAsync("quality-process-tracking", null);
+        var savedPrefs = await ColumnPrefs.LoadAsync("quality-process-tracking", ColumnPrefsVersion);
         if (savedPrefs.Count > 0)
         {
             foreach (var s in savedPrefs)

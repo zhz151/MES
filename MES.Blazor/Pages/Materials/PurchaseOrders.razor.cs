@@ -247,6 +247,14 @@ public partial class PurchaseOrders : IAsyncDisposable
         return "-";
     }
 
+    // ========== 数值列居中（数据单元格） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    {
+        "UnitWeight", "Quantity", "Weight", "InputMultiple", "Received", "Returned",
+        "WoMaxLength", "WoTotalQuantity", "WoTotalWeight", "WoTotalItemCount",
+    };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+
     // ========== 服务端数据加载 ==========
 
     private async Task<TableData<PurchaseOrderDto>> LoadDataFromServer(TableState state)

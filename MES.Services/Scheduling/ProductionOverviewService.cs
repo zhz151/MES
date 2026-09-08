@@ -164,13 +164,13 @@ public class ProductionOverviewService : IProductionOverviewService
         var groupsByBatch = processGroups.GroupBy(pg => pg.ProductionBatchId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        // ========== 行 1: 完善计划（原「待计划」，2026-08-19 用户决策与待投料量汇总三档严格对齐） ==========
+        // ========== 行 1: 完善用料计划（原「待计划」，2026-08-19 用户决策与待投料量汇总三档严格对齐） ==========
         // 待投料口径与原锁计划「待投料」一致：
         // 成品重量 → 原料重量按配置倍率换算（TotalWeight 为成品重）
         // 成购扣减 = 成品计划量 − 已到货量（缺口口径，外购由供应商生产、本厂不投料）
-        // 质量补料（A）：(总重−成购)×1.1×(1−流转比/100)——投料已满足但产出不足，按流转比缺口折算，不减已投料
+        // 质量补料：(总重−成购)×1.1×(1−流转比/100)——投料已满足但产出不足，按流转比缺口折算，不减已投料
         // 其他：(总重−成购)×1.1 − 已投料；逐工单 Max(0) 后再汇总（与原锁计划待投料矩阵同口径）
-        // 完善计划 = 原锁计划「待投料量汇总」中 D完善计划（ImprovePlan）工单的合计待投料重量
+        // 完善用料计划 = 原锁计划「待投料量汇总」中 完善用料计划（ImprovePlan）工单的合计待投料重量
         var rawRatio = await GetConfigAsync("ProcessingDiscount", "RawMaterialRatio", 1.1m);
         var row1Remaining = stage2Summaries.Sum(s => ProductionSummaryHelper.CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
         var improvePlanSummaries = stage2Summaries
@@ -190,7 +190,7 @@ public class ProductionOverviewService : IProductionOverviewService
         {
             Seq = 1,
             Category = "原料",
-            Section = "完善计划",
+            Section = "完善用料计划",
             CategoryNo = 1,
             RowNo = 1,
             PendingPlanTons = ConvertToTons(pendingPlanRemaining),
@@ -202,8 +202,8 @@ public class ProductionOverviewService : IProductionOverviewService
             DateBucketTons = row1BucketTons
         });
 
-        // ========== 行 2: 执行计划（原「在购荒管」，2026-08-19 用户决策改为执行计划待投料） ==========
-        // 执行计划 = 原锁计划「待投料量汇总」中 C执行计划（ExecutePlan）工单的合计待投料重量
+        // ========== 行 2: 执行用料计划（原「在购荒管」，2026-08-19 用户决策改为执行用料计划待投料） ==========
+        // 执行用料计划 = 原锁计划「待投料量汇总」中 执行用料计划（ExecutePlan）工单的合计待投料重量
         var executePlanSummaries = stage2Summaries
             .Where(s => RawMaterialLockRemarkKeys.ToKey(s.RawMaterialLockRemark) == RawMaterialLockRemarkKeys.ExecutePlan)
             .ToList();
@@ -221,7 +221,7 @@ public class ProductionOverviewService : IProductionOverviewService
         {
             Seq = 2,
             Category = "原料",
-            Section = "执行计划",
+            Section = "执行用料计划",
             CategoryNo = 1,
             RowNo = 2,
             PendingPlanTons = ConvertToTons(executePlanRemaining),
@@ -257,7 +257,7 @@ public class ProductionOverviewService : IProductionOverviewService
             DateBucketTons = row0BucketTons
         });
 
-        // ========== 行 4: 原料汇总（待计划量=完善计划+执行计划、在购量=外购成品，日期桶三行求和） ==========
+        // ========== 行 4: 原料汇总（待计划量=完善用料计划+执行用料计划、在购量=外购成品，日期桶三行求和） ==========
         var row4BucketTons = new List<decimal>();
         for (int i = 0; i < buckets.Count; i++)
         {
@@ -483,6 +483,8 @@ public class ProductionOverviewService : IProductionOverviewService
             Seq = nextSeq + 3,
             Category = "整体完工预计",
             Section = "",
+            CategoryNo = 4,
+            RowNo = 0,
             InProcurementTons = null,
             TotalRemainingTons = null,
             EstDays = totalEstDays > 0 ? totalEstDays : null,
@@ -515,6 +517,8 @@ public class ProductionOverviewService : IProductionOverviewService
             Seq = nextSeq + 4,
             Category = "订单交期负荷",
             Section = "订单延期-原料",
+            CategoryNo = 5,
+            RowNo = 1,
             InProcurementTons = null,
             TotalRemainingTons = null,
             EstDays = null,
@@ -558,6 +562,8 @@ public class ProductionOverviewService : IProductionOverviewService
             Seq = nextSeq + 5,
             Category = "订单交期负荷",
             Section = "订单延期-在产",
+            CategoryNo = 5,
+            RowNo = 2,
             InProcurementTons = null,
             TotalRemainingTons = null,
             EstDays = null,
@@ -600,6 +606,8 @@ public class ProductionOverviewService : IProductionOverviewService
             Seq = nextSeq + 6,
             Category = "订单交期负荷",
             Section = "订单延期-成检",
+            CategoryNo = 5,
+            RowNo = 3,
             InProcurementTons = null,
             TotalRemainingTons = null,
             EstDays = null,
@@ -610,14 +618,9 @@ public class ProductionOverviewService : IProductionOverviewService
             DateBucketSubOnly = true
         });
 
-        // ========== 行序重排（2026-08-23 用户决策）：订单交期负荷 3 行置顶（延期-原料/在产/成检），原料→生产→成检随后，整体完工预计最后 ==========
-        // 生产工段行数随机台组配置动态变化（2026-08-30 起完全遍历机台组），故用分类排序替代固定索引数组。
-        // （2026-08-23 删除订单延期量/订单延期量[预计完结]/订单非延期 3 行；前 3 行日期桶格仅显示副值）
-        rows = rows
-            .OrderBy(r => r.Category == "订单交期负荷" ? 0 : 1)
-            .ThenBy(r => r.Category == "整体完工预计" ? 1 : 0)
-            .ThenBy(r => r.Seq)
-            .ToList();
+        // ========== 行序（2026-09-08 用户决策）：取消 2026-08-23 的「订单交期负荷置顶」，改为按自然构建序输出 ==========
+        // 自然序：原料(1) → 投料-在产(2) → 投料-成检(3) → 整体完工预计(4) → 订单交期负荷(5-1/5-2/5-3)。
+        // Seq 自增无空档且类别内次序固定，故不再重排（2026-08-30 起生产工段行完全遍历机台组，Seq 动态步进）。
         for (int i = 0; i < rows.Count; i++) rows[i].Seq = i + 1;
 
         return new ProductionOverviewDto

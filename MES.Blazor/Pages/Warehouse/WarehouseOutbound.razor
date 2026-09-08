@@ -79,7 +79,8 @@
                         }
                         @foreach (var col in _visibleColumns)
                         {
-                            <MudTd>@RenderCell(item, col, idx)</MudTd>
+                            var _cellAlignClass = IsNumericColumn(col.Key) ? "text-center" : "";
+                            <MudTd Class="@_cellAlignClass">@RenderCell(item, col, idx)</MudTd>
                         }
                         <MudTd>
                             <div class="d-flex flex-nowrap gap-1" style="gap:2px;">
@@ -159,6 +160,13 @@
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
+
+    // ========== 数值列（数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    {
+        "RemainingQuantity", "RemainingWeight", "RemainingMeters"
+    };
+    private static bool IsNumericColumn(string key) => _centerColumnKeys.Contains(key);
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {

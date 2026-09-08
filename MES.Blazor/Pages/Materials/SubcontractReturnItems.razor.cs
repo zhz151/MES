@@ -699,6 +699,14 @@ public partial class SubcontractReturnItems : IAsyncDisposable
         }
     };
 
+    // ========== 数值列居中（数据单元格） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    {
+        "UnitWeight", "RequiredQuantity", "RequiredWeight",
+        "ReturnedQuantity", "ReturnedWeight", "ReturnQuantity",
+    };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+
     // ========== 分组渲染 ==========
 
     private class GroupHeaderInfo

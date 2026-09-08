@@ -8,6 +8,7 @@ using MES.Core.Enums;
 using MES.Data;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.WorkOrder;
+using MES.Core.Interfaces.Configuration;
 using MES.Services.WorkOrder;
 using MES.Tests.Tests;
 
@@ -20,7 +21,12 @@ namespace MES.Tests.Services;
 public class FixedLengthWorkOrderServiceTests : TestBase
 {
     private static FixedLengthWorkOrderService CreateService(AppDbContext ctx)
-        => new(ctx, NullLogger<FixedLengthWorkOrderService>.Instance, new MemoryCache(new MemoryCacheOptions()));
+    {
+        var configMock = new Mock<IConfigParameterService>();
+        configMock.Setup(x => x.GetConfigMapAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, decimal>());
+        return new(ctx, NullLogger<FixedLengthWorkOrderService>.Instance, new MemoryCache(new MemoryCacheOptions()), configMock.Object);
+    }
 
     private static async Task SeedFixedAsync(AppDbContext ctx, string workOrderNo, string salesOrderNo,
         string mainNo, decimal length, int plannedQuantity = 10, int workOrderId = 1)

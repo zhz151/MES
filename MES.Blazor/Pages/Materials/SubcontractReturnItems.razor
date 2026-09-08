@@ -100,7 +100,7 @@
                                         <MudTd>@(context.ExecutionUrgencyLevel != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, context.ExecutionUrgencyLevel) ?? "-") : "-")</MudTd>
                                         <MudTd>@context.PlantGrade</MudTd>
                                         <MudTd>@context.PiercingSpec</MudTd>
-                                        <MudTd Class="text-right"><b>@FormatKg(context.MissingWeight)</b></MudTd>
+                                        <MudTd Class="text-center"><b>@FormatKg(context.MissingWeight)</b></MudTd>
                                     </RowTemplate>
                                 </MudTable>
                             </div>
@@ -318,7 +318,8 @@
                         var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                         _prevGk2 = col.GroupKey;
                         var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
-                        <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
+                        var _cellAlignClass = IsNumericColumn(col) ? " text-center" : "";
+                        <MudTd Class="@(_cellClass + _cellAlignClass)">@RenderCell(item, col)</MudTd>
                     }
                 </RowTemplate>
                 <FooterContent>

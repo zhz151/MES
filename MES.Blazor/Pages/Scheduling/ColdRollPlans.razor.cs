@@ -1488,6 +1488,17 @@ public partial class ColdRollPlans
         return cls;
     }
 
+    /// <summary>单元格对齐：数值类字段居中，其它字段靠左</summary>
+    private static string GetAlignClass(ColumnDef col) => col.Key switch
+    {
+        "WeightProd" or "WeightProdUrgent" or "WeightProdUrgentSub" or "WeightProdUrgentOther" or
+        "WeightWaitNear" or "WeightWaitNearUrgent" or "WeightWaitNearBackUrgent" or "WeightWaitNearOtherUrgent" or
+        "WeightToday" or "WeightTomorrow" or "WeightDayAfter" or
+        "WeightExt3" or "WeightExt4" or "WeightExt5" or "WeightDistant" or "WeightTotal" or
+        "DailyOutput" => "text-center",
+        _ => ""
+    };
+
     // ========== 页脚汇总 ==========
     private void ComputePageSums()
     {

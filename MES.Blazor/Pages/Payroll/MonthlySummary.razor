@@ -75,7 +75,7 @@
                         <td class="sticky-left">@DisplayHelper.GetPositionText(row.Position)</td>
                         @foreach (var col in Columns)
                         {
-                            <td class="@(col.IsMoney ? "text-right" : "text-center")" style="padding-right:@(col.IsMoney ? "8px" : "0")">@CellText(row, col.Key)</td>
+                            <td class="text-center">@CellText(row, col.Key)</td>
                         }
                     </tr>
                 }
@@ -88,7 +88,7 @@
                         <td class="text-center">—</td>
                         @foreach (var col in Columns.Where(c => c.IsMoney))
                         {
-                            <td class="text-right" style="padding-right:8px;">@Money(ColumnTotal(col.Key))</td>
+                            <td class="text-center">@Money(ColumnTotal(col.Key))</td>
                         }
                     </tr>
                 </tfoot>

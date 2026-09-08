@@ -35,7 +35,7 @@ public interface IWorkOrderExecutionService
     Task<List<ErrorDoubtInputItemDto>> GetErrorDoubtInputItemsAsync();
 
     /// <summary>
-    /// 获取「在产在检-错疑待料」聚合：主号-关注 = 1 主号完成 / 3 生产执行 / 4 成品检验 三档，
+    /// 获取「错误-用料计划及其执行」聚合：主号-关注 = 1 主号完成 / 3 生产执行 / 4 成品检验 三档，
     /// 分别统计「理论原料未至」（TotalMissingWeight &gt; 0）与「工单到料未投」（PendingInputWeight &gt; 0）的工单数 + 累计重量
     /// </summary>
     Task<List<InProductionInspectionDoubtItemDto>> GetInProductionInspectionDoubtItemsAsync();

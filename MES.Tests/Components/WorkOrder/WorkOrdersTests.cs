@@ -30,8 +30,8 @@ public class WorkOrdersTests : TestBase
     {
         ConfigureEmptyListResponse();
         var cut = RenderPage<WorkOrders>();
-        cut.WaitForState(() => cut.Markup.Contains("工单管理"), timeout: TimeSpan.FromSeconds(2));
-        cut.Markup.Should().Contain("工单管理");
+        cut.WaitForState(() => cut.Markup.Contains("工单生成"), timeout: TimeSpan.FromSeconds(2));
+        cut.Markup.Should().Contain("工单生成");
     }
 
     [Fact]

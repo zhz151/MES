@@ -15,7 +15,7 @@
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold">
                     <MudIcon Icon="@Icons.Material.Filled.Category" Class="mr-2" Color="Color.Primary" />
-                    生产计件类别（基准价 × 维档系数）
+                    生产计件标准（基准价 × 维档系数）
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -164,8 +164,8 @@
                                 <MudTd>@rec.ProductStatusChinese</MudTd>
                                 <MudTd>@rec.StageChinese</MudTd>
                                 <MudTd>@rec.Specification</MudTd>
-                                <MudTd>@rec.Quantity</MudTd>
-                                <MudTd>@(rec.Weight?.ToString("G29"))</MudTd>
+                                <MudTd Class="text-center">@rec.Quantity</MudTd>
+                                <MudTd Class="text-center">@(rec.Weight?.ToString("G29"))</MudTd>
                                 <MudTd>@rec.Operator</MudTd>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.Calculate"
@@ -285,7 +285,7 @@
                 <RowTemplate Context="item">
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>
+                        <MudTd Class="@(col.Key is "BasePrice" or "TierCount" ? "text-center" : null)">
                         @if (col.Key == "DisplayName")
                         {
                             <b>@item.DisplayName</b>

@@ -140,6 +140,21 @@ public class OrderItem : BaseEntity
     public decimal TheoreticalWeight { get; set; }
 
     /// <summary>
+    /// 计价单位（元/Kg·元/米·元/支，决定总价取量）
+    /// </summary>
+    public PricingUnit? PricingUnit { get; set; }
+
+    /// <summary>
+    /// 单价（元）
+    /// </summary>
+    public decimal? UnitPrice { get; set; }
+
+    /// <summary>
+    /// 总价（元，自动=单价×取量，可手动覆盖）
+    /// </summary>
+    public decimal? TotalPrice { get; set; }
+
+    /// <summary>
     /// 备注
     /// </summary>
     public string? Remark { get; set; }

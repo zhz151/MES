@@ -133,7 +133,8 @@
                     </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>@RenderCell(item, col)</MudTd>
+                        var _cellAlignClass = IsNumericColumn(col) ? "text-center" : "";
+                        <MudTd Class="@_cellAlignClass">@RenderCell(item, col)</MudTd>
                     }
                     <MudTd Style="white-space: nowrap; width: 90px;">
                         @{

@@ -50,7 +50,17 @@ public partial class FurnaceRegistrations
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
+    // ========== 数值列（支数/重量 + 各元素含量，数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    { "Quantity", "Weight", "Carbon", "Silicon", "Manganese", "Phosphorus", "Sulfur",
+      "Nickel", "Chromium", "Molybdenum", "Copper", "Nitrogen", "Niobium", "Titanium",
+      "Iron", "Aluminum", "Tungsten", "PREN" };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+
     private static List<EnumOption> GetRawMaterialTypeOptions() => DisplayHelper.GetEnumFilterOptions<MaterialType>();
+
+    // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_furnace-registration_v1）
+    private const string ColumnPrefsVersion = "v1";
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
@@ -80,7 +90,7 @@ public partial class FurnaceRegistrations
         new() { Key = "Tungsten",         Label = "W",            SortKey = "tungsten",         FilterType = "number", Width = "80" },
         new() { Key = "PREN",             Label = "PREN腐蚀当量",  SortKey = "pren",             FilterType = "number", Width = "80" },
         new() { Key = "Remark",           Label = "备注",         SortKey = "remark", FilterType = "string", Width = "120" },
-        new() { Key = "UpdatedTime",      Label = "更新日期",   SortKey = "updatedtime", Width = "120" },
+        new() { Key = "UpdatedTime",      Label = "更新日期",   SortKey = "updatedtime", Width = "120", Visible = false },
     };
 
     // ========== 服务端数据加载 ==========
@@ -444,7 +454,7 @@ public partial class FurnaceRegistrations
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("furnace-registration", null, _allColumns);
+        await ColumnPrefs.SaveAsync("furnace-registration", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -469,7 +479,7 @@ public partial class FurnaceRegistrations
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("furnace-registration", null);
+        var saved = await ColumnPrefs.LoadAsync("furnace-registration", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)

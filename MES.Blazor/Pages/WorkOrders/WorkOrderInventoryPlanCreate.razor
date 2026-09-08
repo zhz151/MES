@@ -102,17 +102,17 @@
                                 <MudTd DataLabel="工厂牌号">@context.PlantGrade</MudTd>
                                 <MudTd DataLabel="名义规格">@context.Specification</MudTd>
                                 <MudTd DataLabel="长度状态">@DisplayHelper.GetLengthStatusText(context.LengthStatus?.ToString())</MudTd>
-                                <MudTd DataLabel="最小长度">@DisplayHelper.FormatNullableDecimal(context.MinLength)</MudTd>
-                                <MudTd DataLabel="最大长度">@DisplayHelper.FormatNullableDecimal(context.MaxLength)</MudTd>
-                                <MudTd DataLabel="可用支数">
+                                <MudTd DataLabel="最小长度" Class="text-center">@DisplayHelper.FormatNullableDecimal(context.MinLength)</MudTd>
+                                <MudTd DataLabel="最大长度" Class="text-center">@DisplayHelper.FormatNullableDecimal(context.MaxLength)</MudTd>
+                                <MudTd DataLabel="可用支数" Class="text-center">
                                     @(context.RemainingQuantity - context.ReservedQuantity)
                                     @if (context.ReservedQuantity > 0)
                                     {
                                         <MudText Typo="Typo.caption" Color="Color.Warning" Style="display:inline;">（已预留@(context.ReservedQuantity)）</MudText>
                                     }
                                 </MudTd>
-                                <MudTd DataLabel="可用重量">@((context.RemainingWeight - context.ReservedWeight).ToString("G29"))</MudTd>
-                                <MudTd DataLabel="理论单支重">@DisplayHelper.FormatNullableDecimal(context.UnitWeight)</MudTd>
+                                <MudTd DataLabel="可用重量" Class="text-center">@((context.RemainingWeight - context.ReservedWeight).ToString("G29"))</MudTd>
+                                <MudTd DataLabel="理论单支重" Class="text-center">@DisplayHelper.FormatNullableDecimal(context.UnitWeight)</MudTd>
                                 <MudTd DataLabel="制造状态">@DisplayHelper.GetDeliveryStateText(context.ManufacturingStatus)</MudTd>
                                 <MudTd DataLabel="放置框架">@GetLocation(context)</MudTd>
                                 <MudTd DataLabel="实际规格">@(string.IsNullOrEmpty(context.ActualSpecification) ? "-" : context.ActualSpecification)</MudTd>

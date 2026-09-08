@@ -55,23 +55,24 @@
                         <MudChip Size="Size.Small" Color="@GetStatusColor(_order.Status)" Class="ml-2">
                             @GetOrderStatusText(_order.Status)
                         </MudChip>
-                        <MudIconButton Icon="@Icons.Material.Filled.Description"
-                                       Color="Color.Info"
-                                       Size="Size.Small"
-                                       Class="ml-4"
-                                       OnClick="NavigateToRequirements"
-                                       Title="技术要求" />
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Info"
+                                   Size="Size.Small"
+                                   Class="ml-4"
+                                   StartIcon="@Icons.Material.Filled.Description"
+                                   OnClick="NavigateToRequirements">技术要求</MudButton>
                     </div>
                 </CardHeaderContent>
                 <CardHeaderActions>
                     <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
                     @if (!_isEditMode)
                     {
-                        <MudButton Variant="Variant.Outlined" Color="Color.Info"
-                                   StartIcon="@Icons.Material.Filled.Print"
-                                   OnClick="PrintOrder">
-                            打印
-                        </MudButton>
+                        <MudMenu Variant="Variant.Outlined" Color="Color.Info"
+                                 StartIcon="@Icons.Material.Filled.Print"
+                                 Label="打印">
+                            <MudMenuItem OnClick="@(() => PrintOrder(true))">含金额确认单</MudMenuItem>
+                            <MudMenuItem OnClick="@(() => PrintOrder(false))">不含金额确认单</MudMenuItem>
+                        </MudMenu>
                     }
                     @if (_isEditMode)
                     {
@@ -175,7 +176,8 @@
                         <RowTemplate Context="item">
                             @foreach (var col in _visibleItemColumns)
                             {
-                                <MudTd>@RenderItemCell(item, col)</MudTd>
+                                var _cellAlignClass = IsNumericColumn(col) ? "text-center" : "";
+                                <MudTd Class="@_cellAlignClass">@RenderItemCell(item, col)</MudTd>
                             }
                             @if (_isEditMode) { <MudTd>@RenderItemActions(item)</MudTd> }
                         </RowTemplate>
@@ -300,6 +302,13 @@
         public decimal? Meters { get; set; }
         public decimal ContractWeight { get; set; }
         public decimal TheoreticalWeight { get; set; }
+        // 计价单位（决定总价取量：元/Kg→合同重量、元/米→米数、元/支→支数）
+        public PricingUnit PricingUnit { get; set; } = PricingUnit.PerKg;
+        // 单价/总价（总价自动=单价×取量，手动输入总价即覆盖）
+        public decimal? UnitPrice { get; set; }
+        public decimal? TotalPrice { get; set; }
+        // 是否手动覆盖总价（手动输入后不再自动重算，可点击恢复自动）
+        public bool IsTotalManual { get; set; }
         public string? Remark { get; set; }
         public string PlantGrade { get; set; } = string.Empty;
         public decimal Density { get; set; }
@@ -324,6 +333,19 @@
     private List<ColumnDef> _itemColumns = new();
     private List<ColumnDef> _visibleItemColumns => _itemColumns.Where(c => c.Visible).ToList();
     private const string ItemColumnPrefsKey = "order_detail_items";
+
+    // ========== 数值列（项次数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    {
+        "sequence", "outerdiameter", "wallthickness",
+        "outerdiameternegative", "outerdiameterpositive",
+        "wallthicknessnegative", "wallthicknesspositive",
+        "minlength", "maxlength", "quantity", "meters",
+        "contractweight", "theoreticalweight", "unitprice", "totalprice"
+    };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+    // 项次列布局升级 v2（结算方式移至尾部 + 新增计价单位/单价/总价），升版本强制新默认对老用户生效
+    private const string ItemColumnPrefsVersion = "v2";
 
     // ========== 初始化 ==========
     protected override async Task OnInitializedAsync()
@@ -356,7 +378,6 @@
             new() { Key = "sequence", Label = "项次", Visible = true, Width = "45" },
             new() { Key = "deliverydate", Label = "交货日期", Visible = true, IsRequired = true, Width = "120" },
             new() { Key = "delaypenalty", Label = "延期罚款", Visible = true, Width = "60" },
-            new() { Key = "settlementmethod", Label = "结算方式", Visible = true, Width = "120" },
             new() { Key = "materialname", Label = "钢管制造", Visible = true, Width = "120" },
             new() { Key = "productionstandard", Label = "产品标准", Visible = true, Width = "120" },
             new() { Key = "deliverystate", Label = "交货状态", Visible = true, Width = "120" },
@@ -374,6 +395,11 @@
             new() { Key = "meters", Label = "米数", Visible = true, Width = "80" },
             new() { Key = "contractweight", Label = "合同重量", Visible = true, Width = "80" },
             new() { Key = "theoreticalweight", Label = "理算重量", Visible = true, Width = "80" },
+            // 结算方式/计价单位/单价/总价/备注 位于尾部（结算方式置于理算重量之后）
+            new() { Key = "settlementmethod", Label = "结算方式", Visible = true, Width = "120" },
+            new() { Key = "pricingunit", Label = "计价单位", Visible = true, Width = "120" },
+            new() { Key = "unitprice", Label = "单价", Visible = true, Width = "90" },
+            new() { Key = "totalprice", Label = "总价", Visible = true, Width = "110" },
             new() { Key = "remark", Label = "备注", Visible = false, Width = "120" },
         };
     }
@@ -383,7 +409,7 @@
     {
         var headerSaved = await ColumnPrefs.LoadAsync(HeaderColumnPrefsKey, null);
         if (headerSaved.Count > 0) ApplyColumnPrefs(_headerColumns, headerSaved);
-        var itemSaved = await ColumnPrefs.LoadAsync(ItemColumnPrefsKey, null);
+        var itemSaved = await ColumnPrefs.LoadAsync(ItemColumnPrefsKey, ItemColumnPrefsVersion);
         if (itemSaved.Count > 0) ApplyColumnPrefs(_itemColumns, itemSaved);
     }
 
@@ -409,7 +435,7 @@
     }
 
     private async Task SaveHeaderColumnPrefs() => await ColumnPrefs.SaveAsync(HeaderColumnPrefsKey, null, _headerColumns);
-    private async Task SaveItemColumnPrefs() => await ColumnPrefs.SaveAsync(ItemColumnPrefsKey, null, _itemColumns);
+    private async Task SaveItemColumnPrefs() => await ColumnPrefs.SaveAsync(ItemColumnPrefsKey, ItemColumnPrefsVersion, _itemColumns);
     private async Task OnHeaderColumnToggle(ColumnDef col) => await SaveHeaderColumnPrefs();
     private async Task OnHeaderMoveUp(ColumnDef col) => await SaveHeaderColumnPrefs();
     private async Task OnHeaderMoveDown(ColumnDef col) => await SaveHeaderColumnPrefs();
@@ -506,6 +532,9 @@
             ContractWeight = i.ContractWeight,
             TheoreticalWeight = i.TheoreticalWeight,
             Remark = i.Remark,
+            PricingUnit = i.PricingUnit ?? PricingUnit.PerKg,
+            UnitPrice = i.UnitPrice,
+            TotalPrice = i.TotalPrice,
             PlantGrade = i.PlantGrade,
             Density = i.Density
         }).ToList();
@@ -535,6 +564,9 @@
             ContractWeight = i.ContractWeight,
             TheoreticalWeight = i.TheoreticalWeight,
             Remark = i.Remark,
+            PricingUnit = i.PricingUnit,
+            UnitPrice = i.UnitPrice,
+            TotalPrice = i.TotalPrice,
             PlantGrade = i.PlantGrade,
             Density = i.Density
         }).ToList();
@@ -721,6 +753,11 @@
             ContractWeight = 0,
             TheoreticalWeight = 0,
             Remark = last.Remark,
+            // 计价信息沿用上一行（单价/计价单位），总价留空待自动重算
+            PricingUnit = last.PricingUnit,
+            UnitPrice = last.UnitPrice,
+            TotalPrice = null,
+            IsTotalManual = false,
             PlantGrade = last.PlantGrade,
             Density = last.Density
         });
@@ -751,6 +788,7 @@
             if (item.MaxLength.HasValue && item.MaxLength > 0 && item.Quantity.HasValue && item.Quantity > 0)
             {
                 item.Meters = Math.Round(item.MaxLength.Value * item.Quantity.Value / 1000m, 2);
+                RecomputeTotalIfAuto(item);
                 StateHasChanged();
                 Snackbar.Add($"米数已自动计算为 {item.Meters} 米", Severity.Info);
             }
@@ -787,6 +825,35 @@
         item.TheoreticalWeight = Math.Round(weight < 0 ? 0 : weight, 1, MidpointRounding.AwayFromZero);
         StateHasChanged();
         Snackbar.Add($"理算重量已计算为 {item.TheoreticalWeight} kg", Severity.Info);
+    }
+
+    // ========== 金额联动（单价/计价单位/取量变动 → 自动重算总价；手动输入总价则覆盖） ==========
+    private void RecomputeTotalIfAuto(OrderItemViewModel item)
+    {
+        if (item.IsTotalManual) return;
+        item.TotalPrice = ComputeAutoTotal(item);
+    }
+
+    private static decimal? ComputeAutoTotal(OrderItemViewModel item)
+    {
+        if (!item.UnitPrice.HasValue || item.UnitPrice.Value <= 0) return null;
+        // 取量一律收敛 1 位小数后计价（与保存入库口径一致，保证 单价×取量=总价）
+        decimal? amount = item.PricingUnit switch
+        {
+            PricingUnit.PerKg => item.ContractWeight > 0 ? Math.Round(item.ContractWeight, 1, MidpointRounding.AwayFromZero) : null,
+            PricingUnit.PerMeter => item.Meters.HasValue && item.Meters.Value > 0 ? Math.Round(item.Meters.Value, 1, MidpointRounding.AwayFromZero) : null,
+            PricingUnit.PerPiece => item.Quantity.HasValue && item.Quantity.Value > 0 ? item.Quantity.Value : null,
+            _ => null
+        };
+        if (!amount.HasValue || amount.Value <= 0) return null;
+        return Math.Round(item.UnitPrice.Value * amount.Value, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private void ResetTotalAuto(OrderItemViewModel item)
+    {
+        item.IsTotalManual = false;
+        RecomputeTotalIfAuto(item);
+        StateHasChanged();
     }
 
     // ========== 保存 ==========
@@ -904,6 +971,9 @@
 
             foreach (var item in _editItems)
             {
+                // 总价：手动覆盖则用输入值，否则按 计价单位×取量 自动计算
+                var finalTotal = item.IsTotalManual ? item.TotalPrice : ComputeAutoTotal(item);
+
                 var saveReq = new OrderItemSaveRequest
                 {
                     Id = item.Id ?? 0,
@@ -925,9 +995,14 @@
                     MinLength = item.MinLength,
                     MaxLength = item.MaxLength,
                     Quantity = item.Quantity,
-                    Meters = item.Meters,
-                    ContractWeight = item.ContractWeight,
-                    Remark = item.Remark
+                    // 米数/合同重量仅保留1位小数（前端收敛）
+                    Meters = item.Meters.HasValue ? Math.Round(item.Meters.Value, 1, MidpointRounding.AwayFromZero) : null,
+                    ContractWeight = Math.Round(item.ContractWeight, 1, MidpointRounding.AwayFromZero),
+                    Remark = item.Remark,
+                    // 单价/总价保留2位
+                    PricingUnit = item.PricingUnit,
+                    UnitPrice = item.UnitPrice.HasValue ? Math.Round(item.UnitPrice.Value, 2, MidpointRounding.AwayFromZero) : null,
+                    TotalPrice = finalTotal.HasValue ? Math.Round(finalTotal.Value, 2, MidpointRounding.AwayFromZero) : null
                 };
 
                 if (!item.Id.HasValue || item.Id.Value == 0)
@@ -1008,11 +1083,11 @@
         }
     }
 
-    private async Task PrintOrder()
+    private async Task PrintOrder(bool includeAmounts = true)
     {
         try
         {
-            var request = new OrderPrintBatchRequest { Ids = new[] { Id } };
+            var request = new OrderPrintBatchRequest { Ids = new[] { Id }, IncludeAmounts = includeAmounts };
             Snackbar.Add("正在生成PDF...", Severity.Info);
             var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Order}/print-file";
             var json = JsonSerializer.Serialize(request);
@@ -1442,7 +1517,7 @@
                 {
                     builder.OpenComponent<MudNumericField<int?>>(0);
                     builder.AddAttribute(1, "Value", item.Quantity);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => item.Quantity = v));
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => { item.Quantity = v; RecomputeTotalIfAuto(item); }));
                     builder.AddAttribute(3, "Format", "G29");
                     builder.AddAttribute(4, "Dense", true);
                     builder.AddAttribute(5, "Variant", Variant.Outlined);
@@ -1460,8 +1535,8 @@
                     builder.AddAttribute(1, "style", "display:inline-flex;align-items:center;gap:2px;");
                     builder.OpenComponent<MudNumericField<decimal?>>(0);
                     builder.AddAttribute(1, "Value", item.Meters);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => item.Meters = v));
-                    builder.AddAttribute(3, "Format", "G29");
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => { item.Meters = v.HasValue ? Math.Round(v.Value, 1, MidpointRounding.AwayFromZero) : null; RecomputeTotalIfAuto(item); }));
+                    builder.AddAttribute(3, "Format", "0.#");
                     builder.AddAttribute(4, "Dense", true);
                     builder.AddAttribute(5, "Variant", Variant.Outlined);
                     builder.AddAttribute(6, "Size", Size.Small);
@@ -1476,15 +1551,15 @@
                     builder.CloseComponent();
                     builder.CloseElement();
                 }
-                else { builder.AddContent(0, item.Meters?.ToString("G29") ?? ""); }
+                else { builder.AddContent(0, DisplayHelper.FormatWeight1(item.Meters)); }
                 break;
             case "contractweight":
                 if (_isEditMode)
                 {
                     builder.OpenComponent<MudNumericField<decimal>>(0);
                     builder.AddAttribute(1, "Value", item.ContractWeight);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<decimal>(this, v => item.ContractWeight = v));
-                    builder.AddAttribute(3, "Format", "G29");
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<decimal>(this, v => { item.ContractWeight = Math.Round(v, 1, MidpointRounding.AwayFromZero); RecomputeTotalIfAuto(item); }));
+                    builder.AddAttribute(3, "Format", "0.#");
                     builder.AddAttribute(4, "Dense", true);
                     builder.AddAttribute(5, "Variant", Variant.Outlined);
                     builder.AddAttribute(6, "Size", Size.Small);
@@ -1492,7 +1567,7 @@
                     builder.AddAttribute(8, "HideSpinButtons", true);
                     builder.CloseComponent();
                 }
-                else { builder.AddContent(0, item.ContractWeight.ToString("G29")); }
+                else { builder.AddContent(0, DisplayHelper.FormatWeight1(item.ContractWeight)); }
                 break;
             case "theoreticalweight":
                 if (_isEditMode)
@@ -1501,7 +1576,7 @@
                     builder.AddAttribute(1, "style", "display:inline-flex;align-items:center;gap:2px;");
                     builder.OpenComponent<MudText>(0);
                     builder.AddAttribute(1, "Typo", Typo.body2);
-                    builder.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, item.TheoreticalWeight.ToString("G29"))));
+                    builder.AddAttribute(2, "ChildContent", (RenderFragment)(b => b.AddContent(0, DisplayHelper.FormatWeight1(item.TheoreticalWeight))));
                     builder.CloseComponent();
                     builder.OpenComponent<MudIconButton>(0);
                     builder.AddAttribute(1, "Icon", Icons.Material.Filled.Calculate);
@@ -1511,7 +1586,85 @@
                     builder.CloseComponent();
                     builder.CloseElement();
                 }
-                else { builder.AddContent(0, item.TheoreticalWeight.ToString("G29")); }
+                else { builder.AddContent(0, DisplayHelper.FormatWeight1(item.TheoreticalWeight)); }
+                break;
+            case "pricingunit":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudSelect<PricingUnit>>(0);
+                    builder.AddAttribute(1, "Value", item.PricingUnit);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<PricingUnit>(this, v => { item.PricingUnit = v; RecomputeTotalIfAuto(item); }));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+
+                    builder.AddAttribute(7, "ChildContent", (RenderFragment)(cb =>
+                    {
+                        foreach (var opt in DisplayHelper.GetEnumOptions<PricingUnit>())
+                        {
+                            cb.OpenComponent<MudSelectItem<PricingUnit>>(0);
+                            cb.AddAttribute(1, "Value", Enum.Parse<PricingUnit>(opt.Value));
+                            cb.AddAttribute(2, "Text", opt.Display);
+                            cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
+                            cb.CloseComponent();
+                        }
+                    }));
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, DisplayHelper.GetPriceUnitText(item.PricingUnit)); }
+                break;
+            case "unitprice":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudNumericField<decimal?>>(0);
+                    builder.AddAttribute(1, "Value", item.UnitPrice);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v =>
+                    {
+                        item.UnitPrice = v.HasValue ? Math.Round(v.Value, 2, MidpointRounding.AwayFromZero) : null;
+                        RecomputeTotalIfAuto(item);
+                    }));
+                    builder.AddAttribute(3, "Format", "0.##");
+                    builder.AddAttribute(4, "Dense", true);
+                    builder.AddAttribute(5, "Variant", Variant.Outlined);
+                    builder.AddAttribute(6, "Size", Size.Small);
+
+                    builder.AddAttribute(8, "HideSpinButtons", true);
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, DisplayHelper.FormatMoney2(item.UnitPrice)); }
+                break;
+            case "totalprice":
+                if (_isEditMode)
+                {
+                    builder.OpenElement(0, "div");
+                    builder.AddAttribute(1, "style", "display:inline-flex;align-items:center;gap:2px;");
+                    builder.OpenComponent<MudNumericField<decimal?>>(0);
+                    builder.AddAttribute(1, "Value", item.TotalPrice);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v =>
+                    {
+                        item.TotalPrice = v.HasValue ? Math.Round(v.Value, 2, MidpointRounding.AwayFromZero) : null;
+                        item.IsTotalManual = true;
+                    }));
+                    builder.AddAttribute(3, "Format", "0.##");
+                    builder.AddAttribute(4, "Dense", true);
+                    builder.AddAttribute(5, "Variant", Variant.Outlined);
+                    builder.AddAttribute(6, "Size", Size.Small);
+
+                    builder.AddAttribute(8, "HideSpinButtons", true);
+                    builder.CloseComponent();
+                    if (item.IsTotalManual)
+                    {
+                        builder.OpenComponent<MudIconButton>(0);
+                        builder.AddAttribute(1, "Icon", Icons.Material.Filled.Restore);
+                        builder.AddAttribute(2, "Title", "恢复自动计算总价");
+                        builder.AddAttribute(3, "Color", Color.Primary);
+                        builder.AddAttribute(4, "Size", Size.Small);
+                        builder.AddAttribute(5, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => ResetTotalAuto(item)));
+                        builder.CloseComponent();
+                    }
+                    builder.CloseElement();
+                }
+                else { builder.AddContent(0, DisplayHelper.FormatMoney2(item.TotalPrice)); }
                 break;
             case "remark":
                 if (_isEditMode)

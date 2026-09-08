@@ -104,7 +104,7 @@
                     }
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>
+                        <MudTd Class="@(col.Key == "ParamValue" ? "text-center" : null)">
                         @if (col.Key == "Context")
                         {
                             if (rowEditing && rowCache != null)

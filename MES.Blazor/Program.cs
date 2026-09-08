@@ -49,6 +49,7 @@ builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ProductRequirementService>();
 builder.Services.AddScoped<OrderDemandAdjustmentService>();
 builder.Services.AddScoped<PendingDeliveryService>();
+builder.Services.AddScoped<OrderProgressService>();
 
 // ========== 生产标准上下文 ==========
 builder.Services.AddScoped<GradeMappingService>();

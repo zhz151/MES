@@ -1,0 +1,233 @@
+@page "/production-execution-check"
+@using MES.Blazor.Services
+@using MES.Blazor.Helpers
+@using MES.Core.Models
+@using MES.Core.Enums
+@using Microsoft.AspNetCore.Authorization
+@using MES.Blazor.Shared
+@using MES.Core.DTOs.Batch
+@inject BatchService BatchService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject ColumnPrefsService ColumnPrefs
+@inject PageStateService PageState
+@inject HttpClient Http
+@attribute [Authorize(Roles = Roles.Policies.BatchView)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.Rule" Class="mr-2" Color="Color.Primary" />
+                    生产执行核查
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           Color="@(_showDoubtExecutionCard ? Color.Warning : Color.Default)"
+                           StartIcon="@(_showDoubtExecutionCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleDoubtExecutionCard" Class="ml-2">
+                    错疑-生产批次执行
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <!-- 「错疑-生产批次执行」聚合卡（默认折叠；展开时懒加载。4 类错疑批次数 + 领料重量合计，点击数据值联动筛选下方批次列表） -->
+            @if (_showDoubtExecutionCard)
+            {
+                <div class="d-flex justify-end mb-3" style="width:100%;">
+                    <MudCard Class="summary-card" Elevation="0" Style="width:420px; flex-shrink:0;">
+                        <MudCardContent>
+                            <div class="d-flex justify-space-between align-center mb-2" style="width:100%;">
+                                <MudText Typo="Typo.subtitle2">
+                                    <b>错疑-生产批次执行</b>
+                                </MudText>
+                                @if (HasActiveDoubtFilter)
+                                {
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Default"
+                                               StartIcon="@Icons.Material.Filled.FilterAltOff"
+                                               OnClick="CancelDoubtExecutionFilterAsync" Class="pa-0">
+                                        取消筛选
+                                    </MudButton>
+                                }
+                            </div>
+                            @if (_doubtExecutionItems == null)
+                            {
+                                <MudText Typo="Typo.body2" Class="text-hint">@(_doubtExecutionLoading ? "正在加载..." : "数据加载失败")</MudText>
+                            }
+                            else
+                            {
+                                <table style="width:100%; border-collapse:collapse; font-size:0.8125rem;">
+                                    <thead>
+                                        <tr style="background:#f5f5f5;">
+                                            <th style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">错疑类别</th>
+                                            <th style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">批次数量</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var item in _doubtExecutionItems)
+                                        {
+                                            var clickable = item.BatchCount > 0;
+                                            <tr>
+                                                <td style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">@item.DoubtTypeText</td>
+                                                <td style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center;@(clickable ? " cursor:pointer; font-weight:600; color:#c62828;" : " color:#bdbdbd;")"
+                                                    class="@(clickable ? "estimate-cell" : "")"
+                                                    @onclick="() => ApplyDoubtExecutionLink(item)">@FormatDoubtExecutionCell(item)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                                <MudText Typo="Typo.caption" Class="text-hint mt-1">点击数据值联动筛选下方批次列表</MudText>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+                </div>
+            }
+
+            <!-- 卡片点击联动筛选提示条 -->
+            @if (HasActiveDoubtFilter)
+            {
+                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-2" Dense="true">
+                    <div class="d-flex align-center justify-space-between" style="gap: 8px;">
+                        <MudText Class="d-inline">已按「@_doubtLabel」联动筛选批次列表（共 @_totalCount 条）</MudText>
+                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary" OnClick="CancelDoubtExecutionFilterAsync">
+                            清除筛选
+                        </MudButton>
+                    </div>
+                </MudAlert>
+            }
+
+            <!-- 数据表格 -->
+            <div id="production-execution-check-list-table">
+            @{
+                var _groupHeaders = GetGroupHeaders();
+                var _totalTableWidth = _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40 + 80;
+            }
+            @* 工具栏 *@
+            <div class="list-toolbar">
+                <div class="d-flex align-center">
+                    <ColumnDisplaySelect Columns="_allColumns"
+                                         OnColumnToggle="OnColumnToggle"
+                                         OnMoveUp="MoveColumnUp"
+                                         OnMoveDown="MoveColumnDown" />
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.RestartAlt"
+                               OnClick="ResetColumnDisplay" Class="ml-2">
+                        重置
+                    </MudButton>
+                </div>
+                <div class="d-flex align-center" style="margin-left:auto;">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Print"
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintSelected">
+                        打印选中 (@selectedIds.Count)
+                    </MudButton>
+                    <MudText Typo="Typo.body2" Class="ml-2">
+                        共 @_totalCount 条记录
+                    </MudText>
+                </div>
+            </div>
+            @* 分组标题栏 — 紧邻表头上方 *@
+            <div class="col-group-header-scroll">
+                <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                    @foreach (var gh in _groupHeaders)
+                    {
+                        <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                            <span class="col-group-badge">@gh.GroupName</span>
+                        </div>
+                    }
+                </div>
+            </div>
+            <MudTable @ref="table"
+                      T="ProductionBatchListDto"
+                      ServerData="@LoadDataFromServer"
+                      Dense="true"
+                      Hover="true"
+                      Class="mt-0 auto-table compact-table"
+                      Elevation="0"
+                      RowsPerPage="@_pageSize"
+                      RowsPerPageLabel="每页行数:">
+                <HeaderContent>
+                    @{
+                        int? _prevGk = null;
+                    }
+                    <MudTh Class="col-selection-th" Style="width:40px;padding:0 4px;">
+                        <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
+                    </MudTh>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                        _prevGk = col.GroupKey;
+                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
+                        <MudTh Class="@_headerClass" Style="@($"width:{col.Width}px")">
+                            <div style="display:inline-flex; align-items:center; gap:4px;">
+                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
+                                @if (col.FilterType != null)
+                                {
+                                    @* 使用原始全量数据供筛选器计算可选值 *@
+                                    <ExcelFilter T="ProductionBatchListDto"
+                                                 Label="@col.Label"
+                                                 FieldKey="@col.Key"
+                                                 FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
+                                                 ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"
+                                                 FilterChanged="@(args => OnColumnFilterChanged(args.fieldKey, args.selectedValues))" />
+
+                                }
+                            </div>
+                        </MudTh>
+                    }
+                    <MudTh Style="width: 80px;">操作</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="item">
+                    @{
+                        int? _prevGk2 = null;
+                    }
+                    <MudTd Class="col-selection-td" Style="width:40px;padding:0 4px;">
+                        <MudCheckBox T="bool"
+                                     Value="@selectedIds.Contains(item.Id)"
+                                     ValueChanged="@((v) => { if(v) selectedIds.Add(item.Id); else selectedIds.Remove(item.Id); StateHasChanged(); })"
+                                     Dense="true" />
+                    </MudTd>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                        _prevGk2 = col.GroupKey;
+                        var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
+                        <MudTd Class="@($"{_cellClass} {GetAlignClass(col)}")">@RenderCell(item, col)</MudTd>
+                    }
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                       Color="Color.Info"
+                                       Size="Size.Small"
+                                       OnClick="@(() => ViewDetail(item.Id))"
+                                       Title="查看详情" />
+                    </MudTd>
+                </RowTemplate>
+                <FooterContent>
+                    @{
+                        int? _prevGk3 = null;
+                    }
+                    <MudTd Class="col-selection-td col-footer-cell" Style="width:40px;padding:0 4px;"></MudTd>
+                    @foreach (var col in _visibleColumns)
+                    {
+                        var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
+                        _prevGk3 = col.GroupKey;
+                        var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
+                        <MudTd Class="@($"{_footerClass} {GetAlignClass(col)}")"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                    }
+                    <MudTd Class="col-footer-cell"></MudTd>
+                </FooterContent>
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[]{10,15,25,50,100}" />
+                </PagerContent>
+            </MudTable>
+            </div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>

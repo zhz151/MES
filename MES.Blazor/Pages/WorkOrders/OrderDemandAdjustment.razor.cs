@@ -84,6 +84,10 @@ public partial class OrderDemandAdjustment
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
+    // 列显隐默认布局版本：调整默认显隐后须递增，使已持久化 PageState 失效、新默认立即生效（2026-09-08）
+    private const string ColumnLayoutVersion = "v1";
+    private string PageStateStorageKey => $"workorders-demand-adjustment-{ColumnLayoutVersion}";
+
     private static List<ColumnDef> GetAllColumnDefs()
     {
         // G1: 工单基础数据（与工单执行状况读模型 G1 对齐：顺序/默认可见性一致）
@@ -92,8 +96,8 @@ public partial class OrderDemandAdjustment
             new() { Key = "WorkOrderNo",             Label = "工单号",          SortKey = "WorkOrderNo",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "Salesman",                Label = "业务员",          SortKey = "Salesman",                FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "CustomerName",            Label = "往来单位",        SortKey = "CustomerName",            FilterType = "string", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "EndCustomer",             Label = "最终客户",        SortKey = "EndCustomer",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate",                FilterType = "date", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "EndCustomer",             Label = "最终客户",        SortKey = "EndCustomer",             FilterType = "string", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate",                FilterType = "date", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "DeliveryDate",            Label = "交货日期",        SortKey = "DeliveryDate",            FilterType = "date", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "DelayPenalty",            Label = "延期罚款",        SortKey = "DelayPenalty",            FilterType = "boolean", Width = "120", BoolTrueLabel = "是", BoolFalseLabel = "否", Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "SettlementMethod",        Label = "结算方式",        SortKey = "SettlementMethod",        FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>(), Visible = false, GroupKey = 1, GroupName = "基础数据" },
@@ -118,11 +122,11 @@ public partial class OrderDemandAdjustment
         {
             new() { Key = "ScheduleStage",           Label = "主号-关注",       SortKey = "ScheduleStage",           FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetScheduleStageOptions(), GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
             new() { Key = "UrgencyLevel",            Label = "主号-计划性",     SortKey = "UrgencyLevel",            FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
-            new() { Key = "EstimatedProcessCompletionDate",Label = "主号-预计完成日",SortKey = "EstimatedProcessCompletionDate", FilterType = "date", Width = "120", GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "EstimatedProcessCompletionDate",Label = "主号-预计完成日",SortKey = "EstimatedProcessCompletionDate", FilterType = "date", Width = "120", Visible = false, GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
             new() { Key = "DaysDiffFromDelivery",    Label = "主号-交期相差天数", SortKey = "DaysDiffFromDelivery",  FilterType = "number", Width = "80", Visible = false, GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
             new() { Key = "TotalRemainingWorkDays",  Label = "主号-剩余总工量(天)",SortKey = "TotalRemainingWorkDays", FilterType = "number", Width = "80", Visible = false, GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
             new() { Key = "CapacityWorkDays",        Label = "主号-产能工量(天)", SortKey = "CapacityWorkDays",      FilterType = "number", Width = "80", Visible = false, GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
-            new() { Key = "RawMaterialLockRemark",   Label = "主号-原锁备注",   SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120",                              GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
+            new() { Key = "RawMaterialLockRemark",   Label = "主号-原锁备注",   SortKey = "RawMaterialLockRemark",   FilterType = "string", Width = "120", Visible = false,          GroupKey = 12, GroupName = "实时关注", Level = ColumnLevel.MainNo },
         };
 
         // G13: 工单需求调整（手工编辑，与读模型 G2 Label/宽度对齐）
@@ -145,6 +149,14 @@ public partial class OrderDemandAdjustment
         all.AddRange(g13);
         return all;
     }
+
+    /// <summary>单元格对齐：数值类字段居中，其它字段靠左</summary>
+    private static string GetAlignClass(ColumnDef col) => col.Key switch
+    {
+        "MinLength" or "MaxLength" or "TotalItemCount" or "TotalQuantity" or "TotalMeters" or "TotalWeight" or
+        "DaysDiffFromDelivery" or "TotalRemainingWorkDays" or "CapacityWorkDays" => "text-center",
+        _ => ""
+    };
 
     // ========== 服务端数据加载 ==========
 
@@ -546,7 +558,7 @@ public partial class OrderDemandAdjustment
         _allColumns = GetAllColumnDefs();
 
         // 恢复排序/筛选/列显隐状态
-        var savedState = await PageState.LoadAsync("workorders-demand-adjustment");
+        var savedState = await PageState.LoadAsync(PageStateStorageKey);
         if (savedState != null)
         {
             sortColumn = savedState.SortBy ?? "ScheduleStage";
@@ -926,7 +938,7 @@ public partial class OrderDemandAdjustment
             PageIndex = _currentPageIndex,
             Extras = extras
         };
-        await PageState.SaveAsync("workorders-demand-adjustment", state);
+        await PageState.SaveAsync(PageStateStorageKey, state);
     }
 
     private void ComputePageSums()

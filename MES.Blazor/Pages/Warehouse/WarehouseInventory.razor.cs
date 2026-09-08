@@ -75,6 +75,15 @@ public partial class WarehouseInventory
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    // ========== 数值列（数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    {
+        "MinLength", "MaxLength",
+        "InitialQuantity", "InitialWeight", "UnitWeight", "Meters",
+        "RemainingMeters", "RemainingQuantity", "RemainingWeight"
+    };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+
     // 多选
     private HashSet<InventoryBatchDto> _selectedItems = new();
 

@@ -245,11 +245,11 @@ public class BatchService : IBatchService
             }
         }
 
-        // 创建时间（登记日期）范围筛选
+        // 创建时间（登记日期）范围筛选：To 端含当天（2026-09-09 修复：原 <= to 当日 00:00 会把"至"当天全部排除）
         if (query.StartDateFrom.HasValue)
             queryable = queryable.Where(b => b.CreatedTime >= query.StartDateFrom.Value);
         if (query.StartDateTo.HasValue)
-            queryable = queryable.Where(b => b.CreatedTime <= query.StartDateTo.Value);
+            queryable = queryable.Where(b => b.CreatedTime < query.StartDateTo.Value.AddDays(1));
 
         // ===== 关联工单状态派生字段筛选（工单关注 ScheduleStage / 执行匹配 ExecutionMatch） =====
         // 非实体属性，ApplyFilters 反射无法处理，需拦截后按关联子查询过滤

@@ -76,8 +76,8 @@
                                         <MudTd>@item.BatchNo</MudTd>
                                         <MudTd>@item.PlantGrade</MudTd>
                                         <MudTd>@item.Specification</MudTd>
-                                        <MudTd>@item.DefectQuantity</MudTd>
-                                        <MudTd>@(item.DefectiveWeight?.ToString() ?? "-")</MudTd>
+                                        <MudTd Class="text-center">@item.DefectQuantity</MudTd>
+                                        <MudTd Class="text-center">@(item.DefectiveWeight?.ToString() ?? "-")</MudTd>
                                         <MudTd>@item.DefectDescription</MudTd>
                                         <MudTd>@GetDisposalMethodText(item.DisposalMethod)</MudTd>
                                     </RowTemplate>
@@ -222,7 +222,7 @@
                                     </MudChip>
                                 </MudTd>
                                 <MudTd>@item.DefectQuantity / @item.TotalQuantity</MudTd>
-                                <MudTd>@item.Percentage.ToString("F1")%</MudTd>
+                                <MudTd Class="text-center">@item.Percentage.ToString("F1")%</MudTd>
                             </RowTemplate>
                         </MudTable>
                     </div>
@@ -367,7 +367,8 @@
                         var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                         _prevGk2 = col.GroupKey;
                         var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
-                        <MudTd Class="@_cellClass">
+                        var _cellAlignClass = IsNumericColumn(col) ? " text-center" : "";
+                        <MudTd Class="@(_cellClass + _cellAlignClass)">
                             @RenderCell(item, col)
                         </MudTd>
                     }

@@ -134,7 +134,9 @@
                         {
                             var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                             _prevGk2 = col.GroupKey;
-                            <MudTd Class="@GetCellGroupCss(col.GroupKey, _isGroupStart2)">@RenderCell(item, col)</MudTd>
+                            var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
+                            var _cellAlignClass = IsNumericColumn(col) ? " text-center" : "";
+                            <MudTd Class="@(_cellClass + _cellAlignClass)">@RenderCell(item, col)</MudTd>
                         }
                     </RowTemplate>
                 </MudTable>
@@ -217,6 +219,13 @@
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns => _allColumns.Where(c => c.Visible).ToList();
     private const string ColumnPrefsKey = "requirement_detail";
+
+    // ========== 数值列（项次/外径/壁厚/支数/合同重量，数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    {
+        "sequence", "outerdiameter", "wallthickness", "quantity", "contractweight"
+    };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
 
     // ========== 初始化 ==========
     protected override async Task OnInitializedAsync()

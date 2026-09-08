@@ -74,12 +74,12 @@ public interface IOrderService
     /// <summary>
     /// 打印单个订单PDF
     /// </summary>
-    Task<byte[]> PrintOrderAsync(int id);
+    Task<byte[]> PrintOrderAsync(int id, bool includeAmounts = true);
 
     /// <summary>
-    /// 打印选中批次订单PDF
+    /// 打印选中批次订单PDF（includeAmounts=false 时不显示计价单位/单价/总价）
     /// </summary>
-    Task<byte[]> PrintOrderBatchAsync(int[] ids);
+    Task<byte[]> PrintOrderBatchAsync(int[] ids, bool includeAmounts = true);
 
     /// <summary>
     /// 打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）

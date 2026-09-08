@@ -590,7 +590,12 @@ public class WorkOrderService : IWorkOrderService
                     if (invPlans.Any()) _context.InventoryPlans.RemoveRange(invPlans);
                     if (piercingPlans.Any()) _context.RoundBarPiercingPlans.RemoveRange(piercingPlans);
                     if (inProcessReworkPlans.Any()) _context.InProcessReworkPlans.RemoveRange(inProcessReworkPlans);
-                    if (fixedLengthRows.Any()) _context.FixedLengthWorkOrders.RemoveRange(fixedLengthRows);
+                    if (fixedLengthRows.Any())
+                    {
+                        _context.FixedLengthWorkOrders.RemoveRange(fixedLengthRows);
+                        // 重下单预删旧定尺行（后续无定尺项时也要失效）→ 主动失效定尺列表缓存（2026-09-08）
+                        _cache.Remove(CacheKeys.FixedLengthWorkOrderList);
+                    }
 
                     // 清理读模型行
                     var delListRows = await _context.Set<WorkOrderListSummary>()
@@ -707,6 +712,8 @@ public class WorkOrderService : IWorkOrderService
                 {
                     _context.FixedLengthWorkOrders.AddRange(builtFixedLengthRows);
                     await _context.SaveChangesAsync();
+                    // 生成定尺工单行 → 定尺联通视图数据源变化，主动失效其列表缓存（2026-09-08）
+                    _cache.Remove(CacheKeys.FixedLengthWorkOrderList);
                 }
 
                 await transaction.CommitAsync();
@@ -1006,7 +1013,12 @@ public class WorkOrderService : IWorkOrderService
                         if (invPlans.Any()) _context.InventoryPlans.RemoveRange(invPlans);
                         if (piercingPlans.Any()) _context.RoundBarPiercingPlans.RemoveRange(piercingPlans);
                         if (inProcessReworkPlans.Any()) _context.InProcessReworkPlans.RemoveRange(inProcessReworkPlans);
-                        if (fixedLengthRows.Any()) _context.FixedLengthWorkOrders.RemoveRange(fixedLengthRows);
+                        if (fixedLengthRows.Any())
+                        {
+                            _context.FixedLengthWorkOrders.RemoveRange(fixedLengthRows);
+                            // 更新修改删除未匹配工单 → 定尺联通视图数据源变化，主动失效其列表缓存（2026-09-08）
+                            _cache.Remove(CacheKeys.FixedLengthWorkOrderList);
+                        }
 
                         // 清理读模型行（删除工单的执行状况不会在后续增量刷新中被清除）
                         var delListSummary = await _context.Set<WorkOrderListSummary>()
@@ -1077,6 +1089,9 @@ public class WorkOrderService : IWorkOrderService
                         _context.FixedLengthWorkOrders.AddRange(newRows);
                         await _context.SaveChangesAsync();
                     }
+
+                    // 更新修改工单 → FixedLengthWorkOrder 行删除/重建，定尺联通视图数据源变化，主动失效其列表缓存（2026-09-08）
+                    _cache.Remove(CacheKeys.FixedLengthWorkOrderList);
                 }
 
                 await transaction.CommitAsync();
@@ -1332,7 +1347,7 @@ public class WorkOrderService : IWorkOrderService
         if (query.DeliveryDateStart.HasValue)
             workOrderQuery = workOrderQuery.Where(wo => wo.DeliveryDate >= query.DeliveryDateStart.Value);
         if (query.DeliveryDateEnd.HasValue)
-            workOrderQuery = workOrderQuery.Where(wo => wo.DeliveryDate <= query.DeliveryDateEnd.Value);
+            workOrderQuery = workOrderQuery.Where(wo => wo.DeliveryDate < query.DeliveryDateEnd.Value.AddDays(1));
         if (query.SignDateFrom.HasValue)
             workOrderQuery = workOrderQuery.Where(wo => wo.SignDate >= query.SignDateFrom.Value);
         if (query.SignDateTo.HasValue)
@@ -1409,7 +1424,7 @@ public class WorkOrderService : IWorkOrderService
         if (query.DeliveryDateStart.HasValue)
             summaryQuery = summaryQuery.Where(s => s.DeliveryDate >= query.DeliveryDateStart.Value);
         if (query.DeliveryDateEnd.HasValue)
-            summaryQuery = summaryQuery.Where(s => s.DeliveryDate <= query.DeliveryDateEnd.Value);
+            summaryQuery = summaryQuery.Where(s => s.DeliveryDate < query.DeliveryDateEnd.Value.AddDays(1));
         if (query.SignDateFrom.HasValue)
             summaryQuery = summaryQuery.Where(s => s.SignDate >= query.SignDateFrom.Value);
         if (query.SignDateTo.HasValue)
@@ -1522,7 +1537,7 @@ public class WorkOrderService : IWorkOrderService
                         && e.InProcessReworkPlanWeight <= 0
                         && e.InMainPlanWeight <= 0))).Any());
         }
-        // ===== 应用「在产在检-错疑待料」卡片点击联动筛选（主号-关注档位 + 字段>0） =====
+        // ===== 应用「错误-用料计划及其执行」卡片点击联动筛选（主号-关注档位 + 字段>0） =====
         // 点击「生产执行/成品检验/主号完成 + 理论原料未至」→ ScheduleStage=X AND TotalMissingWeight>0（3% 门槛口径）
         // 点击「生产执行/成品检验/主号完成 + 工单到料未投」→ ScheduleStage=X AND PendingInputWeight>0（Max(0, 现可投料总重−已投)）
         if (linkFilter != null && linkFilter.ScheduleStage.HasValue)
@@ -1708,6 +1723,13 @@ public class WorkOrderService : IWorkOrderService
                 InProcessReworkPlanTotalPieces = s.InProcessReworkPlanTotalPieces,
                 InMainWorkOrderPlanTotalWeight = s.InMainWorkOrderPlanTotalWeight,
                 InMainWorkOrderPlanTotalPieces = s.InMainWorkOrderPlanTotalPieces,
+                PiercingSubInWeight = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (decimal?)e.PiercingSubInWeight).FirstOrDefault(),
+                SemiInWeight = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (decimal?)e.SemiInWeight).FirstOrDefault(),
+                FinishInWeight = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (decimal?)e.FinishInWeight).FirstOrDefault(),
+                InventoryOutWeight = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (decimal?)e.InventoryOutWeight).FirstOrDefault(),
+                ReworkPlanInputWeight = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (decimal?)e.ReworkPlanInputWeight).FirstOrDefault(),
+                InProcessReworkInputWeight = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (decimal?)e.InProcessReworkInputWeight).FirstOrDefault(),
+                InMainInputWeight = execSummary.Where(e => e.WorkOrderId == s.WorkOrderId).Select(e => (decimal?)e.InMainInputWeight).FirstOrDefault(),
                 MaxStandardCycle = s.MaxStandardCycle,
                 MainNoMaxStandardCycle = s.MainNoMaxStandardCycle,
                 CapacityWorkDays = s.CapacityWorkDays,
@@ -1883,7 +1905,12 @@ public class WorkOrderService : IWorkOrderService
         if (invPlans.Any()) _context.InventoryPlans.RemoveRange(invPlans);
         if (piercingPlans.Any()) _context.RoundBarPiercingPlans.RemoveRange(piercingPlans);
         if (inProcessReworkPlans.Any()) _context.InProcessReworkPlans.RemoveRange(inProcessReworkPlans);
-        if (fixedLengthRows.Any()) _context.FixedLengthWorkOrders.RemoveRange(fixedLengthRows);
+        if (fixedLengthRows.Any())
+        {
+            _context.FixedLengthWorkOrders.RemoveRange(fixedLengthRows);
+            // 删除工单连带删定尺行 → 定尺联通视图数据源变化，主动失效其列表缓存（2026-09-08）
+            _cache.Remove(CacheKeys.FixedLengthWorkOrderList);
+        }
 
         // 直接清理该工单的读模型行（双重保险，即使后续完整刷新失败也不会留下脏数据）
         var summaryRow = await _context.Set<WorkOrderListSummary>()

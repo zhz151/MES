@@ -288,14 +288,14 @@ public class WorkOrderService
     }
 
     /// <summary>
-    /// 获取「在产在检-错疑待料」聚合（主号-关注 = 主号完成/生产执行/成品检验 三档 × 理论原料未至/工单到料未投 的工单数+累计重量，走工单执行状况读模型端点）
+    /// 获取「错误-用料计划及其执行」聚合（主号-关注 = 主号完成/生产执行/成品检验 三档（已过投料期）× 理论原料未至/工单到料未投 的工单数+累计重量，走工单执行状况读模型端点）
     /// </summary>
     public async Task<ApiResponse<List<InProductionInspectionDoubtItemDto>>> GetInProductionInspectionDoubtItemsAsync()
     {
         try
         {
             var response = await _http.GetFromJsonAsync<ApiResponse<List<InProductionInspectionDoubtItemDto>>>($"{ApiEndpoints.WorkOrderExecution}/in-production-inspection-doubt-items");
-            return response ?? ApiResponse<List<InProductionInspectionDoubtItemDto>>.Fail("获取在产在检错疑待料失败");
+            return response ?? ApiResponse<List<InProductionInspectionDoubtItemDto>>.Fail("获取错误-用料计划及其执行数据失败");
         }
         catch (Exception ex)
         {

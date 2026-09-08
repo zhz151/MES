@@ -502,6 +502,9 @@ public static class DbInitializer
                 // ===== ProductionThreshold 生产阈值 =====
                 new() { Category = "ProductionThreshold", CategoryDisplay = "批次-生产阈值", Context = "批次", ParamKey = "ColdRollCompleteRatio", ParamValue = 0.95m, Remark = "冷轧拔完工比率" },
 
+                // ===== FixedLengthCutRatio 定尺主号切割偏差 =====
+                new() { Category = "FixedLengthCutRatio", CategoryDisplay = "工单-定尺切割偏差", Context = "工单", ParamKey = "CutDeviationRatio", ParamValue = 0.035m, Remark = "定尺主号切割偏差阈值(3.5%)：|实切支数-理论已切|/理论已切>此比率判定异常" },
+
                 // ===== MaterialPlanRatio 物料计划系数 =====
                 new() { Category = "MaterialPlanRatio", CategoryDisplay = "工单-用料计划比率", Context = "工单", ParamKey = "FixedFinishRatio", ParamValue = 1.02m, Remark = "定尺成品采购系数" },
                 new() { Category = "MaterialPlanRatio", CategoryDisplay = "工单-用料计划比率", Context = "工单", ParamKey = "FixedInventoryRatio", ParamValue = 1.02m, Remark = "定尺库存使用系数" },

@@ -75,6 +75,26 @@ public static class DisplayHelper
     public static string FormatNullableDecimalAsIntZeroAsEmpty(decimal? value) => value is > 0 ? ((int)value.Value).ToString() : "";
 
     /// <summary>
+    /// 数量/重量前端收敛：四舍五入保留≤1位小数并去除尾零（米数/合同重量/理算重量）
+    /// </summary>
+    public static string FormatWeight1(decimal value) => Math.Round(value, 1, MidpointRounding.AwayFromZero).ToString("G29");
+
+    /// <summary>
+    /// 数量/重量前端收敛（可空版），null 显示空
+    /// </summary>
+    public static string FormatWeight1(decimal? value) => value.HasValue ? FormatWeight1(value.Value) : "";
+
+    /// <summary>
+    /// 金额前端收敛：四舍五入保留≤2位小数并去除尾零（单价/总价）
+    /// </summary>
+    public static string FormatMoney2(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero).ToString("G29");
+
+    /// <summary>
+    /// 金额前端收敛（可空版），null 显示空
+    /// </summary>
+    public static string FormatMoney2(decimal? value) => value.HasValue ? FormatMoney2(value.Value) : "";
+
+    /// <summary>
     /// 格式化可空日期值
     /// </summary>
     public static string FormatNullableDate(DateTime? value) => value?.ToString("yyyy-MM-dd") ?? "";
@@ -151,6 +171,15 @@ public static class DisplayHelper
 
     /// <summary>获取结算方式中文文本（字符串版本）</summary>
     public static string GetSettlementMethodText(string? method) => EnumHelper.GetDisplayName<SettlementMethod>(method);
+
+    /// <summary>获取计价单位中文文本（元/Kg·元/米·元/支）</summary>
+    public static string GetPriceUnitText(PricingUnit unit) => EnumHelper.GetDisplayName(unit);
+
+    /// <summary>获取计价单位中文文本（可空版本，空显示 -）</summary>
+    public static string GetPriceUnitText(PricingUnit? unit) => unit.HasValue ? EnumHelper.GetDisplayName(unit.Value) : "-";
+
+    /// <summary>获取计价单位中文文本（字符串版本）</summary>
+    public static string GetPriceUnitText(string? unit) => EnumHelper.GetDisplayName<PricingUnit>(unit);
 
     /// <summary>获取订单状态中文文本</summary>
     public static string GetSalesOrderStatusText(SalesOrderStatus status) => EnumHelper.GetDisplayName(status);

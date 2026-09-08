@@ -443,14 +443,6 @@ input[type="number"]::-webkit-outer-spin-button {
     width: auto;
 }
 
-/* ⚠️ MudTable 的 Class/Style 参数作用在根 div（class 含 "mud-table compact-table"），不是 <table class="mud-table-root">！
-   若在根 div 上设 min-width 会把根 div 撑破 → 宽度溢出外传到页面 body → 页面级横向滚动条覆盖菜单+内容。
-   正解：CSS 变量 --table-min-width 由列表页 Style 传入，仅对带 table-min-width 标识的列表页
-   把 min-width 应用到 <table> 自身 → .mud-table-container(overflow-x:auto; max-width:100%) 因表格超宽而滚动（滚动条回到表格位置）。 */
-.compact-table.table-min-width .mud-table-root {
-    min-width: var(--table-min-width, 100%);
-}
-
 .compact-table.mud-table .mud-table-cell {
     padding: 1px 1px !important;
 }
@@ -475,6 +467,23 @@ input[type="number"]::-webkit-outer-spin-button {
 /* 数值类单元格右对齐（覆盖 compact-table 的 left !important，特异性更高） */
 .compact-table.mud-table tbody .mud-table-cell.text-right {
     text-align: right !important;
+}
+
+/* 数值/金额类数据格居中通用兜底（2026-09-08 全系统「文本居左、数值居中」）：
+   供无 compact-table 作用域的表（auto-table / 其它）直接生效；compact-table 仍走上方更高特异性规则 */
+.mud-table-cell.text-center {
+    text-align: center !important;
+}
+
+/* 定尺联通视图 - 关键数值单元格强调（2026-09-08）：实切支数=蓝字加粗；需求总支/现有效产支=琥珀底加粗（供需对比对） */
+.auto-table td.mud-table-cell.flwo-emph-actual {
+    color: #1565C0 !important;
+    font-weight: 700 !important;
+}
+.auto-table td.mud-table-cell.flwo-emph-compare {
+    color: #B26A00 !important;
+    font-weight: 700 !important;
+    background: #FFF3E0 !important;
 }
 
 /* 输入框填满所在单元格宽度 */
@@ -1366,4 +1375,62 @@ td.col-edit-actions { background: #E8EAF6 !important; }
     line-height: 1.2;
     white-space: normal;
     word-break: break-all;
+}
+
+/* ============================================================
+   首页手机看板（mh-*，仅 Index.razor 的 IsMobile 手机分支使用；
+   桌面端首页不引用这些类，颜色归口本文件、不内联硬编码）
+   ============================================================ */
+
+/* 手机容器：与 64px AppBar 紧凑衔接，取消大上边距 */
+.mh-container {
+    padding-top: 0;
+    padding-bottom: 16px;
+}
+
+/* 看板块卡：白底 + 细边 + 圆角（手机上去掉桌面大纸卡的粗放观感） */
+.mh-card {
+    border: 1px solid #ECEFF1;
+    border-radius: 12px;
+    background: #fff;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+.mh-card:last-child {
+    margin-bottom: 0;
+}
+
+/* ---- 工单执行：仿质量检验白底小卡并排，整卡可点跳转 ---- */
+.mh-stage-tap {
+    display: flex;
+    flex: 1;
+    text-decoration: none;
+}
+.mh-stage-tap .mud-paper {
+    flex: 1;
+}
+
+/* ---- 批次生产：段落横向信息卡流 ---- */
+.mh-paragraph-list {
+    display: flex;
+    flex-direction: column;
+}
+.mh-paragraph-row {
+    margin-bottom: 8px;
+}
+.mh-paragraph-row:last-child {
+    margin-bottom: 0;
+}
+
+/* ============================================================
+   横屏提示条（rotate-hint-banner，仅手机端竖屏宽表页顶部显示；
+   左边框浅蓝底复用 notice-card，文案色归口本文件）
+   ============================================================ */
+.rotate-hint-banner {
+    margin: 8px 12px 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #0D47A1;
 }

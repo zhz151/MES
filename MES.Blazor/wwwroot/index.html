@@ -80,6 +80,27 @@
                 }
             };
         })();
+
+        // 横屏提示条（LandscapeHintBanner）多监听器总线：与上面 listenResize 的 _resizeRef 单槽互不干扰。
+        // 负责把 orientationchange/resize 通知给 .NET 组件，让它在「仍处移动壳但已转横屏（<700 窄横屏）」时收起。
+        window._landscapeHintRefs = [];
+        window.listenLandscapeHintRefresh = function (dotnetRef, method) {
+            if (window._landscapeHintRefs.indexOf(dotnetRef) < 0) window._landscapeHintRefs.push(dotnetRef);
+            if (!window._landscapeHintBound) {
+                window._landscapeHintBound = true;
+                window.addEventListener('orientationchange', window._notifyLandscapeHint);
+                window.addEventListener('resize', window._notifyLandscapeHint);
+            }
+        };
+        window.stopLandscapeHintRefresh = function (dotnetRef) {
+            var i = window._landscapeHintRefs.indexOf(dotnetRef);
+            if (i >= 0) window._landscapeHintRefs.splice(i, 1);
+        };
+        window._notifyLandscapeHint = function () {
+            for (var i = 0; i < window._landscapeHintRefs.length; i++) {
+                window._landscapeHintRefs[i].invokeMethodAsync('OnLandscapeHintChanged');
+            }
+        };
     </script>
     <script src="_framework/blazor.webassembly.js"></script>
 </body>

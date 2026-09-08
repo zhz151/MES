@@ -89,9 +89,9 @@
                         <tr>
                             <td>@m.EmployeeCode</td>
                             <td>@m.EmployeeName</td>
-                            <td>@(m.AttendanceHours.HasValue ? m.AttendanceHours.Value.ToString("G29") : "—")</td>
-                            <td>@(m.Score.HasValue ? m.Score.Value.ToString("0.#") : "未评分")</td>
-                            <td>@(m.Weight.HasValue ? m.Weight.Value.ToString("G29") : "—")</td>
+                            <td class="text-center">@(m.AttendanceHours.HasValue ? m.AttendanceHours.Value.ToString("G29") : "—")</td>
+                            <td class="text-center">@(m.Score.HasValue ? m.Score.Value.ToString("0.#") : "未评分")</td>
+                            <td class="text-center">@(m.Weight.HasValue ? m.Weight.Value.ToString("G29") : "—")</td>
                             <td>
                                 <input class="amount-cell-input" type="text" inputmode="decimal" maxlength="14"
                                        disabled="@(!_canEdit)"
@@ -116,7 +116,7 @@
                     <tfoot>
                         <tr>
                             <td colspan="5">本组合计(元)</td>
-                            <td>@GroupTotal(g).ToString("G29")</td>
+                            <td class="text-center">@GroupTotal(g).ToString("G29")</td>
                             <td></td>
                         </tr>
                     </tfoot>

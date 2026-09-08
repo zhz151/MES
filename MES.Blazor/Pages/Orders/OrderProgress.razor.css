@@ -1,0 +1,302 @@
+/* ===== 订单进度树（OrderProgress.razor scoped）纵向层级树 ===== */
+
+/* ===== 一级：订单号树根（两行头） ===== */
+.op-root {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    margin-bottom: 6px;
+    background: linear-gradient(90deg, #eef4fb, #f8fafc);
+    border: 1px solid #d7e0ea;
+    border-radius: 8px;
+}
+
+.op-root-icon {
+    color: #1e6fbf;
+    flex-shrink: 0;
+}
+
+.op-root-meta {
+    min-width: 0;
+    flex: 1;
+}
+
+.op-root-no {
+    color: #0d3b66;
+    margin-bottom: 2px !important;
+}
+
+.op-root-line2 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 6px;
+    row-gap: 2px;
+    color: #5c6b7a;
+}
+
+/* 键值对 token：标签 + 值 */
+.op-kv {
+    display: inline-flex;
+    align-items: baseline;
+    white-space: nowrap;
+}
+
+.op-kv .op-kv-l {
+    color: #90a0af;
+    font-size: 14px;
+    margin-right: 4px;
+}
+
+.op-kv .op-kv-v {
+    color: #0d3b66;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* ===== 树体：每主号一个节点 ===== */
+.op-main-node {
+    margin: 0 0 6px;
+}
+
+/* 二级：主号标题（两行头，整块可点击折叠） */
+.op-main-head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 12px;
+    background: #f0f3f7;
+    border: 1px solid #dde3ea;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.op-main-head:hover {
+    background: #e7edf4;
+}
+
+.op-main-line1 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 6px;
+}
+
+.op-toggle-icon {
+    color: #90a0b0;
+    margin-right: -2px;
+}
+
+.op-main-icon {
+    color: #3f6aa3;
+}
+
+.op-main-no {
+    min-width: 90px;
+    color: #1c3a57;
+    font-weight: 700;
+    font-size: 15px;
+    margin-right: 2px;
+}
+
+/* 行1 规格要素 token（白底深字小片，最小 15px） */
+.op-spec-token {
+    font-size: 15px;
+    color: #2d3a47;
+    background: #ffffff;
+    border: 1px solid #c3cdd6;
+    border-radius: 4px;
+    padding: 0 8px;
+    height: 23px;
+    line-height: 21px;
+    white-space: nowrap;
+}
+
+.op-spec-token.op-grade {
+    color: #1565c0;
+    border-color: #bcd4ee;
+    background: #f2f7fd;
+}
+
+.op-spec-token.op-wt {
+    font-weight: 600;
+    color: #1c3a57;
+}
+
+.op-spec-token.op-standard {
+    color: #37474f;
+}
+
+/* 完结主号灰显 */
+.op-main-completed .op-main-head {
+    background: #f2f2f2;
+    border-color: #dedede;
+}
+
+.op-main-completed .op-main-no,
+.op-main-completed .op-main-icon {
+    color: #8a8a8a;
+}
+
+.op-main-completed .op-spec-token {
+    background: #f5f5f5;
+    border-color: #dbdbdb;
+    color: #5f5f5f;
+}
+
+.op-main-completed .op-l2-val,
+.op-main-completed .op-l2-lbl {
+    color: #636363;
+    font-weight: 500;
+}
+
+/* 行2：执行关注 / 紧急性 / 预计完成（改显眼：标签加粗上色，档位/紧急度淡色胶囊粗体） */
+.op-main-line2 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 8px;
+    row-gap: 4px;
+    margin-left: 26px;
+}
+
+.op-l2-lbl {
+    color: #3d4d5e;
+    font-size: 15px;
+    font-weight: 600;
+    margin-right: 2px;
+}
+
+.op-l2-val {
+    color: #33475b;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+/* 执行关注档位胶囊：暂停红/原料锁橙/生产蓝/成检靛（语义沿用原 chip 配色） */
+.op-l2-val.op-v-pause {
+    padding: 1px 10px;
+    border-radius: 11px;
+    background: #fdecea;
+    color: #c62828;
+}
+.op-l2-val.op-v-lock {
+    padding: 1px 10px;
+    border-radius: 11px;
+    background: #fff3e0;
+    color: #ef6c00;
+}
+.op-l2-val.op-v-prod {
+    padding: 1px 10px;
+    border-radius: 11px;
+    background: #e1f3fd;
+    color: #0288d1;
+}
+.op-l2-val.op-v-inspect {
+    padding: 1px 10px;
+    border-radius: 11px;
+    background: #e8eafd;
+    color: #3949ab;
+}
+
+/* 紧急性胶囊：A+红/A橙/B蓝 */
+.op-l2-val.op-v-u-aplus {
+    padding: 1px 10px;
+    border-radius: 11px;
+    background: #fdecea;
+    color: #c62828;
+}
+.op-l2-val.op-v-u-a {
+    padding: 1px 10px;
+    border-radius: 11px;
+    background: #fff3e0;
+    color: #ef6c00;
+}
+.op-l2-val.op-v-u-b {
+    padding: 1px 10px;
+    border-radius: 11px;
+    background: #e1f3fd;
+    color: #0277bd;
+}
+
+/* 预计完成：加粗深蓝胶囊（无紧急度亦醒目） */
+.op-l2-date {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0d3b66;
+    padding: 1px 10px;
+    border-radius: 11px;
+    background: #eef4fb;
+}
+
+/* ===== 三级：阶段分支标题（缩进一级，色点） ===== */
+.op-stage {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0 2px 22px;
+    padding: 3px 8px 3px 0;
+}
+
+.op-stage-dot {
+    flex-shrink: 0;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+}
+
+.op-stage-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.op-stage-dot.op-stage-RawMaterialLock { background: #ef6c00; }      /* 原料锁定 · 橙 */
+.op-stage-title.op-stage-RawMaterialLock { color: #c25d04; }
+.op-stage-dot.op-stage-Production { background: #0288d1; }           /* 生产执行 · 蓝 */
+.op-stage-title.op-stage-Production { color: #0277bd; }
+.op-stage-dot.op-stage-FinalInspection { background: #3949ab; }      /* 成品检验 · 靛 */
+.op-stage-title.op-stage-FinalInspection { color: #303f9f; }
+.op-stage-dot.op-stage-Warehousing { background: #2e7d32; }          /* 成品入库 · 绿 */
+.op-stage-title.op-stage-Warehousing { color: #2e7d32; }
+
+/* 阶段下叶子所在的一列（再缩进一级，竖线贯穿） */
+.op-stage-children {
+    margin: 0 0 6px 34px;
+    padding: 2px 0 2px 10px;
+    border-left: 2px dotted #cdd6de;
+}
+
+/* ===== 四级：叶子行 ===== */
+.op-leaf-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 2px 6px;
+    font-size: 15px;
+    position: relative;
+}
+
+/* 行前水平短线，把叶子接到左侧阶段竖线上（树枝感） */
+.op-leaf-row::before {
+    content: '';
+    position: absolute;
+    left: -10px;
+    top: 50%;
+    width: 8px;
+    border-top: 1px solid #cdd6de;
+}
+
+.op-leaf-text {
+    color: #37474f;
+    font-weight: 500;
+}
+
+.op-leaf-kg {
+    color: #4f6476;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}

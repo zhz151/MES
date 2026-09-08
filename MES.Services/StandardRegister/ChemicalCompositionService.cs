@@ -579,20 +579,6 @@ public class ChemicalCompositionService : IChemicalCompositionService
         return ChemicalCompositionPrintHelper.GenerateBatchPdf(selected, columns);
     }
 
-    public async Task<byte[]> PrintAllAsync(string? keyword, string? sortBy, bool isDescending, List<PrintColumnDef> columns)
-    {
-        var query = new QueryParams
-        {
-            PageIndex = 1,
-            PageSize = int.MaxValue,
-            Keyword = keyword,
-            SortBy = string.IsNullOrEmpty(sortBy) ? null! : sortBy,
-            IsDescending = isDescending
-        };
-        var result = await GetAllAsync(query);
-        return ChemicalCompositionPrintHelper.GenerateBatchPdf(result.Items, columns);
-    }
-
     private static IQueryable<ChemicalComposition> ApplySorting(IQueryable<ChemicalComposition> queryable, string sortBy, bool isDescending)
     {
         return queryable.ApplySort(sortBy, isDescending);

@@ -599,7 +599,7 @@ public class PurchaseOrderServiceTests : TestBase
             TotalWeight = 2500m,
             ScheduleStage = 3,
             UrgencyLevel = "B",
-            RawMaterialLockRemark = "A质量补料"
+            RawMaterialLockRemark = "QualityReplenish"
         });
         await ctx.SaveChangesAsync();
 
@@ -613,7 +613,7 @@ public class PurchaseOrderServiceTests : TestBase
         row.MissingWeight.Should().Be(3000m);
         row.ExecutionScheduleStage.Should().Be(3);
         row.ExecutionUrgencyLevel.Should().Be("B");
-        row.ExecutionRawMaterialLockRemark.Should().Be("A质量补料");
+        row.ExecutionRawMaterialLockRemark.Should().Be("QualityReplenish");
         row.PlantGrade.Should().Be("20#");
         row.StatusText.Should().Be("未穿孔");
     }

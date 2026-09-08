@@ -122,13 +122,13 @@ public class OrderService : IOrderService
         if (signDateFrom.HasValue)
             queryable = queryable.Where(s => s.SignDate >= signDateFrom.Value);
         if (signDateTo.HasValue)
-            queryable = queryable.Where(s => s.SignDate <= signDateTo.Value);
+            queryable = queryable.Where(s => s.SignDate < signDateTo.Value.AddDays(1));
 
         // 交货日期范围筛选
         if (deliveryDateFrom.HasValue)
             queryable = queryable.Where(s => s.DeliveryStart >= deliveryDateFrom.Value);
         if (deliveryDateTo.HasValue)
-            queryable = queryable.Where(s => s.DeliveryStart <= deliveryDateTo.Value);
+            queryable = queryable.Where(s => s.DeliveryStart < deliveryDateTo.Value.AddDays(1));
 
         // 订单交期预估小表点击联动筛选（表1 完成预估双口径 / 表2 延期按交期截止）
         if (estimateFilter != null)
@@ -611,6 +611,9 @@ public class OrderService : IOrderService
                     ContractWeight = oi.ContractWeight,
                     TheoreticalWeight = oi.TheoreticalWeight,
                     Remark = oi.Remark,
+                    PricingUnit = oi.PricingUnit,
+                    UnitPrice = oi.UnitPrice,
+                    TotalPrice = oi.TotalPrice,
                     CreatedTime = oi.CreatedTime,
                     UpdatedTime = oi.UpdatedTime
                 };
@@ -1080,7 +1083,8 @@ public class OrderService : IOrderService
                         lengthStatus: updateReq.LengthStatus, minLength: updateReq.MinLength,
                         maxLength: CalculateMaxLength(updateReq.LengthStatus, updateReq.MinLength, updateReq.MaxLength),
                         quantity: updateReq.Quantity, meters: meters, contractWeight: normalizedCw,
-                        theoreticalWeight: theoreticalWeight, remark: updateReq.Remark);
+                        theoreticalWeight: theoreticalWeight, remark: updateReq.Remark,
+                        pricingUnit: updateReq.PricingUnit, unitPrice: updateReq.UnitPrice, totalPrice: updateReq.TotalPrice);
                 }
 
                 // 5c. 新增项次
@@ -1130,7 +1134,8 @@ public class OrderService : IOrderService
                         lengthStatus: newReq.LengthStatus, minLength: newReq.MinLength,
                         maxLength: CalculateMaxLength(newReq.LengthStatus, newReq.MinLength, newReq.MaxLength),
                         quantity: newReq.Quantity, meters: meters, contractWeight: normalizedCw,
-                        theoreticalWeight: theoreticalWeight, remark: newReq.Remark);
+                        theoreticalWeight: theoreticalWeight, remark: newReq.Remark,
+                        pricingUnit: newReq.PricingUnit, unitPrice: newReq.UnitPrice, totalPrice: newReq.TotalPrice);
 
                     _context.OrderItems.Add(orderItem);
                     allNewItems.Add((i, orderItem));
@@ -1528,7 +1533,8 @@ public class OrderService : IOrderService
             meters: meters,
             contractWeight: normalizedContractWeight,
             theoreticalWeight: theoreticalWeight,
-            remark: request.Remark);
+            remark: request.Remark,
+            pricingUnit: request.PricingUnit, unitPrice: request.UnitPrice, totalPrice: request.TotalPrice);
         return item;
     }
 
@@ -1638,7 +1644,8 @@ public class OrderService : IOrderService
         decimal density, decimal outerDiameter, decimal wallThickness, string specification,
         decimal outerDiameterNegative, decimal outerDiameterPositive, decimal wallThicknessNegative,
         decimal wallThicknessPositive, LengthStatus lengthStatus, decimal? minLength, decimal? maxLength,
-        int? quantity, decimal? meters, decimal contractWeight, decimal theoreticalWeight, string? remark)
+        int? quantity, decimal? meters, decimal contractWeight, decimal theoreticalWeight, string? remark,
+        PricingUnit? pricingUnit, decimal? unitPrice, decimal? totalPrice)
     {
         item.DeliveryDate = deliveryDate;
         item.DelayPenalty = delayPenalty;
@@ -1660,10 +1667,15 @@ public class OrderService : IOrderService
         item.MinLength = minLength ?? item.MinLength;
         item.MaxLength = maxLength ?? item.MaxLength;
         item.Quantity = quantity ?? item.Quantity;
-        item.Meters = meters ?? item.Meters;
-        item.ContractWeight = contractWeight;
-        item.TheoreticalWeight = theoreticalWeight;
+        // 取量口径统一收敛 1 位小数（前后端一致，保证 单价×取量=总价 无精度差异）
+        var finalMeters = meters ?? item.Meters;
+        item.Meters = finalMeters.HasValue ? Math.Round(finalMeters.Value, 1, MidpointRounding.AwayFromZero) : null;
+        item.ContractWeight = Math.Round(contractWeight, 1, MidpointRounding.AwayFromZero);
+        item.TheoreticalWeight = Math.Round(theoreticalWeight, 1, MidpointRounding.AwayFromZero);
         item.Remark = remark ?? item.Remark;
+        item.PricingUnit = pricingUnit ?? item.PricingUnit;
+        item.UnitPrice = unitPrice ?? item.UnitPrice;
+        item.TotalPrice = totalPrice ?? item.TotalPrice;
     }
 
     /// <summary>
@@ -1791,6 +1803,9 @@ public class OrderService : IOrderService
                         ContractWeight = oi.ContractWeight,
                         TheoreticalWeight = oi.TheoreticalWeight,
                         Remark = oi.Remark,
+                        PricingUnit = oi.PricingUnit,
+                        UnitPrice = oi.UnitPrice,
+                        TotalPrice = oi.TotalPrice,
                         CreatedTime = oi.CreatedTime,
                         UpdatedTime = oi.UpdatedTime
                     };
@@ -1799,16 +1814,16 @@ public class OrderService : IOrderService
         }).ToList();
     }
 
-    public async Task<byte[]> PrintOrderAsync(int id)
+    public async Task<byte[]> PrintOrderAsync(int id, bool includeAmounts = true)
     {
         var order = await GetByIdForPrintAsync(id);
-        return SalesOrderPrintHelper.GenerateOrderPdf(order);
+        return SalesOrderPrintHelper.GenerateOrderPdf(order, includeAmounts);
     }
 
-    public async Task<byte[]> PrintOrderBatchAsync(int[] ids)
+    public async Task<byte[]> PrintOrderBatchAsync(int[] ids, bool includeAmounts = true)
     {
         var orders = await GetByIdsForPrintAsync(ids);
-        return SalesOrderPrintHelper.GenerateBatchOrderPdf(orders);
+        return SalesOrderPrintHelper.GenerateBatchOrderPdf(orders, includeAmounts);
     }
 
     /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
@@ -1889,14 +1904,14 @@ public class OrderService : IOrderService
                     if (DateTime.TryParse(filter.From?.ToString(), out var dsFrom))
                         queryable = queryable.Where(s => s.DeliveryStart >= dsFrom);
                     if (DateTime.TryParse(filter.To?.ToString(), out var dsTo))
-                        queryable = queryable.Where(s => s.DeliveryStart <= dsTo);
+                        queryable = queryable.Where(s => s.DeliveryStart < dsTo.AddDays(1));
                     break;
 
                 case "deliveryend":
                     if (DateTime.TryParse(filter.From?.ToString(), out var deFrom))
                         queryable = queryable.Where(s => s.DeliveryEnd >= deFrom);
                     if (DateTime.TryParse(filter.To?.ToString(), out var deTo))
-                        queryable = queryable.Where(s => s.DeliveryEnd <= deTo);
+                        queryable = queryable.Where(s => s.DeliveryEnd < deTo.AddDays(1));
                     break;
 
                 case "hasdelaypenalty":

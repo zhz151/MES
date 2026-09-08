@@ -88,9 +88,9 @@
                                     <MudTd>@context.WorkOrderNo</MudTd>
                                     <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
                                     <MudTd>@context.PlantGrade</MudTd>
-                                    <MudTd Class="text-right">@(((int)context.PlanWeight).ToString())</MudTd>
-                                    <MudTd Class="text-right">@(((int)context.SubcontractWeight).ToString())</MudTd>
-                                    <MudTd Class="text-right">@(((int)context.MissingWeight).ToString())</MudTd>
+                                    <MudTd Class="text-center">@(((int)context.PlanWeight).ToString())</MudTd>
+                                    <MudTd Class="text-center">@(((int)context.SubcontractWeight).ToString())</MudTd>
+                                    <MudTd Class="text-center">@(((int)context.MissingWeight).ToString())</MudTd>
                                     <MudTd>@IntStatusDisplayHelper.GetScheduleStageText(context.ExecutionScheduleStage, "-")</MudTd>
                                     <MudTd>@(context.ExecutionRawMaterialLockRemark != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, context.ExecutionRawMaterialLockRemark) ?? "-") : "-")</MudTd>
                                     <MudTd>@(context.ExecutionUrgencyLevel != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, context.ExecutionUrgencyLevel) ?? "-") : "-")</MudTd>
@@ -165,7 +165,8 @@
                     </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>@RenderCell(item, col)</MudTd>
+                        var _cellAlignClass = IsNumericColumn(col) ? "text-center" : "";
+                        <MudTd Class="@_cellAlignClass">@RenderCell(item, col)</MudTd>
                     }
                     <MudTd Style="min-width:90px;">
                         @if (item.Status != SubcontractOrderStatus.Completed)

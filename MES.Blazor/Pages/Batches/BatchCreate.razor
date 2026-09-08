@@ -268,11 +268,11 @@
                                     <MudTd>@batch.PlantGrade</MudTd>
                                     <MudTd>@batch.Specification</MudTd>
                                     <MudTd>@DisplayHelper.GetLengthStatusText(batch.LengthStatus?.ToString())</MudTd>
-                                    <MudTd Class="text-right">@batch.UnitWeight?.ToString("G29")</MudTd>
+                                    <MudTd Class="text-center">@batch.UnitWeight?.ToString("G29")</MudTd>
                                     <MudTd>@batch.WorkOrderNo</MudTd>
                                     <MudTd>@batch.OutboundDate?.ToString("yyyy-MM-dd")</MudTd>
-                                    <MudTd Class="text-right">@batch.OutboundQuantity</MudTd>
-                                    <MudTd Class="text-right">@batch.OutboundWeight?.ToString("G29")</MudTd>
+                                    <MudTd Class="text-center">@batch.OutboundQuantity</MudTd>
+                                    <MudTd Class="text-center">@batch.OutboundWeight?.ToString("G29")</MudTd>
                                     <MudTd Class="table-cell-clamp-1">@(batch.OutboundRemark ?? "-")</MudTd>
                                     <MudTd><MudIconButton Icon="@Icons.Material.Filled.AddCircle" Color="Color.Primary" Size="Size.Small" Title="添加" OnClick="@(() => AddSourceItem(batch))" /></MudTd>
                                 </RowTemplate>
@@ -321,7 +321,7 @@
                             <MudTd>@item.PlantGrade</MudTd>
                             <MudTd>@item.Specification</MudTd>
                             <MudTd>@DisplayHelper.GetLengthStatusText(item.LengthStatus)</MudTd>
-                            <MudTd Class="text-right">@item.UnitWeight?.ToString("G29")</MudTd>
+                            <MudTd Class="text-center">@item.UnitWeight?.ToString("G29")</MudTd>
                             <MudTd><MudNumericField T="int" @bind-Value="item.InputQuantity" Dense="true" Variant="Variant.Outlined" Size="Size.Small" HideSpinButtons="true" FullWidth="true" Min="0" @bind-Value:after="() => SyncRequestFromSources()" /></MudTd>
                             <MudTd><MudNumericField T="decimal" @bind-Value="item.InputWeight" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Format="G29" HideSpinButtons="true" FullWidth="true" Min="0" @bind-Value:after="() => SyncRequestFromSources()" /></MudTd>
                             <MudTd>@item.WarehouseName</MudTd>

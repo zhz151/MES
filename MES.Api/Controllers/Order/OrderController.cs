@@ -171,7 +171,7 @@ public class OrderController : ControllerBase
     [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<IActionResult> PrintFile([FromBody] OrderPrintBatchRequest request)
     {
-        var pdfBytes = await _orderService.PrintOrderBatchAsync(request.Ids);
+        var pdfBytes = await _orderService.PrintOrderBatchAsync(request.Ids, request.IncludeAmounts);
         return File(pdfBytes, "application/pdf", "订单打印.pdf");
     }
 

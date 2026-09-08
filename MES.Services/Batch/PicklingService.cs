@@ -164,6 +164,22 @@ public class PicklingService : IPicklingService
                     && productionMainNoFilter.Values.Contains(s.ProductionBatch.ProductionMainNo));
                 query.Filters.Remove(productionMainNoFilter);
             }
+
+            // 完工日期（CompleteDate）来自出缸子表，非入缸实体列，ApplyFilters 反射不到，需手工接子表筛选
+            var completeDateFilter = query.Filters.FirstOrDefault(f => f.Field.Equals("CompleteDate", StringComparison.OrdinalIgnoreCase));
+            if (completeDateFilter != null && completeDateFilter.Values?.Count > 0)
+            {
+                var dates = completeDateFilter.Values
+                    .Select(v => DateTime.TryParse(v, out var d) ? (DateTime?)d.Date : null)
+                    .Where(d => d.HasValue)
+                    .Select(d => d!.Value)
+                    .ToList();
+                if (dates.Count > 0)
+                {
+                    queryable = queryable.Where(s => s.PicklingOutRecords.Any(o => dates.Contains(o.CompleteDate.Date)));
+                    query.Filters.Remove(completeDateFilter);
+                }
+            }
         }
 
         queryable = queryable.ApplyFilters(query.Filters);
@@ -869,6 +885,9 @@ public class PicklingService : IPicklingService
             queryable = queryable.Where(r => r.CompleteDate < to);
         }
 
+        // 列头筛选（完工记录冗余列均为出缸实体列，ApplyFilters 反射即可命中；此前缺失导致所有列筛无效）
+        queryable = queryable.ApplyFilters(query.Filters);
+
         var totalCount = await queryable.CountAsync();
 
         queryable = (query.SortBy?.ToLower(), query.IsDescending) switch
@@ -895,6 +914,16 @@ public class PicklingService : IPicklingService
             ("weight", true) => queryable.OrderByDescending(r => r.Weight ?? 0),
             ("productstatus", false) => queryable.OrderBy(r => r.ProductStatus ?? ""),
             ("productstatus", true) => queryable.OrderByDescending(r => r.ProductStatus ?? ""),
+            ("sectionname", false) => queryable.OrderBy(r => r.SectionName ?? ""),
+            ("sectionname", true) => queryable.OrderByDescending(r => r.SectionName ?? ""),
+            ("manufacturingspec", false) => queryable.OrderBy(r => r.ManufacturingSpec ?? ""),
+            ("manufacturingspec", true) => queryable.OrderByDescending(r => r.ManufacturingSpec ?? ""),
+            ("plantgrade", false) => queryable.OrderBy(r => r.PlantGrade ?? ""),
+            ("plantgrade", true) => queryable.OrderByDescending(r => r.PlantGrade ?? ""),
+            ("remark", false) => queryable.OrderBy(r => r.Remark ?? ""),
+            ("remark", true) => queryable.OrderByDescending(r => r.Remark ?? ""),
+            ("updatedtime", false) => queryable.OrderBy(r => r.UpdatedTime),
+            ("updatedtime", true) => queryable.OrderByDescending(r => r.UpdatedTime),
             _ => query.IsDescending
                 ? queryable.OrderByDescending(r => r.CreatedTime)
                 : queryable.OrderBy(r => r.CreatedTime)
@@ -1344,6 +1373,23 @@ public class PicklingService : IPicklingService
                 .ToListAsync();
             if (productStatusValues.Count > 0) dict["ProductStatus"] = productStatusValues;
 
+            // 入缸/完工日期候选（列头筛选 date 漏斗使用；取整天去重后于内存格式化 yyyy-MM-dd）
+            var inDates = await _context.PicklingInRecords
+                .AsNoTracking()
+                .Select(s => s.InDate.Date)
+                .Distinct()
+                .ToListAsync();
+            if (inDates.Count > 0)
+                dict["InDate"] = inDates.Select(d => d.ToString("yyyy-MM-dd")).OrderBy(x => x).ToList();
+
+            var completeDates = await _context.PicklingOutRecords
+                .AsNoTracking()
+                .Select(o => o.CompleteDate.Date)
+                .Distinct()
+                .ToListAsync();
+            if (completeDates.Count > 0)
+                dict["CompleteDate"] = completeDates.Select(d => d.ToString("yyyy-MM-dd")).OrderBy(x => x).ToList();
+
             return dict;
         }) ?? new Dictionary<string, List<string>>();
     }
@@ -1515,6 +1561,15 @@ public class PicklingService : IPicklingService
                 .OrderBy(x => x)
                 .ToListAsync();
             if (mfSpecs.Count > 0) dict["ManufacturingSpec"] = mfSpecs;
+
+            // 完工日期候选（列头筛选 date 漏斗使用）
+            var completeDates = await _context.PicklingOutRecords
+                .AsNoTracking()
+                .Select(r => r.CompleteDate.Date)
+                .Distinct()
+                .ToListAsync();
+            if (completeDates.Count > 0)
+                dict["CompleteDate"] = completeDates.Select(d => d.ToString("yyyy-MM-dd")).OrderBy(x => x).ToList();
 
             return dict;
         }) ?? new Dictionary<string, List<string>>();

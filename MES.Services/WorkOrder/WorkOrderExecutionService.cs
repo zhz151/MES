@@ -985,16 +985,16 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 continue;
             }
 
-            // 投料满足 → 按附返整主号状态分 A 质量补料 / B 执行返整
+            // 投料满足 → 按附返整主号状态分 ExecuteRework 生产返整补足 / QualityReplenish 质量补料
             if (summary.MainNoInputStatus >= 2)
             {
-                // B 执行返整：附返整满足（缺口可由返整量补齐，处于返整执行）
-                // A 质量补料：附返整不满足（连返整量算上仍不足，真缺料需补料）
+                // 生产返整补足（ExecuteRework）：附返整满足（缺口可由返整量补齐，处于返整执行）
+                // 质量补料（QualityReplenish）：附返整不满足（连返整量算上仍不足，真缺料需补料）
                 summary.RawMaterialLockRemark = summary.ReworkMainNoStatus >= 2 ? RawMaterialLockRemarkKeys.ExecuteRework : RawMaterialLockRemarkKeys.QualityReplenish;
                 continue;
             }
 
-            // 投料不满足 → 按主号计划状态分 C 执行计划 / D 完善计划
+            // 投料不满足 → 按主号计划状态分 ExecutePlan 执行用料计划 / ImprovePlan 完善用料计划
             var planStatus = (MaterialPlanStatus)summary.MainNoMaterialPlanStatus;
             summary.RawMaterialLockRemark = planStatus is MaterialPlanStatus.Satisfied or MaterialPlanStatus.Excess
                 ? RawMaterialLockRemarkKeys.ExecutePlan
@@ -1620,16 +1620,16 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         //       仅按「投料状态 + 附返整主号状态 / 主号计划状态」区分四类锁定原因。
         foreach (var summary in summaries.Where(s => s.ScheduleStage == 2))
         {
-            // 投料满足 → 按附返整主号状态分 A 质量补料 / B 执行返整
+            // 投料满足 → 按附返整主号状态分 ExecuteRework 生产返整补足 / QualityReplenish 质量补料
             if (summary.MainNoInputStatus >= 2)
             {
-                // B 执行返整：附返整满足（缺口可由返整量补齐，处于返整执行）
-                // A 质量补料：附返整不满足（连返整量算上仍不足，真缺料需补料）
+                // 生产返整补足（ExecuteRework）：附返整满足（缺口可由返整量补齐，处于返整执行）
+                // 质量补料（QualityReplenish）：附返整不满足（连返整量算上仍不足，真缺料需补料）
                 summary.RawMaterialLockRemark = summary.ReworkMainNoStatus >= 2 ? RawMaterialLockRemarkKeys.ExecuteRework : RawMaterialLockRemarkKeys.QualityReplenish;
                 continue;
             }
 
-            // 投料不满足 → 按主号计划状态分 C 执行计划 / D 完善计划
+            // 投料不满足 → 按主号计划状态分 ExecutePlan 执行用料计划 / ImprovePlan 完善用料计划
             var planStatus = (MaterialPlanStatus)summary.MainNoMaterialPlanStatus;
             summary.RawMaterialLockRemark = planStatus is MaterialPlanStatus.Satisfied or MaterialPlanStatus.Excess
                 ? RawMaterialLockRemarkKeys.ExecutePlan
@@ -2868,7 +2868,7 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
     }
 
     /// <summary>
-    /// 「在产在检-错疑待料」聚合：主号-关注（ScheduleStage）=1 主号完成 / 3 生产执行 / 4 成品检验 三档，
+    /// 「错误-用料计划及其执行」聚合：主号-关注（ScheduleStage）=1 主号完成 / 3 生产执行 / 4 成品检验 三档，
     /// 分别统计「理论原料未至」（TotalMissingWeight &gt; 0，3% 门槛口径）与「工单到料未投」（PendingInputWeight &gt; 0）的工单数 + 累计重量。
     /// G3 计算列为内存列，先投影原始字段 ToList 后内存分组。
     /// </summary>

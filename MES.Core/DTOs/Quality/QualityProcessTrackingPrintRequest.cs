@@ -10,16 +10,3 @@ public class QualityProcessTrackingPrintBatchRequest
     public List<PrintColumnDef> Columns { get; set; } = new();
 }
 
-/// <summary>
-/// 成检追踪全部打印请求
-/// </summary>
-public class QualityProcessTrackingPrintAllRequest
-{
-    public string? Keyword { get; set; }
-    public string? SortBy { get; set; }
-    public bool IsDescending { get; set; }
-    public List<PrintColumnDef> Columns { get; set; } = new();
-    public DateTime? ReceiveDateFrom { get; set; }
-    public DateTime? ReceiveDateTo { get; set; }
-    public string? Filters { get; set; }
-}

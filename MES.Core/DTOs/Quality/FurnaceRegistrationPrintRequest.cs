@@ -9,12 +9,3 @@ public class FurnaceRegistrationPrintBatchRequest
     public List<PrintColumnDef> Columns { get; set; } = new();
 }
 
-public class FurnaceRegistrationPrintAllRequest
-{
-    public string? Keyword { get; set; }
-    public string? SortBy { get; set; }
-    public bool IsDescending { get; set; }
-    public List<PrintColumnDef> Columns { get; set; } = new();
-    public DateTime? IncomingDateFrom { get; set; }
-    public DateTime? IncomingDateTo { get; set; }
-}

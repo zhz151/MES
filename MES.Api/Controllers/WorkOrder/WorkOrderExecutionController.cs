@@ -86,7 +86,7 @@ public class WorkOrderExecutionController : ControllerBase
     }
 
     /// <summary>
-    /// 获取「在产在检-错疑待料」聚合（主号-关注 = 主号完成/生产执行/成品检验 三档 × 理论原料未至/工单到料未投 的工单数+累计重量）
+    /// 获取「错误-用料计划及其执行」聚合（主号-关注 = 主号完成/生产执行/成品检验 三档 × 理论原料未至/工单到料未投 的工单数+累计重量）
     /// </summary>
     [HttpGet("in-production-inspection-doubt-items")]
     [Authorize(Roles = Roles.Policies.WorkOrderView)]

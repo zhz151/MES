@@ -56,6 +56,9 @@ public partial class AppDbContext
             entity.Property(e => e.Meters).HasColumnType("decimal(18,2)");
             entity.Property(e => e.ContractWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
             entity.Property(e => e.TheoreticalWeight).IsRequired().HasColumnType("decimal(18,3)").HasDefaultValue(0m);
+            entity.Property(e => e.PricingUnit).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.UnitPrice).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.TotalPrice).HasColumnType("decimal(18,2)");
             entity.Property(e => e.Remark).HasMaxLength(500);
             entity.HasIndex(e => new { e.SalesOrderId, e.Sequence })
                 .HasDatabaseName("UK_OrderItem_Sequence_Active")

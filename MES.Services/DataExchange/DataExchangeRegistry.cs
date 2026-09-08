@@ -186,6 +186,9 @@ public static class DataExchangeRegistry
             new("米数(m)", "Meters", typeof(decimal?), isRequired: false),
             new("合同重量(kg)", "ContractWeight", typeof(decimal)),
             new("理算重量(kg)", "TheoreticalWeight", typeof(decimal)),
+            new("计价单位", "PricingUnit", typeof(Core.Enums.PricingUnit), isEnum: true, isRequired: false),
+            new("单价(元)", "UnitPrice", typeof(decimal?), isRequired: false),
+            new("总价(元)", "TotalPrice", typeof(decimal?), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
         }, compositeKeyColumns: new[] { "OrderNumber", "Sequence" }),
 

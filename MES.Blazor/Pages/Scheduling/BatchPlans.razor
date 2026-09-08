@@ -244,23 +244,23 @@
                         </HeaderContent>
                         <RowTemplate Context="item">
                             <MudTd><span class="font-weight-bold">@item.ParagraphName</span></MudTd>
-                            <MudTd Class="mud-table-cell--right">@RenderInt(item.PendingTotal)</MudTd>
+                            <MudTd Class="text-center">@RenderInt(item.PendingTotal)</MudTd>
                             <MudTd Class="mud-table-cell--center">
                                 <MudChip Size="Size.Small" Color="@GetStatusColor(item.StatusJudgment)">@(item.StatusJudgment ?? "-")</MudChip>
                             </MudTd>
-                            <MudTd Class="mud-table-cell--right">@RenderInt(item.PlanFlowQuantity)</MudTd>
+                            <MudTd Class="text-center">@RenderInt(item.PlanFlowQuantity)</MudTd>
                             <MudTd Class="mud-table-cell--center">
                                 <MudChip Size="Size.Small" Color="@GetPlanFlowJudgmentColor(item.PlanFlowJudgment)">@(item.PlanFlowJudgment ?? "-")</MudChip>
                             </MudTd>
-                            <MudTd Class="mud-table-cell--right">@RenderInt(item.PlanKeyWeight)</MudTd>
+                            <MudTd Class="text-center">@RenderInt(item.PlanKeyWeight)</MudTd>
                         </RowTemplate>
                         <FooterContent>
                             <MudTd Class="col-footer-cell">&nbsp;</MudTd>
-                            <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_paragraphRows.Sum(x => x.PendingTotal ?? 0m))</MudTd>
+                            <MudTd Class="col-footer-cell col-footer-sum text-center">@RenderInt(_paragraphRows.Sum(x => x.PendingTotal ?? 0m))</MudTd>
                             <MudTd Class="col-footer-cell">&nbsp;</MudTd>
-                            <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_paragraphRows.Sum(x => x.PlanFlowQuantity ?? 0m))</MudTd>
+                            <MudTd Class="col-footer-cell col-footer-sum text-center">@RenderInt(_paragraphRows.Sum(x => x.PlanFlowQuantity ?? 0m))</MudTd>
                             <MudTd Class="col-footer-cell">&nbsp;</MudTd>
-                            <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_paragraphRows.Sum(x => x.PlanKeyWeight ?? 0m))</MudTd>
+                            <MudTd Class="col-footer-cell col-footer-sum text-center">@RenderInt(_paragraphRows.Sum(x => x.PlanKeyWeight ?? 0m))</MudTd>
                         </FooterContent>
                     </MudTable>
                 }
@@ -387,7 +387,7 @@
                         var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                         _prevGk2 = col.GroupKey;
                         var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
-                        <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
+                        <MudTd Class="@($"{_cellClass} {GetAlignClass(col)}")">@RenderCell(item, col)</MudTd>
                     }
                 </RowTemplate>
                 <FooterContent>
@@ -401,7 +401,7 @@
                         var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
                         _prevGk3 = col.GroupKey;
                         var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
-                        <MudTd Class="@_footerClass">
+                        <MudTd Class="@($"{_footerClass} {GetAlignClass(col)}")">
                             <span class="col-footer-sum">@RenderFooterCell(col)</span>
                         </MudTd>
                     }

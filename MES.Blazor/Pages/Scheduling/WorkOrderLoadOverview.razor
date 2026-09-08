@@ -58,8 +58,13 @@
                     <MudTh Class="text-center col-g100">预计完成</MudTh>
                     @foreach (var bucket in _data.DateBuckets)
                     {
-                        <MudTh Class="text-center col-g101" Style="min-width:104px;">
-                            <div Style="font-size:0.75em;line-height:1.2;white-space:nowrap;">@bucket.Label</div>
+                        var (headerLine1, headerLine2) = FormatBucketHeader(bucket);
+                        <MudTh Class="text-center col-g101" Style="min-width:90px;">
+                            <div Style="font-size:0.9em;line-height:1.2;white-space:nowrap;">@headerLine1</div>
+                            @if (!string.IsNullOrEmpty(headerLine2))
+                            {
+                                <div Style="font-size:0.9em;line-height:1.2;white-space:nowrap;">@headerLine2</div>
+                            }
                         </MudTh>
                     }
                 </HeaderContent>
@@ -67,16 +72,16 @@
                     <MudTd Class="@CellClass(context, "text-center")">@DisplaySeq(context)</MudTd>
                     <MudTd Class="@CellClass(context, "")">@context.Category</MudTd>
                     <MudTd Class="@CellClass(context, "")">@context.Section</MudTd>
-                    <MudTd Class="@CellClass(context, "text-right")">@FormatTons(context.PendingPlanTons)</MudTd>
-                    <MudTd Class="@CellClass(context, "text-right")">@FormatTons(context.InProcurementTons)</MudTd>
-                    <MudTd Class="@CellClass(context, "text-right")">@FormatRemainingTons(context, context.TotalRemainingTons)</MudTd>
-                    <MudTd Class="@CellClass(context, "text-right")">@FormatDays(context.EstDays)</MudTd>
+                    <MudTd Class="@CellClass(context, "text-center")">@FormatTons(context.PendingPlanTons)</MudTd>
+                    <MudTd Class="@CellClass(context, "text-center")">@FormatTons(context.InProcurementTons)</MudTd>
+                    <MudTd Class="@CellClass(context, "text-center")">@FormatRemainingTons(context, context.TotalRemainingTons)</MudTd>
+                    <MudTd Class="@CellClass(context, "text-center")">@FormatDays(context.EstDays)</MudTd>
                     <MudTd Class="@CellClass(context, "text-center")">@FormatDate(context.EstDeadline)</MudTd>
                     @for (int i = 0; i < _data.DateBuckets.Count; i++)
                     {
                         var tons = context.DateBucketTons.Count > i ? context.DateBucketTons[i] : 0;
                         var sub = context.DateBucketSubTons.Count > i ? context.DateBucketSubTons[i] : (decimal?)null;
-                        <MudTd Class="@CellClass(context, "text-right")">@(new MarkupString(context.IsSummary ? "-" : FormatBucketTons(tons, sub, context.SubValuePrefix, context.SubValueParenFormat, context.DateBucketSubOnly)))</MudTd>
+                        <MudTd Class="@CellClass(context, "text-center")">@(new MarkupString(context.IsSummary ? "-" : FormatBucketTons(tons, sub, context.SubValuePrefix, context.SubValueParenFormat, context.DateBucketSubOnly)))</MudTd>
                     }
                 </RowTemplate>
             </MudTable>

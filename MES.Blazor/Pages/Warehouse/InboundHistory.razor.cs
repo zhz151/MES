@@ -161,6 +161,14 @@ public partial class InboundHistory
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
+
+    // ========== 数值列（数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    {
+        "SourceOrderSequence", "InitialQuantity", "InitialWeight", "UnitWeight",
+        "MinLength", "MaxLength", "Meters"
+    };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
     private readonly List<(string Value, string Text)> _inboundSourceOptions = new()
     {
         ("Purchase", "外购"),
@@ -1450,10 +1458,10 @@ public partial class InboundHistory
         if (_lastResolvedWarehouseCode == "DEFECT" && string.IsNullOrEmpty(item.LiabilityType))
             errors.Add("责任类型必填");
 
-        // 长度值逻辑验证（仅 FG/WIP 适用）
+        // 长度值逻辑验证（仅 FG 成品库进库强制；其它仓库不强制必填最小/最大长度，2026-09-08）
         var minLenApplicable = _allColumns.FirstOrDefault(c => c.Key == "MinLength")?.IsApplicable ?? false;
         if (item.LengthStatus.HasValue && minLenApplicable
-            && (_lastResolvedWarehouseCode == "FG" || _lastResolvedWarehouseCode == "WIP"))
+            && _lastResolvedWarehouseCode == "FG")
         {
             if (item.LengthStatus == LengthStatus.Fixed)
             {

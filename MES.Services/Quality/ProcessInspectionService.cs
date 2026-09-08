@@ -120,7 +120,7 @@ public class ProcessInspectionService : IProcessInspectionService
             queryable = queryable.Where(r => r.InspectionDate >= query.InspectionDateFrom.Value);
 
         if (query.InspectionDateTo.HasValue)
-            queryable = queryable.Where(r => r.InspectionDate <= query.InspectionDateTo.Value);
+            queryable = queryable.Where(r => r.InspectionDate < query.InspectionDateTo.Value.AddDays(1));
 
         // 处理 BatchNo 筛选（实体已有 BatchNo 冗余字段）
         if (query.Filters != null)

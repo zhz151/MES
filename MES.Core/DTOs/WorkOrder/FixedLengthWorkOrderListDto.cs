@@ -1,3 +1,4 @@
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Helpers;
 
@@ -116,31 +117,38 @@ public class FixedLengthWorkOrderListDto
     /// <summary>主号切割批实际总支（断切记录 切后支数）</summary>
     public int MainNoCutActual { get; set; }
 
-    /// <summary>实切合理性（|实际切割−理论切割|/理论切割 ≤5% 正常；否则异常；无切割理论基数=略）</summary>
+    /// <summary>切割偏差判定阈值（由配置 FixedLengthCutRatio/CutDeviationRatio 驱动，默认 3.5%；Service 组装时从参数表注入）</summary>
+    public decimal CutDeviationRatio { get; set; } = FixedLengthCutConfigKeys.CutDeviationRatioDefault;
+
+    /// <summary>实切合理性（|实际切割−理论切割|/理论切割 ≤ CutDeviationRatio 正常；否则异常；无切割理论基数=略）。阈值由配置 FixedLengthCutRatio/CutDeviationRatio 驱动，默认 3.5%（2026-09-08 起由硬编码 5% 改为配置驱动，主号为汇总数据取更严的 3.5%）</summary>
     public string MainNoCutRationality
     {
         get
         {
             if (MainNoCutTheoretical <= 0) return "略";
             var diff = Math.Abs((decimal)MainNoCutActual - MainNoCutTheoretical) / MainNoCutTheoretical;
-            return diff <= 0.05m ? "正常" : "异常";
+            return diff <= CutDeviationRatio ? "正常" : "异常";
         }
     }
 
     /// <summary>主号成检总次品支（三种次品支之和）</summary>
     public int MainNoDefect { get; set; }
 
-    /// <summary>预计损耗支（待切理论支×1%，四舍五入取整）</summary>
+    /// <summary>预计损耗支（理论待切支×1%，四舍五入取整）</summary>
     public int EstimatedLossQty => (int)Math.Round(MainNoNeedCutUncutQty * 0.01m, MidpointRounding.AwayFromZero);
 
-    /// <summary>现理论实投支（无需切割支 + 需切未切支 + 实际切割支 − 预计损耗支；= 总投料支 − 切割缺口 − 预计损耗）</summary>
-    public int MainNoCurrentInput => MainNoNoCutQty + MainNoNeedCutUncutQty + MainNoCutActual - EstimatedLossQty;
+    /// <summary>
+    /// 现有效产支（无需切割支 + 需切未切支 + 实际切割支 − 预计损耗支 − 主号成检次品总；
+    /// = 总投料支 − 切割缺口 − 预计损耗 − 次品支数；2026-09-08 起扣减次品）
+    /// </summary>
+    public int MainNoCurrentInput => MainNoNoCutQty + MainNoNeedCutUncutQty + MainNoCutActual - EstimatedLossQty - MainNoDefect;
 
     /// <summary>
-    /// 总盈亏支数 = 现理论实投支 − 主号成检次品总 − 主号总需求支
-    /// （现理论实投支已扣减预计损耗支；三档恒等式：无需切割支 + 需切未切支 + 切割批理论总支 = 主号总投料支）
+    /// 总盈亏支数 = 现有效产支 − 主号总需求支
+    /// （现有效产支已扣减预计损耗支与主号成检次品总，故不再重复减次品；
+    /// 三档恒等式：无需切割支 + 需切未切支 + 切割批理论总支 = 主号总投料支）
     /// </summary>
-    public int TotalSurplus => MainNoCurrentInput - MainNoDefect - MainNoTotalRequirement;
+    public int TotalSurplus => MainNoCurrentInput - MainNoTotalRequirement;
 
     /// <summary>总盈亏状态（工单完成/原料锁定=略；总盈亏&lt;0=缺少；否则=合理）</summary>
     public string TotalSurplusStatus => ScheduleStage == 0 || ScheduleStage == 1

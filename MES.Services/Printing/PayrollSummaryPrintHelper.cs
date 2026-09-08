@@ -59,14 +59,6 @@ public static class PayrollSummaryPrintHelper
         new() { Key = "TotalPaid", Label = "实发工资及津贴" },
     };
 
-    /// <summary>金额列 Key（值为 0 时打印留空）</summary>
-    private static readonly string[] AmountKeys =
-    {
-        "BaseWage", "MiscWorkAmount", "PositionAllowance", "SeniorityBonus", "FullAttendanceBonus",
-        "LeadBonus", "NightShiftAllowance", "HighTempAllowance", "InjurySubsidy", "Penalty",
-        "SocialSecurity", "TotalPayable", "TotalPaid",
-    };
-
     /// <summary>打印列（供外部预览/复用）</summary>
     public static List<PrintColumnDef> GetColumns() => Columns.ToList();
 

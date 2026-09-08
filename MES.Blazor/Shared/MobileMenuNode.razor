@@ -20,10 +20,15 @@ else if (Node.Policy is null)
     <MudExpansionPanel Style="background: transparent; color: #ccc;" Class="@(Depth > 0 ? "ml-2" : "")">
         <TitleContent><div style="@TitleStyle">@Node.Label</div></TitleContent>
         <ChildContent>
-            @foreach (var child in Node.Children)
-            {
-                <MobileMenuNode Node="child" OnNavigate="@OnNavigate" Depth="@(Depth + 1)" />
-            }
+            @* 内层必须自含 MudExpansionPanels（MultiExpansion）：否则所有层级的 panel 都经级联
+               注册进 MobileLayout 外层「单选容器」，点开二级分组时单选容器会收起其它已展开 panel
+               （含它的父级根分组）→ 二级分组「不展开反收起」。自含容器充当新级联源遮蔽外层，隔离互斥。 *@
+            <MudExpansionPanels MultiExpansion="true" Style="background: transparent;">
+                @foreach (var child in Node.Children)
+                {
+                    <MobileMenuNode Node="child" OnNavigate="@OnNavigate" Depth="@(Depth + 1)" />
+                }
+            </MudExpansionPanels>
         </ChildContent>
     </MudExpansionPanel>
 }
@@ -33,10 +38,13 @@ else
         <MudExpansionPanel Style="background: transparent; color: #ccc;" Class="@(Depth > 0 ? "ml-2" : "")">
             <TitleContent><div style="@TitleStyle">@Node.Label</div></TitleContent>
             <ChildContent>
-                @foreach (var child in Node.Children)
-                {
-                    <MobileMenuNode Node="child" OnNavigate="@OnNavigate" Depth="@(Depth + 1)" />
-                }
+                @* 同无 Policy 组：内层自含 MudExpansionPanels，隔离子级 panel 与外层单选容器（详见上分支注释）。 *@
+                <MudExpansionPanels MultiExpansion="true" Style="background: transparent;">
+                    @foreach (var child in Node.Children)
+                    {
+                        <MobileMenuNode Node="child" OnNavigate="@OnNavigate" Depth="@(Depth + 1)" />
+                    }
+                </MudExpansionPanels>
             </ChildContent>
         </MudExpansionPanel>
     </AuthorizeView>

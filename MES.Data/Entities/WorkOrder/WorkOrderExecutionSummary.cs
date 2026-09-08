@@ -328,7 +328,7 @@ public class WorkOrderExecutionSummary : BaseEntity
     /// <summary>交期相差天数：工艺预计完成日 - 交货日期</summary>
     public int? DaysDiffFromDelivery { get; set; }
 
-    /// <summary>原锁备注：原料锁定原因（A质量补料/B执行返整/C执行计划/D完善计划），仅ScheduleStage=2时有值</summary>
+    /// <summary>原锁备注：原料锁定原因（质量补料/生产返整补足/执行用料计划/完善用料计划），仅ScheduleStage=2时有值</summary>
     public string? RawMaterialLockRemark { get; set; }
 
     // ========== Group 17: 在产节点待量（固定节点） ==========

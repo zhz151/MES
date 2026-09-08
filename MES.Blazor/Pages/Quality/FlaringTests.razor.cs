@@ -48,6 +48,14 @@ public partial class FlaringTests
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns => _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    // ========== 数值列（试样编号/扩后外径/扩口率，数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    { "SampleNo", "FlaredDiameter", "FlaringRate" };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+    // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_flaring-test_v1）
+    private const string ColumnPrefsVersion = "v1";
+
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "InspectionDate",    Label = "检验日期",     SortKey = "inspectiondate", FilterType = "date", Width = "110" },
@@ -63,7 +71,7 @@ public partial class FlaringTests
         new() { Key = "FlaringRate",       Label = "扩口率(%)",    SortKey = "flaringrate", Width = "100" },
         new() { Key = "Observation",       Label = "观察",         SortKey = "observation", FilterType = "string", Width = "150" },
         new() { Key = "Judgment",          Label = "判定",         SortKey = "judgment", FilterType = "string", Width = "80" },
-        new() { Key = "UpdatedTime",       Label = "更新日期",     SortKey = "updatedtime", Width = "120" },
+        new() { Key = "UpdatedTime",       Label = "更新日期",     SortKey = "updatedtime", Width = "120", Visible = false },
     };
 
     private async Task<TableData<FlaringTestDto>> LoadDataFromServer(TableState state)
@@ -155,7 +163,7 @@ public partial class FlaringTests
     }
 
     private async Task OnColumnToggle(ColumnDef col) => await SaveColumnPrefs();
-    private async Task SaveColumnPrefs() => await ColumnPrefs.SaveAsync("flaring-test", null, _allColumns);
+    private async Task SaveColumnPrefs() => await ColumnPrefs.SaveAsync("flaring-test", ColumnPrefsVersion, _allColumns);
     private async Task ResetColumnDisplay()
     { _allColumns = GetAllColumnDefs(); await SaveColumnPrefs(); }
     private async Task MoveColumnUp(ColumnDef col) => await SaveColumnPrefs();
@@ -164,7 +172,7 @@ public partial class FlaringTests
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("flaring-test", null);
+        var saved = await ColumnPrefs.LoadAsync("flaring-test", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)
@@ -296,7 +304,11 @@ public partial class FlaringTests
                 }
                 else builder.AddContent(0, item.InspectionDate.ToString("yyyy-MM-dd"));
                 break;
-            case "Inspector": RenderStr(builder, isEditing, cache?.Inspector, v => { if (cache != null) cache.Inspector = v; }, item.Inspector); break;
+            case "Inspector":
+                if (isEditing && cache != null)
+                    RenderStr(builder, true, cache?.Inspector, v => { if (cache != null) cache.Inspector = v; }, item.Inspector);
+                else builder.AddContent(0, MES.Core.Helpers.OperatorNameHelper.ToNamesOnly(item.Inspector));
+                break;
             case "FurnaceNo": RenderStr(builder, isEditing, cache?.FurnaceNo, v => { if (cache != null) cache.FurnaceNo = v; }, item.FurnaceNo); break;
             case "Grade": RenderStr(builder, isEditing, cache?.Grade, v => { if (cache != null) cache.Grade = v; }, item.Grade); break;
             case "Specification": RenderStr(builder, isEditing, cache?.Specification, v => { if (cache != null) cache.Specification = v; }, item.Specification); break;

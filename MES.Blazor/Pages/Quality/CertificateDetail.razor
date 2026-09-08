@@ -220,7 +220,7 @@
                                 @(item.LengthDesc ?? "-")
                             }
                         </MudTd>
-                        <MudTd>
+                        <MudTd Class="text-center">
                             @if (_isEditMode)
                             {
                                 <MudNumericField @bind-Value="item.Quantity" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" />
@@ -230,7 +230,7 @@
                                 @(item.Quantity?.ToString() ?? "-")
                             }
                         </MudTd>
-                        <MudTd>
+                        <MudTd Class="text-center">
                             @if (_isEditMode)
                             {
                                 <MudNumericField @bind-Value="item.Meters" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" />
@@ -240,7 +240,7 @@
                                 @(item.Meters?.ToString("G29") ?? "-")
                             }
                         </MudTd>
-                        <MudTd>
+                        <MudTd Class="text-center">
                             @if (_isEditMode)
                             {
                                 <MudNumericField @bind-Value="item.Weight" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" />
@@ -267,22 +267,22 @@
                     </HeaderContent>
                     <RowTemplate Context="item">
                         <MudTd>@item.SeqNo</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemC" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemC?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemSi" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemSi?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemMn" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemMn?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemP" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemP?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemS" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemS?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemNi" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemNi?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemCr" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemCr?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemMo" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemMo?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemCu" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemCu?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemN" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemN?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemNb" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemNb?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemTi" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemTi?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemFe" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemFe?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemAl" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemAl?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemW" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemW?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemPREN" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemPREN?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemC" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemC?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemSi" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemSi?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemMn" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemMn?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemP" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemP?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemS" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemS?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemNi" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemNi?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemCr" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemCr?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemMo" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemMo?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemCu" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemCu?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemN" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemN?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemNb" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemNb?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemTi" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemTi?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemFe" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemFe?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemAl" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemAl?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemW" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemW?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.ChemPREN" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.ChemPREN?.ToString("G29") ?? "-") }</MudTd>
                     </RowTemplate>
                 </MudTable>
 
@@ -330,20 +330,20 @@
                     </HeaderContent>
                     <RowTemplate Context="item">
                         <MudTd>@item.SeqNo</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.TensileStrength_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.TensileStrength_1?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.TensileStrength_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.TensileStrength_2?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.YieldRp02_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.YieldRp02_1?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.YieldRp02_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.YieldRp02_2?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.YieldRp10_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.YieldRp10_1?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.YieldRp10_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.YieldRp10_2?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.Elongation_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.Elongation_1?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.Elongation_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.Elongation_2?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.TensileStrength_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.TensileStrength_1?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.TensileStrength_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.TensileStrength_2?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.YieldRp02_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.YieldRp02_1?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.YieldRp02_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.YieldRp02_2?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.YieldRp10_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.YieldRp10_1?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.YieldRp10_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.YieldRp10_2?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.Elongation_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.Elongation_1?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.Elongation_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.Elongation_2?.ToString("G29") ?? "-") }</MudTd>
                         <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.Hardness_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.Hardness_1 ?? "-") }</MudTd>
                         <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.Hardness_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.Hardness_2 ?? "-") }</MudTd>
                         <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.GrainSize_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.GrainSize_1 ?? "-") }</MudTd>
                         <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.GrainSize_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.GrainSize_2 ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.FerriteContent_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.FerriteContent_1?.ToString("G29") ?? "-") }</MudTd>
-                        <MudTd>@if (_isEditMode) { <MudNumericField @bind-Value="item.FerriteContent_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.FerriteContent_2?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.FerriteContent_1" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.FerriteContent_1?.ToString("G29") ?? "-") }</MudTd>
+                        <MudTd Class="text-center">@if (_isEditMode) { <MudNumericField @bind-Value="item.FerriteContent_2" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" HideSpinButtons="true" Format="G29" /> } else { @(item.FerriteContent_2?.ToString("G29") ?? "-") }</MudTd>
                         <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.FlaringResult" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.FlaringResult ?? "-") }</MudTd>
                         <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.FlatteningResult" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.FlatteningResult ?? "-") }</MudTd>
                         <MudTd>@if (_isEditMode) { <MudTextField @bind-Value="item.IntergranularResult" Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" /> } else { @(item.IntergranularResult ?? "-") }</MudTd>

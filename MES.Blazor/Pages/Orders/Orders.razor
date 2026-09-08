@@ -26,16 +26,16 @@
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold">
                     <MudIcon Icon="@Icons.Material.Filled.Receipt" Class="mr-2" Color="Color.Primary" />
-                    订单管理
+                    订单列表
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
                 <MudButton Variant="Variant.Outlined"
                            Size="Size.Small"
-                           Color="@(_showInOutSummaryCard ? Color.Primary : Color.Default)"
-                           StartIcon="@(_showInOutSummaryCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
-                           OnClick="ToggleInOutSummaryCard">
-                    订单接单·出库及现负荷汇总
+                           Color="@(_showEstimateCard ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showEstimateCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleEstimateCard">
+                    完成预估及延期风险
                 </MudButton>
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"
@@ -47,128 +47,64 @@
         </MudCardHeader>
 
         <MudCardContent>
-            <!-- 订单接单·出库及现负荷汇总卡片（默认折叠，标题栏按钮切换显隐） -->
-            @if (_showInOutSummaryCard)
+            <!-- 完成预估及延期风险卡片（默认折叠，标题栏按钮切换显隐；内仅展示两张交期预估小表：订单(整单)完成预估 / 风险-已延期订单(整单)） -->
+            @if (_showEstimateCard)
             {
                 <MudCard Class="mb-2 summary-card" Elevation="0">
                     <MudCardContent>
-                        <div class="d-flex justify-space-between align-center mb-2">
-                            <div class="d-flex align-center" style="gap: 8px;">
-                                <MudText Typo="Typo.subtitle2"><b>订单接单·出库及现负荷汇总</b></MudText>
-                                <MudText Typo="Typo.caption" Class="text-hint">单位：吨(t)（源数据 kg）｜成品库存(完工/未完工)与订单负荷量(实时)为当前存量，仅显示本月</MudText>
-                            </div>
-                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
-                                       StartIcon="@Icons.Material.Filled.Print" OnClick="PrintInOutSummary" Disabled="@(_inOutSummary == null)">
-                                打印
-                            </MudButton>
-                        </div>
-                        @if (_inOutSummary == null)
+                        <MudText Typo="Typo.subtitle2" Class="mb-2"><b>完成预估及延期风险</b></MudText>
+                        @if (_deliveryEstimate != null)
                         {
-                            <MudText Typo="Typo.body2" Class="text-hint">正在加载...</MudText>
+                            @for (var i = 0; i < _deliveryEstimate.Tables.Count; i++)
+                            {
+                                var tableIndex = i; // 捕获副本（for 循环变量被闭包共享，事件触发时读到结束值）
+                                var estimateTable = _deliveryEstimate.Tables[i];
+                                var tableId = $"order-delivery-estimate-{i}";
+                                <div class="mt-3">
+                                    <div class="d-flex justify-space-between align-center mb-1">
+                                        <MudText Typo="Typo.body2"><b>@estimateTable.Name</b></MudText>
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.Print"
+                                                   OnClick="@(() => PrintDeliveryEstimate("#" + tableId, estimateTable.Name))">
+                                            打印
+                                        </MudButton>
+                                    </div>
+                                    <div id="@tableId" style="overflow-x:auto;">
+                                    <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">交货日期范围</th>
+                                                @foreach (var label in estimateTable.BucketLabels)
+                                                {
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
+                                                }
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">单数/重量</td>
+                                                @for (var bi = 0; bi < estimateTable.Buckets.Count; bi++)
+                                                {
+                                                    var bucketIndex = bi; // 捕获副本（for 循环变量被闭包共享，事件触发时读到结束值）
+                                                    var bucket = estimateTable.Buckets[bi];
+                                                    var isClickable = bucket.Count > 0 || bucket.Weight > 0;
+                                                    var cellStyle = "padding:4px 10px; border:1px solid #e0e0e0; text-align:center;" + (isClickable ? " cursor:pointer;" : "");
+                                                    <td class="@(isClickable ? "estimate-cell" : "")"
+                                                        style="@cellStyle"
+                                                        @onclick="() => OnEstimateBucketClick(tableIndex, bucketIndex)">
+                                                        @FormatDeliveryBucket(bucket)
+                                                    </td>
+                                                }
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    </div>
+                                </div>
+                            }
                         }
                         else
                         {
-                            <div id="order-inout-summary-table">
-                            <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
-                                <thead>
-                                    <tr>
-                                        <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">指标</th>
-                                        @for (var m = 0; m < 12; m++)
-                                        {
-                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@_inOutSummary.MonthLabels[m]</th>
-                                        }
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">接单量</td>
-                                        @for (var m = 0; m < 12; m++)
-                                        {
-                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatInOutWeight(_inOutSummary.OrderWeightByMonth[m])</td>
-                                        }
-                                    </tr>
-                                    <tr>
-                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">出库量</td>
-                                        @for (var m = 0; m < 12; m++)
-                                        {
-                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatInOutWeight(_inOutSummary.OutboundWeightByMonth[m])</td>
-                                        }
-                                    </tr>
-                                    <tr>
-                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">成品库存(完工)</td>
-                                        @for (var m = 0; m < 12; m++)
-                                        {
-                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@(m == _currentMonthIndex ? FormatInOutWeight(_inOutSummary.FinishedStockCompleted) : "-")</td>
-                                        }
-                                    </tr>
-                                    <tr>
-                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">成品库存(未完工)</td>
-                                        @for (var m = 0; m < 12; m++)
-                                        {
-                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@(m == _currentMonthIndex ? FormatInOutWeight(_inOutSummary.FinishedStockUncompleted) : "-")</td>
-                                        }
-                                    </tr>
-                                    <tr>
-                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">订单负荷量(实时)</td>
-                                        @for (var m = 0; m < 12; m++)
-                                        {
-                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@(m == _currentMonthIndex ? FormatInOutWeight(_inOutSummary.TurnoverTotal) : "-")</td>
-                                        }
-                                    </tr>
-                                </tbody>
-                            </table>
-                            </div>
-
-                            @* 两小表（订单交期预估：订单(整单)完成预估 / 风险-已延期订单(整单)），直接属于「订单接单·出库及现负荷汇总」表 *@
-                            @if (_deliveryEstimate != null)
-                            {
-                                @for (var i = 0; i < _deliveryEstimate.Tables.Count; i++)
-                                {
-                                    var tableIndex = i; // 捕获副本（for 循环变量被闭包共享，事件触发时读到结束值）
-                                    var estimateTable = _deliveryEstimate.Tables[i];
-                                    var tableId = $"order-delivery-estimate-{i}";
-                                    <div class="mt-3">
-                                        <div class="d-flex justify-space-between align-center mb-1">
-                                            <MudText Typo="Typo.body2"><b>@estimateTable.Name</b></MudText>
-                                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
-                                                       StartIcon="@Icons.Material.Filled.Print"
-                                                       OnClick="@(() => PrintDeliveryEstimate("#" + tableId, estimateTable.Name))">
-                                                打印
-                                            </MudButton>
-                                        </div>
-                                        <div id="@tableId" style="overflow-x:auto;">
-                                        <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
-                                            <thead>
-                                                <tr>
-                                                    <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">交货日期范围</th>
-                                                    @foreach (var label in estimateTable.BucketLabels)
-                                                    {
-                                                        <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@label</th>
-                                                    }
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr>
-                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">单数/重量</td>
-                                                    @for (var bi = 0; bi < estimateTable.Buckets.Count; bi++)
-                                                    {
-                                                        var bucketIndex = bi; // 捕获副本（for 循环变量被闭包共享，事件触发时读到结束值）
-                                                        var bucket = estimateTable.Buckets[bi];
-                                                        var isClickable = bucket.Count > 0 || bucket.Weight > 0;
-                                                        var cellStyle = "padding:4px 10px; border:1px solid #e0e0e0; text-align:center;" + (isClickable ? " cursor:pointer;" : "");
-                                                        <td class="@(isClickable ? "estimate-cell" : "")"
-                                                            style="@cellStyle"
-                                                            @onclick="() => OnEstimateBucketClick(tableIndex, bucketIndex)">
-                                                            @FormatDeliveryBucket(bucket)
-                                                        </td>
-                                                    }
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                        </div>
-                                    </div>
-                                }
-                            }
+                            <MudText Typo="Typo.body2" Class="text-hint">正在加载...</MudText>
                         }
                     </MudCardContent>
                 </MudCard>
@@ -250,14 +186,15 @@
                     </MudButton>
                 </div>
                 <div class="d-flex align-center" style="margin-left:auto;">
-                    <MudButton Variant="Variant.Outlined"
-                               Size="Size.Small"
-                               Color="Color.Info"
-                               StartIcon="@Icons.Material.Filled.Print"
-                               Disabled="@(!selectedOrderIds.Any())"
-                               OnClick="PrintSelected">
-                        打印选中订单 (@selectedOrderIds.Count)
-                    </MudButton>
+                    <MudMenu Variant="Variant.Outlined"
+                             Size="Size.Small"
+                             Color="Color.Info"
+                             StartIcon="@Icons.Material.Filled.Print"
+                             Disabled="@(!selectedOrderIds.Any())"
+                             Label="@($"打印选中订单 ({selectedOrderIds.Count})")">
+                        <MudMenuItem OnClick="@(() => PrintSelected(true))">含金额确认单</MudMenuItem>
+                        <MudMenuItem OnClick="@(() => PrintSelected(false))">不含金额确认单</MudMenuItem>
+                    </MudMenu>
                     <MudButton Variant="Variant.Text"
                                Size="Size.Small"
                                Color="Color.Info"
@@ -339,7 +276,8 @@
                         var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                         _prevGk2 = col.GroupKey;
                         var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
-                        <MudTd Class="@_cellClass">@RenderCell(order, col)</MudTd>
+                        var _cellAlignClass = IsNumericColumn(col) ? " text-center" : "";
+                        <MudTd Class="@(_cellClass + _cellAlignClass)">@RenderCell(order, col)</MudTd>
                     }
                     <MudTd>
                         @if (order.Status == SalesOrderStatus.Pending)
@@ -352,6 +290,12 @@
                                                Title="确认订单" />
                             </AuthorizeView>
                         }
+
+                        <MudIconButton Icon="@Icons.Material.Filled.AccountTree"
+                                       Color="Color.Primary"
+                                       Size="Size.Small"
+                                       OnClick="() => NavigateToProgress(order.OrderNumber)"
+                                       Title="订单进度树" />
 
                         <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                        Color="Color.Warning"
@@ -378,7 +322,8 @@
                         var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
                         _prevGk3 = col.GroupKey;
                         var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
-                        <MudTd Class="@_footerClass"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                        var _footerAlignClass = IsNumericColumn(col) ? " text-center" : "";
+                        <MudTd Class="@(_footerClass + _footerAlignClass)"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
                     }
                     <MudTd Class="col-footer-cell"></MudTd>
                 </FooterContent>

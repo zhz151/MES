@@ -91,7 +91,7 @@ public class MetallographicTestService : IMetallographicTestService
         if (query.InspectionDateFrom.HasValue)
             queryable = queryable.Where(r => r.InspectionDate >= query.InspectionDateFrom.Value);
         if (query.InspectionDateTo.HasValue)
-            queryable = queryable.Where(r => r.InspectionDate <= query.InspectionDateTo.Value);
+            queryable = queryable.Where(r => r.InspectionDate < query.InspectionDateTo.Value.AddDays(1));
 
         queryable = queryable.ApplyFilters(query.Filters);
         var totalCount = await queryable.CountAsync();

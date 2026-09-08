@@ -123,7 +123,7 @@
                     </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>@RenderCell(item, col)</MudTd>
+                        <MudTd Class="@(col.Key == "Density" ? "text-center" : null)">@RenderCell(item, col)</MudTd>
                     }
                     <MudTd Style="white-space: nowrap; width: 90px;">
                         @{

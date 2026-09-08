@@ -190,6 +190,7 @@ builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 
 // Register order service
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IOrderProgressQueryService, OrderProgressQueryService>();
 builder.Services.AddScoped<IPendingDeliveryQueryService, PendingDeliveryQueryService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 // Register auxiliary services
@@ -332,6 +333,18 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// 全部 API 响应统一禁止缓存（Cache-Control: no-store）：业务数据新鲜度由写路径主动失效（读模型/缓存 Invalidate）保证，
+// 防止浏览器/中间层把 API GET 缓存起来，造成「改完数据回页仍见旧值、必须强制刷新才变新」的假象（2026-09-08）
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers.CacheControl = "no-store";
+        return Task.CompletedTask;
+    });
+    await next();
+});
 
 // 反向代理（nginx）转发头识别：使生产环境 UseHttpsRedirection 能识别 X-Forwarded-Proto=https，
 // 避免请求经反代后后端看到 scheme 恒为 http 造成 307 重定向循环。仅信任本机回环代理。

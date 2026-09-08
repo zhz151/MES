@@ -23,4 +23,9 @@ public interface ICustomerService
 
     // ========== 打印 ==========
     Task<byte[]> PrintCustomerBatchAsync(int[] ids, List<PrintColumnDef>? columns = null);
+
+    /// <summary>
+    /// 按可见列打印当前列表（Mode A：前端透传标题 + 字典行 + 列定义）
+    /// </summary>
+    Task<byte[]> PrintCustomerListAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns);
 }

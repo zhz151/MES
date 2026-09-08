@@ -301,7 +301,7 @@
                         var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                         _prevGk2 = col.GroupKey;
                         var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
-                        <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
+                        <MudTd Class="@($"{_cellClass} {GetAlignClass(col)}")">@RenderCell(item, col)</MudTd>
                     }
                 </RowTemplate>
 
@@ -316,7 +316,7 @@
                         var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
                         _prevGk3 = col.GroupKey;
                         var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
-                        <MudTd Class="@_footerClass">
+                        <MudTd Class="@($"{_footerClass} {GetAlignClass(col)}")">
                             <span class="col-footer-sum">@RenderFooterCell(col)</span>
                         </MudTd>
                     }

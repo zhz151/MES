@@ -97,7 +97,7 @@ public class CustomerService : ICustomerService
             }
         }
 
-        // 通用筛选
+        // 通用筛选（仅实体列筛选；客户统计 8 列为派生列不参与筛选）
         queryable = queryable.ApplyFilters(query.Filters);
 
         // Sorting
@@ -122,6 +122,9 @@ public class CustomerService : ICustomerService
             })
             .ToListAsync();
 
+        // 注入客户业务统计 8 列（按「业务员+最终用户」关联订单聚合，仅当前页明细行回填）
+        await AttachStatsAsync(items);
+
         return new PagedResult<CustomerProfileDto>
         {
             Items = items,
@@ -129,6 +132,277 @@ public class CustomerService : ICustomerService
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
+    }
+
+    // ========== 客户业务统计 8 列（按「业务员+最终用户」关联订单聚合，金额结算分治） ==========
+
+    /// <summary>为客户列表注入业务统计 8 列（每页加载时按当前自然年计算一次全量订单聚合，量级小）</summary>
+    private async Task AttachStatsAsync(List<CustomerProfileDto> items)
+    {
+        if (items.Count == 0)
+            return;
+
+        var year = DateTime.Now.Year;
+        var buckets = await BuildStatsAsync(_context, year);
+
+        foreach (var dto in items)
+        {
+            var key = MakeKey(dto.Salesman, dto.EndCustomer);
+            if (string.IsNullOrEmpty(key) || !buckets.TryGetValue(key, out var b))
+                continue;
+
+            dto.TotalOrderCount = b.TotalCount;
+            dto.TotalOrderWeight = b.TotalWeight;
+            dto.TotalOrderAmount = b.TotalAmount;
+            dto.YearOrderCount = b.YearCount;
+            dto.YearOrderWeight = b.YearWeight;
+            dto.YearOrderAmount = b.YearAmount;
+            dto.ShippedCompletedCount = b.ShippedDoneCount;
+            dto.ShippedCompletedWeight = b.ShippedDoneWeight;
+            dto.ShippedCompletedAmount = b.ShippedDoneAmount;
+            dto.ShippedOtherCount = b.ShippedOtherCount;
+            dto.ShippedOtherWeight = b.ShippedOtherWeight;
+            dto.ShippedOtherAmount = b.ShippedOtherAmount;
+            dto.StockCompletedCount = b.StockDoneCount;
+            dto.StockCompletedWeight = b.StockDoneWeight;
+            dto.StockCompletedAmount = b.StockDoneAmount;
+            dto.StockOtherCount = b.StockOtherCount;
+            dto.StockOtherWeight = b.StockOtherWeight;
+            dto.StockOtherAmount = b.StockOtherAmount;
+            dto.WipNoneCount = b.WipNoneCount;
+            dto.WipNoneWeight = b.WipNoneWeight;
+            dto.WipNoneAmount = b.WipNoneAmount;
+            dto.WipPartialCount = b.WipPartialCount;
+            dto.WipPartialWeight = b.WipPartialWeight;
+            dto.WipPartialAmount = b.WipPartialAmount;
+        }
+    }
+
+    /// <summary>整单级订单→(业务员,最终用户) 统计桶。金额按结算分治：过磅=实际公斤计价不封顶；理算/过磅-负=封顶合同（发货→库存→在产阶梯认领，超产余料不计价）。</summary>
+    private static async Task<Dictionary<string, CustomerStatsBucket>> BuildStatsAsync(AppDbContext ctx, int year)
+    {
+        // 1) 非取消订单基础信息（订单快照客户字段为文本关联键）
+        var orders = await ctx.SalesOrders.AsNoTracking()
+            .Where(so => so.Status != SalesOrderStatus.Cancelled)
+            .Select(so => new { so.Id, so.OrderNumber, so.Salesman, so.EndCustomer, SignYear = so.SignDate.Year })
+            .ToListAsync();
+
+        // 2) 订单成品读模型（入库/出库/库存 权威物化源 + 执行关注阶段）
+        var summaries = await ctx.Set<OrderListSummary>().AsNoTracking()
+            .Select(s => new { s.OrderId, s.ScheduleStage, s.FinishedInboundWeight, s.FinishedOutboundWeight, s.FinishedStockWeight })
+            .ToListAsync();
+        var summaryById = summaries.ToDictionary(s => s.OrderId);
+
+        // 3) 项次按单/结算池聚合（固定池 = 理算+过磅-负；过磅池 = 单过磅）
+        var itemRows = await ctx.OrderItems.AsNoTracking()
+            .Select(oi => new { oi.SalesOrderId, IsFixed = oi.SettlementMethod != SettlementMethod.Weighing, oi.ContractWeight, Amount = oi.TotalPrice ?? 0m })
+            .ToListAsync();
+        var poolsById = new Dictionary<int, (decimal WWeigh, decimal MWeigh, decimal WFixed, decimal MFixed)>();
+        foreach (var g in itemRows.GroupBy(x => x.SalesOrderId))
+        {
+            decimal ww = 0m, mw = 0m, wf = 0m, mf = 0m;
+            foreach (var it in g)
+            {
+                if (it.IsFixed) { wf += it.ContractWeight; mf += it.Amount; }
+                else { ww += it.ContractWeight; mw += it.Amount; }
+            }
+            poolsById[g.Key] = (ww, mw, wf, mf);
+        }
+
+        // 4) 本年(自然年)销售出库重量：成品批次(OrderFinished)按 SalesOrderNo 归单，仅 SalesOut + 出库日期在目标年
+        var finishedBatches = await ctx.InventoryBatches.AsNoTracking()
+            .Where(ib => ib.MaterialType == InventoryMaterialTypes.OrderFinished && ib.SalesOrderNo != null)
+            .Select(ib => new { ib.Id, ib.SalesOrderNo })
+            .ToListAsync();
+        var salesNoByBatchId = new Dictionary<int, string>(finishedBatches.Count);
+        foreach (var fb in finishedBatches)
+            salesNoByBatchId[fb.Id] = fb.SalesOrderNo!;
+
+        var yearOutByOrder = new Dictionary<string, decimal>(StringComparer.Ordinal);
+        if (salesNoByBatchId.Count > 0)
+        {
+            foreach (var chunk in salesNoByBatchId.Keys.Chunk(1000))
+            {
+                var ids = chunk.ToList();
+                var outRows = await ctx.OutboundRecords.AsNoTracking()
+                    .Where(r => r.OutboundType == OutboundType.SalesOut
+                        && r.OutboundDate.Year == year
+                        && ids.Contains(r.InventoryBatchId))
+                    .Select(r => new { r.InventoryBatchId, r.OutboundWeight })
+                    .ToListAsync();
+                foreach (var r in outRows)
+                {
+                    if (!salesNoByBatchId.TryGetValue(r.InventoryBatchId, out var so))
+                        continue;
+                    yearOutByOrder.TryGetValue(so, out var cur);
+                    yearOutByOrder[so] = cur + r.OutboundWeight;
+                }
+            }
+        }
+
+        // 5) 逐单折算金额并归桶
+        var buckets = new Dictionary<string, CustomerStatsBucket>(StringComparer.OrdinalIgnoreCase);
+        foreach (var o in orders)
+        {
+            var key = MakeKey(o.Salesman, o.EndCustomer);
+            if (string.IsNullOrEmpty(key))
+                continue;
+            if (!poolsById.TryGetValue(o.Id, out var pools))
+                continue;
+
+            var totalWeight = pools.WWeigh + pools.WFixed;
+            var totalAmount = pools.MWeigh + pools.MFixed;
+            if (totalWeight <= 0m)
+                continue;
+
+            summaryById.TryGetValue(o.Id, out var s);
+            var inbound = s?.FinishedInboundWeight ?? 0m;
+            var outbound = s?.FinishedOutboundWeight ?? 0m;
+            var stock = s?.FinishedStockWeight ?? 0m;
+
+            // 池级金额（重量切片按各池合同重占比近似划池）
+            var shipMoney = 0m;
+            var stockMoney = 0m;
+            var wipMoney = 0m;
+            if (pools.WWeigh > 0m)
+            {
+                var (sm, stm, wm) = CalcPoolMoney(
+                    inbound * pools.WWeigh / totalWeight, outbound * pools.WWeigh / totalWeight,
+                    stock * pools.WWeigh / totalWeight, pools.WWeigh, pools.MWeigh, isWeighing: true);
+                shipMoney += sm; stockMoney += stm; wipMoney += wm;
+            }
+            if (pools.WFixed > 0m)
+            {
+                var (sm, stm, wm) = CalcPoolMoney(
+                    inbound * pools.WFixed / totalWeight, outbound * pools.WFixed / totalWeight,
+                    stock * pools.WFixed / totalWeight, pools.WFixed, pools.MFixed, isWeighing: false);
+                shipMoney += sm; stockMoney += stm; wipMoney += wm;
+            }
+
+            var isCompleted = s?.ScheduleStage == 1;
+            var isSignedThisYear = o.SignYear == year;
+
+            var yearOutKg = yearOutByOrder.GetValueOrDefault(o.OrderNumber);
+            var yearFactor = outbound > 0m ? Math.Min(yearOutKg, outbound) / outbound : 0m;
+            var yearShipMoney = shipMoney * yearFactor;
+
+            var b = GetBucket(buckets, key);
+
+            // 接单量（累计 + 本年）
+            b.TotalCount++;
+            b.TotalWeight += totalWeight;
+            b.TotalAmount += totalAmount;
+            if (isSignedThisYear)
+            {
+                b.YearCount++;
+                b.YearWeight += totalWeight;
+                b.YearAmount += totalAmount;
+            }
+
+            // 本年已发货（整单=主号完成 / 非整单；count=落入该桶的订单数）
+            if (yearOutKg > 0m)
+            {
+                if (isCompleted) { b.ShippedDoneCount++; b.ShippedDoneWeight += yearOutKg; b.ShippedDoneAmount += yearShipMoney; }
+                else { b.ShippedOtherCount++; b.ShippedOtherWeight += yearOutKg; b.ShippedOtherAmount += yearShipMoney; }
+            }
+
+            // 待发货（成品库存，整单/非整单）
+            if (stock > 0m)
+            {
+                if (isCompleted) { b.StockDoneCount++; b.StockDoneWeight += stock; b.StockDoneAmount += stockMoney; }
+                else { b.StockOtherCount++; b.StockOtherWeight += stock; b.StockOtherAmount += stockMoney; }
+            }
+
+            // 待在产（整单未入库 / 扣除部分入库）：仅主号未完成（阶段≠1）订单计入；
+            // 已整单完成(stage1) 即使欠产/未入库也视为订单结束，不再计在产
+            if (!isCompleted)
+            {
+                if (inbound <= 0m)
+                {
+                    b.WipNoneCount++;
+                    b.WipNoneWeight += totalWeight;
+                    b.WipNoneAmount += wipMoney;
+                }
+                else if (inbound < totalWeight)
+                {
+                    b.WipPartialCount++;
+                    b.WipPartialWeight += totalWeight - inbound;
+                    b.WipPartialAmount += wipMoney;
+                }
+            }
+        }
+
+        return buckets;
+    }
+
+    /// <summary>
+    /// 结算池金额折算。
+    /// 过磅(Weighing)：计价重量=实际公斤，不封顶（超产照付）；
+    /// 固定池(理算/过磅-负)：发货→库存阶梯认领、公斤认领池上限=合同池重，超产余料只显公斤不计价。
+    /// </summary>
+    private static (decimal ShipMoney, decimal StockMoney, decimal WipMoney) CalcPoolMoney(
+        decimal inboundShare, decimal outboundShare, decimal stockShare, decimal poolWeight, decimal poolMoney, bool isWeighing)
+    {
+        if (poolWeight <= 0m)
+            return (0m, 0m, 0m);
+
+        var rate = poolMoney / poolWeight;
+        var wipMoney = Math.Max(poolWeight - inboundShare, 0m) * rate;
+
+        if (isWeighing)
+            return (outboundShare * rate, stockShare * rate, wipMoney);
+
+        // 固定池：发货先认领合同，库存只能吃发货后的合同余量；超产部分不计价
+        var shippedContract = Math.Min(outboundShare, poolWeight);
+        var stockContract = Math.Min(stockShare, Math.Max(poolWeight - shippedContract, 0m));
+        return (shippedContract * rate, stockContract * rate, wipMoney);
+    }
+
+    private static CustomerStatsBucket GetBucket(Dictionary<string, CustomerStatsBucket> buckets, string key)
+    {
+        if (!buckets.TryGetValue(key, out var b))
+        {
+            b = new CustomerStatsBucket();
+            buckets[key] = b;
+        }
+        return b;
+    }
+
+    /// <summary>关联键：业务员 + 最终用户（文本快照匹配，忽略大小写；两端全空则不参与聚合）</summary>
+    private static string MakeKey(string? salesman, string? endCustomer)
+    {
+        var s = (salesman ?? "").Trim();
+        var e = (endCustomer ?? "").Trim();
+        return string.IsNullOrEmpty(s) && string.IsNullOrEmpty(e) ? string.Empty : s + "\u001F" + e;
+    }
+
+    /// <summary>客户 8 列统计累加桶</summary>
+    private sealed class CustomerStatsBucket
+    {
+        public int TotalCount;
+        public decimal TotalWeight;
+        public decimal TotalAmount;
+        public int YearCount;
+        public decimal YearWeight;
+        public decimal YearAmount;
+        public int ShippedDoneCount;
+        public decimal ShippedDoneWeight;
+        public decimal ShippedDoneAmount;
+        public int ShippedOtherCount;
+        public decimal ShippedOtherWeight;
+        public decimal ShippedOtherAmount;
+        public int StockDoneCount;
+        public decimal StockDoneWeight;
+        public decimal StockDoneAmount;
+        public int StockOtherCount;
+        public decimal StockOtherWeight;
+        public decimal StockOtherAmount;
+        public int WipNoneCount;
+        public decimal WipNoneWeight;
+        public decimal WipNoneAmount;
+        public int WipPartialCount;
+        public decimal WipPartialWeight;
+        public decimal WipPartialAmount;
     }
 
     /// <summary>
@@ -345,6 +619,19 @@ public class CustomerService : ICustomerService
             catch (BusinessException) { /* 跳过不存在的客户 */ }
         }
         return TablePrintHelper.GeneratePdf("客户档案列表", result, columns ?? []);
+    }
+
+    /// <summary>列表打印（Mode A）：前端已按可见列把当前页转成字典行，服务端仅做表格渲染</summary>
+    public Task<byte[]> PrintCustomerListAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns)
+    {
+        // 与订单列表打印同款：自适应列宽 + 单元格居中 + 表头自动换行
+        return Task.FromResult(TablePrintHelper.GeneratePdf(
+            string.IsNullOrWhiteSpace(title) ? "客户列表" : title,
+            items,
+            columns ?? [],
+            autoWidth: true,
+            alignCenter: true,
+            headerMaxLines: 0));
     }
 
     private static CustomerProfileDto ToDto(CustomerProfile entity) => new()

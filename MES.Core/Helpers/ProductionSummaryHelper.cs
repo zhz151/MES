@@ -107,7 +107,7 @@ public static class ProductionSummaryHelper
 
     /// <summary>
     /// 单工单待投料计算（与原锁计划 RecalculateSummary.pendingCalc 口径一致）：
-    /// 成购缺口 = Max(0, 成品计划量 − 已到货量)；质量补料（A）按流转比缺口折算不减已投料，其余减已投料；逐工单 Max(0)。
+    /// 成购缺口 = Max(0, 成品计划量 − 已到货量)；质量补料按流转比缺口折算不减已投料，其余减已投料；逐工单 Max(0)。
     /// 配置倍率 rawRatio 由调用方传入（订单负荷/原锁走 ProcessingDiscount/RawMaterialRatio 配置，默认 1.1）。
     /// </summary>
     public static decimal CalcPending(

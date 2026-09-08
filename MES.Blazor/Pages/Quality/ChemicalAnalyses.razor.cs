@@ -62,6 +62,17 @@ public partial class ChemicalAnalyses
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    // ========== 数值列（试样编号 + 各元素含量%，数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    {
+        "AnalysisCount", "C", "Si", "Mn", "P", "S", "Ni", "Cr",
+        "Mo", "Cu", "N", "Nb", "Ti", "Fe", "Al", "W"
+    };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+    // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_chemical-analysis_v1）
+    private const string ColumnPrefsVersion = "v1";
+
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "AnalysisDate",    Label = "检验日期",   SortKey = "analysisdate", FilterType = "date", Width = "110" },
@@ -85,7 +96,7 @@ public partial class ChemicalAnalyses
         new() { Key = "Fe", Label = "Fe%", SortKey = "fe", Width = "80" },
         new() { Key = "Al", Label = "Al%", SortKey = "al", Width = "80" },
         new() { Key = "W",  Label = "W%",  SortKey = "w",  Width = "80" },
-        new() { Key = "UpdatedTime",      Label = "更新日期",   SortKey = "updatedtime", Width = "120" },
+        new() { Key = "UpdatedTime",      Label = "更新日期",   SortKey = "updatedtime", Width = "120", Visible = false },
     };
 
     // ========== 服务端数据加载 ==========
@@ -273,7 +284,7 @@ public partial class ChemicalAnalyses
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("chemical-analysis", null, _allColumns);
+        await ColumnPrefs.SaveAsync("chemical-analysis", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -297,7 +308,7 @@ public partial class ChemicalAnalyses
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("chemical-analysis", null);
+        var saved = await ColumnPrefs.LoadAsync("chemical-analysis", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)
@@ -529,7 +540,9 @@ public partial class ChemicalAnalyses
                 }
                 break;
             case "Analyst":
-                RenderEditableString(builder, isEditing, cache?.Analyst, v => { if (cache != null) cache.Analyst = v; }, item.Analyst);
+                if (isEditing && cache != null)
+                    RenderEditableString(builder, true, cache?.Analyst, v => { if (cache != null) cache.Analyst = v; }, item.Analyst);
+                else builder.AddContent(0, MES.Core.Helpers.OperatorNameHelper.ToNamesOnly(item.Analyst));
                 break;
             case "FurnaceNo":
                 RenderEditableString(builder, isEditing, cache?.FurnaceNo, v => { if (cache != null) cache.FurnaceNo = v; }, item.FurnaceNo);

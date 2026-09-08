@@ -227,14 +227,14 @@
                                 <MudTd DataLabel="下个工段">@(string.IsNullOrEmpty(context.NextSectionName) ? "-" : SectionDisplayHelper.GetSectionNameText(context.NextSectionName))</MudTd>
                                 <MudTd DataLabel="下个规格">@(context.CorrespondingSpec ?? "-")</MudTd>
                                 <MudTd DataLabel="长度状态">@DisplayHelper.GetLengthStatusText(context.LengthStatus)</MudTd>
-                                <MudTd DataLabel="可用支数">
+                                <MudTd DataLabel="可用支数" Class="text-center">
                                     @GetNetValidQty(context)
                                     @if (context.ReservedQuantity > 0)
                                     {
                                         <MudText Typo="Typo.caption" Color="Color.Secondary" Class="d-inline">（已预留@(context.ReservedQuantity)）</MudText>
                                     }
                                 </MudTd>
-                                <MudTd DataLabel="可用重量">@GetNetValidWeight(context).ToString("G29")</MudTd>
+                                <MudTd DataLabel="可用重量" Class="text-center">@GetNetValidWeight(context).ToString("G29")</MudTd>
                                 <MudTd DataLabel="已预留">@($"{context.ReservedQuantity}支 / {context.ReservedWeight.ToString("G29")}kg")</MudTd>
                                 <MudTd DataLabel="投料制成倍" Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id))

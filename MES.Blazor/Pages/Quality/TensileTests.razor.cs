@@ -48,6 +48,14 @@ public partial class TensileTests
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns => _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    // ========== 数值列（试样编号 + 标距/强度/延伸率，数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    { "SampleNo", "OriginalGaugeLength", "FinalGaugeLength", "TensileStrength", "YieldStrengthRp02", "YieldStrengthRp1", "Elongation" };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+    // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_tensile-test_v1）
+    private const string ColumnPrefsVersion = "v1";
+
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "InspectionDate",     Label = "检验日期",     SortKey = "inspectiondate", FilterType = "date", Width = "110" },
@@ -65,7 +73,7 @@ public partial class TensileTests
         new() { Key = "YieldStrengthRp1",   Label = "屈服强度Rp1",  SortKey = "yieldstrengthrp1", Width = "100" },
         new() { Key = "Elongation",         Label = "延伸率(%)",    SortKey = "elongation", Width = "80" },
         new() { Key = "Judgment",           Label = "判定",         SortKey = "judgment", FilterType = "string", Width = "80" },
-        new() { Key = "UpdatedTime",        Label = "更新日期",     SortKey = "updatedtime", Width = "120" },
+        new() { Key = "UpdatedTime",        Label = "更新日期",     SortKey = "updatedtime", Width = "120", Visible = false },
     };
 
     private async Task<TableData<TensileTestDto>> LoadDataFromServer(TableState state)
@@ -157,7 +165,7 @@ public partial class TensileTests
     }
 
     private async Task OnColumnToggle(ColumnDef col) => await SaveColumnPrefs();
-    private async Task SaveColumnPrefs() => await ColumnPrefs.SaveAsync("tensile-test", null, _allColumns);
+    private async Task SaveColumnPrefs() => await ColumnPrefs.SaveAsync("tensile-test", ColumnPrefsVersion, _allColumns);
     private async Task ResetColumnDisplay()
     { _allColumns = GetAllColumnDefs(); await SaveColumnPrefs(); }
     private async Task MoveColumnUp(ColumnDef col) => await SaveColumnPrefs();
@@ -166,7 +174,7 @@ public partial class TensileTests
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("tensile-test", null);
+        var saved = await ColumnPrefs.LoadAsync("tensile-test", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)
@@ -304,7 +312,11 @@ public partial class TensileTests
                 }
                 else builder.AddContent(0, item.InspectionDate.ToString("yyyy-MM-dd"));
                 break;
-            case "Inspector": RenderStr(builder, isEditing, cache?.Inspector, v => { if (cache != null) cache.Inspector = v; }, item.Inspector); break;
+            case "Inspector":
+                if (isEditing && cache != null)
+                    RenderStr(builder, true, cache?.Inspector, v => { if (cache != null) cache.Inspector = v; }, item.Inspector);
+                else builder.AddContent(0, MES.Core.Helpers.OperatorNameHelper.ToNamesOnly(item.Inspector));
+                break;
             case "FurnaceNo": RenderStr(builder, isEditing, cache?.FurnaceNo, v => { if (cache != null) cache.FurnaceNo = v; }, item.FurnaceNo); break;
             case "Grade": RenderStr(builder, isEditing, cache?.Grade, v => { if (cache != null) cache.Grade = v; }, item.Grade); break;
             case "Specification": RenderStr(builder, isEditing, cache?.Specification, v => { if (cache != null) cache.Specification = v; }, item.Specification); break;

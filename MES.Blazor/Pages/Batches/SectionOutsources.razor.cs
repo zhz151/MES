@@ -112,6 +112,9 @@ public partial class SectionOutsources
 
     // ========== 列定义 ==========
 
+    /// <summary>列偏好版本键：改默认列显隐后 +1，使旧 localStorage 偏好失效一次以应用新默认（2026-09-09 收敛升 v2）</summary>
+    private const string ColumnPrefsVersion = "v2";
+
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
@@ -120,14 +123,14 @@ public partial class SectionOutsources
     {
         new() { Key = "BatchNo",             Label = "生产编号",     SortKey = "batchno",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "TagNo",               Label = "挂牌号",       SortKey = "tagno",               FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
-        new() { Key = "WorkOrderNo",         Label = "工单号",       SortKey = "workorderno",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "WorkOrderNo",         Label = "工单号",       SortKey = "workorderno",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息", Visible = false },
         new() { Key = "SalesOrderNo",        Label = "订单号",       SortKey = "salesorderno",        FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "ProductionMainNo",    Label = "主号",         SortKey = "productionmainno",    FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "ProcessName",         Label = "工序名称",     SortKey = "processname",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "PlantGrade",          Label = "工厂牌号",     SortKey = "plantgrade",          FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "ManufacturingSpec",   Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
-        new() { Key = "SequenceNumber",      Label = "执行序号",     SortKey = "sequencenumber", Width = "45", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "SequenceNumber",      Label = "执行序号",     SortKey = "sequencenumber", Width = "45", GroupKey = 1, GroupName = "委外信息", Visible = false },
         new() { Key = "ProductStatus",       Label = "产类",         SortKey = "productstatus",       FilterType = "string", Width = "80", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "Status",              Label = "状态",         SortKey = "status",              FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "委外信息",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<SectionOutsourceStatus>() },
@@ -137,20 +140,20 @@ public partial class SectionOutsources
         new() { Key = "OutsourceSpec",       Label = "委外规格",     SortKey = "outsourcespec",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "SendQuantity",        Label = "发出支数",     SortKey = "sendquantity", Width = "80", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "SendWeight",          Label = "发出重量",     SortKey = "sendweight", Width = "80", GroupKey = 1, GroupName = "委外信息" },
-        new() { Key = "ExpectedReturnDate",  Label = "要求收回日期", SortKey = "expectedreturndate",  FilterType = "date", Width = "120", GroupKey = 1, GroupName = "委外信息" },
-        new() { Key = "IsUrgent",            Label = "紧急",         SortKey = "isurgent",            FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "60", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "ExpectedReturnDate",  Label = "要求收回日期", SortKey = "expectedreturndate",  FilterType = "date", Width = "120", GroupKey = 1, GroupName = "委外信息", Visible = false },
+        new() { Key = "IsUrgent",            Label = "紧急",         SortKey = "isurgent",            FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "60", GroupKey = 1, GroupName = "委外信息", Visible = false },
         // ----- 元信息（归属委外记录） -----
-        new() { Key = "Remark",              Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "Remark",              Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息", Visible = false },
         new() { Key = "DataSource",          Label = "数据来源",     SortKey = "datasource",          FilterType = "enum", Width = "80", GroupKey = 1, GroupName = "委外信息",
-            EnumOptions = DisplayHelper.GetDataSourceOptions() },
-        new() { Key = "UpdatedTime",         Label = "更新时间",     SortKey = "updatedtime", Width = "120", GroupKey = 1, GroupName = "委外信息" },
+            EnumOptions = DisplayHelper.GetDataSourceOptions(), Visible = false },
+        new() { Key = "UpdatedTime",         Label = "更新时间",     SortKey = "updatedtime", Width = "120", GroupKey = 1, GroupName = "委外信息", Visible = false },
         // ===== 回收信息 =====
         new() { Key = "ActualRecoveryDate",  Label = "实际回收日期", SortKey = "actualrecoverydate",  FilterType = "date", Width = "120", GroupKey = 2, GroupName = "回收信息" },
         new() { Key = "TotalRecoveredQuantity",     Label = "正常回收(支)",  SortKey = "totalrecoveredquantity", Width = "80", GroupKey = 2, GroupName = "回收信息" },
         new() { Key = "TotalRecoveredWeight",       Label = "正常回收(重)",  SortKey = "totalrecoveredweight", Width = "80", GroupKey = 2, GroupName = "回收信息" },
-        new() { Key = "TotalUnprocessedQuantity",   Label = "非正常回收(支)", SortKey = "totalunprocessedquantity", Width = "80", GroupKey = 2, GroupName = "回收信息" },
-        new() { Key = "TotalUnprocessedWeight",     Label = "非正常回收(重)", SortKey = "totalunprocessedweight", Width = "80", GroupKey = 2, GroupName = "回收信息" },
-        new() { Key = "RecoveryRemark",      Label = "回收备注",     SortKey = "recoveryremark",      FilterType = "string", Width = "120", GroupKey = 2, GroupName = "回收信息" },
+        new() { Key = "TotalUnprocessedQuantity",   Label = "非正常回收(支)", SortKey = "totalunprocessedquantity", Width = "80", GroupKey = 2, GroupName = "回收信息", Visible = false },
+        new() { Key = "TotalUnprocessedWeight",     Label = "非正常回收(重)", SortKey = "totalunprocessedweight", Width = "80", GroupKey = 2, GroupName = "回收信息", Visible = false },
+        new() { Key = "RecoveryRemark",      Label = "回收备注",     SortKey = "recoveryremark",      FilterType = "string", Width = "120", GroupKey = 2, GroupName = "回收信息", Visible = false },
     };
 
     // ========== 分页汇总计算 ==========
@@ -445,23 +448,23 @@ public partial class SectionOutsources
 
     private async Task OnColumnToggle(ColumnDef col)
     {
-        await ColumnPrefs.SaveAsync("section-outsources", null, _allColumns);
+        await ColumnPrefs.SaveAsync("section-outsources", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task MoveColumnUp(ColumnDef col)
     {
-        await ColumnPrefs.SaveAsync("section-outsources", null, _allColumns);
+        await ColumnPrefs.SaveAsync("section-outsources", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task MoveColumnDown(ColumnDef col)
     {
-        await ColumnPrefs.SaveAsync("section-outsources", null, _allColumns);
+        await ColumnPrefs.SaveAsync("section-outsources", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
     {
         _allColumns = GetAllColumnDefs();
-        await ColumnPrefs.SaveAsync("section-outsources", null, _allColumns);
+        await ColumnPrefs.SaveAsync("section-outsources", ColumnPrefsVersion, _allColumns);
         if (table != null) await table.ReloadServerData();
     }
 
@@ -470,7 +473,7 @@ public partial class SectionOutsources
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("section-outsources", null);
+        var saved = await ColumnPrefs.LoadAsync("section-outsources", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             var reordered = new List<ColumnDef>();
@@ -1028,6 +1031,15 @@ public partial class SectionOutsources
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
         return cls;
     }
+
+    /// <summary>单元格对齐：数值类字段数据格居中，文本类字段靠左（表头保持原样）。</summary>
+    private static string GetAlignClass(ColumnDef col) => col.Key switch
+    {
+        "SendQuantity" or "SendWeight" or
+        "TotalRecoveredQuantity" or "TotalRecoveredWeight" or
+        "TotalUnprocessedQuantity" or "TotalUnprocessedWeight" => "text-center",
+        _ => ""
+    };
 
     // ========== 持久化 ==========
 

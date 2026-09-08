@@ -1,12 +1,17 @@
 using MES.Core.Constants;
 using MES.Core.DTOs.Scheduling;
 using MES.Core.DTOs.WorkOrder;
+using Microsoft.AspNetCore.Components;
 using MudBlazor;
 
 namespace MES.Blazor.Pages;
 
 public partial class Index
 {
+    /// <summary>手机端壳（MobileLayout）会向页面下传 IsMobile=true；桌面端 MainLayout 不提供 → 默认 false。</summary>
+    [CascadingParameter(Name = "IsMobile")]
+    private bool IsMobile { get; set; }
+
     // ========== 卡片 1：工单执行 ==========
     private bool _isLoadingCard1;
     private List<WorkOrderStageRow> _rows = new();
@@ -131,6 +136,11 @@ public partial class Index
                 NavigateUrl = url,
                 TotalText = $"{totalCount}/{FormatWeight(totalWeight)}",
                 UrgentTotalText = $"{urgentCount}/{FormatWeight(urgentWeight)}",
+                // 数值字段（手机端大数字卡直接渲染，口径与桌面拼串一致：吨位四舍五入去小数）
+                TotalCount = totalCount,
+                TotalWeightTons = (int)Math.Round(totalWeight / 1000m, 0, MidpointRounding.AwayFromZero),
+                UrgentCount = urgentCount,
+                UrgentWeightTons = (int)Math.Round(urgentWeight / 1000m, 0, MidpointRounding.AwayFromZero),
             });
 
             grandTotalCount += totalCount;
@@ -197,6 +207,10 @@ public partial class Index
         _flowTotalPlanFlowQuantity = _paragraphFlowItems.Sum(x => x.PlanFlowQuantity ?? 0m);
         _flowTotalPlanKeyWeight = _paragraphFlowItems.Sum(x => x.PlanKeyWeight ?? 0m);
     }
+
+    /// <summary>手机端「异常段落」数：总况判定为非正常（不足/超量）的段落数。</summary>
+    private int FlowAbnormalCount =>
+        _paragraphFlowItems.Count(x => x.StatusJudgment == SustainStatusKeys.Insufficient || x.StatusJudgment == SustainStatusKeys.Excessive);
 
     private string FlowSortIndicator(string key)
     {
@@ -313,5 +327,10 @@ public partial class Index
         public string NavigateUrl { get; set; } = "";
         public string TotalText { get; set; } = "";
         public string UrgentTotalText { get; set; } = "";
+        // 手机端大数字卡用
+        public int TotalCount { get; set; }
+        public int TotalWeightTons { get; set; }
+        public int UrgentCount { get; set; }
+        public int UrgentWeightTons { get; set; }
     }
 }

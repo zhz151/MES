@@ -410,6 +410,10 @@ public class ProductionRecordService : IProductionRecordService
         _context.ProductionRecords.Add(entity);
         await _context.SaveChangesAsync();
 
+        // 断切成品记录变更 → 定尺联通视图聚合源，主动失效其列表缓存（2026-09-08 缓存新鲜度治理）
+        if (entity.SectionName == SectionKeys.Cut)
+            _fixedLengthWorkOrderService.InvalidateCaches();
+
         await TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
         await UpdateBatchTrackingFromRecordsAsync(batchId);
         await TryRefreshExecutionSummaryAsync(batchId);
@@ -870,6 +874,10 @@ public class ProductionRecordService : IProductionRecordService
         _context.ProductionRecords.AddRange(entities);
         await _context.SaveChangesAsync();
 
+        // 批量含断切记录 → 定尺联通视图聚合源，主动失效其列表缓存（2026-09-08 缓存新鲜度治理）
+        if (entities.Any(e => e.SectionName == SectionKeys.Cut))
+            _fixedLengthWorkOrderService.InvalidateCaches();
+
         // 批量刷新所有涉及批次的跟踪字段
         var distinctBatchIds = entities.Select(e => e.ProductionBatchId).Distinct().ToList();
         foreach (var id in distinctBatchIds)
@@ -987,6 +995,10 @@ public class ProductionRecordService : IProductionRecordService
         _context.ProductionRecords.Update(entity);
         await _context.SaveChangesAsync();
 
+        // 断切成品记录变更（改断切倍数/切后支数/成品长度等）→ 定尺联通视图聚合源，主动失效其列表缓存（2026-09-08）
+        if (entity.SectionName == SectionKeys.Cut)
+            _fixedLengthWorkOrderService.InvalidateCaches();
+
         await TryRefreshQualityProcessTrackingAsync(entity.ProductionBatchId);
         await UpdateBatchTrackingFromRecordsAsync(entity.ProductionBatchId);
         await TryRefreshExecutionSummaryAsync(entity.ProductionBatchId);
@@ -1030,8 +1042,13 @@ public class ProductionRecordService : IProductionRecordService
             ?? throw new BusinessException("生产记录不存在");
 
         var batchId = entity.ProductionBatchId;
+        var wasCut = entity.SectionName == SectionKeys.Cut;
         _context.ProductionRecords.Remove(entity);
         await _context.SaveChangesAsync();
+
+        // 断切成品记录删除 → 定尺联通视图聚合源，主动失效其列表缓存（2026-09-08 缓存新鲜度治理）
+        if (wasCut)
+            _fixedLengthWorkOrderService.InvalidateCaches();
 
         await TryRefreshQualityProcessTrackingAsync(batchId);
         await UpdateBatchTrackingFromRecordsAsync(batchId);
@@ -1149,10 +1166,14 @@ public class ProductionRecordService : IProductionRecordService
                 s.ProcessName,
                 s.OutsourceVendor,
                 s.SendOutDate,
-                s.Status,
+                s.SendQuantity,
                 s.SendWeight,
-                TotalRecoveredWeight = s.OutsourceRecoveries.Sum(r =>
-                    (r.RecoveryWeight ?? 0) + (r.UnprocessedWeight ?? 0))
+                s.Status,
+                s.IsInternal,
+                // ⚠️ 正常回收口径：只计 Recovery（不含未加工退回 Unprocessed），2026-09-06 拍板
+                RecoveryQuantitySum = s.OutsourceRecoveries.Sum(r => r.RecoveryQuantity ?? 0),
+                RecoveryWeightSum = s.OutsourceRecoveries.Sum(r => r.RecoveryWeight ?? 0),
+                MaxRecoveryDate = s.OutsourceRecoveries.Max(r => (DateTime?)r.RecoveryDate)
             })
             .ToListAsync();
 
@@ -1190,6 +1211,22 @@ public class ProductionRecordService : IProductionRecordService
             .Where(ib => ib.ProductionBatchNo == batch.BatchNo)
             .OrderByDescending(ib => ib.InboundDate)
             .ToListAsync();
+
+        // 3f. 加载出缸记录（去油/酸洗完工，含操作人/日期，按入缸记录 ID 关联）
+        var allPicklingOutRecords = await _context.PicklingOutRecords
+            .Where(p => p.ProductionBatchId == batchId)
+            .ToListAsync();
+        var picklingOutByInRecordId = allPicklingOutRecords
+            .GroupBy(o => o.PicklingInRecordId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(o => o.CompleteDate).First());
+
+        // 3g. 加载成品检验记录（按批次，供横向流程最右端"成品检验 9 项"卡片组）
+        var allFinalInspections = await _context.FinalInspections
+            .Where(f => f.ProductionBatchId == batchId)
+            .ToListAsync();
+
+        // 3h. 解析该批次必检成品检验项（订单技术要求 ProductRequirement；无要求记录时兜底 PMI+表检+尺寸）
+        var (finalRequiredItems, preRequiredItems) = await ResolveBatchInspectionRequirementsAsync(batch);
 
         // 4. 构建查询字典
         var recordByKey = allRecords
@@ -1288,7 +1325,7 @@ public class ProductionRecordService : IProductionRecordService
                 decimal? outsourceProgress = null;
                 if (hasOutsource && outsource!.SendWeight > 0)
                 {
-                    outsourceProgress = (decimal)outsource.TotalRecoveredWeight / outsource.SendWeight.Value * 100;
+                    outsourceProgress = (decimal)outsource.RecoveryWeightSum / outsource.SendWeight.Value * 100;
                 }
 
                 // 预计算仓库入库的汇总数量和重量
@@ -1322,7 +1359,7 @@ public class ProductionRecordService : IProductionRecordService
                     OutsourceVendor = hasOutsource && outsource!.Status != SectionOutsourceStatus.Recovered ? outsource.OutsourceVendor : null,
                     OutsourceProgress = hasOutsource
                         ? (outsource!.SendWeight > 0
-                            ? (decimal)outsource.TotalRecoveredWeight / outsource.SendWeight.Value * 100
+                            ? (decimal)outsource.RecoveryWeightSum / outsource.SendWeight.Value * 100
                             : null)
                         : null,
                     WarehouseDetails = hasWarehouse
@@ -1367,6 +1404,117 @@ public class ProductionRecordService : IProductionRecordService
             if (lastSection != null && !lastSection.ExecDate.HasValue
                 && lastSection.SectionName != SectionDefs.Warehouse)
                 lastSection.ExecDate = materialReceiveCheck.ReceiveDate;
+        }
+
+        // 5c. 展示字段增强：按记录类型对每张工段卡聚合填充
+        //  ① 去油/酸洗 = 入缸(数量/操作人) + 出缸(日期/操作人)；② 生产 = 多人多日聚合；
+        //  ③ 委外 = 发出(单位/数量) + 回收(日期/正常回收量)；④ 过程检验 = 检验员 + 4 值；
+        //  ⑤ 成品检验(成检到料) = 仅标"检验到料日"。键 = (工序组Id, 工段英文 Key)
+        var picklingInsByKey = allPicklingInRecords
+            .GroupBy(p => (p.ProcessGroupId, p.SectionName))
+            .ToDictionary(g => g.Key, g => g.OrderBy(p => p.InDate).ToList());
+        var recordsByKey = allRecords
+            .GroupBy(r => (r.ProcessGroupId, r.SectionName))
+            .ToDictionary(g => g.Key, g => g.ToList());
+        var outsourcesByKey = allOutsources
+            .GroupBy(o => (o.ProcessGroupId, o.SectionName))
+            .ToDictionary(g => g.Key, g => g.ToList());
+        var inspectionsByKey = allInspections
+            .GroupBy(i => (i.ProcessGroupId, i.SectionName))
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var s in allSectionDtos)
+        {
+            var sKey = (s.ProcessGroupId, SectionKeys.ToKey(s.SectionName)!);
+
+            // ① 去油/酸洗：入缸 + 出缸双节点
+            if (picklingInsByKey.TryGetValue(sKey, out var pinRecs) && pinRecs.Count > 0)
+            {
+                s.DateLabel = "入缸";
+                s.ExecDate = pinRecs[^1].InDate;
+                if (pinRecs[0].InDate != s.ExecDate) s.ExecDateStart = pinRecs[0].InDate;
+                s.Operator = JoinExecutors(pinRecs.Select(p => p.Operator));
+                s.EquipmentName = pinRecs[^1].EquipmentName;
+                var inQty = pinRecs.Sum(p => p.Quantity ?? 0);
+                var inWt = pinRecs.Sum(p => p.Weight ?? 0m);
+                s.Quantity = inQty > 0 ? inQty : null;
+                s.Weight = inWt > 0 ? inWt : null;
+                var outRecs = pinRecs
+                    .Where(p => picklingOutByInRecordId.TryGetValue(p.Id, out _))
+                    .Select(p => picklingOutByInRecordId[p.Id])
+                    .ToList();
+                if (outRecs.Count > 0)
+                {
+                    s.DateLabel2 = "出缸";
+                    s.ExecDate2 = outRecs.Max(o => (DateTime?)o.CompleteDate);
+                    s.Operator2 = JoinExecutors(outRecs.Select(o => o.Operator));
+                }
+                continue;
+            }
+
+            // ② 生产记录：多人/多日聚合 + 数量合计
+            if (recordsByKey.TryGetValue(sKey, out var recList) && recList.Count > 0)
+            {
+                var sorted = recList.OrderBy(r => r.ExecDate).ToList();
+                s.ExecDate = sorted[^1].ExecDate;
+                if (sorted[0].ExecDate != s.ExecDate) s.ExecDateStart = sorted[0].ExecDate;
+                s.Operator = JoinExecutors(sorted.Select(r => r.Operator));
+                s.EquipmentName = sorted[^1].EquipmentName ?? s.EquipmentName;
+                var rQty = sorted.Sum(r => r.Quantity ?? 0);
+                var rWt = sorted.Sum(r => r.Weight ?? 0m);
+                s.Quantity = rQty > 0 ? rQty : null;
+                s.Weight = rWt > 0 ? rWt : null;
+                continue;
+            }
+
+            // ③ 委外（含厂内虚拟委外）：发出(单位/数量) + 回收(日期/正常回收量)
+            if (outsourcesByKey.TryGetValue(sKey, out var outList) && outList.Count > 0)
+            {
+                var os = outList[0];
+                s.DateLabel = "发出";
+                s.ExecDate = os.SendOutDate;
+                s.OutsourceVendor = os.OutsourceVendor;
+                s.Quantity = os.SendQuantity;
+                s.Weight = os.SendWeight;
+                if (os.MaxRecoveryDate.HasValue)
+                {
+                    s.DateLabel2 = "回收";
+                    s.ExecDate2 = os.MaxRecoveryDate;
+                }
+                s.RecoveryQuantity = os.RecoveryQuantitySum > 0 ? os.RecoveryQuantitySum : null;
+                s.RecoveryWeight = os.RecoveryWeightSum > 0 ? (decimal?)os.RecoveryWeightSum : null;
+                continue;
+            }
+
+            // ④ 过程检验：检验员 + 4 值（合格支/重、次品支=返整+入库+报废、次品重=三项理论重和，跨记录累加）
+            if (inspectionsByKey.TryGetValue(sKey, out var inspList) && inspList.Count > 0)
+            {
+                var sorted = inspList.OrderBy(i => i.InspectionDate).ToList();
+                s.ExecDate = sorted[^1].InspectionDate;
+                if (sorted[0].InspectionDate != s.ExecDate) s.ExecDateStart = sorted[0].InspectionDate;
+                s.Operator = JoinExecutors(sorted.Select(i => i.Inspector));
+                s.Quantity = null;
+                s.Weight = null;
+                s.QualifiedQuantity = sorted.Sum(i => i.QualifiedQuantity ?? 0);
+                s.QualifiedWeight = sorted.Sum(i => i.QualifiedWeight ?? 0);
+                s.DefectQuantity = sorted.Sum(i => (i.DefectReworkQuantity ?? 0)
+                    + (i.DefectWarehouseQuantity ?? 0) + (i.DefectScrapQuantity ?? 0));
+                s.DefectWeight = sorted.Sum(i => (i.TheoreticalReworkWeight ?? 0)
+                    + (i.TheoreticalWarehouseWeight ?? 0) + (i.TheoreticalScrapWeight ?? 0));
+                continue;
+            }
+
+            // ⑤ 成品检验（成检到料）：检验工段且该工序组已到料 → 仅标注"检验到料日"
+            if (s.SectionName == SectionDefs.Inspection
+                && materialCheckDateByPgId.TryGetValue(s.ProcessGroupId, out var receiveDate))
+            {
+                s.IsReceiveOnly = true;
+                s.ExecDate = receiveDate;
+                s.DateLabel = "检验到料";
+                s.Quantity = null;
+                s.Weight = null;
+                s.Operator = null;
+            }
         }
 
         // 6. 计算投料量与目标量（使用现有效原料数据）
@@ -1428,6 +1576,9 @@ public class ProductionRecordService : IProductionRecordService
                     .Select(pg => pg.ProcessName)
                     .FirstOrDefault();
 
+        // 5d. 成品检验 9 项卡片（正式成检为主、预检仅角标；必检=订单技术要求）
+        var finalInspectionItems = BuildFinalInspectionItemDtos(allFinalInspections, finalRequiredItems, preRequiredItems);
+
         return new BatchTrackingVisualDto
         {
             BatchId = batch.Id,
@@ -1454,8 +1605,187 @@ public class ProductionRecordService : IProductionRecordService
             TargetQuantity = targetQty,
             TargetWeight = targetWt,
 
-            ProcessGroups = processGroupDtos
+            ProcessGroups = processGroupDtos,
+
+            FinalInspectionItems = finalInspectionItems
         };
+    }
+
+    // ========== 批次详情"成品检验 9 项"辅助 ==========
+
+    /// <summary>归一化成检类型：PreInspection→预；空/其它→正式成检</summary>
+    private static InspectionType NormalizeFinalInspectionType(string? raw)
+        => string.Equals(raw, nameof(InspectionType.PreInspection), StringComparison.OrdinalIgnoreCase)
+            ? InspectionType.PreInspection
+            : InspectionType.FormalInspection;
+
+    /// <summary>
+    /// 聚合构建成品检验 9 项卡片（横向流程最右端"成品检验"组）。
+    /// 正式成检为主；某项无正式记录但存在预检 → 降级展示预检数据并标 PreOnly（前端显"预"）。
+    /// 4 值只统计正式成检记录（预检记录仅作 HasPre 角标，不并入数量）。
+    /// </summary>
+    private static List<FinalInspectionItemVisualDto> BuildFinalInspectionItemDtos(
+        List<FinalInspection> inspections,
+        HashSet<InspectionItem> finalRequired,
+        HashSet<InspectionItem> preRequired)
+    {
+        var result = new List<FinalInspectionItemVisualDto>(9);
+        foreach (var item in Enum.GetValues<InspectionItem>())
+        {
+            var formal = inspections
+                .Where(f => f.InspectionItem == item
+                    && NormalizeFinalInspectionType(f.InspectionType) == InspectionType.FormalInspection)
+                .ToList();
+            var pre = inspections
+                .Where(f => f.InspectionItem == item
+                    && NormalizeFinalInspectionType(f.InspectionType) == InspectionType.PreInspection)
+                .ToList();
+
+            var src = formal.Count > 0 ? formal : pre;
+            var latest = src.OrderByDescending(f => f.InspectionDate).FirstOrDefault();
+
+            int? SumNonNull(Func<FinalInspection, int?> pick)
+            {
+                var v = src.Sum(pick);
+                return v > 0 ? v : (int?)null;
+            }
+
+            result.Add(new FinalInspectionItemVisualDto
+            {
+                InspectionItem = item,
+                IsRequired = finalRequired.Contains(item),
+                HasPre = pre.Count > 0,
+                PreOnly = formal.Count == 0 && pre.Count > 0,
+                InspectionDate = src.Count > 0 ? src.Max(f => (DateTime?)f.InspectionDate) : null,
+                Inspector = latest?.Operator,
+                QualifiedQuantity = SumNonNull(f => f.QualifiedQuantity),
+                QualifiedWeight = SumNonNull(f => f.QualifiedWeight),
+                DefectQuantity = SumNonNull(f => (f.DefectReworkQuantity ?? 0)
+                    + (f.DefectWarehouseQuantity ?? 0) + (f.DefectScrapQuantity ?? 0)),
+                DefectWeight = SumNonNull(f => (f.DefectReworkWeight ?? 0)
+                    + (f.DefectWarehouseWeight ?? 0) + (f.DefectScrapWeight ?? 0))
+            });
+        }
+        return result;
+    }
+
+    /// <summary>操作人聚合显示：去重（忽略大小写）；≤2 人并列、&gt;2 人 "张三等N人"</summary>
+    private static string? JoinExecutors(IEnumerable<string?> people)
+    {
+        var names = people
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Select(p => p!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return names.Count switch
+        {
+            0 => null,
+            1 => names[0],
+            <= 2 => string.Join("、", names),
+            _ => $"{names[0]}等{names.Count}人"
+        };
+    }
+
+    /// <summary>解析批次正式/预成检必检检验项（订单技术要求 ProductRequirement；无要求记录兜底 PMI+表检+尺寸）</summary>
+    private async Task<(HashSet<InspectionItem> Final, HashSet<InspectionItem> Pre)> ResolveBatchInspectionRequirementsAsync(ProductionBatch batch)
+    {
+        var finReq = new HashSet<InspectionItem>();
+        var preReq = new HashSet<InspectionItem>();
+
+        var seqs = ParseSequenceList(batch.OrderItemIds);
+        string? orderNo = batch.SalesOrderNo;
+        if (seqs.Count == 0 && !string.IsNullOrWhiteSpace(batch.WorkOrderNo))
+        {
+            var wo = await _context.WorkOrders.AsNoTracking()
+                .FirstOrDefaultAsync(w => w.WorkOrderNo == batch.WorkOrderNo);
+            if (wo != null)
+            {
+                orderNo = wo.SalesOrderNo;
+                seqs = ParseSequenceList(wo.OrderItemIds);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(orderNo) && seqs.Count > 0)
+        {
+            foreach (var seqChunk in Chunk(seqs, 1000))
+            {
+                var oiIds = await _context.OrderItems.AsNoTracking()
+                    .Where(oi => oi.OrderNumber == orderNo && seqChunk.Contains(oi.Sequence))
+                    .Select(oi => oi.Id)
+                    .ToListAsync();
+                if (oiIds.Count == 0) continue;
+                foreach (var oiChunk in Chunk(oiIds, 1000))
+                {
+                    var reqRows = await _context.ProductRequirements.AsNoTracking()
+                        .Where(pr => oiChunk.Contains(pr.OrderItemId))
+                        .Select(pr => new
+                        {
+                            pr.PmiInspection, pr.SurfaceInspection, pr.Dimension, pr.Endoscopy,
+                            pr.HydrostaticTest, pr.UnderwaterPressure, pr.EddyCurrent,
+                            pr.UltrasonicTest, pr.PortColoring
+                        })
+                        .ToListAsync();
+                    foreach (var r in reqRows)
+                    {
+                        ApplyRequirementStage(finReq, preReq, r.PmiInspection, InspectionItem.PMIInspection);
+                        ApplyRequirementStage(finReq, preReq, r.SurfaceInspection, InspectionItem.VisualInspection);
+                        ApplyRequirementStage(finReq, preReq, r.Dimension, InspectionItem.Dimension);
+                        ApplyRequirementStage(finReq, preReq, r.Endoscopy, InspectionItem.Endoscopy);
+                        ApplyRequirementStage(finReq, preReq, r.HydrostaticTest, InspectionItem.HydrostaticPressure);
+                        ApplyRequirementStage(finReq, preReq, r.UnderwaterPressure, InspectionItem.UnderwaterPneumatic);
+                        ApplyRequirementStage(finReq, preReq, r.EddyCurrent, InspectionItem.EddyCurrent);
+                        ApplyRequirementStage(finReq, preReq, r.UltrasonicTest, InspectionItem.Ultrasonic);
+                        ApplyRequirementStage(finReq, preReq, r.PortColoring, InspectionItem.PortColoring);
+                    }
+                }
+            }
+        }
+
+        // 无任何要求记录（非工单批次/未配技术要求）→ 兜底 PMI+表检+尺寸：预成检与正式成检均要求
+        if (finReq.Count == 0 && preReq.Count == 0)
+        {
+            finReq.UnionWith(BaseRequiredItems());
+            preReq.UnionWith(BaseRequiredItems());
+        }
+        return (finReq, preReq);
+    }
+
+    private static void ApplyRequirementStage(HashSet<InspectionItem> finReq, HashSet<InspectionItem> preReq, InspectionRequirementStage stage, InspectionItem item)
+    {
+        switch (stage)
+        {
+            case InspectionRequirementStage.FinalOnly:
+                finReq.Add(item);
+                break;
+            case InspectionRequirementStage.PreOnly:
+                preReq.Add(item);
+                break;
+            case InspectionRequirementStage.PreAndFinal:
+                finReq.Add(item);
+                preReq.Add(item);
+                break;
+        }
+    }
+
+    /// <summary>恒必检兜底：PMI + 表检 + 尺寸（非工单批次无技术要求时的默认要求项）</summary>
+    private static HashSet<InspectionItem> BaseRequiredItems()
+        => new() { InspectionItem.PMIInspection, InspectionItem.VisualInspection, InspectionItem.Dimension };
+
+    /// <summary>逗号分隔的项次序号（Sequence）→ int 列表（OrderItemIds 存的是项次序号 Sequence，非 OrderItem.Id）</summary>
+    private static List<int> ParseSequenceList(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return new List<int>();
+        return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(s => int.TryParse(s, out _))
+            .Select(int.Parse)
+            .ToList();
+    }
+
+    /// <summary>按块切分列表（防 SQL Server IN 参数 2100 上限）</summary>
+    private static IEnumerable<List<T>> Chunk<T>(List<T> source, int size)
+    {
+        for (var i = 0; i < source.Count; i += size)
+            yield return source.GetRange(i, Math.Min(size, source.Count - i));
     }
 
     private async Task UpdateBatchTrackingFromRecordsAsync(int batchId)
@@ -2451,7 +2781,7 @@ public class ProductionRecordService : IProductionRecordService
             queryable = queryable.Where(r => r.ExecDate >= query.ExecDateFrom.Value);
 
         if (query.ExecDateTo.HasValue)
-            queryable = queryable.Where(r => r.ExecDate <= query.ExecDateTo.Value);
+            queryable = queryable.Where(r => r.ExecDate < query.ExecDateTo.Value.AddDays(1));
 
         // 处理批次导航属性筛选（ProductionRecord 实体无 BatchNo/WorkOrderNo/SalesOrderNo/ProductionMainNo 属性，ApplyFilters 反射不到）
         if (query.Filters != null)

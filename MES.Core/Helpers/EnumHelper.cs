@@ -62,7 +62,8 @@ public static class EnumHelper
         ["WorkOrderStatus"] = "工单状态（3态，不含已取消——工单物理删除）",
         ["VerifyResult"] = "纠正预防措施验证结论",
         ["UsageType"] = "设备作用类型（使用分类）",
-        ["SalaryMode"] = "工资结算模式（员工配置，决定计件/计时/固定结算路径）"
+        ["SalaryMode"] = "工资结算模式（员工配置，决定计件/计时/固定结算路径）",
+        ["PricingUnit"] = "订单项次计价单位（元/Kg·元/米·元/支，决定总价取量）"
     };
 
     static EnumHelper()
@@ -103,6 +104,10 @@ public static class EnumHelper
         Register<SettlementMethod>(("Theoretical", "理算"),
                                     ("Weighing", "过磅"),
                                     ("WeighingNegative", "过磅-负"));
+
+        Register<PricingUnit>(("PerKg", "元/Kg"),
+                               ("PerMeter", "元/米"),
+                               ("PerPiece", "元/支"));
 
         Register<SalesOrderStatus>(("Pending", "待处理"),
                                     ("Confirmed", "已确认"),

@@ -108,21 +108,21 @@
                             </MudTd>
                             @if (calcResult != null)
                             {
-                                <MudTd>@calcResult.Density.ToString("G29")</MudTd>
-                                <MudTd>@calcResult.UnitWeightPerMeter.ToString("G29")</MudTd>
-                                <MudTd>@(calcResult.UnitWeight?.ToString("G29") ?? "-")</MudTd>
-                                <MudTd>@(calcResult.RawUnitWeight?.ToString("G29") ?? "-")</MudTd>
-                                <MudTd>@(calcResult.RequiredPieces?.ToString() ?? "-")</MudTd>
-                                <MudTd>@(calcResult.RequiredWeight?.ToString("G29") ?? "-")</MudTd>
+                                <MudTd Class="text-center">@calcResult.Density.ToString("G29")</MudTd>
+                                <MudTd Class="text-center">@calcResult.UnitWeightPerMeter.ToString("G29")</MudTd>
+                                <MudTd Class="text-center">@(calcResult.UnitWeight?.ToString("G29") ?? "-")</MudTd>
+                                <MudTd Class="text-center">@(calcResult.RawUnitWeight?.ToString("G29") ?? "-")</MudTd>
+                                <MudTd Class="text-center">@(calcResult.RequiredPieces?.ToString() ?? "-")</MudTd>
+                                <MudTd Class="text-center">@(calcResult.RequiredWeight?.ToString("G29") ?? "-")</MudTd>
                             }
                             else
                             {
-                                <MudTd>-</MudTd>
-                                <MudTd>-</MudTd>
-                                <MudTd>-</MudTd>
-                                <MudTd>-</MudTd>
-                                <MudTd>-</MudTd>
-                                <MudTd>-</MudTd>
+                                <MudTd Class="text-center">-</MudTd>
+                                <MudTd Class="text-center">-</MudTd>
+                                <MudTd Class="text-center">-</MudTd>
+                                <MudTd Class="text-center">-</MudTd>
+                                <MudTd Class="text-center">-</MudTd>
+                                <MudTd Class="text-center">-</MudTd>
                             }
                         </RowTemplate>
                     </MudTable>

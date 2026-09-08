@@ -438,7 +438,9 @@
 
     private static string GetCellClass(string key) => key switch
     {
-        "InitialQuantity" or "InitialWeight" or "UnitWeight" => "text-right",
+        "InitialQuantity" or "InitialWeight" or "UnitWeight"
+        or "MinLength" or "MaxLength" or "Meters"
+        or "SourceOrderSequence" => "text-center",
         _ => ""
     };
 
@@ -1377,9 +1379,9 @@
                 errors.Add($"第{i + 1}行：责任类型必填");
         }
 
-        // 长度值逻辑验证（仅 FG/WIP 适用）
+        // 长度值逻辑验证（仅 FG 成品库进库强制；其它仓库不强制必填最小/最大长度，2026-09-08）
         var minLenApplicable = _allColumns.FirstOrDefault(c => c.Key == "MinLength")?.IsApplicable ?? false;
-        if (minLenApplicable && (_warehouseCode == "FG" || _warehouseCode == "WIP"))
+        if (minLenApplicable && _warehouseCode == "FG")
         {
             for (int i = 0; i < _rows.Count; i++)
             {

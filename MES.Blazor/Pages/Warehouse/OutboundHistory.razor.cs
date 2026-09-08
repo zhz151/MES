@@ -92,6 +92,14 @@ public partial class OutboundHistory
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
+
+    // ========== 数值列（数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    {
+        "OutboundQuantity", "OutboundWeight", "OutboundMeters"
+    };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "BatchNo",          Label = "仓库批次", SortKey = "batchno", FilterType = "string", Width = "120" },

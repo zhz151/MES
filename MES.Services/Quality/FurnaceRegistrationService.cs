@@ -133,7 +133,7 @@ public class FurnaceRegistrationService : IFurnaceRegistrationService
         if (query.IncomingDateFrom.HasValue)
             queryable = queryable.Where(r => r.IncomingDate >= query.IncomingDateFrom.Value);
         if (query.IncomingDateTo.HasValue)
-            queryable = queryable.Where(r => r.IncomingDate <= query.IncomingDateTo.Value);
+            queryable = queryable.Where(r => r.IncomingDate < query.IncomingDateTo.Value.AddDays(1));
 
         queryable = queryable.ApplyFilters(query.Filters);
         var totalCount = await queryable.CountAsync();

@@ -165,7 +165,8 @@
                         <MudTd Style="width: 40px;"></MudTd>
                         @foreach (var col in _visibleColumns)
                         {
-                            <MudTd>@RenderInlineEditor(item, col)</MudTd>
+                            var _cellAlignClass = IsNumericColumn(col) ? "text-center" : "";
+                            <MudTd Class="@_cellAlignClass">@RenderInlineEditor(item, col)</MudTd>
                         }
                         <MudTd>
                             <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success"
@@ -187,7 +188,8 @@
                         </MudTd>
                         @foreach (var col in _visibleColumns)
                         {
-                            <MudTd>@RenderCell(item, col)</MudTd>
+                            var _cellAlignClass = IsNumericColumn(col) ? "text-center" : "";
+                            <MudTd Class="@_cellAlignClass">@RenderCell(item, col)</MudTd>
                         }
                         <MudTd>
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"

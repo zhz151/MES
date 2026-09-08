@@ -70,6 +70,9 @@ public partial class MaterialReceiveChecks
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_material-receive-checks_v1）
+    private const string ColumnPrefsVersion = "v1";
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         // G1: 检验到料（实体数据）
@@ -78,14 +81,14 @@ public partial class MaterialReceiveChecks
         new() { Key = "HealthIssue",       Label = "校验状态",   SortKey = null, FilterType = null, Width = "100", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "ReceiveDate",       Label = "到料日期",   SortKey = "receivedate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "ProcessName",       Label = "工序名称",   SortKey = "processname", FilterType = "string", Width = "100", GroupKey = 1, GroupName = "检验到料" },
-        new() { Key = "SequenceNumber",    Label = "执行序",     SortKey = "sequencenumber", FilterType = "string", Width = "80", GroupKey = 1, GroupName = "检验到料" },
+        new() { Key = "SequenceNumber",    Label = "执行序",     SortKey = "sequencenumber", FilterType = "string", Visible = false, Width = "80", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "InspectionType",    Label = "成检类型",   SortKey = "inspectiontype", FilterType = "enum", Width = "100", GroupKey = 1, GroupName = "检验到料", EnumOptions = DisplayHelper.GetEnumFilterOptions<InspectionType>() },
-        new() { Key = "Shift",             Label = "班次",        SortKey = "shift", FilterType = "enum", Width = "120", GroupKey = 1, GroupName = "检验到料", EnumOptions = DisplayHelper.GetEnumFilterOptions<ShiftType>() },
+        new() { Key = "Shift",             Label = "班次",        SortKey = "shift", FilterType = "enum", Visible = false, Width = "120", GroupKey = 1, GroupName = "检验到料", EnumOptions = DisplayHelper.GetEnumFilterOptions<ShiftType>() },
         new() { Key = "Checker",           Label = "确认人",     SortKey = "checker", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "检验到料" },
-        new() { Key = "DataSource",        Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80", GroupKey = 1, GroupName = "检验到料", EnumOptions = DisplayHelper.GetDataSourceOptions() },
+        new() { Key = "DataSource",        Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Visible = false, Width = "80", GroupKey = 1, GroupName = "检验到料", EnumOptions = DisplayHelper.GetDataSourceOptions() },
         new() { Key = "IsForceCompleted",  Label = "强制完成",   SortKey = "isforcecompleted", FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "60", GroupKey = 1, GroupName = "检验到料" },
         new() { Key = "Remark",            Label = "备注",        SortKey = "remark", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "检验到料" },
-        new() { Key = "UpdatedTime",       Label = "更新时间",   SortKey = "updatedtime", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "检验到料" },
+        new() { Key = "UpdatedTime",       Label = "更新时间",   SortKey = "updatedtime", FilterType = "date", Visible = false, Width = "120", GroupKey = 1, GroupName = "检验到料" },
 
         // G2: 批次信息（DTO 导航带出）
         new() { Key = "WorkOrderNo",       Label = "工单号",     SortKey = "workorderno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "批次信息" },
@@ -343,7 +346,7 @@ public partial class MaterialReceiveChecks
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("material-receive-checks", null, _allColumns);
+        await ColumnPrefs.SaveAsync("material-receive-checks", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -359,7 +362,7 @@ public partial class MaterialReceiveChecks
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("material-receive-checks", null);
+        var saved = await ColumnPrefs.LoadAsync("material-receive-checks", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)

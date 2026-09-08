@@ -92,9 +92,9 @@
                             <td>@m.EmployeeCode</td>
                             <td>@m.EmployeeName</td>
                             <td>@(string.IsNullOrEmpty(posText) ? "—" : posText)</td>
-                            <td>@attText</td>
-                            <td>@coeffText</td>
-                            <td>@avgText</td>
+                            <td class="text-center">@attText</td>
+                            <td class="text-center">@coeffText</td>
+                            <td class="text-center">@avgText</td>
                             <td>
                                 <input class="amount-cell-input" type="text" inputmode="decimal" maxlength="14"
                                        disabled="@(!_canEdit)"
@@ -125,7 +125,7 @@
                 <tfoot>
                     <tr>
                         <td colspan="6">整月合计(元)</td>
-                        <td>@TotalAmount.ToString("G29")</td>
+                        <td class="text-center">@TotalAmount.ToString("G29")</td>
                         <td></td>
                     </tr>
                 </tfoot>

@@ -43,7 +43,7 @@
                                Disabled="@(!hasNextWorkOrder)"
                                OnClick="NavigateToNext"
                                Title="下一个工单" />
-                <MudButton Variant="Variant.Text" OnClick="GoBack">返回用料计划总览</MudButton>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回用料计划</MudButton>
             </CardHeaderActions>
         </MudCardHeader>
 
@@ -102,10 +102,10 @@
                                 <MudTd>@plan.PlantGrade</MudTd>
                                 <MudTd>@plan.RoundBarSpec</MudTd>
                                 <MudTd>@plan.PiercingSpec</MudTd>
-                                <MudTd>@(plan.RequiredUnitWeight?.ToString("G29") ?? "-")</MudTd>
-                                <MudTd>@(plan.RequiredPieces?.ToString() ?? "-")</MudTd>
-                                <MudTd>@(((int)plan.RequiredWeight).ToString())</MudTd>
-                                <MudTd>@(plan.InputMultiple.ToString())</MudTd>
+                                <MudTd Class="text-center">@(plan.RequiredUnitWeight?.ToString("G29") ?? "-")</MudTd>
+                                <MudTd Class="text-center">@(plan.RequiredPieces?.ToString() ?? "-")</MudTd>
+                                <MudTd Class="text-center">@(((int)plan.RequiredWeight).ToString())</MudTd>
+                                <MudTd Class="text-center">@(plan.InputMultiple.ToString())</MudTd>
                                 <MudTd>@plan.RequiredDate.ToString("yyyy-MM-dd")</MudTd>
                                 <MudTd>@(plan.Remark ?? "-")</MudTd>
                                 <MudTd>
@@ -157,10 +157,10 @@
                                 <MudTd>@DisplayHelper.GetMaterialTypeText(plan.RawMaterialType)</MudTd>
                                 <MudTd>@plan.PlantGrade</MudTd>
                                 <MudTd>@plan.RawMaterialSpec</MudTd>
-                                <MudTd>@(plan.RequiredUnitWeight?.ToString("G29") ?? "-")</MudTd>
-                                <MudTd>@(plan.RequiredPieces?.ToString() ?? "-")</MudTd>
-                                <MudTd>@(((int)plan.RequiredWeight).ToString())</MudTd>
-                                <MudTd>@(plan.InputMultiple.ToString())</MudTd>
+                                <MudTd Class="text-center">@(plan.RequiredUnitWeight?.ToString("G29") ?? "-")</MudTd>
+                                <MudTd Class="text-center">@(plan.RequiredPieces?.ToString() ?? "-")</MudTd>
+                                <MudTd Class="text-center">@(((int)plan.RequiredWeight).ToString())</MudTd>
+                                <MudTd Class="text-center">@(plan.InputMultiple.ToString())</MudTd>
                                 <MudTd>@plan.RequiredDate.ToString("yyyy-MM-dd")</MudTd>
                                 <MudTd>@(plan.Remark ?? "-")</MudTd>
                                 <MudTd>
@@ -221,9 +221,9 @@
                                 <MudTd>@DisplayHelper.GetLengthStatusText(plan.LengthStatus)</MudTd>
                                 <MudTd>@FormatLengthRange(plan.MinLength, plan.MaxLength)</MudTd>
                                 <MudTd>@DisplayHelper.GetDeliveryStateText(plan.DeliveryState)</MudTd>
-                                <MudTd>@(plan.RequiredPiece?.ToString() ?? "-")</MudTd>
-                                <MudTd>@(((int)plan.RequiredWeight).ToString())</MudTd>
-                                <MudTd>@(plan.InputMultiple?.ToString() ?? "-")</MudTd>
+                                <MudTd Class="text-center">@(plan.RequiredPiece?.ToString() ?? "-")</MudTd>
+                                <MudTd Class="text-center">@(((int)plan.RequiredWeight).ToString())</MudTd>
+                                <MudTd Class="text-center">@(plan.InputMultiple?.ToString() ?? "-")</MudTd>
                                 <MudTd>@(plan.RequiredDate?.ToString("yyyy-MM-dd") ?? "-")</MudTd>
                                 <MudTd>@(plan.Remark ?? "-")</MudTd>
                                 <MudTd>
@@ -291,7 +291,7 @@
                                         @(plan.UsageMode == "All" ? "全部" : "部分")
                                     }
                                 </MudTd>
-                                <MudTd>
+                                <MudTd Class="text-center">
                                     @if (_editingInventoryPlanId == plan.Id)
                                     {
                                         <MudNumericField T="int?" HideSpinButtons="true" Value="@_editInvUsedQuantity"
@@ -308,7 +308,7 @@
                                         <span>@(plan.UsedQuantity?.ToString() ?? "-")支</span>
                                     }
                                 </MudTd>
-                                <MudTd>
+                                <MudTd Class="text-center">
                                     @if (_editingInventoryPlanId == plan.Id)
                                     {
                                         <MudNumericField T="decimal" HideSpinButtons="true" Format="G29"
@@ -387,7 +387,7 @@
                                 <MudTd>@plan.PlantGrade</MudTd>
                                 <MudTd>@plan.Specification</MudTd>
                                 <MudTd>@(plan.UsageMode == "All" ? "全部" : "部分")</MudTd>
-                                <MudTd>
+                                <MudTd Class="text-center">
                                     @if (plan.UsageMode == "All")
                                     {
                                         <span>全部(@(plan.UsedQuantity?.ToString() ?? "0")支)</span>
@@ -397,7 +397,7 @@
                                         <span>@(plan.UsedQuantity?.ToString() ?? "-")支</span>
                                     }
                                 </MudTd>
-                                <MudTd>@(((int)plan.UsedWeight).ToString())</MudTd>
+                                <MudTd Class="text-center">@(((int)plan.UsedWeight).ToString())</MudTd>
                                 <MudTd>@FormatLocation(plan.LocationArea, plan.LocationRack)</MudTd>
                                 <MudTd>@plan.ReworkTypeText</MudTd>
                                 <MudTd>
@@ -448,8 +448,8 @@
                                 <MudTd>@(plan.BatchTagNo ?? "-")</MudTd>
                                 <MudTd>@plan.PlantGrade</MudTd>
                                 <MudTd>@plan.Specification</MudTd>
-                                <MudTd>@(plan.UsedQuantity?.ToString() ?? "-")</MudTd>
-                                <MudTd>@(((int)plan.UsedWeight).ToString())</MudTd>
+                                <MudTd Class="text-center">@(plan.UsedQuantity?.ToString() ?? "-")</MudTd>
+                                <MudTd Class="text-center">@(((int)plan.UsedWeight).ToString())</MudTd>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
                                                    Color="Color.Info" OnClick="() => PrintInProcessReworkPlan(plan.Id)"
@@ -489,8 +489,8 @@
                                 <MudTd>@plan.PlanDate.ToString("yyyy-MM-dd")</MudTd>
                                 <MudTd>@plan.BatchNo</MudTd>
                                 <MudTd>@plan.MainWorkOrderNo</MudTd>
-                                <MudTd>@(plan.AllocatedQuantity?.ToString() ?? "-")</MudTd>
-                                <MudTd>@plan.AllocatedWeight.ToString("G29")</MudTd>
+                                <MudTd Class="text-center">@(plan.AllocatedQuantity?.ToString() ?? "-")</MudTd>
+                                <MudTd Class="text-center">@plan.AllocatedWeight.ToString("G29")</MudTd>
                                 <MudTd>
                                     <MudIconButton Icon="@Icons.Material.Filled.Print" Size="Size.Small"
                                                    Color="Color.Info" OnClick="() => PrintInMainWorkOrderPlan(plan.Id)"

@@ -125,6 +125,9 @@ public partial class WorkOrderSchedules
         "PlanProductionAttentionProcess", "PlanProductionFlowProperty"
     };
 
+    // 列显隐默认布局版本：调整默认显隐后须递增，使已持久化列偏好失效、新默认立即生效（2026-09-08）
+    private const string ColumnPrefsVersion = "v1";
+
     private static List<ColumnDef> GetAllColumnDefs()
     {
         // G1: 工单基础数据（顺序/显隐对齐工单执行状况）
@@ -133,7 +136,7 @@ public partial class WorkOrderSchedules
             new() { Key = "WorkOrderNo",             Label = "工单号",          SortKey = "WorkOrderNo",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "Salesman",                Label = "业务员",          SortKey = "Salesman",                FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "CustomerName",            Label = "往来单位",        SortKey = "CustomerName",            FilterType = "string", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "EndCustomer",             Label = "最终客户",        SortKey = "EndCustomer",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "EndCustomer",             Label = "最终客户",        SortKey = "EndCustomer",             FilterType = "string", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate",                FilterType = "date", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "DeliveryDate",            Label = "交货日期",        SortKey = "DeliveryDate",            FilterType = "date", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "DelayPenalty",            Label = "延期罚款",        SortKey = "DelayPenalty",            FilterType = "boolean", Width = "120", BoolTrueLabel = "是", BoolFalseLabel = "否", Visible = false, GroupKey = 1, GroupName = "基础数据" },
@@ -724,6 +727,17 @@ public partial class WorkOrderSchedules
         return cls;
     }
 
+    /// <summary>单元格对齐：数值类字段居中，其它字段靠左</summary>
+    private static string GetAlignClass(ColumnDef col) => col.Key switch
+    {
+        "MinLength" or "MaxLength" or "TotalItemCount" or "TotalQuantity" or "TotalMeters" or "TotalWeight" or
+        "MainNoFlowOutputRatio" or "FlowOutputRatio" or "FlowTotalBatchCount" or "FlowIncompleteBatchCount" or "FlowMaxRemainingWorkDays" or
+        "DaysDiffFromDelivery" or "TotalRemainingWorkDays" or "CapacityWorkDays" or
+        "PendingSectionRoughTube" or "PendingSectionWarehouseFix" or "PendingSection60Roll" or "PendingSection50Roll" or
+        "PendingSection30Roll" or "PendingSection20Roll" or "PendingSectionThreeRoll" or "PendingSectionDrawBench" or "MaxBatchRemainingWorkDays" => "text-center",
+        _ => ""
+    };
+
     // ========== 分组标题栏 ==========
 
     private class GroupHeaderInfo
@@ -800,7 +814,7 @@ public partial class WorkOrderSchedules
         _allColumns = GetAllColumnDefs();
 
         // 从 ColumnPrefsService 恢复列顺序和显隐
-        var savedPrefs = await ColumnPrefs.LoadAsync("workorderschedules", null);
+        var savedPrefs = await ColumnPrefs.LoadAsync("workorderschedules", ColumnPrefsVersion);
         if (savedPrefs.Count > 0)
         {
             foreach (var s in savedPrefs)
@@ -1527,7 +1541,7 @@ public partial class WorkOrderSchedules
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("workorderschedules", null, _allColumns);
+        await ColumnPrefs.SaveAsync("workorderschedules", ColumnPrefsVersion, _allColumns);
     }
 
     // ========== 持久化 ==========

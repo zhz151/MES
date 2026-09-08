@@ -428,6 +428,13 @@ public partial class SubcontractOrders : IAsyncDisposable
         if (table != null) await table.ReloadServerData();
     }
 
+    // ========== 数值列居中（数据单元格） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    {
+        "OutQuantity", "OutWeight", "ActualOutboundWeight", "Returned", "ReturnQuantity",
+    };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+
     // ========== 单元格渲染 ==========
 
     private RenderFragment RenderCell(SubcontractOrderDto item, ColumnDef col) => builder =>

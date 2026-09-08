@@ -1205,6 +1205,15 @@ public class DataImportService : IDataImportService
                             ?? PositionKeys.ToKey(position) ?? position;
                     }
 
+                    // 特殊处理：订单项次取量（米数/合同重量）入库前收敛 1 位小数
+                    // （与 OrderService.SetOrderItemFields 写库口径一致，保证 单价×取量=总价 无精度差异）
+                    if (def.Type == typeof(OrderItem)
+                        && (colDef.Property == "Meters" || colDef.Property == "ContractWeight")
+                        && value is decimal orderItemAmount)
+                    {
+                        value = Math.Round(orderItemAmount, 1, MidpointRounding.AwayFromZero);
+                    }
+
                     // 特殊处理：字典/Key 字段（string 属性但存英文 Key/枚举名）Excel 中文 → 英文 Key；未识别的原样保留
                     if (value is string dictValue)
                     {

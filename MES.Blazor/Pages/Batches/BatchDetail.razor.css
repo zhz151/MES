@@ -34,18 +34,6 @@
     background: #fafafa;
 }
 
-/* 页眉操作按钮组间距 */
-.detail-header-actions {
-    gap: 4px;
-}
-
-/* 执行信息操作按钮组 */
-.detail-action-bar {
-    gap: 6px;
-    width: 100%;
-    flex-wrap: wrap;
-}
-
 /* 跟踪可视化进度条容器 */
 .detail-progress-track {
     width: 200px;
@@ -157,6 +145,31 @@
     text-overflow: ellipsis;
 }
 
+/* 工段卡片——名称+meta 信息竖排区 */
+.detail-section-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    white-space: normal;
+}
+
+/* 工段卡片——meta 明细行（小字） */
+.detail-meta-line {
+    font-size: 0.65rem;
+    line-height: 1.4;
+    color: #666;
+    white-space: normal;
+    word-break: break-all;
+}
+
+/* 成品检验组标题——浅绿底与生产组区分 */
+.detail-final-header {
+    background: #e8f5e9;
+    border-color: #c8e6c9;
+}
+
 /* 工段卡片——委外套签 */
 .detail-outsource-chip {
     font-size: 0.6875rem;
@@ -167,11 +180,3 @@
     overflow-x: auto;
 }
 
-/* 文本截断 */
-.detail-text-ellipsis {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
-    display: block;
-}

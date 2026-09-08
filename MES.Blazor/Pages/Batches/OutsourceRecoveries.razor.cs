@@ -73,6 +73,9 @@ public partial class OutsourceRecoveries
 
     private const string StorageKey = "outsource-recoveries";
 
+    // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_outsource-recoveries_v1）
+    private const string ColumnPrefsVersion = "v1";
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         // ===== 委外信息（导航属性冗余字段）=====
@@ -93,9 +96,9 @@ public partial class OutsourceRecoveries
         new() { Key = "UnprocessedQuantity", Label = "非正常回收(支)", SortKey = "unprocessedquantity",                       Width = "80",  GroupKey = 2, GroupName = "回收信息" },
         new() { Key = "UnprocessedWeight",   Label = "非正常回收(重)", SortKey = "unprocessedweight",                         Width = "80",  GroupKey = 2, GroupName = "回收信息" },
         new() { Key = "Remark",              Label = "回收备注",       SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 2, GroupName = "回收信息" },
-        new() { Key = "DataSource",          Label = "数据来源",       SortKey = "datasource",          FilterType = "enum",   Width = "80",  GroupKey = 2, GroupName = "回收信息",
+        new() { Key = "DataSource",          Label = "数据来源",       SortKey = "datasource",          FilterType = "enum",   Width = "80",  GroupKey = 2, GroupName = "回收信息", Visible = false,
             EnumOptions = DisplayHelper.GetDataSourceOptions() },
-        new() { Key = "UpdatedTime",         Label = "更新时间",       SortKey = "updatedtime",         FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "回收信息" },
+        new() { Key = "UpdatedTime",         Label = "更新时间",       SortKey = "updatedtime",         FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "回收信息", Visible = false },
     };
 
     // ========== 分页汇总计算 ==========
@@ -355,7 +358,7 @@ public partial class OutsourceRecoveries
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync(StorageKey, null, _allColumns);
+        await ColumnPrefs.SaveAsync(StorageKey, ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -381,7 +384,7 @@ public partial class OutsourceRecoveries
     {
         _allColumns = GetAllColumnDefs();
 
-        var saved = await ColumnPrefs.LoadAsync(StorageKey, null);
+        var saved = await ColumnPrefs.LoadAsync(StorageKey, ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             // 按保存的顺序重新排列 _allColumns，同时恢复 Visible
@@ -670,6 +673,15 @@ public partial class OutsourceRecoveries
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
         return cls;
     }
+
+    /// <summary>单元格对齐：数值类字段数据格居中，文本类字段靠左（表头保持原样）。</summary>
+    private static string GetAlignClass(ColumnDef col) => col.Key switch
+    {
+        "SendQuantity" or "SendWeight" or
+        "RecoveryQuantity" or "RecoveryWeight" or
+        "UnprocessedQuantity" or "UnprocessedWeight" => "text-center",
+        _ => ""
+    };
 
     // ========== 持久化 ==========
 

@@ -773,7 +773,7 @@ public class MaterialReceiveCheckService : IMaterialReceiveCheckService
             queryable = queryable.Where(m => m.ReceiveDate >= query.ReceiveDateFrom.Value);
 
         if (query.ReceiveDateTo.HasValue)
-            queryable = queryable.Where(m => m.ReceiveDate <= query.ReceiveDateTo.Value);
+            queryable = queryable.Where(m => m.ReceiveDate < query.ReceiveDateTo.Value.AddDays(1));
 
         // 自定义筛选：批量派生字段不在实体上，需通过 ProductionBatch 导航属性处理
         if (query.Filters != null && query.Filters.Count > 0)

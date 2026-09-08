@@ -363,7 +363,7 @@ public class FinalInspectionService : IFinalInspectionService
             queryable = queryable.Where(r => r.InspectionDate >= query.InspectionDateFrom.Value);
 
         if (query.InspectionDateTo.HasValue)
-            queryable = queryable.Where(r => r.InspectionDate <= query.InspectionDateTo.Value);
+            queryable = queryable.Where(r => r.InspectionDate < query.InspectionDateTo.Value.AddDays(1));
 
         // 自定义筛选：批量派生字段不在实体上，需通过 ProductionBatch 导航属性处理
         if (query.Filters != null && query.Filters.Count > 0)
@@ -747,6 +747,12 @@ public class FinalInspectionService : IFinalInspectionService
         _context.FinalInspections.Add(entity);
         await _context.SaveChangesAsync();
 
+        // 正式尺寸成检（尺寸项目 + 正式类型 + 定尺长度有值，参与定尺联通视图聚合）→ 主动失效其列表缓存（2026-09-08）
+        if (entity.InspectionItem == InspectionItem.Dimension
+            && entity.InspectionType == nameof(InspectionType.FormalInspection)
+            && !string.IsNullOrWhiteSpace(entity.FixedLength))
+            _fixedLengthWorkOrderService.InvalidateCaches();
+
         await _context.Entry(entity).Reference(e => e.ProductionBatch).LoadAsync();
 
         await TryRefreshExecutionSummaryAsync(entity.ProductionBatch?.WorkOrderNo);
@@ -932,6 +938,12 @@ public class FinalInspectionService : IFinalInspectionService
 
         await _context.SaveChangesAsync();
 
+        // 正式尺寸成检变更（尺寸项目 + 正式类型 + 定尺长度有值，参与定尺联通视图聚合）→ 主动失效其列表缓存（2026-09-08）
+        if (entity.InspectionItem == InspectionItem.Dimension
+            && entity.InspectionType == nameof(InspectionType.FormalInspection)
+            && !string.IsNullOrWhiteSpace(entity.FixedLength))
+            _fixedLengthWorkOrderService.InvalidateCaches();
+
         await _context.Entry(entity).Reference(e => e.ProductionBatch).LoadAsync();
 
         await TryRefreshExecutionSummaryAsync(entity.ProductionBatch?.WorkOrderNo);
@@ -1011,8 +1023,14 @@ public class FinalInspectionService : IFinalInspectionService
         await _context.Entry(entity).Reference(e => e.ProductionBatch).LoadAsync();
         var workOrderNo = entity.ProductionBatch?.WorkOrderNo;
         var productionBatchId = entity.ProductionBatchId;
+        // 正式尺寸成检删除（参与定尺联通视图聚合）→ 主动失效其列表缓存（2026-09-08）
+        var affectsFixedLengthView = entity.InspectionItem == InspectionItem.Dimension
+            && entity.InspectionType == nameof(InspectionType.FormalInspection)
+            && !string.IsNullOrWhiteSpace(entity.FixedLength);
         _context.FinalInspections.Remove(entity);
         await _context.SaveChangesAsync();
+        if (affectsFixedLengthView)
+            _fixedLengthWorkOrderService.InvalidateCaches();
 
         await TryRefreshExecutionSummaryAsync(workOrderNo);
         await TryRefreshQualityProcessTrackingAsync(productionBatchId);
@@ -1240,6 +1258,12 @@ public class FinalInspectionService : IFinalInspectionService
 
         _context.FinalInspections.AddRange(entities);
         await _context.SaveChangesAsync();
+
+        // 批量含正式尺寸成检（参与定尺联通视图聚合）→ 主动失效其列表缓存（2026-09-08）
+        if (entities.Any(e => e.InspectionItem == InspectionItem.Dimension
+                && e.InspectionType == nameof(InspectionType.FormalInspection)
+                && !string.IsNullOrWhiteSpace(e.FixedLength)))
+            _fixedLengthWorkOrderService.InvalidateCaches();
 
         // 批量创建后触发增量刷新
         foreach (var e in entities)

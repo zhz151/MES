@@ -129,16 +129,16 @@
                                 <MudTd>@context.Specification</MudTd>
                                 <MudTd>@DisplayHelper.GetLengthStatusText(context.LengthStatus?.ToString())</MudTd>
                                 <MudTd>@DisplayHelper.GetBatchStatusText(context.Status?.ToString() ?? "")</MudTd>
-                                <MudTd>@context.CurrentValidQty?.ToString()</MudTd>
-                                <MudTd>@context.CurrentValidWeight?.ToString("F0")</MudTd>
+                                <MudTd Class="text-center">@context.CurrentValidQty?.ToString()</MudTd>
+                                <MudTd Class="text-center">@context.CurrentValidWeight?.ToString("F0")</MudTd>
                                 <MudTd>@($"{context.ReservedQuantity}支 / {context.ReservedWeight.ToString("F0")}kg")</MudTd>
-                                <MudTd>@context.ProductionRatio</MudTd>
-                                <MudTd>@context.MainTotalWeight.ToString("F0")</MudTd>
-                                <MudTd>@context.MainNoTotalValidWeight.ToString("F0")</MudTd>
-                                <MudTd>@context.MainNoTotalReservedWeight.ToString("F0")</MudTd>
-                                <MudTd>@context.MainNoAllocatableRemaining.ToString("F0")</MudTd>
-                                <MudTd>@GetNetValidQty(context)</MudTd>
-                                <MudTd>@GetBatchAllocatableWeight(context).ToString("F0")</MudTd>
+                                <MudTd Class="text-center">@context.ProductionRatio</MudTd>
+                                <MudTd Class="text-center">@context.MainTotalWeight.ToString("F0")</MudTd>
+                                <MudTd Class="text-center">@context.MainNoTotalValidWeight.ToString("F0")</MudTd>
+                                <MudTd Class="text-center">@context.MainNoTotalReservedWeight.ToString("F0")</MudTd>
+                                <MudTd Class="text-center">@context.MainNoAllocatableRemaining.ToString("F0")</MudTd>
+                                <MudTd Class="text-center">@GetNetValidQty(context)</MudTd>
+                                <MudTd Class="text-center">@GetBatchAllocatableWeight(context).ToString("F0")</MudTd>
                                 <MudTd Style="background-color: rgba(255, 152, 0, 0.08);">
                                     @if (GetSelection(context.Id))
                                     {

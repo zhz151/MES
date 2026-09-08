@@ -309,6 +309,29 @@ public class WorkOrderListDto
     /// </summary>
     public DateTime? LatestRequiredDate { get; set; }
 
+    // ========== 分类到料重量（kg，来源 WorkOrderExecutionSummary，与占比列同 7 类口径） ==========
+
+    /// <summary>穿-圆棒穿孔到料重量(kg)</summary>
+    public decimal? PiercingSubInWeight { get; set; }
+
+    /// <summary>荒-原料采购到料重量(kg)</summary>
+    public decimal? SemiInWeight { get; set; }
+
+    /// <summary>成-成品采购到料重量(kg)</summary>
+    public decimal? FinishInWeight { get; set; }
+
+    /// <summary>库-库存使用到料(出库)重量(kg)</summary>
+    public decimal? InventoryOutWeight { get; set; }
+
+    /// <summary>改-库料改制到料(投料)重量(kg)</summary>
+    public decimal? ReworkPlanInputWeight { get; set; }
+
+    /// <summary>在-在产改制到料(投料)重量(kg)</summary>
+    public decimal? InProcessReworkInputWeight { get; set; }
+
+    /// <summary>主-在产主工单到料(投料)重量(kg)</summary>
+    public decimal? InMainInputWeight { get; set; }
+
     /// <summary>
     /// 获取各类占比文本（如 "原30% 成20% 库40% 改10% 穿5%"）
     /// 定尺按支数，非定尺/范围尺按重量
@@ -359,6 +382,26 @@ public class WorkOrderListDto
                     parts.Add($"主{InMainWorkOrderPlanTotalWeight.Value / totalWt * 100:F0}%");
             }
 
+            return parts.Any() ? string.Join(" ", parts) : null;
+        }
+    }
+
+    /// <summary>
+    /// 分类到料文本（如 "成1200 荒1500"，整数 kg、空格分隔、顺序同占比列：穿/荒/成/库/改/在/主），
+    /// 仅列出到料量 &gt; 0 的分类；全部为 0 时返回 null（显示「-」）。
+    /// </summary>
+    public string? CategoryArrivalText
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (PiercingSubInWeight > 0) parts.Add($"穿{((int)PiercingSubInWeight.Value).ToString()}");
+            if (SemiInWeight > 0) parts.Add($"荒{((int)SemiInWeight.Value).ToString()}");
+            if (FinishInWeight > 0) parts.Add($"成{((int)FinishInWeight.Value).ToString()}");
+            if (InventoryOutWeight > 0) parts.Add($"库{((int)InventoryOutWeight.Value).ToString()}");
+            if (ReworkPlanInputWeight > 0) parts.Add($"改{((int)ReworkPlanInputWeight.Value).ToString()}");
+            if (InProcessReworkInputWeight > 0) parts.Add($"在{((int)InProcessReworkInputWeight.Value).ToString()}");
+            if (InMainInputWeight > 0) parts.Add($"主{((int)InMainInputWeight.Value).ToString()}");
             return parts.Any() ? string.Join(" ", parts) : null;
         }
     }

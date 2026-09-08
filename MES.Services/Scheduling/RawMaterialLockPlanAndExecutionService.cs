@@ -304,7 +304,7 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
     /// <summary>
     /// 原锁「待投料量汇总」：标量 + 待投料矩阵（备注 × 计划性）+ 理论待投料截日（类别 × 日期桶）。
     /// 口径 = 前端 RawMaterialLockPlanAndExecution.RecalculateSummary/RecalculateCutoffSummary（2026-08-19 配置化后）：
-    /// - PendingCalc 走 ProductionSummaryHelper.CalcPending（质量补料 A 按流转比缺口折算不减已投料，其余减已投料，倍率走 ProcessingDiscount/RawMaterialRatio 默认 1.1）；
+    /// - PendingCalc 走 ProductionSummaryHelper.CalcPending（质量补料按流转比缺口折算不减已投料，其余减已投料，倍率走 ProcessingDiscount/RawMaterialRatio 默认 1.1）；
     /// - PurchaseCalc = Max(0, 成品计划量 − 成品到货量)；
     /// - 桶边界走 DateBucket 配置（默认 7/15/30/45/60），桶标签为绝对日期样式（与订单负荷总量页同源）。
     /// 全部数值 kg，前端 /1000 转吨 F1。
@@ -432,18 +432,18 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
             grandTotals.PurchaseWeight += row.RowPurchaseWeight;
         }
 
-        // 理论待投料截日：完善计划/执行计划（各加 PendingCalc）+ 外购成品（全工单 PurchaseCalc）+ 合计
+        // 理论待投料截日：完善用料计划/执行用料计划（各加 PendingCalc）+ 外购成品（全工单 PurchaseCalc）+ 合计
         var cutoffRows = new List<CutoffRowDto>
         {
-            new() { Category = "完善计划", Buckets = new List<decimal>(new decimal[buckets.Count]) },
-            new() { Category = "执行计划", Buckets = new List<decimal>(new decimal[buckets.Count]) },
+            new() { Category = "完善用料计划", Buckets = new List<decimal>(new decimal[buckets.Count]) },
+            new() { Category = "执行用料计划", Buckets = new List<decimal>(new decimal[buckets.Count]) },
             new() { Category = "外购成品", Buckets = new List<decimal>(new decimal[buckets.Count]) },
         };
         foreach (var s in summaries)
         {
             var remarkKey = RawMaterialLockRemarkKeys.ToKey(s.RawMaterialLockRemark);
             var bucket = ProductionSummaryHelper.GetCutoffBucket(s.TheoreticalCutoffDate, buckets);
-            // 待投料口径（方案 B）：完善/执行计划排除「单一成品采购」工单
+            // 待投料口径（方案 B）：完善用料/执行用料计划排除「单一成品采购」工单
             if (!IsSingleFinishPurchase(s.FinishPlanWeight, s.PiercingPlanWeight, s.SemiPlanWeight,
                     s.InventoryPlanWeight, s.ReworkPlanWeight, s.InProcessReworkPlanWeight, s.InMainPlanWeight))
             {

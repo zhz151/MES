@@ -99,6 +99,24 @@ public partial class WorkOrderLoadOverview : ComponentBase
     }
 
     /// <summary>
+    /// 交期截止负荷量日期桶表头两行显示（2026-09-08 用户决策）：
+    /// 区间桶 首行=完整起日(yy/M/d)、次行=止日(M/d，跨年补年份防歧义)；
+    /// ≤/≥ 单端桶 首行=原单行格式、次行留空。
+    /// </summary>
+    private static (string Line1, string Line2) FormatBucketHeader(DateBucketDto bucket)
+    {
+        var singleEnd = bucket.StartDate == DateTime.MinValue; // ≤ 单端桶（StartDate=MinValue）
+        var singleStart = bucket.EndDate == DateTime.MaxValue;  // ≥ 单端桶（EndDate=MaxValue）
+        if (singleEnd || singleStart)
+            return (bucket.Label, "");
+        var line1 = bucket.StartDate.ToString("yy/M/d");
+        var line2 = bucket.EndDate.Year == bucket.StartDate.Year
+            ? bucket.EndDate.ToString("M/d")
+            : bucket.EndDate.ToString("yy/M/d");
+        return (line1, line2);
+    }
+
+    /// <summary>
     /// 日期桶格值：延期分类行显示「主值/料副值」斜杠式（如 80/料16），延期量行显示「主值[*副值]」括号式（如 87[*18]，星号红色标注超1周量），其余行单值；0 显示 "-"
     /// subOnly=true（订单延期-原料/在产/成检，2026-08-23 用户决策）：仅显示副值（如 118/待料89 → 89），去掉主值与前缀
     /// </summary>

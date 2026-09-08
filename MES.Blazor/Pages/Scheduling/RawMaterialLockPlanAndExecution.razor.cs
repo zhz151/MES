@@ -510,14 +510,14 @@ public partial class RawMaterialLockPlanAndExecution
             ? Math.Max(0m, (x.TotalWeight - PurchaseCalc(x)) * 1.1m * (1m - x.FlowOutputRatio / 100m))
             : Math.Max(0m, (x.TotalWeight - PurchaseCalc(x)) * 1.1m - x.InputWeight);
 
-    /// <summary>理论待投料截日汇总：原锁类别（完善计划/执行计划/外购成品）× 日期桶（按理论截止投料日归桶，空→远日量；桶边界与订单负荷总量页同源）</summary>
+    /// <summary>理论待投料截日汇总：原锁类别（完善用料计划/执行用料计划/外购成品）× 日期桶（按理论截止投料日归桶，空→远日量；桶边界与订单负荷总量页同源）</summary>
     private void RecalculateCutoffSummary()
     {
         var bucketCount = _cutoffBuckets.Count;
         var rows = new List<CutoffRowData>
         {
-            new() { Category = "完善计划", Buckets = new decimal[bucketCount] },
-            new() { Category = "执行计划", Buckets = new decimal[bucketCount] },
+            new() { Category = "完善用料计划", Buckets = new decimal[bucketCount] },
+            new() { Category = "执行用料计划", Buckets = new decimal[bucketCount] },
             new() { Category = "外购成品", Buckets = new decimal[bucketCount] },
         };
 
@@ -525,7 +525,7 @@ public partial class RawMaterialLockPlanAndExecution
         {
             var remarkKey = RawMaterialLockRemarkKeys.ToKey(item.RawMaterialLockRemark);
             var bucket = GetCutoffBucket(item.TheoreticalCutoffDate, _cutoffBuckets);
-            // 待投料口径：完善/执行计划排除「单一成品采购」工单（与用料计划总览卡片同步）
+            // 待投料口径：完善用料/执行用料计划排除「单一成品采购」工单（与用料计划总览卡片同步）
             if (!IsSingleFinishPurchase(item))
             {
                 if (remarkKey == RawMaterialLockRemarkKeys.ImprovePlan)
@@ -1265,6 +1265,22 @@ public partial class RawMaterialLockPlanAndExecution
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
         return cls;
     }
+
+    /// <summary>单元格对齐：数值类字段居中，其它字段靠左</summary>
+    private static string GetAlignClass(ColumnDef col) => col.Key switch
+    {
+        "MinLength" or "MaxLength" or "TotalItemCount" or "TotalQuantity" or "TotalMeters" or "TotalWeight" or
+        "MainNoMaterialPlanRate" or "MaterialPlanCoveredCount" or "TotalPlanWeight" or "TotalAvailableWeight" or "TotalMissingWeight" or "ActualInputWeight" or
+        "PiercingPlanWeight" or "PiercingSubOutWeight" or "PiercingSubInWeight" or "PiercingSubPendingWeight" or
+        "SemiPlanWeight" or "SemiOrderWeight" or "SemiInWeight" or "SemiPendingWeight" or
+        "FinishPlanWeight" or "FinishOrderWeight" or "FinishInWeight" or "FinishPendingWeight" or
+        "InventoryPlanWeight" or "InventoryOutWeight" or
+        "ReworkPlanWeight" or "ReworkPlanInputWeight" or
+        "InProcessReworkPlanWeight" or "InProcessReworkInputWeight" or
+        "MainNoFlowOutputRatio" or "FlowOutputRatio" or "FlowTotalBatchCount" or "FlowIncompleteBatchCount" or "FlowMaxRemainingWorkDays" or
+        "DaysDiffFromDelivery" or "TotalRemainingWorkDays" or "CapacityWorkDays" => "text-center",
+        _ => ""
+    };
 
     // ========== 分组标题栏 ==========
 

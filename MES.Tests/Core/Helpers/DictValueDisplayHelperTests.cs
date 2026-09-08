@@ -63,8 +63,8 @@ public class DictValueDisplayHelperTests
     public void GetText_原锁备注_无覆盖_Keys兜底中文()
     {
         DictValueDisplayHelper.OverrideMap = null;
-        DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, "QualityReplenish").Should().Be("A质量补料");
-        DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, "ImprovePlan").Should().Be("D完善计划");
+        DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, "QualityReplenish").Should().Be("质量补料");
+        DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, "ImprovePlan").Should().Be("完善用料计划");
         DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, null).Should().BeNull();
     }
 

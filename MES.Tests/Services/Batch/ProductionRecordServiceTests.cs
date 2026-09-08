@@ -2063,6 +2063,83 @@ public class ProductionRecordServiceTests : TestBase
         section.Status.Should().Be(SectionStatus.Completed);
     }
 
+    [Fact]
+    public async Task GetTrackingVisual_成品检验9项_正式为主预检仅角标_必检兜底_数量只统计正式()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx, "BATCH-FINAL-VISUAL");
+        await SeedProcessGroupAsync(ctx, batch.Id);
+
+        // 无 OrderItem/技术要求 → 必检兜底 {PMI, 表检, 尺寸}（正式与预检均要求）
+        // 正式记录：PMI 合格 5支/100kg；预检记录：PMI(8支) 与 表检(9支)（不入数量、仅角标）
+        ctx.FinalInspections.AddRange(
+            new FinalInspection
+            {
+                ProductionBatchId = batch.Id,
+                BatchNo = batch.BatchNo,
+                InspectionItem = InspectionItem.PMIInspection,
+                InspectionDate = new DateTime(2026, 9, 1),
+                Operator = "质检甲",
+                InspectionType = "FormalInspection",
+                QualifiedQuantity = 5,
+                QualifiedWeight = 100
+            },
+            new FinalInspection
+            {
+                ProductionBatchId = batch.Id,
+                BatchNo = batch.BatchNo,
+                InspectionItem = InspectionItem.PMIInspection,
+                InspectionDate = new DateTime(2026, 9, 2),
+                Operator = "质检乙",
+                InspectionType = "PreInspection",
+                QualifiedQuantity = 8,
+                QualifiedWeight = 160
+            },
+            new FinalInspection
+            {
+                ProductionBatchId = batch.Id,
+                BatchNo = batch.BatchNo,
+                InspectionItem = InspectionItem.VisualInspection,
+                InspectionDate = new DateTime(2026, 9, 3),
+                Operator = "质检甲",
+                InspectionType = "PreInspection",
+                QualifiedQuantity = 9,
+                QualifiedWeight = 180
+            });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var visual = await svc.GetTrackingVisualAsync(batch.Id);
+
+        visual.FinalInspectionItems.Should().HaveCount(9);
+
+        // PMI：有正式 → 数量只统计正式；预检仅角标；必检兜底命中
+        var pmi = visual.FinalInspectionItems.Single(i => i.InspectionItem == InspectionItem.PMIInspection);
+        pmi.IsRequired.Should().BeTrue();
+        pmi.HasPre.Should().BeTrue();
+        pmi.PreOnly.Should().BeFalse();
+        pmi.InspectionDate.Should().Be(new DateTime(2026, 9, 1));
+        pmi.Inspector.Should().Be("质检甲");
+        pmi.QualifiedQuantity.Should().Be(5);
+        pmi.QualifiedWeight.Should().Be(100);
+
+        // 表检：无正式 → 降级预检并标 PreOnly；必检兜底命中
+        var visualItem = visual.FinalInspectionItems.Single(i => i.InspectionItem == InspectionItem.VisualInspection);
+        visualItem.IsRequired.Should().BeTrue();
+        visualItem.HasPre.Should().BeTrue();
+        visualItem.PreOnly.Should().BeTrue();
+        visualItem.InspectionDate.Should().Be(new DateTime(2026, 9, 3));
+        visualItem.QualifiedQuantity.Should().Be(9);
+
+        // 尺寸：必检但未检 → 无日期；水压等其余项：非必检且未检
+        var dimension = visual.FinalInspectionItems.Single(i => i.InspectionItem == InspectionItem.Dimension);
+        dimension.IsRequired.Should().BeTrue();
+        dimension.InspectionDate.Should().BeNull();
+        var hydro = visual.FinalInspectionItems.Single(i => i.InspectionItem == InspectionItem.HydrostaticPressure);
+        hydro.IsRequired.Should().BeFalse();
+        hydro.InspectionDate.Should().BeNull();
+    }
+
     // ========== 当前设备 / 当前委外并存（2026-08-20） ==========
 
     [Fact]

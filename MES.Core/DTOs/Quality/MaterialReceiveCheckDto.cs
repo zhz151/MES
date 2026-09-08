@@ -133,20 +133,6 @@ public class MaterialCheckPrintBatchRequest
 }
 
 /// <summary>
-/// 检验到料打印请求（全部）
-/// </summary>
-public class MaterialCheckPrintAllRequest
-{
-    public string? Keyword { get; set; }
-    public string? SortBy { get; set; }
-    public bool IsDescending { get; set; }
-    public DateTime? ReceiveDateFrom { get; set; }
-    public DateTime? ReceiveDateTo { get; set; }
-    public List<PrintColumnDef> Columns { get; set; } = new();
-    public string? Filters { get; set; }
-}
-
-/// <summary>
 /// 创建成检到料请求
 /// </summary>
 public class CreateMaterialReceiveCheckRequest

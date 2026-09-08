@@ -96,7 +96,7 @@
                     }
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>
+                        <MudTd Class="@(col.Key == "ExtraDays" ? "text-center" : null)">
                         @if (col.Key == "DeliveryState")
                         {
                             if (rowEditing && rowCache != null)

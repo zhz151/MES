@@ -23,7 +23,7 @@
             <CardHeaderContent>
                 <div class="d-flex align-center">
                     <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Primary" Size="Size.Medium" />
-                    <MudText Typo="Typo.h5" Class="font-weight-bold">用料计划总览</MudText>
+                    <MudText Typo="Typo.h5" Class="font-weight-bold">用料计划</MudText>
                 </div>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -33,20 +33,6 @@
                            StartIcon="@(_showSummaryCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
                            OnClick="ToggleSummaryCard">
                     待投料量汇总
-                </MudButton>
-                <MudButton Variant="Variant.Outlined"
-                           Size="Size.Small"
-                           Color="@(_showErrorDoubtCard ? Color.Error : Color.Default)"
-                           StartIcon="@(_showErrorDoubtCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
-                           OnClick="ToggleErrorDoubtCard" Class="ml-2">
-                    工单原锁-错疑投料
-                </MudButton>
-                <MudButton Variant="Variant.Outlined"
-                           Size="Size.Small"
-                           Color="@(_showInProdInspectionCard ? Color.Warning : Color.Default)"
-                           StartIcon="@(_showInProdInspectionCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
-                           OnClick="ToggleInProdInspectionCard" Class="ml-2">
-                    在产在检-错疑待料
                 </MudButton>
             </CardHeaderActions>
         </MudCardHeader>
@@ -223,276 +209,6 @@
                 </MudCard>
             }
 
-            <!-- 原锁-错疑投料 与 在产在检-错疑待料 两张卡片并排（左=原料锁定错疑明细大表，右=在产在检三档聚合小表，可分别折叠） -->
-            <div class="d-flex flex-wrap gap-3 mb-3" style="align-items:flex-start;">
-
-            @if (_showErrorDoubtCard)
-            {
-                <MudCard Class="flex-grow-1 summary-card" Elevation="0" Style="min-width:0; flex-basis:0;">
-                    <MudCardContent>
-                        @if (_errorDoubtItems == null)
-                        {
-                            <MudText Typo="Typo.body2" Class="text-hint">@(_errorDoubtLoading ? "正在加载..." : "数据加载失败")</MudText>
-                        }
-                        else if (_errorDoubtItems.Count == 0)
-                        {
-                            <MudText Typo="Typo.body2" Class="text-hint">暂无原料锁定工单的错疑投料数据</MudText>
-                        }
-                        else
-                        {
-                            <div class="d-flex justify-space-between align-center mb-2">
-                                <MudText Typo="Typo.subtitle2">
-                                    <b>工单原锁-错疑投料</b>
-                                </MudText>
-                                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
-                                           StartIcon="@Icons.Material.Filled.Print" OnClick="PrintErrorDoubtTable">
-                                    打印
-                                </MudButton>
-                            </div>
-                            <MudTable Items="_errorDoubtVisibleItems" Dense="true" Hover="true" Elevation="0" Class="auto-table"
-                                      Striped="true" Style="font-size: 0.8125rem;" id="mpol-error-doubt-table">
-                                <HeaderContent>
-                                    <MudTh Style="text-align:center">
-                                        <div class="col-header-cell">
-                                            <span @onclick='() => ToggleErrorDoubtSort("WorkOrderNo")' style="cursor:pointer">工单号</span>
-                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="工单号" FieldKey="WorkOrderNo"
-                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
-                                                         DisplaySelector="@(x => x.WorkOrderNo)" RawValueSelector="@(x => x.WorkOrderNo)"
-                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("WorkOrderNo"))"
-                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
-                                        </div>
-                                    </MudTh>
-                                    <MudTh Style="text-align:center">
-                                        <div class="col-header-cell">
-                                            <span @onclick='() => ToggleErrorDoubtSort("SalesOrderNo")' style="cursor:pointer">订单号</span>
-                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="订单号" FieldKey="SalesOrderNo"
-                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
-                                                         DisplaySelector="@(x => x.SalesOrderNo)" RawValueSelector="@(x => x.SalesOrderNo)"
-                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("SalesOrderNo"))"
-                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
-                                        </div>
-                                    </MudTh>
-                                    <MudTh Style="text-align:center">
-                                        <div class="col-header-cell">
-                                            <span @onclick='() => ToggleErrorDoubtSort("ProductionMainNo")' style="cursor:pointer">主号</span>
-                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="主号" FieldKey="ProductionMainNo"
-                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
-                                                         DisplaySelector="@(x => x.ProductionMainNo)" RawValueSelector="@(x => x.ProductionMainNo)"
-                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("ProductionMainNo"))"
-                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
-                                        </div>
-                                    </MudTh>
-                                    <MudTh Style="text-align:center">
-                                        <div class="col-header-cell">
-                                            <span @onclick='() => ToggleErrorDoubtSort("PlantGrade")' style="cursor:pointer">工厂牌号</span>
-                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="工厂牌号" FieldKey="PlantGrade"
-                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
-                                                         DisplaySelector="@(x => x.PlantGrade)" RawValueSelector="@(x => x.PlantGrade)"
-                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("PlantGrade"))"
-                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
-                                        </div>
-                                    </MudTh>
-                                    <MudTh Style="text-align:center">
-                                        <div class="col-header-cell">
-                                            <span @onclick='() => ToggleErrorDoubtSort("Specification")' style="cursor:pointer">规格</span>
-                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="规格" FieldKey="Specification"
-                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
-                                                         DisplaySelector="@(x => x.Specification)" RawValueSelector="@(x => x.Specification)"
-                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("Specification"))"
-                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
-                                        </div>
-                                    </MudTh>
-                                    <MudTh Style="text-align:center">
-                                        <div class="col-header-cell">
-                                            <span @onclick='() => ToggleErrorDoubtSort("TotalWeight")' style="cursor:pointer">总重量</span>
-                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="总重量" FieldKey="TotalWeight"
-                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
-                                                         DisplaySelector="@(x => ((int)x.TotalWeight).ToString("G29"))" RawValueSelector="@(x => ((int)x.TotalWeight).ToString("G29"))"
-                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("TotalWeight"))"
-                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
-                                        </div>
-                                    </MudTh>
-                                    <MudTh Style="text-align:center">
-                                        <div class="col-header-cell">
-                                            <span @onclick='() => ToggleErrorDoubtSort("TotalPlanWeight")' style="cursor:pointer">计划投料总重</span>
-                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="计划投料总重" FieldKey="TotalPlanWeight"
-                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
-                                                         DisplaySelector="@(x => ((int)x.TotalPlanWeight).ToString("G29"))" RawValueSelector="@(x => ((int)x.TotalPlanWeight).ToString("G29"))"
-                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("TotalPlanWeight"))"
-                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
-                                        </div>
-                                    </MudTh>
-                                    <MudTh Style="text-align:center">
-                                        <div class="col-header-cell">
-                                            <span @onclick='() => ToggleErrorDoubtSort("CutoffArrivalDate")' style="cursor:pointer">截止到料日</span>
-                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="截止到料日" FieldKey="CutoffArrivalDate"
-                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
-                                                         DisplaySelector="@(x => x.CutoffArrivalDate?.ToString("yyyy-MM-dd"))" RawValueSelector="@(x => x.CutoffArrivalDate?.ToString("yyyy-MM-dd"))"
-                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("CutoffArrivalDate"))"
-                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
-                                        </div>
-                                    </MudTh>
-                                    <MudTh Style="text-align:center">
-                                        <div class="col-header-cell">
-                                            <span @onclick='() => ToggleErrorDoubtSort("TotalAvailableWeight")' style="cursor:pointer">可投料总重</span>
-                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="可投料总重" FieldKey="TotalAvailableWeight"
-                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
-                                                         DisplaySelector="@(x => ((int)x.TotalAvailableWeight).ToString("G29"))" RawValueSelector="@(x => ((int)x.TotalAvailableWeight).ToString("G29"))"
-                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("TotalAvailableWeight"))"
-                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
-                                        </div>
-                                    </MudTh>
-                                    <MudTh Style="text-align:center">
-                                        <div class="col-header-cell">
-                                            <span @onclick='() => ToggleErrorDoubtSort("ActualInputWeight")' style="cursor:pointer">实际已投料量</span>
-                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="实际已投料量" FieldKey="ActualInputWeight"
-                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
-                                                         DisplaySelector="@(x => ((int)x.ActualInputWeight).ToString("G29"))" RawValueSelector="@(x => ((int)x.ActualInputWeight).ToString("G29"))"
-                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("ActualInputWeight"))"
-                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
-                                        </div>
-                                    </MudTh>
-                                    <MudTh Style="text-align:center">
-                                        <div class="col-header-cell">
-                                            <span @onclick='() => ToggleErrorDoubtSort("PlanInputConsistency")' style="cursor:pointer">到料实投一致性</span>
-                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="到料实投一致性" FieldKey="PlanInputConsistency"
-                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
-                                                         DisplaySelector="@(x => IntStatusDisplayHelper.GetPlanInputConsistencyText(x.PlanInputConsistency))" RawValueSelector="@(x => x.PlanInputConsistency.ToString())"
-                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("PlanInputConsistency"))"
-                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
-                                        </div>
-                                    </MudTh>
-                                    <MudTh Style="text-align:center">
-                                        <div class="col-header-cell">
-                                            <span @onclick='() => ToggleErrorDoubtSort("TotalMissingWeight")' style="cursor:pointer">理论原料未至</span>
-                                            <ExcelFilter T="ErrorDoubtInputItemDto" Label="理论原料未至" FieldKey="TotalMissingWeight"
-                                                         AllItems="@(_errorDoubtItems ?? new List<ErrorDoubtInputItemDto>())"
-                                                         DisplaySelector="@(x => ((int)x.TotalMissingWeight).ToString("G29"))" RawValueSelector="@(x => ((int)x.TotalMissingWeight).ToString("G29"))"
-                                                         ActiveFilterValues="@(_errorDoubtColumnFilters.GetValueOrDefault("TotalMissingWeight"))"
-                                                         FilterChanged="@(args => OnErrorDoubtFilterChanged(args.fieldKey, args.selectedValues))" />
-                                        </div>
-                                    </MudTh>
-                                </HeaderContent>
-                                <RowTemplate>
-                                    <MudTd Style="text-align:center">@context.WorkOrderNo</MudTd>
-                                    <MudTd Style="text-align:center">@context.SalesOrderNo</MudTd>
-                                    <MudTd Style="text-align:center">@context.ProductionMainNo</MudTd>
-                                    <MudTd Style="text-align:center">@context.PlantGrade</MudTd>
-                                    <MudTd Style="text-align:center">@context.Specification</MudTd>
-                                    <MudTd Style="text-align:center">@FormatErrorDoubtWeight(context.TotalWeight)</MudTd>
-                                    <MudTd Style="text-align:center">@FormatErrorDoubtWeight(context.TotalPlanWeight)</MudTd>
-                                    <MudTd Style="text-align:center">@(context.CutoffArrivalDate?.ToString("yyyy-MM-dd") ?? "-")</MudTd>
-                                    <MudTd Style="text-align:center">@FormatErrorDoubtWeight(context.TotalAvailableWeight)</MudTd>
-                                    <MudTd Style="text-align:center">@FormatErrorDoubtWeight(context.ActualInputWeight)</MudTd>
-                                    <MudTd Style="text-align:center">
-                                        <MudChip Size="Size.Small"
-                                                  Color="@GetErrorDoubtConsistencyColor(context.PlanInputConsistency)"
-                                                  Variant="Variant.Outlined">
-                                            @IntStatusDisplayHelper.GetPlanInputConsistencyText(context.PlanInputConsistency)
-                                        </MudChip>
-                                    </MudTd>
-                                    <MudTd Style="text-align:center">@FormatErrorDoubtWeight(context.TotalMissingWeight)</MudTd>
-                                </RowTemplate>
-                            </MudTable>
-                            <div class="d-flex justify-space-between align-center mt-2">
-                                <MudText Typo="Typo.body2" Class="text-hint">共 @_errorDoubtSortedFiltered.Count 条</MudText>
-                                <div class="d-flex align-center" style="gap:6px;">
-                                    <MudText Typo="Typo.body2">每页行数</MudText>
-                                    <MudSelect T="int" Value="_errorDoubtDisplayCount" ValueChanged="@(v => _errorDoubtDisplayCount = v)"
-                                               Dense="true" Margin="Margin.Dense" Style="width:90px;">
-                                        @foreach (var n in _errorDoubtDisplayOptions)
-                                        {
-                                            <MudSelectItem T="int" Value="@n">@n</MudSelectItem>
-                                        }
-                                    </MudSelect>
-                                </div>
-                            </div>
-                            @* 隐藏完整打印表：绑定排序+筛选后全部行，打印按筛选数据输出（不受显示行数截断影响） *@
-                            <div style="display:none" id="mpol-error-doubt-print-table">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>工单号</th><th>订单号</th><th>主号</th><th>工厂牌号</th><th>规格</th>
-                                            <th>总重量</th><th>计划投料总重</th><th>截止到料日</th><th>可投料总重</th><th>实际已投料量</th>
-                                            <th>到料实投一致性</th><th>理论原料未至</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach (var item in _errorDoubtSortedFiltered)
-                                        {
-                                            <tr>
-                                                <td>@item.WorkOrderNo</td>
-                                                <td>@item.SalesOrderNo</td>
-                                                <td>@item.ProductionMainNo</td>
-                                                <td>@item.PlantGrade</td>
-                                                <td>@item.Specification</td>
-                                                <td>@FormatErrorDoubtWeight(item.TotalWeight)</td>
-                                                <td>@FormatErrorDoubtWeight(item.TotalPlanWeight)</td>
-                                                <td>@(item.CutoffArrivalDate?.ToString("yyyy-MM-dd") ?? "-")</td>
-                                                <td>@FormatErrorDoubtWeight(item.TotalAvailableWeight)</td>
-                                                <td>@FormatErrorDoubtWeight(item.ActualInputWeight)</td>
-                                                <td>@IntStatusDisplayHelper.GetPlanInputConsistencyText(item.PlanInputConsistency)</td>
-                                                <td>@FormatErrorDoubtWeight(item.TotalMissingWeight)</td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        }
-                    </MudCardContent>
-                </MudCard>
-            }
-
-            <!-- 在产在检-错疑待料卡片（默认折叠，标题栏「在产在检-错疑待料」按钮切换显隐；数据来自工单执行状况读模型，
-                 主号-关注 = 1 主号完成/3 生产执行/4 成品检验 三档，统计「理论原料未至」「工单到料未投」的工单数/累计重量；点击数据值联动筛选下方工单列表） -->
-            @if (_showInProdInspectionCard)
-            {
-                <MudCard Class="summary-card" Elevation="0" Style="width:420px; flex-shrink:0; margin-left:auto;">
-                    <MudCardContent>
-                        <MudText Typo="Typo.subtitle2" Class="mb-2">
-                            <b>在产在检-错疑待料</b>
-                        </MudText>
-                        @if (_inProdInspectionItems == null)
-                        {
-                            <MudText Typo="Typo.body2" Class="text-hint">@(_inProdInspectionLoading ? "正在加载..." : "数据加载失败")</MudText>
-                        }
-                        else if (_inProdInspectionItems.Count == 0)
-                        {
-                            <MudText Typo="Typo.body2" Class="text-hint">暂无在产在检错疑待料数据</MudText>
-                        }
-                        else
-                        {
-                            <table style="width:100%; border-collapse:collapse; font-size:0.8125rem;">
-                                <thead>
-                                    <tr style="background:#f5f5f5;">
-                                        <th style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">工单关注</th>
-                                        <th style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">理论原料未至</th>
-                                        <th style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">工单到料未投</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var row in _inProdInspectionItems)
-                                    {
-                                        var missingClickable = row.MissingOrderCount > 0;
-                                        var pendingClickable = row.PendingInputOrderCount > 0;
-                                        <tr>
-                                            <td style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">@row.ScheduleStageText</td>
-                                            <td style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center;@(missingClickable ? " cursor:pointer; font-weight:600; color:#c62828;" : " color:#bdbdbd;")"
-                                                class="@(missingClickable ? "estimate-cell" : "")"
-                                                @onclick="() => ApplyStageDoubtLink(row.ScheduleStage, true, false)">@FormatStageDoubtCell(row.MissingOrderCount, row.MissingWeight)</td>
-                                            <td style="padding:4px 8px; border:1px solid #e0e0e0; text-align:center;@(pendingClickable ? " cursor:pointer; font-weight:600; color:#1565c0;" : " color:#bdbdbd;")"
-                                                class="@(pendingClickable ? "estimate-cell" : "")"
-                                                @onclick="() => ApplyStageDoubtLink(row.ScheduleStage, false, true)">@FormatStageDoubtCell(row.PendingInputOrderCount, row.PendingInputWeight)</td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                            <MudText Typo="Typo.caption" Class="text-hint mt-1">点击数据值联动筛选下方工单列表</MudText>
-                        }
-                    </MudCardContent>
-                </MudCard>
-            }
-            </div>
 
             <!-- 卡片点击联动筛选提示条（仿订单首页小表点击） -->
             @if (_linkFilter != null)
@@ -681,7 +397,7 @@
                         var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                         _prevGk2 = col.GroupKey;
                         var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
-                        <MudTd Class="@_cellClass">@RenderCell(wo, col)</MudTd>
+                        <MudTd Class="@($"{_cellClass} {GetAlignClass(col)}")">@RenderCell(wo, col)</MudTd>
                     }
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Assignment"
@@ -701,7 +417,7 @@
                         var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
                         _prevGk3 = col.GroupKey;
                         var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
-                        <MudTd Class="@_footerClass"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                        <MudTd Class="@($"{_footerClass} {GetAlignClass(col)}")"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
                     }
                     <MudTd Class="col-footer-cell"></MudTd>
                 </FooterContent>

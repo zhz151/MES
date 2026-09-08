@@ -98,7 +98,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
         if (query.ReceiveDateFrom.HasValue)
             q = q.Where(x => x.ReceiveDate >= query.ReceiveDateFrom.Value);
         if (query.ReceiveDateTo.HasValue)
-            q = q.Where(x => x.ReceiveDate <= query.ReceiveDateTo.Value);
+            q = q.Where(x => x.ReceiveDate < query.ReceiveDateTo.Value.AddDays(1));
 
         // 列筛选（DB 级）
         // QualityStatus 筛选预处理：三种特殊语义 + 普通值，多选时各条件 OR 组合：

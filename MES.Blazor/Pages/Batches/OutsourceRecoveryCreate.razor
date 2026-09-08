@@ -65,8 +65,8 @@
                             <MudTd><small>@ProcessDisplayHelper.GetProcessNameText(item.ProcessName)</small></MudTd>
                             <MudTd><small>@SectionDisplayHelper.GetSectionNameText(item.SectionName)</small></MudTd>
                             <MudTd><small>@DisplayHelper.FormatSpecification(item.ManufacturingSpec)</small></MudTd>
-                            <MudTd><small>@DisplayHelper.FormatNullableInt(item.SendQuantity)</small></MudTd>
-                            <MudTd><small>@DisplayHelper.FormatNullableDecimal(item.SendWeight)</small></MudTd>
+                            <MudTd Class="text-center"><small>@DisplayHelper.FormatNullableInt(item.SendQuantity)</small></MudTd>
+                            <MudTd Class="text-center"><small>@DisplayHelper.FormatNullableDecimal(item.SendWeight)</small></MudTd>
                             <MudTd>
                                 <MudTextField @bind-Value="item.RecoveryDateText"
                                                Dense="true" Variant="Variant.Outlined" Size="Size.Small"

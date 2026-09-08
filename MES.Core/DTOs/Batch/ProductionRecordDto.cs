@@ -221,16 +221,4 @@ public class ProductionRecordPrintBatchRequest
     public List<PrintColumnDef> Columns { get; set; } = new();
 }
 
-/// <summary>
-/// 生产记录打印请求（全部）
-/// </summary>
-public class ProductionRecordPrintAllRequest
-{
-    public string? Keyword { get; set; }
-    public string? SortBy { get; set; }
-    public bool IsDescending { get; set; }
-    public DateTime? ExecDateFrom { get; set; }
-    public DateTime? ExecDateTo { get; set; }
-    public List<PrintColumnDef> Columns { get; set; } = new();
-}
 

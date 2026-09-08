@@ -132,7 +132,6 @@
                                 <MudTh Style="width:45px">项次</MudTh>
                                 <MudTh Style="width:120px">交货日期<span class="required-star">*</span></MudTh>
                                 <MudTh Style="width:60px">延期罚款</MudTh>
-                                <MudTh Style="width:120px">结算方式<span class="required-star">*</span></MudTh>
                                 <MudTh Style="width:120px">钢管制造</MudTh>
                                 <MudTh Style="width:120px">产品标准</MudTh>
                                 <MudTh Style="width:120px">交货状态<span class="required-star">*</span></MudTh>
@@ -150,6 +149,11 @@
                                 <MudTh Style="width:80px">米数</MudTh>
                                 <MudTh Style="width:80px">合同重量<span class="required-star">*</span></MudTh>
                                 <MudTh Style="width:80px">理算重量</MudTh>
+                                <MudTh Style="width:120px">结算方式<span class="required-star">*</span></MudTh>
+                                <MudTh Style="width:120px">计价单位</MudTh>
+                                <MudTh Style="width:90px">单价</MudTh>
+                                <MudTh Style="width:110px">总价</MudTh>
+                                <MudTh Style="width:120px">备注</MudTh>
                                 <MudTh Style="width:60px">操作</MudTh>
                             </HeaderContent>
                             <PagerContent>
@@ -157,7 +161,7 @@
                             </PagerContent>
                             <RowTemplate Context="item">
                                 <!-- 项次 - 只读显示 -->
-                                <MudTd>
+                                <MudTd Class="text-center">
                                     <MudText Typo="Typo.body2">@item.Sequence</MudText>
                                 </MudTd>
 
@@ -174,16 +178,6 @@
                                 <!-- 延期罚款 - 复选框 -->
                                 <MudTd>
                                     <MudCheckBox @bind-Value="item.DelayPenalty" />
-                                </MudTd>
-
-                                <!-- 结算方式 - 下拉选择 -->
-                                <MudTd>
-                                    <MudSelect T="SettlementMethod" @bind-Value="item.SettlementMethod" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
-                                        @foreach (var opt in DisplayHelper.GetEnumOptions<SettlementMethod>())
-                                        {
-                                            <MudSelectItem Value="@(Enum.Parse<SettlementMethod>(opt.Value))">@opt.Display</MudSelectItem>
-                                        }
-                                    </MudSelect>
                                 </MudTd>
 
                                 <!-- 钢管制造 - 下拉选择 -->
@@ -319,7 +313,8 @@
                                 <!-- 支数 - 文本输入 -->
                                 <MudTd Class="narrow-cell">
                                     <MudTextField T="string"
-                                                  @bind-Value="item.QuantityStr"
+                                                  Value="@item.QuantityStr"
+                                                  ValueChanged="@((string v) => { item.QuantityStr = v; OnAmountSourceChanged(item); })"
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
@@ -330,7 +325,8 @@
                                 <MudTd Class="narrow-cell">
                                     <div style="display: flex; align-items: center; gap: 4px;">
                                         <MudTextField T="string"
-                                                      @bind-Value="item.MetersStr"
+                                                      Value="@item.MetersStr"
+                                                      ValueChanged="@((string v) => { item.MetersStr = RoundWeightInput(v); OnAmountSourceChanged(item); })"
                                                       Dense="true"
                                                       Variant="Variant.Outlined"
                                                       Size="Size.Small"
@@ -345,7 +341,8 @@
                                 <!-- 合同重量 - 文本输入 -->
                                 <MudTd Class="narrow-cell">
                                     <MudTextField T="string"
-                                                  @bind-Value="item.ContractWeightStr"
+                                                  Value="@item.ContractWeightStr"
+                                                  ValueChanged="@((string v) => { item.ContractWeightStr = RoundWeightInput(v); OnAmountSourceChanged(item); })"
                                                   Dense="true"
                                                   Variant="Variant.Outlined"
                                                   Size="Size.Small"
@@ -355,12 +352,77 @@
                                 <!-- 理算重量 - 只读 + 计算按钮 -->
                                 <MudTd Class="narrow-cell">
                                     <div style="display: flex; align-items: center; gap: 4px;">
-                                        <MudText Typo="Typo.body2">@DisplayHelper.FormatDecimal(item.TheoreticalWeight)</MudText>
+                                        <MudText Typo="Typo.body2">@DisplayHelper.FormatWeight1(item.TheoreticalWeight)</MudText>
                                         <MudIconButton Icon="@Icons.Material.Filled.Calculate"
                                                        Color="Color.Primary"
                                                        Size="Size.Small"
                                                        OnClick="() => CalculateTheoreticalWeightForItem(item)" />
                                     </div>
+                                </MudTd>
+
+                                <!-- 结算方式 - 下拉选择 -->
+                                <MudTd>
+                                    <MudSelect T="SettlementMethod" @bind-Value="item.SettlementMethod" Dense="true" Variant="Variant.Outlined" Size="Size.Small">
+                                        @foreach (var opt in DisplayHelper.GetEnumOptions<SettlementMethod>())
+                                        {
+                                            <MudSelectItem Value="@(Enum.Parse<SettlementMethod>(opt.Value))">@opt.Display</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudTd>
+
+                                <!-- 计价单位 - 下拉选择（决定总价取量） -->
+                                <MudTd>
+                                    <MudSelect T="PricingUnit"
+                                               Value="@item.PricingUnit"
+                                               ValueChanged="@((PricingUnit v) => OnPricingUnitChanged(item, v))"
+                                               Dense="true" Variant="Variant.Outlined" Size="Size.Small">
+                                        @foreach (var opt in DisplayHelper.GetEnumOptions<PricingUnit>())
+                                        {
+                                            <MudSelectItem Value="@(Enum.Parse<PricingUnit>(opt.Value))">@opt.Display</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudTd>
+
+                                <!-- 单价 - 文本输入（改动自动重算总价） -->
+                                <MudTd Class="narrow-cell">
+                                    <MudTextField T="string"
+                                                  Value="@item.UnitPriceStr"
+                                                  ValueChanged="@((string v) => OnUnitPriceChanged(item, v))"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  />
+                                </MudTd>
+
+                                <!-- 总价 - 文本输入（手动输入即覆盖，可恢复自动） -->
+                                <MudTd Class="narrow-cell">
+                                    <div style="display: flex; align-items: center; gap: 4px;">
+                                        <MudTextField T="string"
+                                                      Value="@item.TotalPriceStr"
+                                                      ValueChanged="@((string v) => OnTotalPriceChanged(item, v))"
+                                                      Dense="true"
+                                                      Variant="Variant.Outlined"
+                                                      Size="Size.Small"
+                                                      />
+                                        @if (item.IsTotalManual)
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.Restore"
+                                                           Title="恢复自动计算总价"
+                                                           Color="Color.Primary"
+                                                           Size="Size.Small"
+                                                           OnClick="() => ResetTotalAuto(item)" />
+                                        }
+                                    </div>
+                                </MudTd>
+
+                                <!-- 备注 - 文本输入 -->
+                                <MudTd>
+                                    <MudTextField T="string"
+                                                  @bind-Value="item.Remark"
+                                                  Dense="true"
+                                                  Variant="Variant.Outlined"
+                                                  Size="Size.Small"
+                                                  />
                                 </MudTd>
 
                                 <!-- 操作 - 删除按钮 -->
@@ -429,6 +491,14 @@
         public string MetersStr { get; set; } = string.Empty;
         public string ContractWeightStr { get; set; } = string.Empty;
 
+        // 计价单位（决定总价取量：元/Kg→合同重量、元/米→米数、元/支→支数）
+        public PricingUnit PricingUnit { get; set; } = PricingUnit.PerKg;
+        // 单价/总价字符串绑定（总价自动=单价×取量，手动输入即覆盖）
+        public string UnitPriceStr { get; set; } = string.Empty;
+        public string TotalPriceStr { get; set; } = string.Empty;
+        // 是否手动覆盖总价（手动输入总价后置 true，不再自动重算，可点击恢复自动）
+        public bool IsTotalManual { get; set; }
+
         // 计算属性：将字符串转换为数值
         public decimal OuterDiameter => ParseDecimal(OuterDiameterStr);
         public decimal WallThickness => ParseDecimal(WallThicknessStr);
@@ -441,6 +511,8 @@
         public int? Quantity => ParseNullableInt(QuantityStr);
         public decimal? Meters => ParseNullableDecimal(MetersStr);
         public decimal ContractWeight => ParseDecimal(ContractWeightStr);
+        public decimal? UnitPrice => ParseNullableDecimal(UnitPriceStr);
+        public decimal? TotalPrice => ParseNullableDecimal(TotalPriceStr);
 
         // 理算重量（系统计算，只读）
         public decimal TheoreticalWeight { get; set; }
@@ -619,7 +691,12 @@
             QuantityStr = "0",
             MetersStr = "0",
             ContractWeightStr = "0",
-            TheoreticalWeight = 0
+            TheoreticalWeight = 0,
+            // 计价信息沿用上一行（单价/计价单位），总价留空待自动重算
+            PricingUnit = last.PricingUnit,
+            UnitPriceStr = last.UnitPriceStr,
+            TotalPriceStr = string.Empty,
+            IsTotalManual = false
         });
         StateHasChanged();
     }
@@ -645,8 +722,9 @@
         {
             if (item.MaxLength.HasValue && item.MaxLength > 0 && item.Quantity.HasValue && item.Quantity > 0)
             {
-                var meters = Math.Round(item.MaxLength.Value * item.Quantity.Value / 1000m, 2);
+                var meters = Math.Round(item.MaxLength.Value * item.Quantity.Value / 1000m, 1, MidpointRounding.AwayFromZero);
                 item.MetersStr = meters.ToString();
+                RefreshTotalIfAuto(item);
                 StateHasChanged();
                 Snackbar.Add($"米数已自动计算为 {meters} 米", Severity.Info);
             }
@@ -673,9 +751,11 @@
         var meters = item.Meters ?? 0m;
         if (meters <= 0 && item.LengthStatus == LengthStatus.Fixed && item.MaxLength.HasValue && item.Quantity.HasValue)
         {
-            meters = item.MaxLength.Value * item.Quantity.Value / 1000m;
+            meters = Math.Round(item.MaxLength.Value * item.Quantity.Value / 1000m, 1, MidpointRounding.AwayFromZero);
             item.MetersStr = meters.ToString();
         }
+
+        RefreshTotalIfAuto(item);
 
         if (meters <= 0)
         {
@@ -701,6 +781,68 @@
         StateHasChanged();
         Snackbar.Add($"理算重量已计算为 {item.TheoreticalWeight} kg", Severity.Info);
     }
+
+    // ========== 金额联动（单价/计价单位/取量变动 → 自动重算总价；手动输入总价则覆盖） ==========
+    private void OnPricingUnitChanged(OrderItemViewModel item, PricingUnit unit)
+    {
+        item.PricingUnit = unit;
+        RefreshTotalIfAuto(item);
+        StateHasChanged();
+    }
+
+    private void OnUnitPriceChanged(OrderItemViewModel item, string value)
+    {
+        item.UnitPriceStr = value;
+        RefreshTotalIfAuto(item);
+        StateHasChanged();
+    }
+
+    private void OnTotalPriceChanged(OrderItemViewModel item, string value)
+    {
+        item.TotalPriceStr = value;
+        item.IsTotalManual = true;
+        StateHasChanged();
+    }
+
+    private void OnAmountSourceChanged(OrderItemViewModel item)
+    {
+        RefreshTotalIfAuto(item);
+        StateHasChanged();
+    }
+
+    private void ResetTotalAuto(OrderItemViewModel item)
+    {
+        item.IsTotalManual = false;
+        RefreshTotalIfAuto(item);
+        StateHasChanged();
+    }
+
+    private static void RefreshTotalIfAuto(OrderItemViewModel item)
+    {
+        if (item.IsTotalManual) return;
+        item.TotalPriceStr = FormatMoneyOrEmpty(ComputeAutoTotal(item));
+    }
+
+    private static decimal? ComputeAutoTotal(OrderItemViewModel item)
+    {
+        if (!decimal.TryParse(item.UnitPriceStr, out var unit) || unit <= 0) return null;
+        // 取量一律收敛 1 位小数后计价（与保存入库口径一致，保证 单价×取量=总价）
+        decimal? amount = item.PricingUnit switch
+        {
+            PricingUnit.PerKg => decimal.TryParse(item.ContractWeightStr, out var cw) && cw > 0 ? Math.Round(cw, 1, MidpointRounding.AwayFromZero) : null,
+            PricingUnit.PerMeter => decimal.TryParse(item.MetersStr, out var m) && m > 0 ? Math.Round(m, 1, MidpointRounding.AwayFromZero) : null,
+            PricingUnit.PerPiece => int.TryParse(item.QuantityStr, out var q) && q > 0 ? q : null,
+            _ => null
+        };
+        if (!amount.HasValue || amount.Value <= 0) return null;
+        return Math.Round(unit * amount.Value, 2, MidpointRounding.AwayFromZero);
+    }
+
+    private static string FormatMoneyOrEmpty(decimal? value) => value.HasValue ? value.Value.ToString("G29") : string.Empty;
+
+    // 取量（合同重量/米数）输入即收敛 1 位小数，与保存入库/自动总价口径一致，避免价格精度差异
+    private static string RoundWeightInput(string value) =>
+        decimal.TryParse(value, out var d) ? Math.Round(d, 1, MidpointRounding.AwayFromZero).ToString("G29") : value;
 
     // ========== 数据加载 ==========
 
@@ -923,6 +1065,9 @@
                 meters = item.MaxLength.Value * item.Quantity.Value / 1000m;
             }
 
+            // 总价：手动覆盖则用输入值，否则按 计价单位×取量 自动计算
+            var totalPrice = item.IsTotalManual ? item.TotalPrice : ComputeAutoTotal(item);
+
             items.Add(new CreateOrderItemRequest
             {
                 DeliveryDate = DateTime.Parse(item.DeliveryDateStr),
@@ -942,9 +1087,13 @@
                 MinLength = item.MinLength,
                 MaxLength = item.MaxLength,
                 Quantity = item.Quantity,
-                Meters = Math.Round(meters, 2),
-                ContractWeight = item.ContractWeight,
-                Remark = item.Remark
+                // 米数/合同重量仅保留1位小数（前端收敛），单价/总价保留2位
+                Meters = Math.Round(meters, 1, MidpointRounding.AwayFromZero),
+                ContractWeight = Math.Round(item.ContractWeight, 1, MidpointRounding.AwayFromZero),
+                Remark = item.Remark,
+                PricingUnit = item.PricingUnit,
+                UnitPrice = item.UnitPrice.HasValue ? Math.Round(item.UnitPrice.Value, 2, MidpointRounding.AwayFromZero) : null,
+                TotalPrice = totalPrice.HasValue ? Math.Round(totalPrice.Value, 2, MidpointRounding.AwayFromZero) : null
             });
         }
 

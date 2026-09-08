@@ -41,7 +41,7 @@ public class RawMaterialLockPendingSummaryDto
     /// <summary>理论待投料截日桶标签（7：绝对日期 ≤今日/区间/≥尾，桶边界走 DateBucket 配置）</summary>
     public List<string> CutoffBucketLabels { get; set; } = new();
 
-    /// <summary>理论待投料截日行（4：完善计划/执行计划/外购成品/合计）</summary>
+    /// <summary>理论待投料截日行（4：完善用料计划/执行用料计划/外购成品/合计）</summary>
     public List<CutoffRowDto> CutoffRows { get; set; } = new();
 }
 
@@ -85,7 +85,7 @@ public class PendingMatrixTotalsDto
 /// <summary>理论待投料截日行</summary>
 public class CutoffRowDto
 {
-    /// <summary>类别（完善计划/执行计划/外购成品/合计）</summary>
+    /// <summary>类别（完善用料计划/执行用料计划/外购成品/合计）</summary>
     public string Category { get; set; } = "";
 
     /// <summary>全期合计（kg）</summary>

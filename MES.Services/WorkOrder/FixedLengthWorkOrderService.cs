@@ -5,6 +5,7 @@ using MES.Core.Constants;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.WorkOrder;
 using MES.Core.Enums;
+using MES.Core.Interfaces.Configuration;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Data;
 using MES.Data.Entities.Quality;
@@ -27,12 +28,18 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
     private readonly AppDbContext _context;
     private readonly ILogger<FixedLengthWorkOrderService> _logger;
     private readonly IMemoryCache _cache;
+    private readonly IConfigParameterService _configService;
 
-    public FixedLengthWorkOrderService(AppDbContext context, ILogger<FixedLengthWorkOrderService> logger, IMemoryCache cache)
+    public FixedLengthWorkOrderService(
+        AppDbContext context,
+        ILogger<FixedLengthWorkOrderService> logger,
+        IMemoryCache cache,
+        IConfigParameterService configService)
     {
         _context = context;
         _logger = logger;
         _cache = cache;
+        _configService = configService;
     }
 
     public async Task<HashSet<decimal>> GetLengthsByMainNoAsync(string salesOrderNo, string productionMainNo)
@@ -79,15 +86,20 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
 
     public async Task<List<FixedLengthWorkOrderListDto>> GetListAsync()
     {
-        // 结果缓存：全量聚合（6 次查询 + 2 处全表拉内存）较慢，5 分钟绝对过期，
-        // 与 WorkOrderExecutionService 缓存模式一致。数据源（工单/批次/记录/入库）CRUD 无统一失效入口，
-        // 采用短 TTL 保证新鲜度，兼顾重复打开页面时的加载性能。
+        // 结果缓存：全量聚合（6 次查询 + 2 处全表拉内存）较慢。主要数据源写路径（断切记录/正式成检/工单 FixedLength 行重建/订单类成品入库）
+        // 经 InvalidateCaches 即时失效；此处 60 秒短 TTL 仅兜底执行摘要快照/批次计划等未接失效源的漏网窗口（2026-09-08，原 5 分钟收敛到 60 秒）。
         return await _cache.GetOrCreateAsync(CacheKeys.FixedLengthWorkOrderList, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.MemoryCacheExpiry;
+            entry.AbsoluteExpirationRelativeToNow = CacheDefaults.FixedLengthListExpiry;
             return await GetListCoreAsync();
         }) ?? new List<FixedLengthWorkOrderListDto>();
     }
+
+    /// <summary>
+    /// 主动失效定尺列表缓存。数据源写路径（断切生产记录/正式尺寸成检/入库/工单重建 FixedLength 行等）调用，
+    /// 消除「改完数据回页仍显示旧值」的 5 分钟 TTL 窗口。
+    /// </summary>
+    public void InvalidateCaches() => _cache.Remove(CacheKeys.FixedLengthWorkOrderList);
 
     private async Task<List<FixedLengthWorkOrderListDto>> GetListCoreAsync()
     {
@@ -97,6 +109,9 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
             .ToListAsync();
         if (fixedRows.Count == 0)
             return new List<FixedLengthWorkOrderListDto>();
+
+        // 主号切割偏差阈值（配置 FixedLengthCutRatio/CutDeviationRatio 驱动，默认 3.5%；主号汇总数据比批次单批次 5% 更严）
+        var cutDeviationRatio = await GetCutDeviationRatioAsync();
 
         var workOrderNos = fixedRows.Select(f => f.WorkOrderNo)
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
@@ -387,7 +402,8 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
                 MainNoNeedCutUncutQty = mainNoNeedCutUncutQty,
                 MainNoCutTheoretical = mainNoCutTheoretical,
                 MainNoCutActual = mainAgg?.CutActual ?? 0,
-                MainNoDefect = mainAgg?.Defect ?? 0
+                MainNoDefect = mainAgg?.Defect ?? 0,
+                CutDeviationRatio = cutDeviationRatio
             });
         }
 
@@ -399,6 +415,15 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
     {
         var pdfBytes = TablePrintHelper.GeneratePdf(title, items, columns);
         return Task.FromResult(pdfBytes);
+    }
+
+    /// <summary>主号切割偏差判定阈值：读 ConfigParameter 类目 FixedLengthCutRatio 键 CutDeviationRatio，缺行用默认 3.5%（每次全量重组列表时读一次，列表缓存 60s 内不重复查询）</summary>
+    private async Task<decimal> GetCutDeviationRatioAsync()
+    {
+        var map = await _configService.GetConfigMapAsync(FixedLengthCutConfigKeys.Category);
+        return map.TryGetValue(FixedLengthCutConfigKeys.CutDeviationRatioKey, out var v)
+            ? v
+            : FixedLengthCutConfigKeys.CutDeviationRatioDefault;
     }
 
     /// <summary>主号聚合键（订单号+主号 大小写归一化）</summary>

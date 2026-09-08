@@ -14,7 +14,7 @@
     <div class="d-flex justify-space-between align-center mb-4">
         <MudText Typo="Typo.h5" Class="font-weight-bold">
             <MudIcon Icon="@Icons.Material.Filled.Straighten" Class="mr-2" Color="Color.Primary" />
-            定尺工单定尺数据
+            定尺工单定尺
         </MudText>
     </div>
 
@@ -174,7 +174,7 @@
                             var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                             _prevGk2 = col.GroupKey;
                             var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
-                            <MudTd Class="@($"{_cellClass} {GetAlignClass(col)}")">@RenderCell(item, col)</MudTd>
+                            <MudTd Class="@($"{_cellClass} {GetAlignClass(col)} {GetValueEmphClass(col)}")">@RenderCell(item, col)</MudTd>
                         }
                     </RowTemplate>
                     <FooterContent>

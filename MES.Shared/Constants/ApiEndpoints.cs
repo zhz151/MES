@@ -19,6 +19,7 @@ public static class ApiEndpoints
     // ===== Order 订单 =====
     public const string Order = "api/order";
     public const string Customer = "api/customer";
+    public const string OrderProgress = "api/order/progress";
 
     // ===== WorkOrder 工单 =====
     public const string WorkOrder = "api/workorder";

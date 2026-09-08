@@ -79,8 +79,8 @@ public partial class FixedLengthWorkOrderView
         {
             new() { Key = "WorkOrderNo",        Label = "工单号",       SortKey = "WorkOrderNo",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "Salesman",           Label = "业务员",       SortKey = "Salesman",          FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "CustomerName",       Label = "往来单位",     SortKey = "CustomerName",      FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "SignDate",           Label = "订单日期",     SortKey = "SignDate",          Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "CustomerName",       Label = "往来单位",     SortKey = "CustomerName",      FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据", Visible = false },
+            new() { Key = "SignDate",           Label = "订单日期",     SortKey = "SignDate",          Width = "120", GroupKey = 1, GroupName = "基础数据", Visible = false },
             new() { Key = "DeliveryDate",       Label = "交货日期",     SortKey = "DeliveryDate",      Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "SalesOrderNo",       Label = "订单号",       SortKey = "SalesOrderNo",      FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "ProductionMainNo",   Label = "主号",         SortKey = "ProductionMainNo",  FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
@@ -102,46 +102,46 @@ public partial class FixedLengthWorkOrderView
         // G3: 成品切割执行
         var g3 = new List<ColumnDef>
         {
-            new() { Key = "CutDeadline",        Label = "切割截止日",   SortKey = "CutDeadline",       Width = "120", GroupKey = 3, GroupName = "成品切割" },
-            new() { Key = "CutQuantity",        Label = "切后支数",     SortKey = "CutQuantity",       Width = "80",  GroupKey = 3, GroupName = "成品切割" },
+            new() { Key = "CutDeadline",        Label = "切割截止日",   SortKey = "CutDeadline",       Width = "120", GroupKey = 3, GroupName = "成品切割", Visible = false },
+            new() { Key = "CutQuantity",        Label = "切后支数",     SortKey = "CutQuantity",       Width = "80",  GroupKey = 3, GroupName = "成品切割", Visible = false },
         };
 
         // G4: 成检数据
         var g4 = new List<ColumnDef>
         {
-            new() { Key = "InspectionDeadline", Label = "成检截止日",   SortKey = "InspectionDeadline",Width = "120", GroupKey = 4, GroupName = "成检数据" },
-            new() { Key = "ArrivedQuantity",    Label = "到料总支",     SortKey = "ArrivedQuantity",   Width = "80",  GroupKey = 4, GroupName = "成检数据" },
-            new() { Key = "CutArrivedQuantity", Label = "成切到料支",   SortKey = "CutArrivedQuantity",Width = "80",  GroupKey = 4, GroupName = "成检数据" },
-            new() { Key = "NonCutArrivedQuantity", Label = "非成切到料支", SortKey = "NonCutArrivedQuantity", Width = "80", GroupKey = 4, GroupName = "成检数据" },
-            new() { Key = "DefectQuantity",     Label = "次品支数",     SortKey = "DefectQuantity",    Width = "80",  GroupKey = 4, GroupName = "成检数据" },
-            new() { Key = "QualifiedQuantity",  Label = "合格支数",     SortKey = "QualifiedQuantity", Width = "80",  GroupKey = 4, GroupName = "成检数据" },
-            new() { Key = "QualifiedSurplus",   Label = "合格盈缺",     SortKey = "QualifiedSurplus",  Width = "80",  GroupKey = 4, GroupName = "成检数据" },
+            new() { Key = "InspectionDeadline", Label = "成检截止日",   SortKey = "InspectionDeadline",Width = "120", GroupKey = 4, GroupName = "成检数据", Visible = false },
+            new() { Key = "ArrivedQuantity",    Label = "到料总支",     SortKey = "ArrivedQuantity",   Width = "80",  GroupKey = 4, GroupName = "成检数据", Visible = false },
+            new() { Key = "CutArrivedQuantity", Label = "成切到料支",   SortKey = "CutArrivedQuantity",Width = "80",  GroupKey = 4, GroupName = "成检数据", Visible = false },
+            new() { Key = "NonCutArrivedQuantity", Label = "非成切到料支", SortKey = "NonCutArrivedQuantity", Width = "80", GroupKey = 4, GroupName = "成检数据", Visible = false },
+            new() { Key = "DefectQuantity",     Label = "次品支数",     SortKey = "DefectQuantity",    Width = "80",  GroupKey = 4, GroupName = "成检数据", Visible = false },
+            new() { Key = "QualifiedQuantity",  Label = "合格支数",     SortKey = "QualifiedQuantity", Width = "80",  GroupKey = 4, GroupName = "成检数据", Visible = false },
+            new() { Key = "QualifiedSurplus",   Label = "合格盈缺",     SortKey = "QualifiedSurplus",  Width = "80",  GroupKey = 4, GroupName = "成检数据", Visible = false },
         };
 
         // G5: 成品入库
         var g5 = new List<ColumnDef>
         {
-            new() { Key = "InboundDeadline",  Label = "入库截止日",   SortKey = "InboundDeadline",  Width = "120", GroupKey = 5, GroupName = "成品入库" },
-            new() { Key = "InboundQuantity",  Label = "入库支数",     SortKey = "InboundQuantity",  Width = "80",  GroupKey = 5, GroupName = "成品入库" },
-            new() { Key = "InboundSurplus",   Label = "入库盈缺",     SortKey = "InboundSurplus",   Width = "80",  GroupKey = 5, GroupName = "成品入库" },
-            new() { Key = "InboundDoubt",     Label = "入库存疑",     SortKey = "InboundDoubt",     FilterType = "enum", Width = "90", EnumOptions = new() { new("正常","正常"), new("疑问","疑问") }, GroupKey = 5, GroupName = "成品入库" },
+            new() { Key = "InboundDeadline",  Label = "入库截止日",   SortKey = "InboundDeadline",  Width = "120", GroupKey = 5, GroupName = "成品入库", Visible = false },
+            new() { Key = "InboundQuantity",  Label = "入库支数",     SortKey = "InboundQuantity",  Width = "80",  GroupKey = 5, GroupName = "成品入库", Visible = false },
+            new() { Key = "InboundSurplus",   Label = "入库盈缺",     SortKey = "InboundSurplus",   Width = "80",  GroupKey = 5, GroupName = "成品入库", Visible = false },
+            new() { Key = "InboundDoubt",     Label = "入库存疑",     SortKey = "InboundDoubt",     FilterType = "enum", Width = "90", EnumOptions = new() { new("正常","正常"), new("疑问","疑问") }, GroupKey = 5, GroupName = "成品入库", Visible = false },
         };
 
         // G6: 主号数据及现况分析（主号级）
         var g6 = new List<ColumnDef>
         {
-            new() { Key = "MainNoTotalRequirement", Label = "主号-需求计划总", SortKey = "MainNoTotalRequirement", Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
-            new() { Key = "MainNoTotalInput",       Label = "主号-理论成品总", SortKey = "MainNoTotalInput",       Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
-            new() { Key = "MainNoNoCutQty",        Label = "主号-免切理论支", SortKey = "MainNoNoCutQty",        Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
-            new() { Key = "MainNoNeedCutUncutQty", Label = "主号-待切理论支", SortKey = "MainNoNeedCutUncutQty", Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
-            new() { Key = "MainNoCutTheoretical",   Label = "主号-已切理论支", SortKey = "MainNoCutTheoretical",  Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
-            new() { Key = "MainNoCutActual",        Label = "主号-实切支数",  SortKey = "MainNoCutActual",       Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
-            new() { Key = "MainNoCutRationality",   Label = "主号-切割偏差判定", SortKey = "MainNoCutRationality", FilterType = "enum", Width = "90", EnumOptions = new() { new("正常","正常"), new("异常","异常"), new("略","略") }, GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
-            new() { Key = "EstimatedLossQty",      Label = "主号-预计损耗支", SortKey = "EstimatedLossQty",     Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
-            new() { Key = "MainNoCurrentInput",     Label = "主号-当前理论产出", SortKey = "MainNoCurrentInput",   Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
-            new() { Key = "MainNoDefect",           Label = "主号-次品支数",  SortKey = "MainNoDefect",          Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
-            new() { Key = "TotalSurplus",           Label = "主号-盈亏支数",  SortKey = "TotalSurplus",          Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
-            new() { Key = "TotalSurplusStatus",     Label = "主号-盈亏状态",  SortKey = "TotalSurplusStatus",    FilterType = "enum", Width = "100", EnumOptions = new() { new("合理","合理"), new("缺少","缺少"), new("略","略") }, GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoTotalRequirement", Label = "需求总支", SortKey = "MainNoTotalRequirement", Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoTotalInput",       Label = "理论可产支", SortKey = "MainNoTotalInput",       Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoNoCutQty",        Label = "免切", SortKey = "MainNoNoCutQty",        Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoNeedCutUncutQty", Label = "理论待切", SortKey = "MainNoNeedCutUncutQty", Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoCutTheoretical",   Label = "理论已切", SortKey = "MainNoCutTheoretical",  Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoCutActual",        Label = "实切支数",  SortKey = "MainNoCutActual",       Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoCutRationality",   Label = "切割偏差", SortKey = "MainNoCutRationality", FilterType = "enum", Width = "90", EnumOptions = new() { new("正常","正常"), new("异常","异常"), new("略","略") }, GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "EstimatedLossQty",      Label = "预计损耗", SortKey = "EstimatedLossQty",     Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoCurrentInput",     Label = "现有效产支", SortKey = "MainNoCurrentInput",   Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "MainNoDefect",           Label = "次品支数",  SortKey = "MainNoDefect",          Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "TotalSurplus",           Label = "盈亏支数",  SortKey = "TotalSurplus",          Width = "80", GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
+            new() { Key = "TotalSurplusStatus",     Label = "盈亏状态",  SortKey = "TotalSurplusStatus",    FilterType = "enum", Width = "100", EnumOptions = new() { new("合理","合理"), new("缺少","缺少"), new("略","略") }, GroupKey = 6, GroupName = "主号数据及现况分析", Level = ColumnLevel.MainNo },
         };
 
         var all = new List<ColumnDef>();
@@ -903,6 +903,18 @@ public partial class FixedLengthWorkOrderView
         _ => 2
     };
 
+    /// <summary>
+    /// 关键数值单元格强调样式（2026-09-08）：
+    /// 实切支数=蓝字加粗（实际切割产出）；需求总支 与 现有效产支=琥珀底加粗（供需对比对，同款强调便于并排比较）；其余数值无强调。
+    /// </summary>
+    private static string GetValueEmphClass(ColumnDef col) => col.Key switch
+    {
+        "MainNoCutActual" => "flwo-emph-actual",
+        "MainNoTotalRequirement" => "flwo-emph-compare",
+        "MainNoCurrentInput" => "flwo-emph-compare",
+        _ => ""
+    };
+
     /// <summary>单元格对齐：数值类字段居中，其它字段靠左</summary>
     private static string GetAlignClass(ColumnDef col) => col.Key switch
     {
@@ -999,7 +1011,7 @@ public partial class FixedLengthWorkOrderView
             Snackbar.Add("请先选择要打印的行", Severity.Warning);
             return;
         }
-        await PrintItems(_selectedItems.ToList(), "定尺工单定尺数据");
+        await PrintItems(_selectedItems.ToList(), "定尺工单定尺");
     }
 
     private async Task PrintItems(List<FixedLengthWorkOrderListDto> items, string title)

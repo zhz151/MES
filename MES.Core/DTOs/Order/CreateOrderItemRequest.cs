@@ -121,4 +121,19 @@ public class CreateOrderItemRequest
     /// 备注
     /// </summary>
     public string? Remark { get; set; }
+
+    /// <summary>
+    /// 计价单位（决定总价取量：元/Kg→合同重量、元/米→米数、元/支→支数）
+    /// </summary>
+    public PricingUnit? PricingUnit { get; set; }
+
+    /// <summary>
+    /// 单价（元）
+    /// </summary>
+    public decimal? UnitPrice { get; set; }
+
+    /// <summary>
+    /// 总价（元，自动=单价×取量，可手动覆盖）
+    /// </summary>
+    public decimal? TotalPrice { get; set; }
 }

@@ -17,36 +17,6 @@ public class OrderDemandAdjustmentPrintRequest
 }
 
 /// <summary>
-/// 工单需求调整全部打印请求
-/// </summary>
-public class DemandAdjustmentPrintAllRequest
-{
-    /// <summary>模糊搜索关键字</summary>
-    public string? Keyword { get; set; }
-
-    /// <summary>排序列名</summary>
-    public string? SortBy { get; set; }
-
-    /// <summary>是否降序</summary>
-    public bool IsDescending { get; set; }
-
-    /// <summary>签订日期从</summary>
-    public DateTime? SignDateFrom { get; set; }
-
-    /// <summary>签订日期至</summary>
-    public DateTime? SignDateTo { get; set; }
-
-    /// <summary>交货日期从</summary>
-    public DateTime? DeliveryDateStart { get; set; }
-
-    /// <summary>交货日期至</summary>
-    public DateTime? DeliveryDateEnd { get; set; }
-
-    /// <summary>打印列定义</summary>
-    public List<PrintColumnDef> Columns { get; set; } = new();
-}
-
-/// <summary>
 /// 保存工单需求调整请求（原定义在 Controller 中，迁移至 DTO 层）
 /// </summary>
 public class SaveUrgingRequest

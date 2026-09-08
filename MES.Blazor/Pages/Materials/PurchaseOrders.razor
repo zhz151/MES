@@ -124,7 +124,7 @@
                                         <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
                                         <MudTd>@context.PlantGrade</MudTd>
                                         <MudTd>@context.Specification</MudTd>
-                                        <MudTd Class="text-right">@FormatPendingWeight(context.PendingWeight)</MudTd>
+                                        <MudTd Class="text-center">@FormatPendingWeight(context.PendingWeight)</MudTd>
                                     </RowTemplate>
                                 </MudTable>
                             </div>
@@ -305,7 +305,7 @@
                                         <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
                                         <MudTd>@context.PlantGrade</MudTd>
                                         <MudTd>@context.Specification</MudTd>
-                                        <MudTd Class="text-right">@FormatPendingWeight(context.PendingWeight)</MudTd>
+                                        <MudTd Class="text-center">@FormatPendingWeight(context.PendingWeight)</MudTd>
                                     </RowTemplate>
                                 </MudTable>
                             </div>
@@ -476,9 +476,9 @@
                                     <MudTd>@context.WorkOrderNo</MudTd>
                                     <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
                                     <MudTd>@context.PlantGrade</MudTd>
-                                    <MudTd Class="text-right">@(((int)context.PlanWeight).ToString())</MudTd>
-                                    <MudTd Class="text-right">@(((int)context.PurchaseWeight).ToString())</MudTd>
-                                    <MudTd Class="text-right">@(((int)context.MissingWeight).ToString())</MudTd>
+                                    <MudTd Class="text-center">@(((int)context.PlanWeight).ToString())</MudTd>
+                                    <MudTd Class="text-center">@(((int)context.PurchaseWeight).ToString())</MudTd>
+                                    <MudTd Class="text-center">@(((int)context.MissingWeight).ToString())</MudTd>
                                     <MudTd>@IntStatusDisplayHelper.GetScheduleStageText(context.ExecutionScheduleStage, "-")</MudTd>
                                     <MudTd>@(context.ExecutionRawMaterialLockRemark != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.RawMaterialLockRemarkKey, context.ExecutionRawMaterialLockRemark) ?? "-") : "-")</MudTd>
                                     <MudTd>@(context.ExecutionUrgencyLevel != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, context.ExecutionUrgencyLevel) ?? "-") : "-")</MudTd>
@@ -577,7 +577,8 @@
                         var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                         _prevGk2 = col.GroupKey;
                         var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
-                        <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
+                        var _cellAlignClass = IsNumericColumn(col) ? " text-center" : "";
+                        <MudTd Class="@(_cellClass + _cellAlignClass)">@RenderCell(item, col)</MudTd>
                     }
                     <MudTd>
                         @if (item.Status != PurchaseOrderStatus.Completed)

@@ -331,6 +331,9 @@
 
     // ========== 批次列表列定义（同首页） ==========
 
+    /// <summary>列偏好版本键：改默认列显隐/分组后 +1，使旧 localStorage 偏好失效一次以应用新默认</summary>
+    private const string ColumnPrefsVersion = "v2"; // v2：当前规格列移至当前工序后（2026-09-09）
+
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
@@ -349,19 +352,19 @@
                 new("Surplus", "余库料"), new("SpecialDeliveryStatus", "订成-非交付态") } },
         new() { Key = "CreatedTime",        Label = "创建时间", SortKey = "createdtime", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "批次基本信息" },
 
-        // ===== Group 2: 工单信息 =====
-        new() { Key = "WorkOrderNo",        Label = "工单号",   SortKey = "workorderno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        // ===== Group 2: 工单信息（仅显示 订单号+主号，其余默认隐藏，2026-09-08 用户决策）=====
+        new() { Key = "WorkOrderNo",        Label = "工单号",   SortKey = "workorderno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息", Visible = false },
         new() { Key = "SalesOrderNo",       Label = "订单号",   SortKey = "salesorderno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
         new() { Key = "ProductionMainNo",   Label = "主号",     SortKey = "productionmainno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
-        new() { Key = "ProductionSubNo",    Label = "次号",     SortKey = "productionsubno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息" },
+        new() { Key = "ProductionSubNo",    Label = "次号",     SortKey = "productionsubno", FilterType = "string", Width = "120", GroupKey = 2, GroupName = "工单信息", Visible = false },
 
         // ===== Group 3: 生产执行 =====
         new() { Key = "CurrentExecDate",    Label = "截止执行日", SortKey = "currentexecdate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "生产执行" },
         new() { Key = "CurrentGroupName",   Label = "当前工序", SortKey = "currentgroupname", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
+        new() { Key = "CurrentSpec",        Label = "当前规格", SortKey = "currentspec", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
         new() { Key = "CurrentSectionName", Label = "当前工段", SortKey = "currentsectionname", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
         new() { Key = "CurrentEquipmentName", Label = "当前设备", SortKey = "currentequipmentname", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
         new() { Key = "CurrentOutsource",   Label = "当前委外", SortKey = "currentoutsource", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
-        new() { Key = "CurrentSpec",        Label = "当前规格", SortKey = "currentspec", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
         new() { Key = "NextSectionName",    Label = "下一工段", SortKey = "nextsectionname", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
         new() { Key = "CorrespondingSpec",  Label = "对应规格", SortKey = "correspondingspec", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
         new() { Key = "NextProcess",        Label = "下一工序", SortKey = "nextprocess", FilterType = "string", Width = "120", GroupKey = 3, GroupName = "生产执行" },
@@ -376,7 +379,7 @@
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("process_card_print_list", null, _allColumns);
+        await ColumnPrefs.SaveAsync("process_card_print_list", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -542,7 +545,7 @@
 
         // 加载批次列表列偏好
         _allColumns = GetAllColumnDefs();
-        var savedList = await ColumnPrefs.LoadAsync("process_card_print_list", null);
+        var savedList = await ColumnPrefs.LoadAsync("process_card_print_list", ColumnPrefsVersion);
         if (savedList.Count > 0)
         {
             foreach (var s in savedList)

@@ -172,7 +172,7 @@ public class MaterialPlanOverviewTests : IDisposable
     public void Render_HasTitle()
     {
         var cut = Render();
-        cut.Markup.Should().Contain("用料计划总览");
+        cut.Markup.Should().Contain("用料计划");
     }
 
     [Fact]

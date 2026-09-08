@@ -232,6 +232,9 @@ window.openPdfFromApi = function (apiUrl, jsonBody, skipColumnCheck) {
     })
     .catch(function (e) {
         console.error('PDF加载失败:', e);
+        // 先移除可能残留的 PDF 覆盖层，避免异常后全屏面板残留盖住页面造成「卡死」观感
+        var staleOverlay = document.getElementById('pdf-overlay');
+        if (staleOverlay) staleOverlay.remove();
         var msg = (e && e.message) ? e.message : '未知错误';
         showPrintNotice('打印失败：' + msg + '\n请按 F12 查看详细错误', 'error');
     });

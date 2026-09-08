@@ -70,8 +70,8 @@
                     }
                     <MudTd>@item.ParagraphName</MudTd>
                     <MudTd>@DisplayHelper.GetParagraphCategoryTypeText(item.CategoryType)</MudTd>
-                    <MudTd Class="mud-table-cell--right">@item.DisplayOrder</MudTd>
-                    <MudTd Class="mud-table-cell--right">
+                    <MudTd Class="text-center">@item.DisplayOrder</MudTd>
+                    <MudTd Class="text-center">
                         @if (rowEditing && rowCache != null)
                         {
                             <MudNumericField T="decimal?" Dense="true" Variant="Variant.Outlined"
@@ -85,7 +85,7 @@
                             @(item.DailyFlowTarget?.ToString("G29") ?? "-")
                         }
                     </MudTd>
-                    <MudTd Class="mud-table-cell--right">
+                    <MudTd Class="text-center">
                         @if (rowEditing && rowCache != null)
                         {
                             <MudNumericField T="decimal?" Dense="true" Variant="Variant.Outlined"
@@ -99,7 +99,7 @@
                             @(item.LowerLimitDays?.ToString("G29") ?? "-")
                         }
                     </MudTd>
-                    <MudTd Class="mud-table-cell--right">
+                    <MudTd Class="text-center">
                         @if (rowEditing && rowCache != null)
                         {
                             <MudNumericField T="decimal?" Dense="true" Variant="Variant.Outlined"

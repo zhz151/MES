@@ -9,6 +9,7 @@ using MES.Core.DTOs.Order;
 using MES.Core.DTOs.StandardRegister;
 using MES.Core.DTOs.Quality;
 using MES.Core.DTOs.Scheduling;
+using MES.Core.Constants;
 using MES.Core.DTOs.Shared;
 using MES.Core.DTOs.Warehouse;
 using MES.Core.DTOs.WorkOrder;
@@ -227,7 +228,27 @@ public class ConfigParameterService : IConfigParameterService
     /// </summary>
     private async Task RefreshReadModelsIfAffectedAsync(string? category)
     {
-        if (string.IsNullOrWhiteSpace(category) || !ReadModelAffectingCategories.Contains(category))
+        if (string.IsNullOrWhiteSpace(category))
+            return;
+
+        // 定尺联通视图主号「切割偏差」阈值（查询结果存 IMemoryCache，非物化读模型）：改参数表即失效其列表缓存实时生效，
+        // 无需触发物化读模型全量重算。FixedLengthWorkOrderService 经懒解析避免 DI 环（同下方 WorkOrderExecutionService 模式）。
+        if (string.Equals(category, FixedLengthCutConfigKeys.Category, StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                scope.ServiceProvider.GetRequiredService<IFixedLengthWorkOrderService>().InvalidateCaches();
+            }
+            catch (Exception ex)
+            {
+                _context.ChangeTracker.Clear();
+                System.Diagnostics.Debug.WriteLine($"定尺切割偏差配置失效失败: {ex.Message}");
+            }
+            return;
+        }
+
+        if (!ReadModelAffectingCategories.Contains(category))
             return;
         try
         {

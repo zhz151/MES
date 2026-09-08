@@ -285,21 +285,6 @@ public class SectionOutsourcePrintBatchRequest
 }
 
 /// <summary>
-/// 工段委外打印全部请求
-/// </summary>
-public class SectionOutsourcePrintAllRequest
-{
-    public string? Keyword { get; set; }
-    public string? SortBy { get; set; }
-    public bool IsDescending { get; set; } = true;
-    public DateTime? SendOutDateFrom { get; set; }
-    public DateTime? SendOutDateTo { get; set; }
-    public DateTime? ActualRecoveryDateFrom { get; set; }
-    public DateTime? ActualRecoveryDateTo { get; set; }
-    public List<PrintColumnDef> Columns { get; set; } = new();
-}
-
-/// <summary>
 /// 委外回收打印已选请求
 /// </summary>
 public class RecoveryPrintBatchRequest
@@ -307,18 +292,5 @@ public class RecoveryPrintBatchRequest
     [Required(ErrorMessage = "请选择要打印的记录")]
     public int[] Ids { get; set; } = Array.Empty<int>();
 
-    public List<PrintColumnDef> Columns { get; set; } = new();
-}
-
-/// <summary>
-/// 委外回收打印全部请求
-/// </summary>
-public class RecoveryPrintAllRequest
-{
-    public string? Keyword { get; set; }
-    public string? SortBy { get; set; }
-    public bool IsDescending { get; set; } = true;
-    public DateTime? RecoveryDateFrom { get; set; }
-    public DateTime? RecoveryDateTo { get; set; }
     public List<PrintColumnDef> Columns { get; set; } = new();
 }

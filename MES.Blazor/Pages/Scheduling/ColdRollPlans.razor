@@ -611,7 +611,7 @@
                     {
                         var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                         _prevGk2 = col.GroupKey;
-                        var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2) + " " + GetCellExtraClass(col);
+                        var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2) + " " + GetCellExtraClass(col) + " " + GetAlignClass(col);
                         var _edit = GetEdit(item);
                         @if (_isSchedulingMode && col.Key == "CompletionType")
                         {
@@ -674,7 +674,7 @@
                         var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
                         _prevGk3 = col.GroupKey;
                         var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
-                        <MudTd Class="@_footerClass">
+                        <MudTd Class="@($"{_footerClass} {GetAlignClass(col)}")">
                             <span class="col-footer-sum">@RenderFooterCell(col)</span>
                         </MudTd>
                     }
@@ -758,6 +758,15 @@
     .summary-flow-table td {
         padding: 5px 8px;
         border-bottom: 1px solid #f0f0f0;
+        /* 2026-09-08 全系统数值居中：汇总表数据格（数量/重量/机台数/日产）默认居中 */
+        text-align: center;
+    }
+    /* 首列文本（机型/外径跨度区间/小计标签）与配置表「备注/操作」列保持居左 */
+    .summary-flow-table td:first-child {
+        text-align: left;
+    }
+    #crp-machine-config-table .summary-flow-table td:nth-child(n+6) {
+        text-align: left;
     }
     .summary-flow-table tfoot td {
         border-top: 2px solid #1976D2;

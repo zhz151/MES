@@ -10,6 +10,7 @@ using MES.Blazor.Shared;
 using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Core.DTOs.Order;
+using MES.Core.DTOs.Shared;
 using System.Text.Json;
 using MES.Shared.Constants;
 
@@ -75,22 +76,170 @@ public partial class Customers
 
     // ========== 列定义 ==========
 
+    // 列偏好版本键：改为「① 基本信息 / ② 往来信息」两分组后递增，强制老用户按新默认重新加载（col_prefs_customers_v2）
+    private const string ColumnPrefsVersion = "v2";
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    // ========== 数值列（② 往来信息统计列：单数/重量/金额，数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    {
+        "TotalOrdering", "YearOrdering", "ShippedDone", "ShippedOther",
+        "StockDone", "StockOther", "WipNone", "WipPartial"
+    };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+
+    // ========== ② 往来信息 分组列标题栏（仿订单列表 B23） ==========
+    // 选择列 40px + 可见列宽和 + 操作列 90px
+    private int _totalTableWidth =>
+        40 + _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 90;
+
+    private List<GroupHeaderInfo> _groupHeaders => GetGroupHeaders();
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+
+        // 选择列占位（40px）
+        result.Add(new GroupHeaderInfo { GroupKey = 0, GroupName = "", TotalWidth = 40, ColumnCount = 0, CssClass = "" });
+
+        int? lastKey = null; int totalWidth = 0;
+        var groupKey = 0; var groupName = ""; var count = 0;
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo
+                {
+                    GroupKey = groupKey,
+                    GroupName = groupName,
+                    TotalWidth = totalWidth,
+                    ColumnCount = count,
+                    CssClass = GetHeaderGroupCss(groupKey, true)
+                });
+                totalWidth = 0; count = 0;
+            }
+            groupKey = gk; groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++; lastKey = gk;
+        }
+        if (count > 0)
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+
+        // 操作列占位（90px）
+        result.Add(new GroupHeaderInfo { GroupKey = 0, GroupName = "", TotalWidth = 90, ColumnCount = 0, CssClass = "" });
+
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch { 1 => "col-g1", 2 => "col-g2", 3 => "col-g3", 4 => "col-g4", _ => "" };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell", 4 => "col-g4-cell", _ => "" };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
+
+    // ========== ② 往来信息 统计列（DTO 成分字段映射，用于分页合计） ==========
+
+    private static readonly Dictionary<string, (string? CountField, string WeightField, string AmountField)> _statFieldMap = new()
+    {
+        ["TotalOrdering"] = ("TotalOrderCount", "TotalOrderWeight", "TotalOrderAmount"),
+        ["YearOrdering"] = ("YearOrderCount", "YearOrderWeight", "YearOrderAmount"),
+        ["ShippedDone"] = ("ShippedCompletedCount", "ShippedCompletedWeight", "ShippedCompletedAmount"),
+        ["ShippedOther"] = ("ShippedOtherCount", "ShippedOtherWeight", "ShippedOtherAmount"),
+        ["StockDone"] = ("StockCompletedCount", "StockCompletedWeight", "StockCompletedAmount"),
+        ["StockOther"] = ("StockOtherCount", "StockOtherWeight", "StockOtherAmount"),
+        ["WipNone"] = ("WipNoneCount", "WipNoneWeight", "WipNoneAmount"),
+        ["WipPartial"] = ("WipPartialCount", "WipPartialWeight", "WipPartialAmount"),
+    };
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "CustomerCode", Label = "客户编码", SortKey = "customercode", FilterType = "string", IsRequired = true, Width = "120" },
-        new() { Key = "Salesman",     Label = "业务员",   SortKey = "salesman",     FilterType = "string", IsRequired = true, Width = "120" },
-        new() { Key = "CustomerUnit", Label = "客户单位", SortKey = "customerunit", FilterType = "string", IsRequired = true, Width = "120" },
-        new() { Key = "EndCustomer",  Label = "最终用户", SortKey = "endcustomer",  FilterType = "string", Width = "120" },
-        new() { Key = "Status",       Label = "状态",     SortKey = "status",       FilterType = "enum",     EnumOptions = DisplayHelper.GetEnumFilterOptions<CustomerStatus>(), Width = "120" },
-        new() { Key = "ContactPerson",Label = "联系人",     SortKey = "contactperson", FilterType = "string", Width = "120" },
-        new() { Key = "ContactPhone", Label = "联系电话",   SortKey = "contactphone",  FilterType = "string", Width = "120" },
-        new() { Key = "Address",      Label = "联系地址",   SortKey = "address",       FilterType = "string", Width = "150" },
-        new() { Key = "Remark",       Label = "备注",       SortKey = "remark",        FilterType = "string", Width = "120" },
+        // ========== ① 基本信息（默认仅显示：业务员/最终用户/状态；客户编码/客户单位/联系人/电话/地址/备注默认隐藏） ==========
+        new() { Key = "CustomerCode",  Label = "客户编码", SortKey = "customercode",  FilterType = "string", IsRequired = true, Width = "120", GroupKey = 1, GroupName = "① 基本信息", Visible = false },
+        new() { Key = "Salesman",      Label = "业务员",   SortKey = "salesman",      FilterType = "string", IsRequired = true, Width = "120", GroupKey = 1, GroupName = "① 基本信息" },
+        new() { Key = "CustomerUnit",  Label = "客户单位", SortKey = "customerunit",  FilterType = "string", IsRequired = true, Width = "120", GroupKey = 1, GroupName = "① 基本信息", Visible = false },
+        new() { Key = "EndCustomer",   Label = "最终用户", SortKey = "endcustomer",   FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 基本信息" },
+        new() { Key = "Status",        Label = "状态",     SortKey = "status",        FilterType = "enum",   EnumOptions = DisplayHelper.GetEnumFilterOptions<CustomerStatus>(), Width = "120", GroupKey = 1, GroupName = "① 基本信息" },
+        new() { Key = "ContactPerson", Label = "联系人",     SortKey = "contactperson", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 基本信息", Visible = false },
+        new() { Key = "ContactPhone",  Label = "联系电话",   SortKey = "contactphone",  FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 基本信息", Visible = false },
+        new() { Key = "Address",       Label = "联系地址",   SortKey = "address",       FilterType = "string", Width = "150", GroupKey = 1, GroupName = "① 基本信息", Visible = false },
+        new() { Key = "Remark",        Label = "备注",       SortKey = "remark",        FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 基本信息", Visible = false },
+        // ========== ② 往来信息（只读聚合数值列：重量按吨、金额按万保留 1 位小数；不可排序/筛选——SortKey=null 即只读标记） ==========
+        new() { Key = "TotalOrdering", Label = "累计接单",            SortKey = null, FilterType = null, Width = "200", GroupKey = 2, GroupName = "② 往来信息" },
+        new() { Key = "YearOrdering",  Label = "本年接单",            SortKey = null, FilterType = null, Width = "200", GroupKey = 2, GroupName = "② 往来信息" },
+        new() { Key = "ShippedDone",   Label = "本年已发货(整单)",    SortKey = null, FilterType = null, Width = "170", GroupKey = 2, GroupName = "② 往来信息" },
+        new() { Key = "ShippedOther",  Label = "本年已发货(非整单)",  SortKey = null, FilterType = null, Width = "170", GroupKey = 2, GroupName = "② 往来信息" },
+        new() { Key = "StockDone",     Label = "待发货(整单)",        SortKey = null, FilterType = null, Width = "170", GroupKey = 2, GroupName = "② 往来信息" },
+        new() { Key = "StockOther",    Label = "待发货(非整单)",      SortKey = null, FilterType = null, Width = "170", GroupKey = 2, GroupName = "② 往来信息" },
+        new() { Key = "WipNone",       Label = "待在产(整单未入库)",  SortKey = null, FilterType = null, Width = "190", GroupKey = 2, GroupName = "② 往来信息" },
+        new() { Key = "WipPartial",    Label = "待在产(扣除部分入库)", SortKey = null, FilterType = null, Width = "190", GroupKey = 2, GroupName = "② 往来信息" },
     };
+
+    // ========== 分页汇总（仿订单列表：仅对 ② 往来信息 数值列做页内合计） ==========
+
+    private Dictionary<string, string> _pageSums = new();
+
+    private void ComputePageSums()
+    {
+        _pageSums.Clear();
+        if (_pageItems.Count == 0) return;
+        var props = typeof(CustomerProfileDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+        foreach (var col in _visibleColumns)
+        {
+            if (col.GroupKey != 2) continue;
+            if (!_statFieldMap.TryGetValue(col.Key, out var map)) continue; // 非数值列不合计
+
+            var weightProp = props[map.WeightField];
+            var amountProp = props[map.AmountField];
+            var weight = _pageItems.Sum(item => (decimal)(weightProp.GetValue(item) ?? 0m));
+            var amount = _pageItems.Sum(item => (decimal)(amountProp.GetValue(item) ?? 0m));
+
+            if (map.CountField != null)
+            {
+                var countProp = props[map.CountField];
+                var count = _pageItems.Sum(item => (int)(countProp.GetValue(item) ?? 0));
+                _pageSums[col.Key] = BuildStatText(true, count, weight, amount);
+            }
+            else
+            {
+                _pageSums[col.Key] = BuildStatText(false, 0, weight, amount);
+            }
+        }
+    }
+
+    private string RenderFooterCell(ColumnDef col)
+    {
+        if (_pageSums.TryGetValue(col.Key, out var sum)) return sum;
+        return "-";
+    }
 
     // ========== 列选择操作 ==========
 
@@ -101,7 +250,7 @@ public partial class Customers
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("customers", null, _allColumns);
+        await ColumnPrefs.SaveAsync("customers", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -181,6 +330,7 @@ public partial class Customers
             _totalCount = 0;
         }
 
+        ComputePageSums();
         await SavePageStateAsync();
 
         return new TableData<CustomerProfileDto>
@@ -253,14 +403,6 @@ public partial class Customers
             }
         }
 
-        // 补充布尔列筛选选项
-        foreach (var col in _allColumns)
-        {
-            if (col.FilterType == "boolean" && !_filterContextOptions.ContainsKey(col.Key))
-            {
-                _filterContextOptions[col.Key] = DisplayHelper.GetBoolFilterOptions(col);
-            }
-        }
     }
 
     // ========== ExcelFilter 事件 ==========
@@ -276,13 +418,17 @@ public partial class Customers
     }
 
 
-    private async Task ToggleSort(string sortKey)
+    private async Task ToggleSort(string colKey)
     {
-        if (sortColumn == sortKey)
+        // 只读统计列（SortKey=null）不可排序，忽略点击
+        var col = _allColumns.FirstOrDefault(c => c.Key == colKey);
+        if (col == null || col.SortKey == null) return;
+
+        if (sortColumn == colKey)
             sortDescending = !sortDescending;
         else
         {
-            sortColumn = sortKey;
+            sortColumn = colKey;
             sortDescending = false;
         }
         await SavePageStateAsync();
@@ -302,7 +448,7 @@ public partial class Customers
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("customers", null);
+        var saved = await ColumnPrefs.LoadAsync("customers", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)
@@ -340,7 +486,13 @@ public partial class Customers
                     var raw = savedState.Extras["columnFilters"];
                     var dict = JsonSerializer.Deserialize<Dictionary<string, List<string>>>(raw);
                     if (dict != null)
-                        _columnFilters = dict.ToDictionary(kv => kv.Key, kv => new HashSet<string>(kv.Value));
+                    {
+                        // 仅保留当前列定义中仍存在的列（兼容旧版本存储的已删列 filter，如 HasSales）
+                        var validKeys = _allColumns.Select(c => c.Key).ToHashSet();
+                        _columnFilters = dict
+                            .Where(kv => validKeys.Contains(kv.Key))
+                            .ToDictionary(kv => kv.Key, kv => new HashSet<string>(kv.Value));
+                    }
                 }
                 catch { }
             }
@@ -360,6 +512,11 @@ public partial class Customers
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#customers-list-table");
+        }
+        catch { }
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
@@ -500,6 +657,17 @@ public partial class Customers
     {
         var isEditing = _editingIds.Contains(item.Id);
         var cache = isEditing && _editCache.TryGetValue(item.Id, out var c) ? c : null;
+
+        // 客户业务统计 8 列：只读文本单元格（组合文本：单数/重量/金额），悬停显示完整值
+        var statText = RenderStatText(item, col.Key);
+        if (statText != null)
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "title", statText);
+            builder.AddContent(2, statText);
+            builder.CloseElement();
+            return;
+        }
 
         switch (col.Key)
         {
@@ -671,8 +839,64 @@ public partial class Customers
         }
     };
 
-    // ========== 打印方法 ==========
+    // ========== 客户业务统计列渲染 ==========
 
+    /// <summary>统计 8 列只读文本：累计·本年接单(单数+重量+金额)/发货·待发·在产(重量+金额)；非统计列返回 null</summary>
+    private static string? RenderStatText(CustomerProfileDto item, string key)
+    {
+        bool withCount;
+        int count;
+        decimal weight;
+        decimal amount;
+        switch (key)
+        {
+            case "TotalOrdering":
+                count = item.TotalOrderCount; weight = item.TotalOrderWeight; amount = item.TotalOrderAmount; withCount = true;
+                break;
+            case "YearOrdering":
+                count = item.YearOrderCount; weight = item.YearOrderWeight; amount = item.YearOrderAmount; withCount = true;
+                break;
+            case "ShippedDone":
+                count = item.ShippedCompletedCount; weight = item.ShippedCompletedWeight; amount = item.ShippedCompletedAmount; withCount = true;
+                break;
+            case "ShippedOther":
+                count = item.ShippedOtherCount; weight = item.ShippedOtherWeight; amount = item.ShippedOtherAmount; withCount = true;
+                break;
+            case "StockDone":
+                count = item.StockCompletedCount; weight = item.StockCompletedWeight; amount = item.StockCompletedAmount; withCount = true;
+                break;
+            case "StockOther":
+                count = item.StockOtherCount; weight = item.StockOtherWeight; amount = item.StockOtherAmount; withCount = true;
+                break;
+            case "WipNone":
+                count = item.WipNoneCount; weight = item.WipNoneWeight; amount = item.WipNoneAmount; withCount = true;
+                break;
+            case "WipPartial":
+                count = item.WipPartialCount; weight = item.WipPartialWeight; amount = item.WipPartialAmount; withCount = true;
+                break;
+            default:
+                return null;
+        }
+
+        return BuildStatText(withCount, count, weight, amount);
+    }
+
+    /// <summary>统计单元格/合计文本：单数（可选）+ 重量(吨) + 金额(万)，各保留 1 位小数；全 0 显示占位「—」</summary>
+    private static string BuildStatText(bool withCount, int count, decimal weightKg, decimal amountYuan)
+    {
+        var parts = new List<string>();
+        if (withCount && count > 0)
+            parts.Add($"{count}单");
+        if (weightKg > 0m)
+            parts.Add($"{(weightKg / 1000m).ToString("F1")}吨");
+        if (amountYuan > 0m)
+            parts.Add($"{(amountYuan / 10000m).ToString("F1")}万");
+        return parts.Count > 0 ? string.Join("/", parts) : "—";
+    }
+
+    // ========== 打印方法（Mode A 列表打印：按当前可见列——含 ② 往来信息 全部统计列——完整打印选中行） ==========
+
+    /// <summary>打印选中客户（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
     private async Task PrintSelected()
     {
         if (!selectedIds.Any())
@@ -682,10 +906,25 @@ public partial class Customers
         }
         try
         {
-            var ids = selectedIds.ToArray();
-            var request = new OrderPrintBatchRequest { Ids = ids, Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList() };
+            // 从当前页取选中行，按可见列把每格转显示文本（保证 ② 往来信息 统计列也能完整打印）
+            var selectedItems = _pageItems
+                .Where(c => selectedIds.Contains(c.Id))
+                .Select(item =>
+                {
+                    var dict = new Dictionary<string, object>();
+                    foreach (var col in _visibleColumns)
+                        dict[col.Key] = GetCellDisplayText(item, col) ?? "-";
+                    return dict;
+                }).ToList();
+
+            var request = new OrderPrintListRequest
+            {
+                Title = "客户列表",
+                Items = selectedItems,
+                Columns = GetPrintColumnDefs()
+            };
             Snackbar.Add("正在生成PDF...", Severity.Info);
-            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Customer}/print-batch-file";
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Customer}/print-list-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -693,6 +932,31 @@ public partial class Customers
         {
             Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
+    }
+
+    /// <summary>当前可见列 → 打印列定义（Key/Label 对应当前列显隐与顺序）</summary>
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
+    /// <summary>按列取打印显示文本：① 基本信息原样，② 往来信息走统计渲染（吨/万/单），与页面单元格口径一致</summary>
+    private static string? GetCellDisplayText(CustomerProfileDto item, ColumnDef col)
+    {
+        if (col.GroupKey == 2)
+            return RenderStatText(item, col.Key) ?? "-";
+
+        return col.Key switch
+        {
+            "CustomerCode" => item.CustomerCode,
+            "Salesman" => item.Salesman,
+            "CustomerUnit" => item.CustomerUnit,
+            "EndCustomer" => item.EndCustomer,
+            "Status" => item.Status == CustomerStatus.Active ? "启用" : "停用",
+            "ContactPerson" => item.ContactPerson,
+            "ContactPhone" => item.ContactPhone,
+            "Address" => item.Address,
+            "Remark" => item.Remark,
+            _ => "-"
+        };
     }
 
     // ========== 持久化 ==========

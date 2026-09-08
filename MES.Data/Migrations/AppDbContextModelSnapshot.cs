@@ -3394,6 +3394,10 @@ namespace MES.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("PricingUnit")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<int?>("Quantity")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -3432,6 +3436,12 @@ namespace MES.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("decimal(18,3)")
                         .HasDefaultValue(0m);
+
+                    b.Property<decimal?>("TotalPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("UpdatedBy")
                         .IsRequired()

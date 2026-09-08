@@ -118,13 +118,13 @@ public class OrderDemandAdjustmentService : IOrderDemandAdjustmentService
         if (signDateFrom.HasValue)
             q = q.Where(x => x.SignDate >= signDateFrom.Value);
         if (signDateTo.HasValue)
-            q = q.Where(x => x.SignDate <= signDateTo.Value);
+            q = q.Where(x => x.SignDate < signDateTo.Value.AddDays(1));
 
         // 交货日期范围筛选
         if (deliveryDateStart.HasValue)
             q = q.Where(x => x.DeliveryDate >= deliveryDateStart.Value);
         if (deliveryDateEnd.HasValue)
-            q = q.Where(x => x.DeliveryDate <= deliveryDateEnd.Value);
+            q = q.Where(x => x.DeliveryDate < deliveryDateEnd.Value.AddDays(1));
 
         // 关键词搜索
         if (!string.IsNullOrEmpty(query.Keyword))

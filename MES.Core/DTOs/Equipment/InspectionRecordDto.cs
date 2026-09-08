@@ -49,15 +49,3 @@ public class InspectionRecordPrintBatchRequest
     public int[] Ids { get; set; } = Array.Empty<int>();
     public List<PrintColumnDef> Columns { get; set; } = new();
 }
-
-/// <summary>
-/// 点检记录打印请求（全部）
-/// </summary>
-public class InspectionRecordPrintAllRequest
-{
-    public string? Keyword { get; set; }
-    public string? SortBy { get; set; }
-    public bool IsDescending { get; set; }
-    public int? EquipmentId { get; set; }
-    public List<PrintColumnDef> Columns { get; set; } = new();
-}

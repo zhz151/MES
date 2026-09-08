@@ -3525,7 +3525,7 @@ public class WorkOrderExecutionServiceTests : TestBase
         w003.CutoffArrivalDate.Should().Be(DateTime.Today.AddDays(-1));
     }
 
-    // ==================== GetInProductionInspectionDoubtItemsAsync（在产在检-错疑待料卡片） ====================
+    // ==================== GetInProductionInspectionDoubtItemsAsync（错误-用料计划及其执行卡片） ====================
 
     [Fact]
     public async Task GetInProductionInspectionDoubtItemsAsync_按关注档位统计理论原料未至与到料未投()

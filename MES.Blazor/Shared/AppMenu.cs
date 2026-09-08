@@ -25,14 +25,21 @@ public static class AppMenu
             new() { Label = "订单成品(在库)", Href = "/orders/pending-delivery" },
         ] },
 
-        // ─── 工单管理 ───
+        // ─── 工单管理（二级分组：工单操作 / 工单查询）───
         new() { Label = "工单管理", Policy = Roles.Policies.WorkOrderMenu, Children =
         [
-            new() { Label = "工单首页", Href = "/workorders" },
-            new() { Label = "用料计划总览", Href = "/material-plan-overview" },
-            new() { Label = "工单需求调整", Href = "/workorders-demand-adjustment" },
-            new() { Label = "工单执行状况", Href = "/workorder-execution" },
-            new() { Label = "定尺工单定尺数据", Href = "/fixed-length-work-order-view" },
+            new() { Label = "工单操作", Children =
+            [
+                new() { Label = "工单生成", Href = "/workorders" },
+                new() { Label = "用料计划", Href = "/material-plan-overview" },
+                new() { Label = "用料投料核查", Href = "/material-input-consistency" },
+                new() { Label = "工单需求调整", Href = "/workorders-demand-adjustment" },
+            ] },
+            new() { Label = "工单查询", Children =
+            [
+                new() { Label = "工单执行状况", Href = "/workorder-execution" },
+                new() { Label = "定尺工单定尺", Href = "/fixed-length-work-order-view" },
+            ] },
         ] },
 
         // ─── 计划排程 ───
@@ -48,7 +55,8 @@ public static class AppMenu
         // ─── 批次管理 ───
         new() { Label = "批次管理", Policy = Roles.Policies.BatchMenu, Children =
         [
-            new() { Label = "批次首页", Href = "/batches" },
+            new() { Label = "生产批次", Href = "/batches" },
+            new() { Label = "生产执行核查", Href = "/production-execution-check" },
             new() { Label = "生产记录", Href = "/production-records" },
             new() { Label = "去油酸洗", Href = "/pickling-in-records" },
             new() { Label = "工段委外", Href = "/section-outsources" },
@@ -148,8 +156,8 @@ public static class AppMenu
         // ─── 工资结算 ───
         new() { Label = "工资结算", Policy = Roles.Policies.SalaryView, Children =
         [
-            new() { Label = "生产计件类别", Href = "/payroll/piece-rate-categories" },
-            new() { Label = "成检计件类别", Href = "/payroll/final-inspection-categories" },
+            new() { Label = "生产计件标准", Href = "/payroll/piece-rate-categories" },
+            new() { Label = "成检计件标准", Href = "/payroll/final-inspection-categories" },
             new() { Label = "考勤表", Href = "/payroll/attendance" },
             new() { Label = "杂辅工记录", Href = "/payroll/misc-work" },
             new() { Label = "集体计件评分", Href = "/payroll/collective-scores" },

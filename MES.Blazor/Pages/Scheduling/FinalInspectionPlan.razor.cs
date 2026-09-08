@@ -51,6 +51,11 @@ public partial class FinalInspectionPlan
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
+    // 列显隐默认布局版本：调整默认显隐后须递增，使浏览器已持久化 PageState 失效、新默认立即生效（2026-09-08）
+    // ⚠️ 与 ColumnPrefs 用法不同：本页整页状态（排序/筛选/关键词/Tab/列显隐）一体存于 PageState，版本并入存储键整体重置一次。
+    private const string ColumnLayoutVersion = "v3";
+    private string PageStateStorageKey => $"final-inspection-plan-{ColumnLayoutVersion}";
+
     // B33: 分页汇总
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
@@ -128,27 +133,29 @@ public partial class FinalInspectionPlan
     {
         // G1: 批次信息 + 关联工单（合并，参照成检追踪；成检类型取批次「成检附加」，预检时是否交付态/制造状态显 "-"）
         // 列顺序按业务约定：生产编号/成检类型/是否交付态/生产类型/制造物品/制造状态/交货状态/工厂牌号/规格/长度状态/生产支数/生产重量/炉号/来料单位/工单号/订单号/主号/业务员/最终用户
+        // 默认显隐（2026-09-08 调整）：默认显示 生产编号/生产类型/制造状态/工厂牌号/规格/长度状态/支数/重量/订单号/主号/业务员；
+        // 其余（成检类型/是否交付态/制造物品/交货状态/炉号/来料单位/工单号/最终用户）默认隐藏（列选择器可随时打开）。
         var g1 = new List<ColumnDef>
         {
             new() { Key = "BatchNo",              Label = "生产编号",   SortKey = "BatchNo",              FilterType = "string", Width = "130", GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "InspectionType",       Label = "成检类型",   SortKey = "InspectionType",       FilterType = "enum",   Width = "100", EnumOptions = DisplayHelper.GetEnumFilterOptions<InspectionType>(), GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "IsDeliveryStatus",     Label = "是否交付态", SortKey = "IsDeliveryStatus",     FilterType = "string", Width = "90",  GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "InspectionType",       Label = "成检类型",   SortKey = "InspectionType",       FilterType = "enum",   Width = "100", EnumOptions = DisplayHelper.GetEnumFilterOptions<InspectionType>(), GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "IsDeliveryStatus",     Label = "是否交付态", SortKey = "IsDeliveryStatus",     FilterType = "string", Width = "90",  GroupKey = 1, GroupName = "批次信息", Visible = false },
             new() { Key = "ProductionType",       Label = "生产类型",   SortKey = "ProductionType",       FilterType = "enum",   Width = "100", EnumOptions = DisplayHelper.GetEnumFilterOptions<ProductionType>(), DisplayConverter = v => v is ProductionType pt ? DisplayHelper.GetProductionTypeText(pt) : DisplayHelper.GetProductionTypeText(v as string), GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "ManufacturingItem",    Label = "制造物品",   SortKey = "ManufacturingItem",    FilterType = "enum",   Width = "90",  EnumOptions = DisplayHelper.GetEnumFilterOptions<MaterialType>(), GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "ManufacturingItem",    Label = "制造物品",   SortKey = "ManufacturingItem",    FilterType = "enum",   Width = "90",  EnumOptions = DisplayHelper.GetEnumFilterOptions<MaterialType>(), GroupKey = 1, GroupName = "批次信息", Visible = false },
             new() { Key = "ManufacturingStatus",  Label = "制造状态",   SortKey = "ManufacturingStatus",  FilterType = "enum",   Width = "110", EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>(), GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "DeliveryState",        Label = "交货状态",   SortKey = "DeliveryState",        FilterType = "enum",   Width = "100", EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>(), GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "DeliveryState",        Label = "交货状态",   SortKey = "DeliveryState",        FilterType = "enum",   Width = "100", EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>(), GroupKey = 1, GroupName = "批次信息", Visible = false },
             new() { Key = "PlantGrade",           Label = "工厂牌号",   SortKey = "PlantGrade",           FilterType = "string", Width = "100", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "Specification",        Label = "规格",       SortKey = "Specification",        FilterType = "string", Width = "110", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "LengthStatus",         Label = "长度状态",   SortKey = "LengthStatus",         FilterType = "enum",   Width = "90",  EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>(), DisplayConverter = v => v is LengthStatus ls ? DisplayHelper.GetLengthStatusText(ls) : DisplayHelper.GetLengthStatusText(v as string), GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "ProductionCutQuantity",Label = "生产支数",   SortKey = "ProductionCutQuantity", Width = "80",  GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "ProductionWeight",     Label = "生产重量(kg)", SortKey = "ProductionWeight",  Width = "90",  GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "SourceHeatNo",         Label = "炉号",       SortKey = "SourceHeatNo",         FilterType = "string", Width = "110", GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "SourceName",           Label = "来料单位",   SortKey = "SourceName",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "WorkOrderNo",          Label = "工单号",     SortKey = "WorkOrderNo",          FilterType = "string", Width = "110", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "ProductionCutQuantity",Label = "支数",       SortKey = "ProductionCutQuantity", Width = "80",  GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "ProductionWeight",     Label = "重量",         SortKey = "ProductionWeight",  Width = "90",  GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "SourceHeatNo",         Label = "炉号",       SortKey = "SourceHeatNo",         FilterType = "string", Width = "110", GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "SourceName",           Label = "来料单位",   SortKey = "SourceName",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
+            new() { Key = "WorkOrderNo",          Label = "工单号",     SortKey = "WorkOrderNo",          FilterType = "string", Width = "110", GroupKey = 1, GroupName = "批次信息", Visible = false },
             new() { Key = "SalesOrderNo",         Label = "订单号",     SortKey = "SalesOrderNo",         FilterType = "string", Width = "110", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "ProductionMainNo",     Label = "主号",       SortKey = "ProductionMainNo",     FilterType = "string", Width = "110", GroupKey = 1, GroupName = "批次信息" },
             new() { Key = "Salesman",             Label = "业务员",     SortKey = "Salesman",             FilterType = "string", Width = "90",  GroupKey = 1, GroupName = "批次信息" },
-            new() { Key = "EndCustomer",          Label = "最终用户",   SortKey = "EndCustomer",          FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次信息" },
+            new() { Key = "EndCustomer",          Label = "最终用户",   SortKey = "EndCustomer",          FilterType = "string", Width = "120", GroupKey = 1, GroupName = "批次信息", Visible = false },
         };
 
         // G2: 排程信息
@@ -159,29 +166,31 @@ public partial class FinalInspectionPlan
         };
 
         // G3: 成检状态
+        // 默认显隐（2026-09-08 调整）：默认显示 成检阶段/到料日期；最晚检验默认隐藏（列选择器可随时打开）。
         var g3 = new List<ColumnDef>
         {
             new() { Key = "KanbanStage",           Label = "成检阶段",   FilterType = "enum", Width = "100", EnumOptions = new() { new(KanbanStageKeys.WaitingMaterial, KanbanStageKeys.WaitingMaterial), new(KanbanStageKeys.WaitingInspection, KanbanStageKeys.WaitingInspection), new(KanbanStageKeys.Inspecting, KanbanStageKeys.Inspecting), new(KanbanStageKeys.CompletedAwaitingInbound, KanbanStageKeys.CompletedAwaitingInbound) }, GroupKey = 3, GroupName = "成检状态" },
             new() { Key = "ReceiveDate",           Label = "到料日期",   SortKey = "ReceiveDate",           Width = "110", GroupKey = 3, GroupName = "成检状态" },
-            new() { Key = "MaxInspectionDate",     Label = "最晚检验",   SortKey = "MaxInspectionDate",     Width = "110", GroupKey = 3, GroupName = "成检状态" },
+            new() { Key = "MaxInspectionDate",     Label = "最晚检验",   SortKey = "MaxInspectionDate",     Width = "110", GroupKey = 3, GroupName = "成检状态", Visible = false },
         };
 
         // G4: 技术要求检验项（ProductRequirement 成品检验组；表检+尺寸恒必检；与「完成检验待入库」判定同源）
+        // 标签（2026-09-08 简化）：必检项数→必检项 / PMI检验→PMI / 水下气压→气压 / 端口着色→着色
         var g4 = new List<ColumnDef>
         {
-            new() { Key = "ReqCount",              Label = "必检项数",   Width = "80",  GroupKey = 4, GroupName = "技术要求检验项" },
-            new() { Key = "ReqPmi",                Label = "PMI检验",   FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
+            new() { Key = "ReqCount",              Label = "必检项",     Width = "80",  GroupKey = 4, GroupName = "技术要求检验项" },
+            new() { Key = "ReqPmi",                Label = "PMI",       FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
             new() { Key = "ReqVisual",             Label = "表检",      FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
             new() { Key = "ReqDimension",          Label = "尺寸",      FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
             new() { Key = "ReqEndoscopy",          Label = "内窥",      FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
             new() { Key = "ReqHydro",              Label = "水压",      FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
-            new() { Key = "ReqUnderwater",         Label = "水下气压",  FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
+            new() { Key = "ReqUnderwater",         Label = "气压",      FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
             new() { Key = "ReqEddy",               Label = "涡流",      FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
             new() { Key = "ReqUltrasonic",         Label = "超声波",    FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
-            new() { Key = "ReqPortColoring",       Label = "端口着色",  FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
+            new() { Key = "ReqPortColoring",       Label = "着色",      FilterType = "boolean", Width = "90", BoolTrueLabel = "是", BoolFalseLabel = "-", GroupKey = 4, GroupName = "技术要求检验项" },
         };
 
-        // G5: 各项检验的日期
+        // G5: 各项检验的日期（2026-09-08 起整组默认隐藏，见下方 g5/g6 统一置 Visible=false）
         var g5 = new List<ColumnDef>
         {
             new() { Key = "InspectionCount",      Label = "检测项数",   Width = "80",  GroupKey = 5, GroupName = "各项检验的日期" },
@@ -205,6 +214,10 @@ public partial class FinalInspectionPlan
             new() { Key = "DefectWarehouseQuantity",Label = "不合格入库", SortKey = "DefectWarehouseQuantity",Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
             new() { Key = "DefectScrapQuantity",    Label = "报废支数",   SortKey = "DefectScrapQuantity",    Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
         };
+
+        // G5/G6 默认隐藏（2026-09-08 调整）：各项检验的日期 + 检验的数量信息 两组整组默认隐藏（列选择器可随时打开）
+        foreach (var c in g5) c.Visible = false;
+        foreach (var c in g6) c.Visible = false;
 
         var all = new List<ColumnDef>();
         all.AddRange(g1);
@@ -308,7 +321,7 @@ public partial class FinalInspectionPlan
 
         _allColumns = GetAllColumnDefs();
 
-        var savedState = await PageState.LoadAsync("final-inspection-plan");
+        var savedState = await PageState.LoadAsync(PageStateStorageKey);
         if (savedState != null)
         {
             sortColumn = savedState.SortBy ?? "BatchNo";
@@ -671,10 +684,13 @@ public partial class FinalInspectionPlan
         await SavePageStateAsync();
     }
 
-    private void ResetColumnDisplay()
+    private async Task ResetColumnDisplay()
     {
-        foreach (var col in _allColumns)
-            col.Visible = true;
+        // 重置 = 恢复代码默认（GetAllColumnDefs 内 Visible 默认值：默认显示的列显示、默认隐藏的列隐藏）
+        _allColumns = GetAllColumnDefs();
+        await SavePageStateAsync();
+        ApplyFiltersAndSort();
+        StateHasChanged();
     }
 
     // ========== 分组 CSS ==========
@@ -710,6 +726,14 @@ public partial class FinalInspectionPlan
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
         return cls;
     }
+
+    /// <summary>单元格对齐：数值类字段居中，其它字段靠左</summary>
+    private static string GetAlignClass(ColumnDef col) => col.Key switch
+    {
+        "ProductionCutQuantity" or "ProductionWeight" or "ReqCount" or "InspectionCount" or
+        "TotalQuantity" or "QualifiedQuantity" or "DefectReworkQuantity" or "DefectWarehouseQuantity" or "DefectScrapQuantity" => "text-center",
+        _ => ""
+    };
 
     // ========== 分组标题栏 ==========
 
@@ -1002,7 +1026,7 @@ public partial class FinalInspectionPlan
             PageIndex = 1,
             Extras = extras
         };
-        await PageState.SaveAsync("final-inspection-plan", state);
+        await PageState.SaveAsync(PageStateStorageKey, state);
     }
 
     // ========== 显示类汇总卡片 ==========

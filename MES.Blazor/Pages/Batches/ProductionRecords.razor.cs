@@ -50,6 +50,9 @@ public partial class ProductionRecords
     private int _loadVersion;
     private bool _resetToFirstPage;
 
+    // 列偏好版本号：字段级默认显隐收敛后 +1，强制旧持久化失效（key=col_prefs_production-records_v1）
+    private const string ColumnPrefsVersion = "v1";
+
     [Inject] private EmployeeService EmployeeService { get; set; } = null!;
 
     // 操作人员工下拉（全量启用员工，实名制）
@@ -154,19 +157,19 @@ public partial class ProductionRecords
         new() { Key = "ExecDate",          Label = "执行日期",   SortKey = "execdate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "BatchNo",           Label = "生产编号",   SortKey = "batchno",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "TagNo",             Label = "挂牌号",     SortKey = "tagno",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
-        new() { Key = "WorkOrderNo",       Label = "工单号",     SortKey = "workorderno",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "WorkOrderNo",       Label = "工单号",     SortKey = "workorderno",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息", Visible = false },
         new() { Key = "SalesOrderNo",      Label = "订单号",     SortKey = "salesorderno",      FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "ProductionMainNo",  Label = "主号",       SortKey = "productionmainno",  FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "ProcessName",       Label = "工序名称",   SortKey = "processname",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "SectionName",       Label = "工段名称",   SortKey = "sectionname",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "PlantGrade",        Label = "工厂牌号",   SortKey = "plantgrade",        FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
         new() { Key = "ManufacturingSpec", Label = "制造规格",   SortKey = "manufacturingspec", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "执行信息" },
-        new() { Key = "SequenceNumber",    Label = "执行序号",   SortKey = "sequencenumber", Width = "45", GroupKey = 1, GroupName = "执行信息" },
+        new() { Key = "SequenceNumber",    Label = "执行序号",   SortKey = "sequencenumber", Width = "45", GroupKey = 1, GroupName = "执行信息", Visible = false },
 
         // ===== Group 2: 产出数据 =====
-        new() { Key = "EquipmentName",     Label = "设备名称",   SortKey = "equipmentname",     FilterType = "string", Width = "120", GroupKey = 2, GroupName = "产出数据" },
-        new() { Key = "Shift",             Label = "班次",       SortKey = "shift",             FilterType = "string", Width = "120", GroupKey = 2, GroupName = "产出数据" },
-        new() { Key = "Operator",          Label = "操作人",     SortKey = "operator",          FilterType = "string", Width = "160", GroupKey = 2, GroupName = "产出数据" },
+        new() { Key = "EquipmentName",     Label = "设备名称",   SortKey = "equipmentname",     FilterType = "string", Width = "120", GroupKey = 2, GroupName = "产出数据", Visible = false },
+        new() { Key = "Shift",             Label = "班次",       SortKey = "shift",             FilterType = "string", Width = "120", GroupKey = 2, GroupName = "产出数据", Visible = false },
+        new() { Key = "Operator",          Label = "操作人",     SortKey = "operator",          FilterType = "string", Width = "160", GroupKey = 2, GroupName = "产出数据", Visible = false },
         new() { Key = "Quantity",          Label = "加工支数",   SortKey = "quantity", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "Weight",            Label = "加工重量",   SortKey = "weight", Width = "80", GroupKey = 2, GroupName = "产出数据" },
         new() { Key = "ProductStatus",      Label = "产类",       SortKey = "productstatus",         FilterType = "string", Width = "80", GroupKey = 2, GroupName = "产出数据" },
@@ -181,14 +184,14 @@ public partial class ProductionRecords
         new() { Key = "PostCutQuantity",   Label = "切后支数",   SortKey = "postcutquantity", Width = "80", GroupKey = 2, GroupName = "产出数据" },
 
         // ===== Group 3: 工艺参数 =====
-        new() { Key = "SolutionTemperature", Label = "固溶温度(℃)", SortKey = "solutiontemperature", Width = "80", GroupKey = 3, GroupName = "工艺参数" },
-        new() { Key = "SoakTime",           Label = "保温时间(min)", SortKey = "soaktime", Width = "80", GroupKey = 3, GroupName = "工艺参数" },
+        new() { Key = "SolutionTemperature", Label = "固溶温度(℃)", SortKey = "solutiontemperature", Width = "80", GroupKey = 3, GroupName = "工艺参数", Visible = false },
+        new() { Key = "SoakTime",           Label = "保温时间(min)", SortKey = "soaktime", Width = "80", GroupKey = 3, GroupName = "工艺参数", Visible = false },
 
         // ===== Group 4: 追溯信息 =====
-        new() { Key = "Remark",            Label = "备注",       SortKey = "remark",            FilterType = "string", Width = "120", GroupKey = 4, GroupName = "追溯信息" },
-        new() { Key = "DataSource",        Label = "数据来源",   SortKey = "datasource",        FilterType = "enum", Width = "80", GroupKey = 4, GroupName = "追溯信息",
+        new() { Key = "Remark",            Label = "备注",       SortKey = "remark",            FilterType = "string", Width = "120", GroupKey = 4, GroupName = "追溯信息", Visible = false },
+        new() { Key = "DataSource",        Label = "数据来源",   SortKey = "datasource",        FilterType = "enum", Width = "80", GroupKey = 4, GroupName = "追溯信息", Visible = false,
             EnumOptions = DisplayHelper.GetDataSourceOptions() },
-        new() { Key = "UpdatedTime",       Label = "更新日期",   SortKey = "updatedtime", Width = "120", GroupKey = 4, GroupName = "追溯信息" },
+        new() { Key = "UpdatedTime",       Label = "更新日期",   SortKey = "updatedtime", Width = "120", GroupKey = 4, GroupName = "追溯信息", Visible = false },
     };
 
     // ========== 分页汇总计算 ==========
@@ -589,7 +592,7 @@ public partial class ProductionRecords
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("production-records", null, _allColumns);
+        await ColumnPrefs.SaveAsync("production-records", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -614,7 +617,7 @@ public partial class ProductionRecords
     {
         _allColumns = GetAllColumnDefs();
         await LoadOperatorsAsync();
-        var saved = await ColumnPrefs.LoadAsync("production-records", null);
+        var saved = await ColumnPrefs.LoadAsync("production-records", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)
@@ -1334,6 +1337,14 @@ public partial class ProductionRecords
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
         return cls;
     }
+
+    /// <summary>单元格对齐：数值类字段数据格居中，文本类字段靠左（表头保持原样）。</summary>
+    private static string GetAlignClass(ColumnDef col) => col.Key switch
+    {
+        "Quantity" or "Weight" or "SolutionTemperature" or "SoakTime" or
+        "FaceCutCount" or "CuttingMultiple" or "FinishedCutLength" or "PostCutQuantity" => "text-center",
+        _ => ""
+    };
 
     // ========== 持久化 ==========
 

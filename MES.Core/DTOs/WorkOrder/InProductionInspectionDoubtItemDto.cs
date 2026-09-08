@@ -3,7 +3,7 @@ using MES.Core.Helpers;
 namespace MES.Core.DTOs.WorkOrder;
 
 /// <summary>
-/// 「在产在检-错疑待料」卡片行：取工单执行状况读模型（WorkOrderExecutionSummary）中
+/// 「错误-用料计划及其执行」卡片行：取工单执行状况读模型（WorkOrderExecutionSummary）中
 /// 主号-关注（ScheduleStage）=1 主号完成 / 3 生产执行 / 4 成品检验 三档（已过投料期的「实时关注」档位），
 /// 分别统计「理论原料未至」（TotalMissingWeight &gt; 0）与「工单到料未投」（PendingInputWeight &gt; 0）的工单数 + 累计重量。
 /// </summary>

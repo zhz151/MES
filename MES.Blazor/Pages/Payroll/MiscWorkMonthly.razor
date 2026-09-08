@@ -141,7 +141,7 @@
                             <span class="table-cell-clamp-2" title="@row.Content">@row.Content</span>
                         }
                     </MudTd>
-                    <MudTd Class="text-right" Style="white-space:nowrap" DataLabel="小时数">
+                    <MudTd Class="text-center" Style="white-space:nowrap" DataLabel="小时数">
                         @if (isEdit && _editCache.TryGetValue(row.Id, out var edit3))
                         {
                             <MudTextField T="string" Dense="true" Margin="Margin.Dense"
@@ -154,7 +154,7 @@
                             @row.Hours.ToString("G29")
                         }
                     </MudTd>
-                    <MudTd Class="text-right" Style="white-space:nowrap" DataLabel="杂辅工资">
+                    <MudTd Class="text-center" Style="white-space:nowrap" DataLabel="杂辅工资">
                         @if (isEdit && _editCache.TryGetValue(row.Id, out var edit4))
                         {
                             <MudTextField T="string" Dense="true" Margin="Margin.Dense"

@@ -48,6 +48,14 @@ public partial class MetallographicTests
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns => _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    // ========== 数值列（试样编号/铁素体含量，数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    { "SampleNo", "FerriteContent" };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+    // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_metallographic-test_v1）
+    private const string ColumnPrefsVersion = "v1";
+
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         new() { Key = "InspectionDate",     Label = "检验日期",         SortKey = "inspectiondate", FilterType = "date", Width = "110" },
@@ -64,7 +72,7 @@ public partial class MetallographicTests
         new() { Key = "Magnification",      Label = "检测观察倍数",     SortKey = "magnification", FilterType = "string", Width = "100" },
         new() { Key = "FerriteContent",     Label = "铁素体含量(%)",   SortKey = "ferritecontent", Width = "100" },
         new() { Key = "Judgment",           Label = "判定",             SortKey = "judgment", FilterType = "string", Width = "80" },
-        new() { Key = "UpdatedTime",        Label = "更新日期",         SortKey = "updatedtime", Width = "120" },
+        new() { Key = "UpdatedTime",        Label = "更新日期",         SortKey = "updatedtime", Width = "120", Visible = false },
     };
 
     private async Task<TableData<MetallographicTestDto>> LoadDataFromServer(TableState state)
@@ -156,7 +164,7 @@ public partial class MetallographicTests
     }
 
     private async Task OnColumnToggle(ColumnDef col) => await SaveColumnPrefs();
-    private async Task SaveColumnPrefs() => await ColumnPrefs.SaveAsync("metallographic-test", null, _allColumns);
+    private async Task SaveColumnPrefs() => await ColumnPrefs.SaveAsync("metallographic-test", ColumnPrefsVersion, _allColumns);
     private async Task ResetColumnDisplay()
     { _allColumns = GetAllColumnDefs(); await SaveColumnPrefs(); }
     private async Task MoveColumnUp(ColumnDef col) => await SaveColumnPrefs();
@@ -165,7 +173,7 @@ public partial class MetallographicTests
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("metallographic-test", null);
+        var saved = await ColumnPrefs.LoadAsync("metallographic-test", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)
@@ -300,7 +308,11 @@ public partial class MetallographicTests
                 }
                 else builder.AddContent(0, item.InspectionDate.ToString("yyyy-MM-dd"));
                 break;
-            case "Inspector": RenderStr(builder, isEditing, cache?.Inspector, v => { if (cache != null) cache.Inspector = v; }, item.Inspector); break;
+            case "Inspector":
+                if (isEditing && cache != null)
+                    RenderStr(builder, true, cache?.Inspector, v => { if (cache != null) cache.Inspector = v; }, item.Inspector);
+                else builder.AddContent(0, MES.Core.Helpers.OperatorNameHelper.ToNamesOnly(item.Inspector));
+                break;
             case "FurnaceNo": RenderStr(builder, isEditing, cache?.FurnaceNo, v => { if (cache != null) cache.FurnaceNo = v; }, item.FurnaceNo); break;
             case "Grade": RenderStr(builder, isEditing, cache?.Grade, v => { if (cache != null) cache.Grade = v; }, item.Grade); break;
             case "Specification": RenderStr(builder, isEditing, cache?.Specification, v => { if (cache != null) cache.Specification = v; }, item.Specification); break;

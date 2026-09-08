@@ -65,7 +65,8 @@
                         <RowTemplate Context="item">
                             @foreach (var col in _visibleHeaderColumns)
                             {
-                                <MudTd>@RenderHeaderCell(item, col)</MudTd>
+                                var _cellAlignClass = IsNumericColumn(col) ? " text-center" : "";
+                                <MudTd Class="@_cellAlignClass">@RenderHeaderCell(item, col)</MudTd>
                             }
                         </RowTemplate>
                     </MudTable>
@@ -130,7 +131,8 @@
                                 var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                                 _prevGk2 = col.GroupKey;
                                 var _cellClass = GetDetailGroupCss(col.GroupKey, _isGroupStart2);
-                                <MudTd Class="@_cellClass">@RenderDetailCell(item, col)</MudTd>
+                                var _cellAlignClass = IsNumericColumn(col) ? " text-center" : "";
+                                <MudTd Class="@(_cellClass + _cellAlignClass)">@RenderDetailCell(item, col)</MudTd>
                             }
                             @if (_isEditMode)
                             {
@@ -174,6 +176,19 @@
     // ========== 列定义：第二个表格（加工要求明细） ==========
     private List<ColumnDef> _detailColumns = new();
     private List<ColumnDef> _visibleDetailColumns => _detailColumns.Where(c => c.Visible).ToList();
+
+    // ========== 数值列（数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    {
+        // 基本信息表格：发出/收回数值
+        "outquantity", "outweight", "inquantity", "inweight", "returnquantity",
+        // 加工要求明细表格：需求/回收/单重/倍/金额数值 + Wo* 数值 + 序号
+        "sequence", "unitweight", "requiredquantity", "requiredweight", "inputmultiple",
+        "returnedquantity", "returnedweight",
+        "womaxlength", "wototalquantity", "wototalweight", "wototalitemcount",
+        "processunitprice", "processtotalamount"
+    };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
 
     // ========== 内部模型 ==========
     private class EditOrderModel

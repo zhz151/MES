@@ -12,7 +12,7 @@
     <MudAppBar Elevation="1" Style="background-color: #1a1a2e; color: #fff;">
         <AuthorizeView>
             <Authorized>
-                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" OnClick="@(() => _drawerOpen = !_drawerOpen)" />
+                <MudIconButton Icon="@Icons.Material.Filled.ViewList" Color="Color.Inherit" OnClick="@(() => _drawerOpen = !_drawerOpen)" />
             </Authorized>
         </AuthorizeView>
         <MudText Typo="Typo.subtitle1" Style="flex: 1; margin-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff;">
@@ -38,7 +38,7 @@
         <div @onclick="CloseDrawer" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.45); z-index: 1300;"></div>
         <div style="position: fixed; top: 0; left: 0; bottom: 0; width: 280px; max-width: 85vw; background: #1a1a2e; color: #ccc; overflow-y: auto; z-index: 1301;">
             <MudText Typo="Typo.h6" Style="padding: 16px 16px 12px; color: #fff; border-bottom: 1px solid #333;">
-                MES 制造执行系统
+                MES 制造系统
             </MudText>
 
             <MudDivider Style="background: #333; margin: 4px 0;" />
@@ -69,7 +69,13 @@
     </AuthorizeView>
 
     <MudMainContent Style="padding-top: 64px; min-height: 100vh;">
-        @ChildContent
+        @* 竖屏进入宽表页时提示横屏（首页/扫码流等窄页由 LandscapeHintRule 排除，不打扰）。 *@
+        <LandscapeHintBanner />
+        @* 向页面下传 IsMobile=true：页面可在移动壳内分支渲染（如首页手机看板）。
+           桌面 MainLayout 不提供该级联 → 页面默认 IsMobile=false 走桌面布局。 *@
+        <CascadingValue Value="true" Name="IsMobile">
+            @ChildContent
+        </CascadingValue>
     </MudMainContent>
 </MudLayout>
 

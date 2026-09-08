@@ -28,15 +28,16 @@ public static class SalesOrderPrintHelper
     // ==============================
     // 1. 订单确认单（单条/批量合并）
     // ==============================
-    public static byte[] GenerateOrderPdf(SalesOrderDetailDto order)
+    public static byte[] GenerateOrderPdf(SalesOrderDetailDto order, bool includeAmounts = true)
     {
-        return GenerateBatchOrderPdf(new List<SalesOrderDetailDto> { order });
+        return GenerateBatchOrderPdf(new List<SalesOrderDetailDto> { order }, includeAmounts);
     }
 
     /// <summary>
     /// 批量订单合并打印（连续排版，每单独占区域）
     /// </summary>
-    public static byte[] GenerateBatchOrderPdf(List<SalesOrderDetailDto> orders)
+    /// <param name="includeAmounts">true=含金额模式（显示结算方式/计价单位/单价/总价并合计订单总价）；false=不含金额模式（仅保留结算方式，供不同用户）</param>
+    public static byte[] GenerateBatchOrderPdf(List<SalesOrderDetailDto> orders, bool includeAmounts = true)
     {
         return Document.Create(container =>
         {
@@ -48,7 +49,7 @@ public static class SalesOrderPrintHelper
 
                 page.Header().Element(h => ComposeDocHeader(h, "销 售 订 单 确 认 单"));
 
-                page.Content().Element(c => ComposeOrderContent(c, orders));
+                page.Content().Element(c => ComposeOrderContent(c, orders, includeAmounts));
 
                 page.Footer().Element(ComposeDocFooter);
             });
@@ -115,7 +116,7 @@ public static class SalesOrderPrintHelper
 
     // ========== 订单内容（单条或批量） ==========
 
-    private static void ComposeOrderContent(IContainer container, List<SalesOrderDetailDto> orders)
+    private static void ComposeOrderContent(IContainer container, List<SalesOrderDetailDto> orders, bool includeAmounts)
     {
         container.Column(col =>
         {
@@ -135,10 +136,10 @@ public static class SalesOrderPrintHelper
                 col.Item().PaddingVertical(3);
 
                 // 项次明细表
-                ComposeOrderItemsTable(col.Item(), order.Items);
+                ComposeOrderItemsTable(col.Item(), order.Items, includeAmounts);
 
                 // 汇总行
-                ComposeOrderSummary(col.Item(), order.Items);
+                ComposeOrderSummary(col.Item(), order.Items, includeAmounts);
             }
         });
     }
@@ -180,71 +181,52 @@ public static class SalesOrderPrintHelper
         });
     }
 
-    private static void ComposeOrderItemsTable(IContainer container, List<OrderItemDto> items)
+    /// <summary>
+    /// 项次明细表（结算方式置于理算重量之后；含金额模式追加 计价单位/单价/总价 三列）
+    /// </summary>
+    private static void ComposeOrderItemsTable(IContainer container, List<OrderItemDto> items, bool includeAmounts)
     {
+        // 列定义（顺序=输出顺序）。备注为唯一相对列，其余为常量列；
+        // 常量列总宽须显著小于 A4 横向内容宽 ≈782pt（含金额模式常量合计 708pt），
+        // 否则 RelativeColumn 分不到空间会抛 DocumentLayoutException
+        var columns = BuildItemColumns(includeAmounts);
+
         container.Table(table =>
         {
-            // 列宽定义（20列）
-            table.ColumnsDefinition(columns =>
+            table.ColumnsDefinition(cols =>
             {
-                columns.ConstantColumn(28);   // 项次
-                columns.ConstantColumn(55);   // 交货日期
-                columns.ConstantColumn(28);   // 延期罚款
-                columns.ConstantColumn(38);   // 结算方式
-                columns.ConstantColumn(38);   // 物料名称
-                columns.ConstantColumn(48);   // 产品标准
-                columns.ConstantColumn(42);   // 交货状态
-                columns.ConstantColumn(42);   // 牌号
-                columns.ConstantColumn(72);   // 规格(外径×壁厚)
-                columns.ConstantColumn(32);   // 外径下差
-                columns.ConstantColumn(32);   // 外径上差
-                columns.ConstantColumn(32);   // 壁厚下差
-                columns.ConstantColumn(32);   // 壁厚上差
-                columns.ConstantColumn(36);   // 长度状态
-                columns.ConstantColumn(32);   // 最小长度
-                columns.ConstantColumn(32);   // 最大长度
-                columns.ConstantColumn(30);   // 支数
-                columns.ConstantColumn(42);   // 米数
-                columns.ConstantColumn(50);   // 合同重量
-                columns.RelativeColumn();     // 理算重量
+                foreach (var col in columns)
+                {
+                    if (col.Width.HasValue)
+                        cols.ConstantColumn(col.Width.Value);
+                    else
+                        cols.RelativeColumn();
+                }
             });
 
-            // 表头
-            string[] headers = { "项次", "交货日期", "罚款", "结算", "物料", "标准", "交货状态", "牌号", "规格(外径×壁厚)", "外径下差", "外径上差", "壁厚下差", "壁厚上差", "长度状态", "最小长度", "最大长度", "支数", "米数", "合同重量", "理算重量" };
-
-            foreach (var header in headers)
+            foreach (var col in columns)
             {
-                table.Cell().Element(CellHeaderStyle).Text(header).FontSize(7).AlignCenter();
+                table.Cell().Element(CellHeaderStyle).Text(col.Header).FontSize(7).AlignCenter();
             }
 
-            // 数据行
             foreach (var item in items.OrderBy(i => i.Sequence))
             {
-                table.Cell().Element(CellStyle).Text(item.Sequence.ToString()).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(item.DeliveryDate.ToString("yyyy-MM-dd")).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(item.DelayPenalty ? "是" : "否").FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(item.SettlementMethod)).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(item.PipeManufacturingType)).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(item.StandardNo).FontSize(6).AlignCenter();
-                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(item.DeliveryState)).FontSize(6).AlignCenter();
-                table.Cell().Element(CellStyle).Text(item.StandardGrade).FontSize(6).AlignCenter();
-                table.Cell().Element(CellStyle).Text(item.Specification).FontSize(6).AlignCenter();
-                table.Cell().Element(CellStyle).Text(FormatDecimal(item.OuterDiameterNegative)).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(FormatDecimal(item.OuterDiameterPositive)).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(FormatDecimal(item.WallThicknessNegative)).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(FormatDecimal(item.WallThicknessPositive)).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(EnumHelper.GetDisplayName(item.LengthStatus)).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(FormatNullableDecimal(item.MinLength)).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(FormatNullableDecimal(item.MaxLength)).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(item.Quantity?.ToString() ?? "-").FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(FormatNullableDecimal(item.Meters)).FontSize(7).AlignCenter();
-                table.Cell().Element(CellStyle).Text(FormatDecimal(item.ContractWeight)).FontSize(7).AlignRight();
-                table.Cell().Element(CellStyle).Text(FormatDecimal(item.TheoreticalWeight)).FontSize(7).AlignRight();
+                foreach (var col in columns)
+                {
+                    table.Cell().Element(CellStyle).Text(d =>
+                    {
+                        d.Span(col.Render(item)).FontSize(col.FontSize);
+                        if (col.AlignRight) d.AlignRight(); else d.AlignCenter();
+                    });
+                }
             }
         });
     }
 
-    private static void ComposeOrderSummary(IContainer container, List<OrderItemDto> items)
+    /// <summary>
+    /// 汇总行（含金额模式追加 订单总价）
+    /// </summary>
+    private static void ComposeOrderSummary(IContainer container, List<OrderItemDto> items, bool includeAmounts)
     {
         var totalQty = items.Sum(i => i.Quantity ?? 0);
         var totalMeters = items.Sum(i => i.Meters ?? 0);
@@ -253,9 +235,76 @@ public static class SalesOrderPrintHelper
 
         container.AlignRight().Text(t =>
         {
-            t.Span($"合计：{totalQty} 支  /  {FormatDecimal(totalMeters)} 米  /  合同重量 {FormatDecimal(totalContractWeight)} kg  /  理算重量 {FormatDecimal(totalTheoryWeight)} kg")
+            t.Span($"合计：{totalQty.ToString("G29")} 支  /  {FormatWeightRound1(totalMeters)} 米  /  合同重量 {FormatWeightRound1(totalContractWeight)} kg  /  理算重量 {FormatWeightRound1(totalTheoryWeight)} kg")
                 .FontSize(9).Bold();
+
+            if (includeAmounts)
+            {
+                var totalPrice = items.Sum(i => i.TotalPrice ?? 0);
+                t.Span($"  /  订单总价 {FormatMoney2(totalPrice)} 元").FontSize(9).Bold();
+            }
         });
+    }
+
+    /// <summary>
+    /// 列规格（Width=null 表示相对列，须置于末尾）
+    /// </summary>
+    private sealed class OrderPrintColumn
+    {
+        public OrderPrintColumn(float? width, string header, Func<OrderItemDto, string> render, int fontSize = 7, bool alignRight = false)
+        {
+            Width = width;
+            Header = header;
+            Render = render;
+            FontSize = fontSize;
+            AlignRight = alignRight;
+        }
+
+        public float? Width { get; }
+        public string Header { get; }
+        public Func<OrderItemDto, string> Render { get; }
+        public int FontSize { get; }
+        public bool AlignRight { get; }
+    }
+
+    /// <summary>
+    /// 订单项次列清单（结算方式紧跟理算重量；含金额模式在结算方式后补三金额列）
+    /// </summary>
+    private static List<OrderPrintColumn> BuildItemColumns(bool includeAmounts)
+    {
+        var columns = new List<OrderPrintColumn>
+        {
+            new(20, "项次", it => it.Sequence.ToString()),
+            new(50, "交货日期", it => it.DeliveryDate.ToString("yyyy-MM-dd")),
+            new(20, "延期罚款", it => it.DelayPenalty ? "是" : "否"),
+            new(32, "物料名称", it => EnumHelper.GetDisplayName(it.PipeManufacturingType)),
+            new(44, "产品标准", it => it.StandardNo, fontSize: 6),
+            new(32, "交货状态", it => EnumHelper.GetDisplayName(it.DeliveryState), fontSize: 6),
+            new(32, "牌号", it => it.StandardGrade, fontSize: 6),
+            new(56, "规格(外径×壁厚)", it => it.Specification, fontSize: 6),
+            new(22, "外径下差", it => FormatDecimal(it.OuterDiameterNegative), alignRight: true),
+            new(22, "外径上差", it => FormatDecimal(it.OuterDiameterPositive), alignRight: true),
+            new(22, "壁厚下差", it => FormatDecimal(it.WallThicknessNegative), alignRight: true),
+            new(22, "壁厚上差", it => FormatDecimal(it.WallThicknessPositive), alignRight: true),
+            new(26, "长度状态", it => EnumHelper.GetDisplayName(it.LengthStatus)),
+            new(26, "最小长度", it => FormatNullableDecimal(it.MinLength)),
+            new(26, "最大长度", it => FormatNullableDecimal(it.MaxLength)),
+            new(20, "支数", it => it.Quantity.HasValue ? it.Quantity.Value.ToString("G29") : "-", alignRight: true),
+            new(32, "米数", it => FormatWeightRound1(it.Meters), alignRight: true),
+            new(38, "合同重量", it => FormatWeightRound1(it.ContractWeight), alignRight: true),
+            new(38, "理算重量", it => FormatWeightRound1(it.TheoreticalWeight), alignRight: true),
+            new(28, "结算方式", it => EnumHelper.GetDisplayName(it.SettlementMethod)),
+        };
+
+        if (includeAmounts)
+        {
+            columns.Add(new(30, "计价单位", it => it.PricingUnit.HasValue ? EnumHelper.GetDisplayName(it.PricingUnit.Value) : "-"));
+            columns.Add(new(28, "单价", it => it.UnitPrice.HasValue ? FormatMoney2(it.UnitPrice.Value) : "-", alignRight: true));
+            columns.Add(new(42, "总价", it => it.TotalPrice.HasValue ? FormatMoney2(it.TotalPrice.Value) : "-", alignRight: true));
+        }
+
+        columns.Add(new(null, "备注", it => string.IsNullOrEmpty(it.Remark) ? "-" : it.Remark, fontSize: 6));
+        return columns;
     }
 
     // ========== 技术要求内容 ==========
@@ -388,4 +437,24 @@ public static class SalesOrderPrintHelper
 
     private static string FormatDecimal(decimal value) => value == 0 ? "0" : value.ToString("G29");
     private static string FormatNullableDecimal(decimal? value) => value.HasValue && value.Value != 0 ? value.Value.ToString("G29") : "-";
+
+    /// <summary>
+    /// 重量/米数打印收敛：四舍五入保留 1 位小数并去尾零（与前端 DisplayHelper.FormatWeight1 一致）
+    /// </summary>
+    private static string FormatWeightRound1(decimal value) => Math.Round(value, 1, MidpointRounding.AwayFromZero).ToString("G29");
+
+    /// <summary>
+    /// 重量/米数打印收敛（可空版），空值或 0 显示 "-"
+    /// </summary>
+    private static string FormatWeightRound1(decimal? value) => value.HasValue && value.Value != 0 ? FormatWeightRound1(value.Value) : "-";
+
+    /// <summary>
+    /// 金额打印收敛：四舍五入保留 ≤2 位小数并去尾零（与前端 DisplayHelper.FormatMoney2 一致）
+    /// </summary>
+    private static string FormatMoney2(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero).ToString("G29");
+
+    /// <summary>
+    /// 金额打印收敛（可空版），空值或 0 显示 "-"
+    /// </summary>
+    private static string FormatMoney2(decimal? value) => value.HasValue && value.Value != 0 ? FormatMoney2(value.Value) : "-";
 }

@@ -26,7 +26,7 @@
     <div class="d-flex justify-space-between align-center mb-4">
         <MudText Typo="Typo.h5" Class="font-weight-bold">
             <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" Color="Color.Primary" />
-            工单管理
+            工单生成
         </MudText>
         <div class="d-flex align-center">
         </div>
@@ -234,7 +234,7 @@
                     </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>@RenderCell(item, col)</MudTd>
+                        <MudTd Class="@GetAlignClass(col)">@RenderCell(item, col)</MudTd>
                     }
                     <MudTd>
 @if (item.Status == WorkOrderStatus.NotGenerated)
@@ -301,7 +301,7 @@ else if (item.Status == WorkOrderStatus.Pending)
                     <MudTd Class="col-footer-cell"></MudTd>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd Class="col-footer-cell"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                        <MudTd Class="@($"col-footer-cell {GetAlignClass(col)}")"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
                     }
                     <MudTd Class="col-footer-cell"></MudTd>
                 </FooterContent>

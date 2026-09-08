@@ -139,8 +139,19 @@ public partial class ProcessInspections
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    // ========== 数值列（执行序号/检验合格次品支数与重量，数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    { "SequenceNumber", "Quantity", "Weight", "QualifiedQuantity", "QualifiedWeight",
+      "QualifiedConcessionQuantity", "DefectReworkQuantity", "DefectWarehouseQuantity",
+      "DefectScrapQuantity", "TheoreticalReworkWeight", "TheoreticalWarehouseWeight",
+      "TheoreticalScrapWeight" };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+
     private int _totalTableWidth =>
         _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40 + 90;
+
+    // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_process-inspection_v2）
+    private const string ColumnPrefsVersion = "v2";
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
@@ -149,7 +160,7 @@ public partial class ProcessInspections
             GroupKey = 1, GroupName = "G1 生产批次" },
         new() { Key = "TagNo",                 Label = "挂牌号",     SortKey = "tagno", FilterType = "string", Width = "120",
             GroupKey = 1, GroupName = "G1 生产批次" },
-        new() { Key = "WorkOrderNo",           Label = "工单号",     SortKey = "workorderno", FilterType = "string", Width = "120",
+        new() { Key = "WorkOrderNo",           Label = "工单号",     SortKey = "workorderno", FilterType = "string", Width = "120", Visible = false,
             GroupKey = 1, GroupName = "G1 生产批次" },
         new() { Key = "SalesOrderNo",          Label = "订单号",     SortKey = "salesorderno", FilterType = "string", Width = "120",
             GroupKey = 1, GroupName = "G1 生产批次" },
@@ -165,15 +176,15 @@ public partial class ProcessInspections
             GroupKey = 1, GroupName = "G1 生产批次" },
         new() { Key = "ProductStatus",         Label = "产类",       SortKey = "productstatus", FilterType = "string", Width = "80",
             GroupKey = 1, GroupName = "G1 生产批次" },
-        new() { Key = "SequenceNumber",        Label = "执行序号",   SortKey = "sequencenumber", Width = "45",
+        new() { Key = "SequenceNumber",        Label = "执行序号",   SortKey = "sequencenumber", Width = "45", Visible = false,
             GroupKey = 1, GroupName = "G1 生产批次" },
 
         // G2: 检验执行
         new() { Key = "InspectionDate",       Label = "检验日期",   SortKey = "inspectiondate", FilterType = "date", Width = "120",
             GroupKey = 2, GroupName = "G2 检验执行" },
-        new() { Key = "EquipmentName",         Label = "设备名称",   SortKey = "equipmentname", FilterType = "string", Width = "120",
+        new() { Key = "EquipmentName",         Label = "设备名称",   SortKey = "equipmentname", FilterType = "string", Width = "120", Visible = false,
             GroupKey = 2, GroupName = "G2 检验执行" },
-        new() { Key = "Shift",                 Label = "班次",       SortKey = "shift", FilterType = "enum", Width = "120",
+        new() { Key = "Shift",                 Label = "班次",       SortKey = "shift", FilterType = "enum", Width = "120", Visible = false,
             GroupKey = 2, GroupName = "G2 检验执行",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<ShiftType>() },
         new() { Key = "Inspector",             Label = "检验员",     SortKey = "inspector", FilterType = "string", Width = "160",
@@ -202,24 +213,24 @@ public partial class ProcessInspections
             GroupKey = 4, GroupName = "G4 不合格处理" },
         new() { Key = "DefectScrapQuantity",   Label = "次品报废支",   SortKey = "defectscrapquantity", Width = "80",
             GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "TheoreticalReworkWeight", Label = "理论返整重", SortKey = "theoreticalreworkweight", Width = "80",
+        new() { Key = "TheoreticalReworkWeight", Label = "理论返整重", SortKey = "theoreticalreworkweight", Width = "80", Visible = false,
             GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "TheoreticalWarehouseWeight", Label = "理论入库重", SortKey = "theoreticalwarehouseweight", Width = "80",
+        new() { Key = "TheoreticalWarehouseWeight", Label = "理论入库重", SortKey = "theoreticalwarehouseweight", Width = "80", Visible = false,
             GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "TheoreticalScrapWeight", Label = "理论报废重", SortKey = "theoreticalscrapweight", Width = "80",
+        new() { Key = "TheoreticalScrapWeight", Label = "理论报废重", SortKey = "theoreticalscrapweight", Width = "80", Visible = false,
             GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "DefectDescription",     Label = "次品情况描述", SortKey = "defectdescription", FilterType = "string", Width = "120",
+        new() { Key = "DefectDescription",     Label = "次品情况描述", SortKey = "defectdescription", FilterType = "string", Width = "120", Visible = false,
             GroupKey = 4, GroupName = "G4 不合格处理" },
 
         // G5: 辅助信息
-        new() { Key = "SourceUnit",            Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Width = "120",
+        new() { Key = "SourceUnit",            Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Width = "120", Visible = false,
             GroupKey = 5, GroupName = "G5 辅助信息" },
-        new() { Key = "Remark",                Label = "备注",       SortKey = "remark", FilterType = "string", Width = "120",
+        new() { Key = "Remark",                Label = "备注",       SortKey = "remark", FilterType = "string", Width = "120", Visible = false,
             GroupKey = 5, GroupName = "G5 辅助信息" },
-        new() { Key = "DataSource",            Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80",
+        new() { Key = "DataSource",            Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80", Visible = false,
             GroupKey = 5, GroupName = "G5 辅助信息",
             EnumOptions = DisplayHelper.GetDataSourceOptions() },
-        new() { Key = "UpdatedTime",           Label = "更新日期",   SortKey = "updatedtime", Width = "120",
+        new() { Key = "UpdatedTime",           Label = "更新日期",   SortKey = "updatedtime", Width = "120", Visible = false,
             GroupKey = 5, GroupName = "G5 辅助信息" },
     };
 
@@ -440,7 +451,7 @@ public partial class ProcessInspections
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("process-inspection", null, _allColumns);
+        await ColumnPrefs.SaveAsync("process-inspection", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -456,7 +467,7 @@ public partial class ProcessInspections
     {
         await LoadOperatorsAsync();
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("process-inspection", null);
+        var saved = await ColumnPrefs.LoadAsync("process-inspection", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)

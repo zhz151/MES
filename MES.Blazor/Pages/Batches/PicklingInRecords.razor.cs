@@ -162,37 +162,40 @@ public partial class PicklingInRecords
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_pickling-in-records_v2）
+    private const string ColumnPrefsVersion = "v2";
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
         // G1: 去油/酸洗信息
         new() { Key = "InDate",              Label = "入缸日期",     SortKey = "indate",              FilterType = "date",   Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "BatchNo",             Label = "生产编号",     SortKey = "batchno",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "TagNo",               Label = "挂牌号",       SortKey = "tagno",               FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
-        new() { Key = "WorkOrderNo",         Label = "工单号",       SortKey = "workorderno",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "WorkOrderNo", Visible = false,         Label = "工单号",       SortKey = "workorderno",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "SalesOrderNo",        Label = "订单号",       SortKey = "salesorderno",        FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "ProductionMainNo",    Label = "主号",         SortKey = "productionmainno",    FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "ProcessName",         Label = "工序名称",     SortKey = "processname",         FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "SectionName",         Label = "工段名称",     SortKey = "sectionname",         FilterType = "string", Width = "100", GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "PlantGrade",          Label = "工厂牌号",     SortKey = "plantgrade",          FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "ManufacturingSpec",   Label = "制造规格",     SortKey = "manufacturingspec",   FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
-        new() { Key = "SequenceNumber",      Label = "执行序号",     SortKey = "sequencenumber",      FilterType = "string", Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
-        new() { Key = "EquipmentName",       Label = "设备名称",     SortKey = "equipmentname",       FilterType = "string", Width = "100", GroupKey = 1, GroupName = "去油/酸洗信息" },
-        new() { Key = "Shift",               Label = "班次",         SortKey = "shift",               FilterType = "enum",   Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息",
+        new() { Key = "SequenceNumber", Visible = false,      Label = "执行序号",     SortKey = "sequencenumber",      FilterType = "string", Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "EquipmentName", Visible = false,       Label = "设备名称",     SortKey = "equipmentname",       FilterType = "string", Width = "100", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "Shift", Visible = false,               Label = "班次",         SortKey = "shift",               FilterType = "enum",   Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<ShiftType>() },
-        new() { Key = "Operator",            Label = "操作人",       SortKey = "operator",            FilterType = "string", Width = "160",  GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "Operator", Visible = false,            Label = "操作人",       SortKey = "operator",            FilterType = "string", Width = "160",  GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "Quantity",            Label = "加工支数",     SortKey = "quantity",                                       Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "Weight",              Label = "加工重量",     SortKey = "weight",                                         Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息" },
         new() { Key = "ProductStatus",       Label = "产类",         SortKey = "productstatus",       FilterType = "string", Width = "80", GroupKey = 1, GroupName = "去油/酸洗信息" },
-        new() { Key = "Remark",              Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
-        new() { Key = "DataSource",          Label = "数据来源",     SortKey = "datasource",          FilterType = "enum",   Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息",
+        new() { Key = "Remark", Visible = false,              Label = "备注",         SortKey = "remark",              FilterType = "string", Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "DataSource", Visible = false,          Label = "数据来源",     SortKey = "datasource",          FilterType = "enum",   Width = "80",  GroupKey = 1, GroupName = "去油/酸洗信息",
             EnumOptions = DisplayHelper.GetDataSourceOptions() },
-        new() { Key = "UpdatedTime",         Label = "更新时间",     SortKey = "updatedtime",                                   Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
+        new() { Key = "UpdatedTime", Visible = false,         Label = "更新时间",     SortKey = "updatedtime",                                   Width = "120", GroupKey = 1, GroupName = "去油/酸洗信息" },
         // G2: 完工信息
         new() { Key = "Status",              Label = "状态",         SortKey = "status",              FilterType = "enum",   Width = "100", GroupKey = 2, GroupName = "完工信息",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<PicklingStatus>() },
         new() { Key = "CompleteDate",        Label = "完工日期",     SortKey = "completedate",        FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "完工信息" },
-        new() { Key = "CompleteShift",       Label = "完工班次",                                                     Width = "80",  GroupKey = 2, GroupName = "完工信息" },
-        new() { Key = "CompleteOperator",    Label = "完工操作人",                                                   Width = "80",  GroupKey = 2, GroupName = "完工信息" },
+        new() { Key = "CompleteShift", Visible = false,       Label = "完工班次",                                                     Width = "80",  GroupKey = 2, GroupName = "完工信息" },
+        new() { Key = "CompleteOperator", Visible = false,    Label = "完工操作人",                                                   Width = "80",  GroupKey = 2, GroupName = "完工信息" },
     };
 
     // ========== 分页汇总计算 ==========
@@ -479,6 +482,7 @@ public partial class PicklingInRecords
                     "SectionName" or "CurrentSectionName" or "NextSectionName" or "PendingSectionName" => SectionDisplayHelper.GetSectionNameText(v),
                     "ProcessName" or "ProcessGroupName" or "CurrentGroupName" or "NextProcess" => ProcessDisplayHelper.GetProcessNameText(v),
                     "ProductStatus" => DisplayHelper.GetProductStatusText(v),
+                    "Shift" => DisplayHelper.GetShiftTypeText(v),
                     _ => v
                 },
                 Count = 0
@@ -575,23 +579,23 @@ public partial class PicklingInRecords
 
     private async Task OnColumnToggle(ColumnDef col)
     {
-        await ColumnPrefs.SaveAsync("pickling-in-records", null, _allColumns);
+        await ColumnPrefs.SaveAsync("pickling-in-records", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task MoveColumnUp(ColumnDef col)
     {
-        await ColumnPrefs.SaveAsync("pickling-in-records", null, _allColumns);
+        await ColumnPrefs.SaveAsync("pickling-in-records", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task MoveColumnDown(ColumnDef col)
     {
-        await ColumnPrefs.SaveAsync("pickling-in-records", null, _allColumns);
+        await ColumnPrefs.SaveAsync("pickling-in-records", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
     {
         _allColumns = GetAllColumnDefs();
-        await ColumnPrefs.SaveAsync("pickling-in-records", null, _allColumns);
+        await ColumnPrefs.SaveAsync("pickling-in-records", ColumnPrefsVersion, _allColumns);
         if (table != null) await table.ReloadServerData();
     }
 
@@ -601,7 +605,7 @@ public partial class PicklingInRecords
     {
         await LoadOperatorsAsync();
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("pickling-in-records", null);
+        var saved = await ColumnPrefs.LoadAsync("pickling-in-records", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             // 恢复列顺序：按保存列表排序，未保存的列追加到末尾
@@ -848,7 +852,7 @@ public partial class PicklingInRecords
                 builder.AddContent(0, DisplayHelper.GetShiftTypeText(item.CompleteShift));
                 break;
             case "CompleteOperator":
-                builder.AddContent(0, item.CompleteOperator ?? "");
+                builder.AddContent(0, OperatorNameHelper.ToNamesOnly(item.CompleteOperator));
                 break;
             case "Remark":
                 if (isEditing && cache != null)
@@ -1008,6 +1012,13 @@ public partial class PicklingInRecords
         if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
         return cls;
     }
+
+    /// <summary>单元格对齐：数值类字段数据格居中，文本类字段靠左（表头保持原样）。</summary>
+    private static string GetAlignClass(ColumnDef col) => col.Key switch
+    {
+        "Quantity" or "Weight" => "text-center",
+        _ => ""
+    };
 
     // ========== 持久化 ==========
 

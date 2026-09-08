@@ -55,6 +55,10 @@ public partial class WorkOrderExecution
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
+    // 列显隐默认布局版本：调整默认显隐后须递增，使已持久化 PageState 失效、新默认立即生效（2026-09-08）
+    private const string ColumnLayoutVersion = "v1";
+    private string PageStateStorageKey => $"workorderexecution-{ColumnLayoutVersion}";
+
     private static List<ColumnDef> GetAllColumnDefs()
     {
         // G1: 工单基础数据
@@ -63,8 +67,8 @@ public partial class WorkOrderExecution
             new() { Key = "WorkOrderNo",             Label = "工单号",          SortKey = "WorkOrderNo",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "Salesman",                Label = "业务员",          SortKey = "Salesman",                FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "CustomerName",            Label = "往来单位",        SortKey = "CustomerName",            FilterType = "string", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "EndCustomer",             Label = "最终客户",        SortKey = "EndCustomer",             FilterType = "string", Width = "120", GroupKey = 1, GroupName = "基础数据" },
-            new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate",                FilterType = "date", Width = "120", GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "EndCustomer",             Label = "最终客户",        SortKey = "EndCustomer",             FilterType = "string", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
+            new() { Key = "SignDate",                Label = "订单日期",        SortKey = "SignDate",                FilterType = "date", Width = "120", Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "DeliveryDate",            Label = "交货日期",        SortKey = "DeliveryDate",            FilterType = "date", Width = "120", GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "DelayPenalty",            Label = "延期罚款",        SortKey = "DelayPenalty",            FilterType = "boolean", Width = "120", BoolTrueLabel = "是", BoolFalseLabel = "否", Visible = false, GroupKey = 1, GroupName = "基础数据" },
             new() { Key = "SettlementMethod",        Label = "结算方式",        SortKey = "SettlementMethod",        FilterType = "enum", Width = "120", EnumOptions = DisplayHelper.GetEnumFilterOptions<SettlementMethod>(), Visible = false, GroupKey = 1, GroupName = "基础数据" },
@@ -709,7 +713,7 @@ public partial class WorkOrderExecution
         _allColumns = GetAllColumnDefs();
 
         // 恢复排序/筛选/列显隐状态
-        var savedState = await PageState.LoadAsync("workorderexecution");
+        var savedState = await PageState.LoadAsync(PageStateStorageKey);
         if (savedState != null)
         {
             sortColumn = savedState.SortBy ?? "LastRefreshTime";
@@ -782,6 +786,42 @@ public partial class WorkOrderExecution
             return sum;
         return "-";
     }
+
+    /// <summary>单元格对齐：数值类字段居中，其它字段靠左</summary>
+    private static string GetAlignClass(ColumnDef col) => col.Key switch
+    {
+        // G1 基础数据
+        "MinLength" or "MaxLength" or "TotalItemCount" or "TotalQuantity" or "TotalMeters" or "TotalWeight" or
+        // G4 用料计划及执行实况
+        "MainNoMaterialPlanRate" or "MaterialPlanCoveredCount" or "TotalPlanWeight" or "TotalAvailableWeight" or "TotalMissingWeight" or "ActualInputWeight" or
+        // G16 次品总量
+        "ProcessInspectionDefectWeight" or "ProcessInspectionReworkWeight" or "ProcessInspectionWarehouseWeight" or "ProcessInspectionScrapWeight" or
+        "FinalInspectionDefectQty" or "FinalInspectionDefectWeight" or "FinalInspectionReworkWeight" or "FinalInspectionWarehouseWeight" or "FinalInspectionScrapWeight" or
+        // G15 返整执行
+        "PendingReworkOutputQty" or "PendingReworkOutputWeight" or "ReworkTheoreticalProduceQty" or "ReworkTheoreticalProduceWeight" or
+        "ReworkBatchCount" or "ReworkInputQuantity" or "ReworkInputWeight" or "ReworkTheoreticalOutputQty" or "ReworkTheoreticalOutputWeight" or
+        // G12 原始投料
+        "MainNoInputRatio" or "InputOutputRatio" or "TotalBatchCount" or "InputQuantity" or "InputWeight" or "TheoreticalOutputQty" or "TheoreticalOutputWeight" or
+        // G14 原始投料有效流转
+        "ValidBatchCount" or "ValidInputQuantity" or "ValidInputWeight" or "ValidOutputQty" or "ValidOutputWeight" or
+        // G13 实际生产总流转
+        "MainNoFlowRatio" or "FlowOutputRatio" or "FlowTotalBatchCount" or "FlowIncompleteBatchCount" or "FlowMaxRemainingWorkDays" or
+        // G17 成品入库
+        "WarehousingTotalQty" or "WarehousingTotalWeight" or
+        // G3 实时关注
+        "DaysDiffFromDelivery" or "TotalRemainingWorkDays" or "CapacityWorkDays" or
+        // G18 在产节点待量
+        "PendingSectionRoughTube" or "PendingSectionWarehouseFix" or "PendingSection60Roll" or "PendingSection50Roll" or "PendingSection30Roll" or "PendingSection20Roll" or "PendingSectionThreeRoll" or "PendingSectionDrawBench" or "MaxBatchRemainingWorkDays" or
+        // G5-G11 各用料计划类别重量
+        "PiercingPlanWeight" or "PiercingSubOutWeight" or "PiercingSubInWeight" or "PiercingSubPendingWeight" or
+        "SemiPlanWeight" or "SemiOrderWeight" or "SemiInWeight" or "SemiPendingWeight" or
+        "FinishPlanWeight" or "FinishOrderWeight" or "FinishInWeight" or "FinishPendingWeight" or
+        "InventoryPlanWeight" or "InventoryOutWeight" or
+        "ReworkPlanWeight" or "ReworkPlanInputWeight" or
+        "InProcessReworkPlanWeight" or "InProcessReworkInputWeight" or
+        "InMainPlanWeight" or "InMainInputWeight" => "text-center",
+        _ => ""
+    };
 
     private RenderFragment RenderCell(WorkOrderExecutionSummaryDto item, ColumnDef col) => builder =>
     {
@@ -1571,7 +1611,7 @@ public partial class WorkOrderExecution
             PageIndex = _currentPageIndex,
             Extras = extras
         };
-        await PageState.SaveAsync("workorderexecution", state);
+        await PageState.SaveAsync(PageStateStorageKey, state);
     }
 
     // ========== 打印 ==========

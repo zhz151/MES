@@ -137,18 +137,18 @@
                                 }
                             </HeaderContent>
                             <RowTemplate Context="item">
-                                <MudTd>@item.Sequence</MudTd>
+                                <MudTd Class="text-center">@item.Sequence</MudTd>
                                 <MudTd>@DisplayHelper.GetPipeManufacturingTypeText(item.PipeManufacturingType)</MudTd>
                                 <MudTd>@item.DeliveryDate.ToString("yyyy-MM-dd")</MudTd>
                                 <MudTd>@DisplayHelper.GetDeliveryStateText(item.DeliveryState)</MudTd>
                                 <MudTd>@item.PlantGrade</MudTd>
                                 <MudTd>@DisplayHelper.FormatSpecification(item.Specification)</MudTd>
                                 <MudTd>@DisplayHelper.GetLengthStatusText(item.LengthStatus)</MudTd>
-                                <MudTd>@DisplayHelper.FormatNullableDecimal(item.MinLength)</MudTd>
-                                <MudTd>@DisplayHelper.FormatNullableDecimal(item.MaxLength)</MudTd>
-                                <MudTd>@item.Quantity</MudTd>
-                                <MudTd>@DisplayHelper.FormatNullableDecimal(item.Meters)</MudTd>
-                                <MudTd>@DisplayHelper.FormatDecimal(item.ContractWeight)</MudTd>
+                                <MudTd Class="text-center">@DisplayHelper.FormatNullableDecimal(item.MinLength)</MudTd>
+                                <MudTd Class="text-center">@DisplayHelper.FormatNullableDecimal(item.MaxLength)</MudTd>
+                                <MudTd Class="text-center">@item.Quantity</MudTd>
+                                <MudTd Class="text-center">@DisplayHelper.FormatNullableDecimal(item.Meters)</MudTd>
+                                <MudTd Class="text-center">@DisplayHelper.FormatDecimal(item.ContractWeight)</MudTd>
                                 <MudTd>
                                     <MudTextField T="string"
                                                   @bind-Value="item.SuggestedMainNo"

@@ -39,12 +39,10 @@ public partial class Orders
     private int _loadVersion;
     private bool _resetToFirstPage;
 
-    // ========== 订单接单·出库及现负荷汇总 ==========
-    private bool _showInOutSummaryCard;
-    private OrderInOutSummaryDto? _inOutSummary;
+    // ========== 完成预估及延期风险（卡片仅展示两张交期预估小表） ==========
+    private bool _showEstimateCard;
     /// <summary>订单交期预估（两小表：订单(整单)完成预估 / 风险-已延期订单(整单)，x单/y吨，订单级口径）</summary>
     private OrderDeliveryEstimateDto? _deliveryEstimate;
-    private int _currentMonthIndex => DateTime.Today.Month - 1;
 
     // ========== 小表点击联动筛选订单列表 ==========
     /// <summary>小表点击联动筛选条件（null=未联动），点击后覆盖现有搜索/列筛选</summary>
@@ -61,9 +59,19 @@ public partial class Orders
 
     // ========== 列定义 ==========
 
+    // 列偏好版本键：变更默认显隐/分组后递增，强制老用户按新默认重新加载（col_prefs_orders_v2）
+    private const string ColumnPrefsVersion = "v3";
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
+
+    // ========== 数值列（数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    {
+        "TotalContractWeight", "ItemCount",
+        "FinishedInboundWeight", "FinishedOutboundWeight", "FinishedStockWeight"
+    };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
 
     // ========== B23 分组列标题栏 ==========
     private int _totalTableWidth =>
@@ -154,40 +162,39 @@ public partial class Orders
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        // ========== ① 基本信息 ==========
+        // ========== ① 基本信息（基本信息 + 合同交付 合并；默认仅显示：订单号/签订日期/业务员/客户名称/交期截止/订单总重量/含项次数） ==========
         new() { Key = "ordernumber",   Label = "订单号",   SortKey = "ordernumber",   FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 基本信息" },
         new() { Key = "signdate",      Label = "签订日期", SortKey = "signdate",     FilterType = "date", Width = "120", GroupKey = 1, GroupName = "① 基本信息" },
         new() { Key = "salesman",      Label = "业务员",   SortKey = "salesman",     FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 基本信息" },
         new() { Key = "customername",  Label = "客户名称", SortKey = "customername", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 基本信息" },
-        new() { Key = "endcustomer",   Label = "最终客户", SortKey = "endcustomer",  FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 基本信息" },
-        // ========== ② 合同交付 ==========
-        new() { Key = "deliverystart", Label = "交期起始", SortKey = "deliverystart", FilterType = "date", Width = "120", GroupKey = 2, GroupName = "② 合同交付" },
-        new() { Key = "deliveryend",   Label = "交期截止", SortKey = "deliveryend",  FilterType = "date", Width = "120", GroupKey = 2, GroupName = "② 合同交付" },
-        new() { Key = "hasdelaypenalty", Label = "延期罚款", SortKey = "hasdelaypenalty", FilterType = "boolean", Width = "60", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 2, GroupName = "② 合同交付" },
-        new() { Key = "TotalContractWeight", Label = "订单总重量", SortKey = "totalcontractweight", Width = "80", GroupKey = 2, GroupName = "② 合同交付" },
-        new() { Key = "ItemCount", Label = "含项次数", SortKey = "itemcount", Width = "80", GroupKey = 2, GroupName = "② 合同交付" },
-        // ========== ③ 订单确认 ==========
-        new() { Key = "notech",        Label = "技术要求", SortKey = "hastechnicalrequirement", FilterType = "boolean", Width = "120", BoolTrueLabel = "已编辑", BoolFalseLabel = "未编辑", GroupKey = 3, GroupName = "③ 订单确认" },
-        new() { Key = "status",        Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 3, GroupName = "③ 订单确认",
+        new() { Key = "endcustomer",   Label = "最终客户", SortKey = "endcustomer",  FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 基本信息", Visible = false },
+        new() { Key = "deliverystart", Label = "交期起始", SortKey = "deliverystart", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "① 基本信息", Visible = false },
+        new() { Key = "deliveryend",   Label = "交期截止", SortKey = "deliveryend",  FilterType = "date", Width = "120", GroupKey = 1, GroupName = "① 基本信息" },
+        new() { Key = "hasdelaypenalty", Label = "延期罚款", SortKey = "hasdelaypenalty", FilterType = "boolean", Width = "60", BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 1, GroupName = "① 基本信息", Visible = false },
+        new() { Key = "TotalContractWeight", Label = "订单总重量", SortKey = "totalcontractweight", Width = "80", GroupKey = 1, GroupName = "① 基本信息" },
+        new() { Key = "ItemCount", Label = "含项次数", SortKey = "itemcount", Width = "80", GroupKey = 1, GroupName = "① 基本信息" },
+        // ========== ② 订单确认 ==========
+        new() { Key = "notech",        Label = "技术要求", SortKey = "hastechnicalrequirement", FilterType = "boolean", Width = "120", BoolTrueLabel = "已编辑", BoolFalseLabel = "未编辑", GroupKey = 2, GroupName = "② 订单确认" },
+        new() { Key = "status",        Label = "状态",     SortKey = "status", FilterType = "enum", Width = "120", GroupKey = 2, GroupName = "② 订单确认",
                EnumOptions = DisplayHelper.GetEnumFilterOptions<SalesOrderStatus>(),
                DisplayConverter = v => v is SalesOrderStatus s ? DisplayHelper.GetSalesOrderStatusText(s) : "-" },
-        new() { Key = "createdby",   Label = "创建人",   Width = "100", GroupKey = 3, GroupName = "③ 订单确认", Visible = false },
-        new() { Key = "createdtime", Label = "创建时间", Width = "120", GroupKey = 3, GroupName = "③ 订单确认", Visible = false },
-        new() { Key = "updatedby",   Label = "更新人",   Width = "100", GroupKey = 3, GroupName = "③ 订单确认", Visible = false },
-        new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "③ 订单确认" },
-        // ========== ④ 订单执行 ==========
-        new() { Key = "schedulestage",     Label = "执行关注", SortKey = "schedulestage",     FilterType = "enum", Width = "100", GroupKey = 4, GroupName = "④ 订单执行",
+        new() { Key = "createdby",   Label = "创建人",   Width = "100", GroupKey = 2, GroupName = "② 订单确认", Visible = false },
+        new() { Key = "createdtime", Label = "创建时间", Width = "120", GroupKey = 2, GroupName = "② 订单确认", Visible = false },
+        new() { Key = "updatedby",   Label = "更新人",   Width = "100", GroupKey = 2, GroupName = "② 订单确认", Visible = false },
+        new() { Key = "lastchangedate",Label = "变更日期", SortKey = "lastchangedate", FilterType = "date", Width = "120", GroupKey = 2, GroupName = "② 订单确认", Visible = false },
+        // ========== ③ 订单执行 ==========
+        new() { Key = "schedulestage",     Label = "执行关注", SortKey = "schedulestage",     FilterType = "enum", Width = "100", GroupKey = 3, GroupName = "③ 订单执行",
                EnumOptions = new List<EnumOption> { new("", "未排产") }.Concat(DisplayHelper.GetScheduleStageOptions()).ToList(),
                DisplayConverter = v => v is SalesOrderListDto d ? d.ScheduleStageText : "-" },
-        new() { Key = "urgencylevel",      Label = "紧急性",   SortKey = "urgencylevel",      FilterType = "string", Width = "80", GroupKey = 4, GroupName = "④ 订单执行" },
-        new() { Key = "estimatedcompletiondate", Label = "预计完成", SortKey = "estimatedcompletiondate", FilterType = "date", Width = "100", GroupKey = 4, GroupName = "④ 订单执行" },
-        new() { Key = "FinishedInboundWeight",  Label = "成品入库量", SortKey = "finishedinboundweight",  Width = "100", GroupKey = 4, GroupName = "④ 订单执行",
+        new() { Key = "urgencylevel",      Label = "紧急性",   SortKey = "urgencylevel",      FilterType = "string", Width = "80", GroupKey = 3, GroupName = "③ 订单执行" },
+        new() { Key = "estimatedcompletiondate", Label = "预计完成", SortKey = "estimatedcompletiondate", FilterType = "date", Width = "100", GroupKey = 3, GroupName = "③ 订单执行" },
+        new() { Key = "FinishedInboundWeight",  Label = "成品入库量", SortKey = "finishedinboundweight",  Width = "100", GroupKey = 3, GroupName = "③ 订单执行",
                DisplayConverter = v => v is SalesOrderListDto d ? d.FinishedInboundWeight.ToString("G29") : "-" },
-        new() { Key = "FinishedOutboundWeight", Label = "成品出库量", SortKey = "finishedoutboundweight", Width = "100", GroupKey = 4, GroupName = "④ 订单执行",
+        new() { Key = "FinishedOutboundWeight", Label = "成品出库量", SortKey = "finishedoutboundweight", Width = "100", GroupKey = 3, GroupName = "③ 订单执行",
                DisplayConverter = v => v is SalesOrderListDto d ? d.FinishedOutboundWeight.ToString("G29") : "-" },
-        new() { Key = "FinishedStockWeight",   Label = "成品库存量", SortKey = "finishedstockweight",   Width = "100", GroupKey = 4, GroupName = "④ 订单执行",
+        new() { Key = "FinishedStockWeight",   Label = "成品库存量", SortKey = "finishedstockweight",   Width = "100", GroupKey = 3, GroupName = "③ 订单执行",
                DisplayConverter = v => v is SalesOrderListDto d ? d.FinishedStockWeight.ToString("G29") : "-" },
-        new() { Key = "businesscompleted",     Label = "业务完结",   SortKey = "businesscompleted",     FilterType = "boolean", BoolTrueLabel = "完结", BoolFalseLabel = "否", Width = "90", GroupKey = 4, GroupName = "④ 订单执行" },
+        new() { Key = "businesscompleted",     Label = "业务完结",   SortKey = "businesscompleted",     FilterType = "boolean", BoolTrueLabel = "完结", BoolFalseLabel = "否", Width = "90", GroupKey = 3, GroupName = "③ 订单执行" },
     };
 
     // ========== 分页汇总 ==========
@@ -487,7 +494,7 @@ public partial class Orders
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("orders", null, _allColumns);
+        await ColumnPrefs.SaveAsync("orders", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -512,7 +519,7 @@ public partial class Orders
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("orders", null);
+        var saved = await ColumnPrefs.LoadAsync("orders", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)
@@ -786,6 +793,7 @@ public partial class Orders
     private void ViewOrder(int id) => Navigation.NavigateTo($"/orders/{id}");
     private void EditOrder(int id) => Navigation.NavigateTo($"/orders/{id}");
     private void ViewTechnicalRequirement(int orderId) => Navigation.NavigateTo($"/orders/{orderId}/requirements");
+    private void NavigateToProgress(string orderNo) => Navigation.NavigateTo($"/orders/progress?salesOrderNo={System.Uri.EscapeDataString(orderNo)}");
 
     private async Task ConfirmOrder(SalesOrderListDto order)
     {
@@ -859,33 +867,23 @@ public partial class Orders
     private Color GetStatusColor(SalesOrderStatus status) => DisplayHelper.GetSalesOrderStatusColor(status);
     private string GetStatusText(SalesOrderStatus status) => DisplayHelper.GetSalesOrderStatusText(status);
 
-    // ========== 订单接单·出库及现负荷汇总 ==========
+    // ========== 完成预估及延期风险（卡片，仅加载两张交期预估小表） ==========
 
-    private async Task ToggleInOutSummaryCard()
+    private async Task ToggleEstimateCard()
     {
-        _showInOutSummaryCard = !_showInOutSummaryCard;
-        if (_showInOutSummaryCard && _inOutSummary == null)
+        _showEstimateCard = !_showEstimateCard;
+        if (_showEstimateCard && _deliveryEstimate == null)
         {
             try
             {
-                var inOutTask = OrderService.GetInOutSummaryAsync(DateTime.Today.Year);
-                var estimateTask = OrderService.GetDeliveryEstimateAsync();
-                await Task.WhenAll(inOutTask, estimateTask);
-
-                var inOut = await inOutTask;
-                if (inOut.Success && inOut.Data != null)
-                    _inOutSummary = inOut.Data;
-                else
-                    Snackbar.Add(inOut.Message ?? "加载汇总失败", Severity.Warning);
-
-                var estimate = await estimateTask;
-                // 交期预估加载失败不阻断主表：保留 null，页面显示「暂无数据」
+                var estimate = await OrderService.GetDeliveryEstimateAsync();
+                // 交期预估加载失败不阻断主表：保留 null，页面显示「正在加载...」
                 if (estimate.Success && estimate.Data != null)
                     _deliveryEstimate = estimate.Data;
             }
             catch (Exception ex)
             {
-                Snackbar.Add($"加载汇总失败: {ex.Message}", Severity.Error);
+                Snackbar.Add($"加载交期预估失败: {ex.Message}", Severity.Error);
             }
         }
     }
@@ -929,8 +927,6 @@ public partial class Orders
         if (table != null) await table.ReloadServerData();
     }
 
-    private static string FormatInOutWeight(decimal kg) => kg == 0m ? "-" : $"{kg / 1000m:F1}";
-
     /// <summary>订单交期预估小表单元格（x单/y吨，急中急子集 [*a/b] 标红）</summary>
     private static MarkupString FormatDeliveryBucket(OrderDeliveryBucketDto b)
     {
@@ -939,25 +935,6 @@ public partial class Orders
         if (b.UrgentCount > 0 || b.UrgentWeight > 0)
             s += $"[<span style=\"color:#d32f2f;font-weight:700;\">*{b.UrgentCount}/{b.UrgentWeight.ToString("F1")}</span>]";
         return new MarkupString(s);
-    }
-
-    /// <summary>打印「订单接单·出库及现负荷汇总」卡片（前端 printRawHtml 打印汇总表）</summary>
-    private async Task PrintInOutSummary()
-    {
-        try
-        {
-            var html = await JS.InvokeAsync<string>("getTableHtml", "#order-inout-summary-table");
-            if (string.IsNullOrEmpty(html))
-            {
-                Snackbar.Add("未找到可打印的汇总表格", Severity.Warning);
-                return;
-            }
-            await JS.InvokeVoidAsync("printRawHtml", html, "订单接单·出库及现负荷汇总");
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
-        }
     }
 
     /// <summary>打印订单交期预估小表（两小表：订单(整单)完成预估 / 风险-已延期订单(整单)）</summary>
@@ -1026,7 +1003,7 @@ public partial class Orders
     private object GetPrintValue(SalesOrderListDto item, ColumnDef col) =>
         GetCellDisplayText(item, col.Key) ?? "-";
 
-    private async Task PrintSelected()
+    private async Task PrintSelected(bool includeAmounts = true)
     {
         if (!selectedOrderIds.Any())
         {
@@ -1035,7 +1012,7 @@ public partial class Orders
         }
         try
         {
-            var request = new OrderPrintBatchRequest { Ids = selectedOrderIds.ToArray() };
+            var request = new OrderPrintBatchRequest { Ids = selectedOrderIds.ToArray(), IncludeAmounts = includeAmounts };
             Snackbar.Add("正在生成PDF...", Severity.Info);
             var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.Order}/print-file";
             var json = JsonSerializer.Serialize(request);

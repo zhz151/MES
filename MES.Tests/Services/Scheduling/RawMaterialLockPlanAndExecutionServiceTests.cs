@@ -253,12 +253,12 @@ public class RawMaterialLockPlanAndExecutionServiceTests : TestBase
 
         // WO001：pending=(1000-100)*1.1=990 → 完善计划 桶0
         var improve = r.CutoffRows[0];
-        improve.Category.Should().Be("完善计划");
+        improve.Category.Should().Be("完善用料计划");
         improve.Total.Should().Be(990m);
         improve.Buckets[0].Should().Be(990m);
         // WO002：pending=1000*1.1=1100 → 执行计划 末桶
         var execute = r.CutoffRows[1];
-        execute.Category.Should().Be("执行计划");
+        execute.Category.Should().Be("执行用料计划");
         execute.Total.Should().Be(1100m);
         execute.Buckets[6].Should().Be(1100m);
         // 外购成品 = 全部成购缺口 = 100 + 0

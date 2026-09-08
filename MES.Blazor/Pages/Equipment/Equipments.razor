@@ -132,7 +132,7 @@
                     </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>@RenderCell(item, col)</MudTd>
+                        <MudTd Class="@(col.Key is "InspectionCycleDays" or "MaintCycleDays" ? "text-center" : null)">@RenderCell(item, col)</MudTd>
                     }
                     <MudTd>
                         @if (_editingIds.Contains(item.Id))

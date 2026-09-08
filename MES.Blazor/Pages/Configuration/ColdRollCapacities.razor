@@ -91,7 +91,7 @@
                     }
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>
+                        <MudTd Class="@(col.Key is "DailyOutput" or "SampleCount" ? "text-center" : null)">
                         @if (col.Key == "ProcessType")
                         {
                             @ProcessDisplayHelper.GetProcessNameText(item.ProcessType)

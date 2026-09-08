@@ -126,21 +126,3 @@ public class EquipmentPrintBatchRequest
     public int[] Ids { get; set; } = Array.Empty<int>();
     public List<PrintColumnDef> Columns { get; set; } = new();
 }
-
-/// <summary>
-/// 设备台账打印请求（全部）
-/// </summary>
-public class EquipmentPrintAllRequest
-{
-    public string? Keyword { get; set; }
-    public string? SortBy { get; set; }
-    public bool IsDescending { get; set; }
-    public LifecycleStatus? LifecycleStatus { get; set; }
-    public UsageType? UsageType { get; set; }
-    public RunningStatus? RunningStatus { get; set; }
-    public EquipmentTaskStatus? InspectionStatus { get; set; }
-    public EquipmentTaskStatus? MaintStatus { get; set; }
-    public string? Location { get; set; }
-    public string? RelatedSection { get; set; }
-    public List<PrintColumnDef> Columns { get; set; } = new();
-}

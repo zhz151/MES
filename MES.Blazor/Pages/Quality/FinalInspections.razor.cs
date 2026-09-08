@@ -129,8 +129,19 @@ public partial class FinalInspections
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    // ========== 数值列（检验/合格/次品支数与重量、生产支重、压力保压时间，数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    { "ProductionCutQuantity", "ProductionWeight", "Quantity", "Weight", "QualifiedQuantity",
+      "QualifiedWeight", "QualifiedConcessionQuantity", "DefectReworkQuantity",
+      "DefectWarehouseQuantity", "DefectScrapQuantity", "DefectReworkWeight",
+      "DefectWarehouseWeight", "DefectScrapWeight", "Pressure", "HoldTime" };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+
     private int _totalTableWidth =>
         _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40 + 90;
+
+    // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_final-inspection_v2）
+    private const string ColumnPrefsVersion = "v2";
 
     // ========== 实时健康校验通知条 ==========
     private FinalInspectionHealthSummaryDto? _healthSummary;
@@ -163,9 +174,9 @@ public partial class FinalInspections
                EnumOptions = DisplayHelper.GetEnumFilterOptions<InspectionItem>() },
         new() { Key = "InspectionDate",        Label = "检验日期",   SortKey = "inspectiondate", FilterType = "date", Width = "120",
             GroupKey = 1, GroupName = "G1 检验执行" },
-        new() { Key = "EquipmentName",          Label = "设备名称",   SortKey = "equipmentname", FilterType = "string", Width = "120",
+        new() { Key = "EquipmentName",          Label = "设备名称",   SortKey = "equipmentname", FilterType = "string", Width = "120", Visible = false,
             GroupKey = 1, GroupName = "G1 检验执行" },
-        new() { Key = "Shift",                  Label = "班次",       SortKey = "shift", FilterType = "enum", Width = "120",
+        new() { Key = "Shift",                  Label = "班次",       SortKey = "shift", FilterType = "enum", Width = "120", Visible = false,
             GroupKey = 1, GroupName = "G1 检验执行",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<ShiftType>() },
         new() { Key = "Operator",               Label = "操作员",     SortKey = "operator", FilterType = "string", Width = "160",
@@ -176,7 +187,7 @@ public partial class FinalInspections
         new() { Key = "IsDeliveryStatus",      Label = "是否交付态", SortKey = "isdeliverystatus", FilterType = "enum", Width = "100",
             GroupKey = 1, GroupName = "G1 检验执行",
             EnumOptions = new() { new("是", "是"), new("否", "否") } },
-        new() { Key = "QualificationLevel",    Label = "资格等级",   SortKey = "qualificationlevel", FilterType = "string", Width = "100",
+        new() { Key = "QualificationLevel",    Label = "资格等级",   SortKey = "qualificationlevel", FilterType = "string", Width = "100", Visible = false,
             GroupKey = 1, GroupName = "G1 检验执行" },
         new() { Key = "BatchNo",                Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120",
             GroupKey = 1, GroupName = "G1 检验执行" },
@@ -184,19 +195,19 @@ public partial class FinalInspections
         // G2: 生产批次（均来自 ProductionBatch 导航属性的 DTO 字段）
         new() { Key = "TagNo",                  Label = "挂牌号",     SortKey = "tagno", FilterType = "string", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次" },
-        new() { Key = "ProductionType",         Label = "生产类型",   SortKey = "productiontype", FilterType = "enum", Width = "120",
+        new() { Key = "ProductionType",         Label = "生产类型",   SortKey = "productiontype", FilterType = "enum", Width = "120", Visible = false,
             GroupKey = 2, GroupName = "G2 生产批次",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<ProductionType>() },
-        new() { Key = "ManufacturingItem",     Label = "制造物品",   SortKey = "manufacturingitem", FilterType = "enum", Width = "120",
+        new() { Key = "ManufacturingItem",     Label = "制造物品",   SortKey = "manufacturingitem", FilterType = "enum", Width = "120", Visible = false,
             GroupKey = 2, GroupName = "G2 生产批次",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<MaterialType>() },
-        new() { Key = "ManufacturingStatus",   Label = "制造状态",   SortKey = "manufacturingstatus", FilterType = "enum", Width = "120",
+        new() { Key = "ManufacturingStatus",   Label = "制造状态",   SortKey = "manufacturingstatus", FilterType = "enum", Width = "120", Visible = false,
             GroupKey = 2, GroupName = "G2 生产批次",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
-        new() { Key = "DeliveryState",          Label = "交货状态",   SortKey = "deliverystate", FilterType = "enum", Width = "120",
+        new() { Key = "DeliveryState",          Label = "交货状态",   SortKey = "deliverystate", FilterType = "enum", Width = "120", Visible = false,
             GroupKey = 2, GroupName = "G2 生产批次",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<DeliveryState>() },
-        new() { Key = "WorkOrderNo",            Label = "工单号",     SortKey = "workorderno", FilterType = "string", Width = "120",
+        new() { Key = "WorkOrderNo",            Label = "工单号",     SortKey = "workorderno", FilterType = "string", Width = "120", Visible = false,
             GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "SalesOrderNo",           Label = "订单号",     SortKey = "salesorderno", FilterType = "string", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次" },
@@ -204,9 +215,9 @@ public partial class FinalInspections
             GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "Salesman",               Label = "业务员",     SortKey = "salesman", FilterType = "string", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次" },
-        new() { Key = "EndCustomer",            Label = "最终用户",   SortKey = "endcustomer", FilterType = "string", Width = "120",
+        new() { Key = "EndCustomer",            Label = "最终用户",   SortKey = "endcustomer", FilterType = "string", Width = "120", Visible = false,
             GroupKey = 2, GroupName = "G2 生产批次" },
-        new() { Key = "SourceUnit",             Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Width = "120",
+        new() { Key = "SourceUnit",             Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Width = "120", Visible = false,
             GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "FurnaceNo",              Label = "炉号",       SortKey = "furnaceno", FilterType = "string", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次" },
@@ -214,7 +225,7 @@ public partial class FinalInspections
             GroupKey = 2, GroupName = "G2 生产批次" },
         new() { Key = "Specification",          Label = "规格",       SortKey = "specification", FilterType = "string", Width = "120",
             GroupKey = 2, GroupName = "G2 生产批次" },
-        new() { Key = "LengthStatus",           Label = "长度状态",   SortKey = "lengthstatus", FilterType = "enum", Width = "120",
+        new() { Key = "LengthStatus",           Label = "长度状态",   SortKey = "lengthstatus", FilterType = "enum", Width = "120", Visible = false,
             GroupKey = 2, GroupName = "G2 生产批次",
             EnumOptions = DisplayHelper.GetEnumFilterOptions<LengthStatus>() },
         new() { Key = "ProductionCutQuantity",  Label = "生产支数",   SortKey = "productioncutquantity", FilterType = "number", Width = "80",
@@ -228,7 +239,7 @@ public partial class FinalInspections
         new() { Key = "CutLengthMatchType",     Label = "符合工单长度", SortKey = "cutlengthmatchtype", FilterType = "enum", Width = "100",
             GroupKey = 3, GroupName = "G3 检验结果",
             EnumOptions = DisplayHelper.GetCutLengthMatchOptions() },
-        new() { Key = "NonFixedLengthRange",    Label = "非定尺长度范围", SortKey = "nonfixedlengthrange", FilterType = "string", Width = "120",
+        new() { Key = "NonFixedLengthRange",    Label = "非定尺长度范围", SortKey = "nonfixedlengthrange", FilterType = "string", Width = "120", Visible = false,
             GroupKey = 3, GroupName = "G3 检验结果" },
         new() { Key = "Quantity",               Label = "检验支数",   SortKey = "quantity", Width = "80",
             GroupKey = 3, GroupName = "G3 检验结果" },
@@ -261,54 +272,54 @@ public partial class FinalInspections
 
         // G5: 尺寸值
         new() { Key = "OuterDiameterRange",     Label = "外径范围",   SortKey = "outerdiameterrange", FilterType = "string", Width = "120",
-            GroupKey = 5, GroupName = "G5 尺寸值" },
+            GroupKey = 5, GroupName = "G5 尺寸值", Visible = false },
         new() { Key = "WallThicknessRange",     Label = "壁厚范围",   SortKey = "wallthicknessrange", FilterType = "string", Width = "120",
-            GroupKey = 5, GroupName = "G5 尺寸值" },
+            GroupKey = 5, GroupName = "G5 尺寸值", Visible = false },
         new() { Key = "LengthAllowanceRange",   Label = "长度余量范围", SortKey = "lengthallowancerange", FilterType = "string", Width = "120",
-            GroupKey = 5, GroupName = "G5 尺寸值" },
+            GroupKey = 5, GroupName = "G5 尺寸值", Visible = false },
 
         // G6: 压力值
         new() { Key = "Pressure",               Label = "压力Mpa",    SortKey = "pressure", Width = "80",
-            GroupKey = 6, GroupName = "G6 压力值" },
+            GroupKey = 6, GroupName = "G6 压力值", Visible = false },
         new() { Key = "HoldTime",               Label = "保压时间s",  SortKey = "holdtime", Width = "80",
-            GroupKey = 6, GroupName = "G6 压力值" },
+            GroupKey = 6, GroupName = "G6 压力值", Visible = false },
 
         // G7: 涡流/超声波探伤
         new() { Key = "InspectionStandard",    Label = "检验标准",   SortKey = "inspectionstandard", FilterType = "string", Width = "100",
-            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤", Visible = false },
         new() { Key = "InspectionGrade",       Label = "检验等级",   SortKey = "inspectiongrade", FilterType = "string", Width = "100",
-            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤", Visible = false },
         new() { Key = "InstrumentModel",       Label = "仪器型号",   SortKey = "instrumentmodel", FilterType = "string", Width = "100",
-            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤", Visible = false },
         new() { Key = "NdtMethod",             Label = "检验方式",   SortKey = "ndtmethod", FilterType = "string", Width = "100",
-            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤", Visible = false },
         new() { Key = "StandardSampleSize",    Label = "标样尺寸",   SortKey = "standardsamplesize", FilterType = "string", Width = "100",
-            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤", Visible = false },
         new() { Key = "StandardSampleDefect",  Label = "标样缺陷",   SortKey = "standardsampledefect", FilterType = "string", Width = "100",
-            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤", Visible = false },
         new() { Key = "ProbeType",             Label = "探头类型",   SortKey = "probetype", FilterType = "string", Width = "100",
-            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤", Visible = false },
         new() { Key = "Couplant",              Label = "耦合剂",     SortKey = "couplant", FilterType = "string", Width = "100",
-            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤", Visible = false },
         new() { Key = "CalibrationFrequency",  Label = "校准频率",   SortKey = "calibrationfrequency", FilterType = "string", Width = "100",
-            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤", Visible = false },
         new() { Key = "DetectionFrequency",    Label = "检测频率",   SortKey = "detectionfrequency", FilterType = "string", Width = "100",
-            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤", Visible = false },
         new() { Key = "DetectionSensitivity",  Label = "检测灵敏度", SortKey = "detectionsensitivity", FilterType = "string", Width = "100",
-            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤", Visible = false },
         new() { Key = "DetectionPhase",        Label = "检测相位",   SortKey = "detectionphase", FilterType = "string", Width = "100",
-            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤", Visible = false },
         new() { Key = "DetectionSpeed",        Label = "检测速度",   SortKey = "detectionspeed", FilterType = "string", Width = "100",
-            GroupKey = 7, GroupName = "G7 涡流/超声波探伤" },
+            GroupKey = 7, GroupName = "G7 涡流/超声波探伤", Visible = false },
 
         // G8: 辅助信息
         new() { Key = "Remark",                 Label = "检验备注",   SortKey = "remark", FilterType = "string", Width = "120",
-            GroupKey = 8, GroupName = "G8 辅助信息" },
-        new() { Key = "DataSource",             Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80",
+            GroupKey = 8, GroupName = "G8 辅助信息", Visible = false },
+        new() { Key = "DataSource",             Label = "数据来源",   SortKey = "datasource", FilterType = "enum", Width = "80", Visible = false,
             GroupKey = 8, GroupName = "G8 辅助信息",
             EnumOptions = DisplayHelper.GetDataSourceOptions() },
         new() { Key = "UpdatedTime",            Label = "更新日期",   SortKey = "updatedtime", Width = "120",
-            GroupKey = 8, GroupName = "G8 辅助信息" },
+            GroupKey = 8, GroupName = "G8 辅助信息", Visible = false },
     };
 
     // ========== 服务端数据加载 ==========
@@ -533,7 +544,7 @@ public partial class FinalInspections
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("final-inspection", null, _allColumns);
+        await ColumnPrefs.SaveAsync("final-inspection", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -657,7 +668,7 @@ public partial class FinalInspections
     {
         await LoadOperatorsAsync();
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("final-inspection", null);
+        var saved = await ColumnPrefs.LoadAsync("final-inspection", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)

@@ -55,42 +55,51 @@ public partial class PendingDelivery
 
     // ========== 列定义 ==========
 
+    // 列偏好版本键：变更默认显隐后递增，强制老用户按新默认重新加载（col_prefs_orders_pending_delivery_v2）
+    private const string ColumnPrefsVersion = "v2";
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.Visible).ToList();
 
+    // ========== 数值列（剩余支数/重量/米数、最小/最大长度，数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    {
+        "remainingquantity", "remainingweight", "remainingmeters", "minlength", "maxlength"
+    };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        // Group 1：订单关联
+        // Group 1：订单关联（默认隐藏：工单号/最终客户）
         new() { Key = "salesorderno",       Label = "订单号",     SortKey = "SalesOrderNo",    FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "productionmainno",   Label = "主号",       SortKey = "ProductionMainNo",FilterType = "string", Width = "100", GroupKey = 1, GroupName = "① 订单关联" },
-        new() { Key = "workorderno",        Label = "工单号",     SortKey = "WorkOrderNo",     FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 订单关联" },
+        new() { Key = "workorderno",        Label = "工单号",     SortKey = "WorkOrderNo",     FilterType = "string", Width = "120", GroupKey = 1, GroupName = "① 订单关联", Visible = false },
         new() { Key = "workorderattention", Label = "执行关注",   SortKey = "WorkOrderAttention", FilterType = "string", Width = "80",  GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "salesman",           Label = "业务员",     SortKey = "Salesman",        FilterType = "string", Width = "60",  GroupKey = 1, GroupName = "① 订单关联" },
         new() { Key = "customername",       Label = "客户名称",   SortKey = "CustomerName",    FilterType = "string", Width = "100", GroupKey = 1, GroupName = "① 订单关联" },
-        new() { Key = "endcustomer",        Label = "最终客户",   SortKey = "EndCustomer",     FilterType = "string", Width = "100", GroupKey = 1, GroupName = "① 订单关联" },
-        // Group 2：材料规格
-        new() { Key = "productstandard",    Label = "产品标准",   SortKey = "ProductStandard", FilterType = "string", Width = "100", GroupKey = 2, GroupName = "② 材料规格" },
+        new() { Key = "endcustomer",        Label = "最终客户",   SortKey = "EndCustomer",     FilterType = "string", Width = "100", GroupKey = 1, GroupName = "① 订单关联", Visible = false },
+        // Group 2：材料规格（默认隐藏：产品标准/工厂牌号/最小长度/最大长度）
+        new() { Key = "productstandard",    Label = "产品标准",   SortKey = "ProductStandard", FilterType = "string", Width = "100", GroupKey = 2, GroupName = "② 材料规格", Visible = false },
         new() { Key = "deliverystatus",     Label = "交货状态",   SortKey = "DeliveryStatus",  FilterType = "string", Width = "80",  GroupKey = 2, GroupName = "② 材料规格" },
         new() { Key = "productionbatchno",  Label = "生产批号",   SortKey = "ProductionBatchNo",FilterType = "string",Width = "100", GroupKey = 2, GroupName = "② 材料规格" },
         new() { Key = "heatno",             Label = "炉号",       SortKey = "HeatNo",          FilterType = "string", Width = "100", GroupKey = 2, GroupName = "② 材料规格" },
-        new() { Key = "plantgrade",         Label = "工厂牌号",   SortKey = "PlantGrade",      FilterType = "string", Width = "80",  GroupKey = 2, GroupName = "② 材料规格" },
+        new() { Key = "plantgrade",         Label = "工厂牌号",   SortKey = "PlantGrade",      FilterType = "string", Width = "80",  GroupKey = 2, GroupName = "② 材料规格", Visible = false },
         new() { Key = "standardgrade",      Label = "标准牌号",   SortKey = "StandardGrade",   FilterType = "string", Width = "80",  GroupKey = 2, GroupName = "② 材料规格" },
         new() { Key = "specification",      Label = "名义规格",   SortKey = "Specification",   FilterType = "string", Width = "100", GroupKey = 2, GroupName = "② 材料规格" },
         new() { Key = "lengthstatus",       Label = "长度状态",   SortKey = "LengthStatus",    FilterType = "string", Width = "60",  GroupKey = 2, GroupName = "② 材料规格",
                DisplayConverter = v => DisplayHelper.GetLengthStatusText(v as string) },
-        new() { Key = "minlength",          Label = "最小长度",   SortKey = "MinLength",       FilterType = "string", Width = "80",  GroupKey = 2, GroupName = "② 材料规格" },
-        new() { Key = "maxlength",          Label = "最大长度",   SortKey = "MaxLength",       FilterType = "string", Width = "80",  GroupKey = 2, GroupName = "② 材料规格" },
-        // Group 3：仓库信息
-        new() { Key = "inventorybatchno",   Label = "仓库批次",   SortKey = "InventoryBatchNo",FilterType = "string", Width = "120", GroupKey = 3, GroupName = "③ 仓库信息" },
-        new() { Key = "inboundsource",      Label = "来源",       SortKey = "InboundSource",   FilterType = "string", Width = "60",  GroupKey = 3, GroupName = "③ 仓库信息",
+        new() { Key = "minlength",          Label = "最小长度",   SortKey = "MinLength",       FilterType = "string", Width = "80",  GroupKey = 2, GroupName = "② 材料规格", Visible = false },
+        new() { Key = "maxlength",          Label = "最大长度",   SortKey = "MaxLength",       FilterType = "string", Width = "80",  GroupKey = 2, GroupName = "② 材料规格", Visible = false },
+        // Group 3：仓库信息（默认隐藏：仓库批次/来源/来料单位/剩余米数/物料类型）
+        new() { Key = "inventorybatchno",   Label = "仓库批次",   SortKey = "InventoryBatchNo",FilterType = "string", Width = "120", GroupKey = 3, GroupName = "③ 仓库信息", Visible = false },
+        new() { Key = "inboundsource",      Label = "来源",       SortKey = "InboundSource",   FilterType = "string", Width = "60",  GroupKey = 3, GroupName = "③ 仓库信息", Visible = false,
                DisplayConverter = v => DisplayHelper.GetInboundSourceText(v as string) },
-        new() { Key = "sourcename",         Label = "来料单位",   SortKey = "SourceName",      FilterType = "string", Width = "80",  GroupKey = 3, GroupName = "③ 仓库信息" },
+        new() { Key = "sourcename",         Label = "来料单位",   SortKey = "SourceName",      FilterType = "string", Width = "80",  GroupKey = 3, GroupName = "③ 仓库信息", Visible = false },
         new() { Key = "inbounddate",        Label = "入库日期",   SortKey = "InboundDate",     Width = "90",  GroupKey = 3, GroupName = "③ 仓库信息" },
         new() { Key = "remainingquantity",  Label = "剩余支数",   SortKey = "RemainingQuantity",FilterType = "string",Width = "60",  GroupKey = 3, GroupName = "③ 仓库信息" },
         new() { Key = "remainingweight",    Label = "剩余重量",   SortKey = "RemainingWeight", FilterType = "string", Width = "80",  GroupKey = 3, GroupName = "③ 仓库信息" },
-        new() { Key = "remainingmeters",    Label = "剩余米数",   SortKey = "RemainingMeters", FilterType = "string", Width = "80",  GroupKey = 3, GroupName = "③ 仓库信息" },
-        new() { Key = "materialtype",       Label = "物料类型",   SortKey = "MaterialType",    FilterType = "string", Width = "60",  GroupKey = 3, GroupName = "③ 仓库信息" },
+        new() { Key = "remainingmeters",    Label = "剩余米数",   SortKey = "RemainingMeters", FilterType = "string", Width = "80",  GroupKey = 3, GroupName = "③ 仓库信息", Visible = false },
+        new() { Key = "materialtype",       Label = "物料类型",   SortKey = "MaterialType",    FilterType = "string", Width = "60",  GroupKey = 3, GroupName = "③ 仓库信息", Visible = false },
     };
 
     // ========== B23 分组列标题栏 ==========
@@ -486,7 +495,7 @@ public partial class PendingDelivery
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("orders_pending_delivery", null, _allColumns);
+        await ColumnPrefs.SaveAsync("orders_pending_delivery", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -700,7 +709,7 @@ public partial class PendingDelivery
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("orders_pending_delivery", null);
+        var saved = await ColumnPrefs.LoadAsync("orders_pending_delivery", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)

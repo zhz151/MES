@@ -68,7 +68,8 @@
                         <RowTemplate Context="item">
                             @foreach (var col in _visibleColumns)
                             {
-                                <MudTd>@RenderCell(item, col)</MudTd>
+                                var _cellAlignClass = IsNumericColumn(col) ? " text-center" : "";
+                                <MudTd Class="@_cellAlignClass">@RenderCell(item, col)</MudTd>
                             }
                         </RowTemplate>
                     </MudTable>
@@ -128,6 +129,15 @@
     // ========== 列定义 ==========
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns => _allColumns.Where(c => c.Visible).ToList();
+
+    // ========== 数值列（数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    {
+        "unitweight", "quantity", "inputmultiple", "weight", "unitprice", "totalamount",
+        "receivedquantity", "receivedweight",
+        "womaxlength", "wototalquantity", "wototalweight", "wototalitemcount"
+    };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
 
     // ========== 内部模型 ==========
     private class EditOrderModel

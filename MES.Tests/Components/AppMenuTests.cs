@@ -54,6 +54,48 @@ public class AppMenuTests
     }
 
     [Fact]
+    public void 工单管理_二级分组_操作与查询()
+    {
+        var wo = Node("工单管理");
+        wo.IsLeaf.Should().BeFalse();
+        wo.Policy.Should().Be(Roles.Policies.WorkOrderMenu);
+
+        var operate = wo.Children.Single(n => n.Label == "工单操作");
+        operate.IsLeaf.Should().BeFalse();
+        operate.Children.Select(n => (n.Label, n.Href)).Should().Equal(
+            ("工单生成", "/workorders"),
+            ("用料计划", "/material-plan-overview"),
+            ("用料投料核查", "/material-input-consistency"),
+            ("工单需求调整", "/workorders-demand-adjustment"));
+
+        var query = wo.Children.Single(n => n.Label == "工单查询");
+        query.IsLeaf.Should().BeFalse();
+        query.Children.Select(n => (n.Label, n.Href)).Should().Equal(
+            ("工单执行状况", "/workorder-execution"),
+            ("定尺工单定尺", "/fixed-length-work-order-view"));
+    }
+
+    [Fact]
+    public void 批次管理组_生产批次与生产执行核查并列()
+    {
+        var batch = Node("批次管理");
+        batch.IsLeaf.Should().BeFalse();
+        batch.Policy.Should().Be(Roles.Policies.BatchMenu);
+        batch.Children.Select(n => (n.Label, n.Href)).Should().Equal(
+            ("生产批次", "/batches"),
+            ("生产执行核查", "/production-execution-check"),
+            ("生产记录", "/production-records"),
+            ("去油酸洗", "/pickling-in-records"),
+            ("工段委外", "/section-outsources"),
+            ("工艺卡打印", "/process-card-print"));
+
+        // 旧菜单名「批次首页」全树不得残留
+        AppMenu.AllLeaves().Should().NotContain(n => n.Label == "批次首页");
+        AppMenu.AllLeaves().Count(n => n.Label == "生产批次").Should().Be(1);
+        AppMenu.AllLeaves().Count(n => n.Label == "生产执行核查").Should().Be(1);
+    }
+
+    [Fact]
     public void 手机曾缺失的模块_均在树内()
     {
         // 首页（精确匹配 /）

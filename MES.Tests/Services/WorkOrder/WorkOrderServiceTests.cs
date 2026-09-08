@@ -959,10 +959,10 @@ public class WorkOrderServiceTests : TestBase
         System.Text.Encoding.ASCII.GetString(bytes.Take(4).ToArray()).Should().Be("%PDF");
     }
 
-    // ==================== 在产在检-错疑待料卡片联动（ScheduleStage + 字段>0） ====================
+    // ==================== 错误-用料计划及其执行卡片联动（ScheduleStage + 字段>0） ====================
 
     [Fact]
-    public async Task GetPagedWithPlansAsync_在产在检错疑待料联动_按档位与字段筛选()
+    public async Task GetPagedWithPlansAsync_错误用料计划及执行联动_按档位与字段筛选()
     {
         var ctx = CreateDbContext();
         // 重置容差快照（防其它测试污染静态状态）

@@ -155,6 +155,11 @@ public partial class Ncrs
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    // ========== 数值列（次品支数/次品重量，数据格居中） ==========
+    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
+    { "DefectiveQuantity", "DefectiveWeight" };
+    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+
     // B33: 分页汇总
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
@@ -164,6 +169,9 @@ public partial class Ncrs
 
     // 扩展常量
     private const string PageType = "ncrs";
+
+    // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_ncrs_v1）
+    private const string ColumnPrefsVersion = "v1";
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
@@ -260,7 +268,7 @@ public partial class Ncrs
 
         // 审计
         new() { Key = "UpdatedTime",          Label = "更新日期",    SortKey = "updatedtime",         Width = "120",
-               GroupKey = 6, GroupName = "状态" },
+               GroupKey = 6, GroupName = "状态", Visible = false },
     };
 
     // ========== 生命周期 ==========
@@ -271,7 +279,7 @@ public partial class Ncrs
         _allColumns = GetAllColumnDefs();
 
         // 恢复列偏好（合并保存的可见性/排序，不替换）
-        var savedCols = await ColumnPrefs.LoadAsync(PageType, null);
+        var savedCols = await ColumnPrefs.LoadAsync(PageType, ColumnPrefsVersion);
         if (savedCols.Count > 0)
         {
             foreach (var s in savedCols)
@@ -618,7 +626,7 @@ public partial class Ncrs
 
     private async Task OnColumnToggle(ColumnDef col)
     {
-        await ColumnPrefs.SaveAsync(PageType, null, _allColumns);
+        await ColumnPrefs.SaveAsync(PageType, ColumnPrefsVersion, _allColumns);
     }
 
     private async Task MoveColumnUp(ColumnDef col)
@@ -629,7 +637,7 @@ public partial class Ncrs
             _allColumns.RemoveAt(idx);
             _allColumns.Insert(idx - 1, col);
         }
-        await ColumnPrefs.SaveAsync(PageType, null, _allColumns);
+        await ColumnPrefs.SaveAsync(PageType, ColumnPrefsVersion, _allColumns);
     }
 
     private async Task MoveColumnDown(ColumnDef col)
@@ -640,7 +648,7 @@ public partial class Ncrs
             _allColumns.RemoveAt(idx);
             _allColumns.Insert(idx + 1, col);
         }
-        await ColumnPrefs.SaveAsync(PageType, null, _allColumns);
+        await ColumnPrefs.SaveAsync(PageType, ColumnPrefsVersion, _allColumns);
     }
 
     // ========== 分页汇总（B33） ==========
@@ -950,7 +958,7 @@ public partial class Ncrs
     private async Task ResetColumnDisplay()
     {
         _allColumns = GetAllColumnDefs();
-        await ColumnPrefs.SaveAsync(PageType, null, _allColumns);
+        await ColumnPrefs.SaveAsync(PageType, ColumnPrefsVersion, _allColumns);
         await SavePageStateAsync();
         if (table != null) await table.ReloadServerData();
         StateHasChanged();

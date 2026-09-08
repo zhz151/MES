@@ -388,7 +388,7 @@
                                                 <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
                                                 <MudTd>@context.PlantGrade</MudTd>
                                                 <MudTd>@context.Specification</MudTd>
-                                                <MudTd Class="text-right">@FormatPendingWeight(context.PendingWeight)</MudTd>
+                                                <MudTd Class="text-center">@FormatPendingWeight(context.PendingWeight)</MudTd>
                                             </RowTemplate>
                                         </MudTable>
                                     </div>
@@ -540,7 +540,7 @@
                                             <MudTd>@DisplayHelper.GetMaterialTypeText(context.MaterialCategory)</MudTd>
                                             <MudTd>@context.PlantGrade</MudTd>
                                             <MudTd>@context.Specification</MudTd>
-                                            <MudTd Class="text-right">@FormatPendingWeight(context.PendingWeight)</MudTd>
+                                            <MudTd Class="text-center">@FormatPendingWeight(context.PendingWeight)</MudTd>
                                         </RowTemplate>
                                     </MudTable>
                                 </div>
@@ -699,7 +699,7 @@
                                             <MudTd>@(context.ExecutionUrgencyLevel != null ? (DictValueDisplayHelper.GetText(DictValueDefaults.UrgencyLevelKey, context.ExecutionUrgencyLevel) ?? "-") : "-")</MudTd>
                                             <MudTd>@context.PlantGrade</MudTd>
                                             <MudTd>@context.PiercingSpec</MudTd>
-                                            <MudTd Class="text-right"><b>@FormatKg(context.MissingWeight)</b></MudTd>
+                                            <MudTd Class="text-center"><b>@FormatKg(context.MissingWeight)</b></MudTd>
                                         </RowTemplate>
                                     </MudTable>
                                 </div>
@@ -929,23 +929,23 @@
                                 </HeaderContent>
                                 <RowTemplate Context="item">
                                     <MudTd><span class="font-weight-bold">@item.ParagraphName</span></MudTd>
-                                    <MudTd Class="mud-table-cell--right">@RenderInt(item.PendingTotal)</MudTd>
+                                    <MudTd Class="text-center">@RenderInt(item.PendingTotal)</MudTd>
                                     <MudTd Class="mud-table-cell--center">
                                         <MudChip Size="Size.Small" Color="@GetStatusColor(item.StatusJudgment)">@(item.StatusJudgment ?? "-")</MudChip>
                                     </MudTd>
-                                    <MudTd Class="mud-table-cell--right">@RenderInt(item.PlanFlowQuantity)</MudTd>
+                                    <MudTd Class="text-center">@RenderInt(item.PlanFlowQuantity)</MudTd>
                                     <MudTd Class="mud-table-cell--center">
                                         <MudChip Size="Size.Small" Color="@GetPlanFlowJudgmentColor(item.PlanFlowJudgment)">@(item.PlanFlowJudgment ?? "-")</MudChip>
                                     </MudTd>
-                                    <MudTd Class="mud-table-cell--right">@RenderInt(item.PlanKeyWeight)</MudTd>
+                                    <MudTd Class="text-center">@RenderInt(item.PlanKeyWeight)</MudTd>
                                 </RowTemplate>
                                 <FooterContent>
                                     <MudTd Class="col-footer-cell">&nbsp;</MudTd>
-                                    <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_paragraphRows.Sum(x => x.PendingTotal ?? 0m))</MudTd>
+                                    <MudTd Class="col-footer-cell col-footer-sum text-center">@RenderInt(_paragraphRows.Sum(x => x.PendingTotal ?? 0m))</MudTd>
                                     <MudTd Class="col-footer-cell">&nbsp;</MudTd>
-                                    <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_paragraphRows.Sum(x => x.PlanFlowQuantity ?? 0m))</MudTd>
+                                    <MudTd Class="col-footer-cell col-footer-sum text-center">@RenderInt(_paragraphRows.Sum(x => x.PlanFlowQuantity ?? 0m))</MudTd>
                                     <MudTd Class="col-footer-cell">&nbsp;</MudTd>
-                                    <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_paragraphRows.Sum(x => x.PlanKeyWeight ?? 0m))</MudTd>
+                                    <MudTd Class="col-footer-cell col-footer-sum text-center">@RenderInt(_paragraphRows.Sum(x => x.PlanKeyWeight ?? 0m))</MudTd>
                                 </FooterContent>
                             </MudTable>
                             </div>

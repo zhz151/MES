@@ -120,7 +120,7 @@ public class NcrService : INcrService
         if (query.ReportDateFrom.HasValue)
             queryable = queryable.Where(r => r.ReportDate >= query.ReportDateFrom.Value);
         if (query.ReportDateTo.HasValue)
-            queryable = queryable.Where(r => r.ReportDate <= query.ReportDateTo.Value);
+            queryable = queryable.Where(r => r.ReportDate < query.ReportDateTo.Value.AddDays(1));
 
         queryable = queryable.ApplyFilters(query.Filters);
         var totalCount = await queryable.CountAsync();

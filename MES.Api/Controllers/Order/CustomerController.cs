@@ -129,6 +129,17 @@ public class CustomerController : ControllerBase
     }
 
     /// <summary>
+    /// 打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）
+    /// </summary>
+    [HttpPost("print-list-file")]
+    [Authorize(Roles = Roles.Policies.OrderView)]
+    public async Task<IActionResult> PrintListFile([FromBody] OrderPrintListRequest request)
+    {
+        var pdfBytes = await _customerService.PrintCustomerListAsync(request.Title, request.Items, request.Columns);
+        return File(pdfBytes, "application/pdf", "客户列表.pdf");
+    }
+
+    /// <summary>
     /// 删除客户（物理删除）
     /// </summary>
     [HttpDelete("{id}")]

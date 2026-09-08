@@ -219,7 +219,7 @@ public class InventoryService : IInventoryService
             queryable = queryable.Where(b => b.InboundDate >= query.InboundDateFrom.Value);
 
         if (query.InboundDateTo.HasValue)
-            queryable = queryable.Where(b => b.InboundDate <= query.InboundDateTo.Value);
+            queryable = queryable.Where(b => b.InboundDate < query.InboundDateTo.Value.AddDays(1));
 
         if (!string.IsNullOrEmpty(query.HeatNo))
             queryable = queryable.Where(b => b.HeatNo != null && b.HeatNo.Contains(query.HeatNo));
@@ -451,7 +451,7 @@ public class InventoryService : IInventoryService
             queryable = queryable.Where(r => r.OutboundDate >= query.StartDate.Value);
 
         if (query.EndDate.HasValue)
-            queryable = queryable.Where(r => r.OutboundDate <= query.EndDate.Value);
+            queryable = queryable.Where(r => r.OutboundDate < query.EndDate.Value.AddDays(1));
 
         if (!string.IsNullOrEmpty(query.Keyword))
         {

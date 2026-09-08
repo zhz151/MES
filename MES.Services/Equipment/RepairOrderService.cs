@@ -94,7 +94,7 @@ public class RepairOrderService : IRepairOrderService
             baseQuery = baseQuery.Where(x => x.Order.ReportTime >= query.ReportTimeFrom.Value);
 
         if (query.ReportTimeTo.HasValue)
-            baseQuery = baseQuery.Where(x => x.Order.ReportTime <= query.ReportTimeTo.Value);
+            baseQuery = baseQuery.Where(x => x.Order.ReportTime < query.ReportTimeTo.Value.AddDays(1));
 
         // 处理 JOIN 匿名类型 { Order, Equipment } 上的字段筛选：
         // ApplyFilters 通过反射在匿名类型上找不到业务字段属性（只有 Order/Equipment），

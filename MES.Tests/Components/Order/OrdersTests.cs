@@ -22,7 +22,7 @@ public class OrdersTests : TestBase
     public void Render_HasTitle()
     {
         var cut = Ctx.RenderComponent<CascadingAuthenticationState>(p => p.AddChildContent<Orders>());
-        cut.Markup.Should().Contain("订单管理");
+        cut.Markup.Should().Contain("订单列表");
     }
 
     [Fact]

@@ -3,9 +3,9 @@ using MES.Core.Helpers;
 namespace MES.Core.DTOs.WorkOrder;
 
 /// <summary>
-/// 「工单原锁-错疑投料」卡片明细项：取工单执行状况读模型（WorkOrderExecutionSummary）中
+/// 「错疑-用料投料不一致」卡片明细项：取工单执行状况读模型（WorkOrderExecutionSummary）中
 /// 主号-关注（ScheduleStage）=2 原料锁定，且到料实投一致性为「2 个错误 + 2 个疑问」（PlanInputConsistency ∈ {2,3,4,5}）的工单行。
-/// 展示基础数据（工单号/订单号/主号/工厂牌号/规格/总重量）+ 用料计划及执行实况（计划投料总重/截止到料日/可投料总重/实际已投料量/到料实投一致性/理论原料未至）。
+/// 展示基础数据（工单号/订单号/主号/工厂牌号/规格/工单重量）+ 用料计划及执行实况（计划投料重量/截止到料日/到料重量/实际已投料量/到料实投一致性/理论原料未至）。
 /// </summary>
 public class ErrorDoubtInputItemDto
 {
@@ -17,13 +17,13 @@ public class ErrorDoubtInputItemDto
     public string Specification { get; set; } = null!;
     public decimal TotalWeight { get; set; }
 
-    /// <summary>计划投料总重（kg）</summary>
+    /// <summary>计划投料重量（kg）</summary>
     public decimal TotalPlanWeight { get; set; }
 
     /// <summary>截止到料日</summary>
     public DateTime? CutoffArrivalDate { get; set; }
 
-    /// <summary>现可投料总重（kg）</summary>
+    /// <summary>到料重量（kg）= 各来源已到货/接收量之和（到货量口径，非「计划允许投的量」）</summary>
     public decimal TotalAvailableWeight { get; set; }
 
     /// <summary>理论缺失总料重（kg）</summary>

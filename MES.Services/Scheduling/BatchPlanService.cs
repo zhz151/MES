@@ -68,10 +68,6 @@ public class BatchPlanService : IBatchPlanService
         _standardWorkDayService = standardWorkDayService;
     }
 
-    // 近日/月度生产量数据全工段汇总行集合（含冷轧拔按工序分化 + 检验-荒管/在制）——共享 ProductionSummaryHelper，
-    // 与月度委外汇总（SectionOutsourceService）归行口径一致。
-    private static readonly string[] _summaryAllSectionTabs = ProductionSummaryHelper.SummaryAllSectionTabs;
-
     /// <summary>
     /// 配置驱动组装工段筛选 Tab 选项 + 委外在产列排序所需映射（Display→序 / 显示名 Map）。
     /// 冷轧冷拔类 = ProcessDefinitions 启用工序；普通工段 = StandardWorkDays 启用工段（扣除冷轧拔/检验/入库）；
