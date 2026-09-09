@@ -96,19 +96,6 @@ public class PieceRateFinalInspectionCategoryService
         }
     }
 
-    public async Task<ApiResponse<PieceRateFinalInspectionMatchResultDto?>> MatchPriceAsync(PieceRateFinalInspectionMatchRequest request)
-    {
-        try
-        {
-            var response = await _http.PostAsJsonAsync<PieceRateFinalInspectionMatchRequest, ApiResponse<PieceRateFinalInspectionMatchResultDto?>>(BaseUrl + "/match-price", request);
-            return response ?? ApiResponse<PieceRateFinalInspectionMatchResultDto?>.Fail("试算失败");
-        }
-        catch (Exception ex)
-        {
-            return ApiResponse<PieceRateFinalInspectionMatchResultDto?>.Fail($"网络错误: {ex.Message}");
-        }
-    }
-
     public async Task<ApiResponse<PagedResult<FinalInspectionPriceTrialRecordDto>>> GetTrialRecordsAsync(
         FinalInspectionPriceTrialRecordQuery query)
     {

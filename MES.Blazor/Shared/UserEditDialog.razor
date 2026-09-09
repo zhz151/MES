@@ -1,4 +1,4 @@
-@* 用户创建/编辑弹窗：14 主菜单 × 3 档（无/查/查增改/查增改删）+ Admin 隐式全权开关
+@* 用户创建/编辑弹窗：15 主菜单 × 3 档（无/查/查增改/查增改删）+ Admin 隐式全权开关
    纯一级模型（2026-08-26 用户决策，取消全部二级菜单权限）*@
 @namespace MES.Blazor.Shared
 @using MES.Core.DTOs.Auth
@@ -77,7 +77,7 @@
                 </MudPaper>
             }
 
-            <MudText Typo="Typo.subtitle2" Class="mb-2">角色分配（14 主菜单 × 3 档）</MudText>
+            <MudText Typo="Typo.subtitle2" Class="mb-2">角色分配（15 主菜单 × 3 档）</MudText>
             <MudPaper Elevation="0" Class="pa-3" Style="border: 1px solid #e0e0e0; max-height: 420px; overflow-y: auto;">
                 @foreach (var menu in UserRoleDisplayHelper.MenuTiers)
                 {

@@ -73,8 +73,8 @@ http {
         # client-side routes with no physical file, so serve index.html for any
         # path that is not a real file/dir (otherwise direct nav / refresh = 404).
         #
-        # PWA app-shell / runtime config (index.html / service-worker.js /
-        # appsettings.json / manifest.json) are NOT fingerprinted: if an intermediate
+        # PWA app-shell / runtime config (index.html / appsettings.json /
+        # manifest.json) are NOT fingerprinted: if an intermediate
         # cache keeps an old copy the app keeps loading the OLD wasm (new UI never shows).
         # NOTE: `location = /path { add_header ... }` exact-match + add_header is NOT
         # reliably emitted for static responses on some nginx builds (prefix match works),

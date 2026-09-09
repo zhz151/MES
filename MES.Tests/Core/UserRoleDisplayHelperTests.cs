@@ -7,7 +7,7 @@ namespace MES.Tests;
 /// <summary>
 /// 用户管理界面角色展示 helper 测试（纯一级模型，2026-08-26 用户决策取消二级）：
 ///  角色 = {菜单前缀}{档位}（Viewer/Editor/Full），Admin 隐式全权。
-///  新建默认：9 业务域菜单 = 查；系统菜单（报表/数据工具/扫码/参数表/用户）= 无。
+///  新建默认：9 业务域菜单 = 查；系统菜单（报表/数据工具/扫码/工资结算/参数表/用户）= 无。
 /// </summary>
 public class UserRoleDisplayHelperTests
 {
@@ -20,7 +20,7 @@ public class UserRoleDisplayHelperTests
         // 9 业务域菜单（含仓库）= Viewer（查）
         foreach (var prefix in UserRoleDisplayHelper.DefaultViewerMenus)
             tiers[prefix].Should().Be(UserRoleDisplayHelper.TierViewer, $"{prefix} 默认应为「查」");
-        // 系统菜单（Report/DataTool/Scan/Configuration/User）= None（无）
+        // 系统菜单（Report/DataTool/Scan/Salary/Configuration/User）= None（无，工资结算默认不授权）
         foreach (var menu in UserRoleDisplayHelper.MenuTiers)
         {
             if (!UserRoleDisplayHelper.DefaultViewerMenus.Contains(menu.Prefix))
@@ -36,14 +36,25 @@ public class UserRoleDisplayHelperTests
     }
 
     [Fact]
-    public void MenuTiers_共14个主菜单()
+    public void MenuTiers_共15个主菜单_含工资结算()
     {
-        UserRoleDisplayHelper.MenuTiers.Should().HaveCount(14);
+        UserRoleDisplayHelper.MenuTiers.Should().HaveCount(15);
         UserRoleDisplayHelper.MenuTiers.Select(m => m.Prefix).Should().Contain(new[]
         {
             "Order", "WorkOrder", "Scheduling", "Batch", "Quality", "Material", "Warehouse",
-            "Equipment", "Standard", "Report", "DataTool", "Scan", "Configuration", "User"
+            "Equipment", "Standard", "Report", "DataTool", "Scan", "Salary", "Configuration", "User"
         });
+        // 工资结算归系统菜单：新建默认「无」（显式授权），与 Roles.Menus 顺序一致（Scan 后 / Configuration 前）
+        UserRoleDisplayHelper.MenuTiers.Single(m => m.Prefix == "Salary").DisplayName.Should().Be("工资结算");
+        UserRoleDisplayHelper.DefaultViewerMenus.Should().NotContain("Salary");
+    }
+
+    [Fact]
+    public void MenuTiers_顺序与Roles一致_工资结算在Scan与Configuration之间()
+    {
+        var prefixes = UserRoleDisplayHelper.MenuTiers.Select(m => m.Prefix).ToList();
+        prefixes.IndexOf("Salary").Should().BeGreaterThan(prefixes.IndexOf("Scan"));
+        prefixes.IndexOf("Salary").Should().BeLessThan(prefixes.IndexOf("Configuration"));
     }
 
     [Fact]
@@ -107,6 +118,7 @@ public class UserRoleDisplayHelperTests
         UserRoleDisplayHelper.GetRoleDisplayName("WarehouseEditor").Should().Be("仓库管理-查增改");
         UserRoleDisplayHelper.GetRoleDisplayName("WarehouseFull").Should().Be("仓库管理-查增改删");
         UserRoleDisplayHelper.GetRoleDisplayName("OrderViewer").Should().Be("订单管理-查");
+        UserRoleDisplayHelper.GetRoleDisplayName("SalaryViewer").Should().Be("工资结算-查");
         UserRoleDisplayHelper.GetRoleDisplayName("Admin").Should().Be("超级管理员");
         UserRoleDisplayHelper.GetRoleDisplayName("UnknownRole").Should().Be("UnknownRole");
     }

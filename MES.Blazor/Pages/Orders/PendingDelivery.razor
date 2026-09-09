@@ -10,10 +10,8 @@
 @using MES.Core.DTOs.Order
 @inject PendingDeliveryService PendingSvc
 @inject PageStateService PageState
-@inject NavigationManager Navigation
 @inject HttpClient Http
 @inject ISnackbar Snackbar
-@inject IDialogService DialogService
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
 @attribute [Authorize(Roles = Roles.Policies.OrderView)]

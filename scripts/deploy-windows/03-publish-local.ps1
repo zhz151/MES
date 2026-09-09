@@ -33,7 +33,7 @@ $json | ConvertTo-Json -Depth 5 | Set-Content $appJson -Encoding UTF8
 Write-Host "    BaseUrl rewritten to '' (same-origin /api) at $appJson"
 
 # sanity: blazor publish contains PWA files
-foreach ($f in @("index.html","manifest.json","service-worker.js","service-worker.published.js","_framework\blazor.webassembly.js")) {
+foreach ($f in @("index.html","manifest.json","_framework\blazor.webassembly.js")) {
     if (-not (Test-Path (Join-Path $pubBlz "wwwroot\$f"))) {
         Write-Host "    [WARN] missing PWA asset in publish: $f" -ForegroundColor Yellow
     }
