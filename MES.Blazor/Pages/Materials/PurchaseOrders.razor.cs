@@ -43,7 +43,7 @@ public partial class PurchaseOrders : IAsyncDisposable
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
-        "Quantity", "Weight", "WoTotalQuantity", "WoTotalWeight", "WoTotalItemCount",
+        "Quantity", "Weight", "TotalAmount", "WoTotalQuantity", "WoTotalWeight", "WoTotalItemCount",
     };
 
     // 排序状态
@@ -76,6 +76,9 @@ public partial class PurchaseOrders : IAsyncDisposable
 
     // 空值筛选哨兵（与 ExcelFilter 组件/后端 Service 的 "__EXCEL_FILTER_NULL__" 一致）
     private const string FilterNull = "__EXCEL_FILTER_NULL__";
+
+    // 列偏好版本（v2：计价单位/单价/总价 三列默认隐藏；变更默认显隐后需 bump 使存量偏好失效）
+    private const string ColumnPrefsVersion = "v2";
 
     // ========== 采购状态 & 关联异常 ==========
     private List<ProcurementStatusDto> procurementItems = new();
@@ -129,6 +132,9 @@ public partial class PurchaseOrders : IAsyncDisposable
             new() { Key = "UnitWeight",          Label = "单支重量",     SortKey = "unitweight", Width = "80", GroupKey = 1, GroupName = "采购信息" },
             new() { Key = "Quantity",            Label = "支数",         SortKey = "quantity", Width = "80", GroupKey = 1, GroupName = "采购信息" },
             new() { Key = "Weight",              Label = "采购重量",     SortKey = "weight", Width = "80", GroupKey = 1, GroupName = "采购信息" },
+            new() { Key = "PricingUnit",         Label = "计价单位",     SortKey = "pricingunit", Width = "80", GroupKey = 1, GroupName = "采购信息", Visible = false },
+            new() { Key = "UnitPrice",           Label = "单价",         SortKey = "unitprice", Width = "80", GroupKey = 1, GroupName = "采购信息", Visible = false },
+            new() { Key = "TotalAmount",         Label = "总价",         SortKey = "totalamount", Width = "90", GroupKey = 1, GroupName = "采购信息", Visible = false },
             new() { Key = "RequiredDate",        Label = "要求到货日",   SortKey = "requireddate", FilterType = "date", Width = "120", GroupKey = 1, GroupName = "采购信息" },
             new() { Key = "InputMultiple",       Label = "投料制成倍",   SortKey = "inputmultiple", Width = "80", GroupKey = 1, GroupName = "采购信息", Visible = false },
             new() { Key = "Remark",              Label = "采购备注",     SortKey = "remark", FilterType = "string", Width = "120", GroupKey = 1, GroupName = "采购信息", Visible = false },
@@ -141,7 +147,7 @@ public partial class PurchaseOrders : IAsyncDisposable
                 EnumOptions = new List<EnumOption> { new(FilterNull, "空值") }.Concat(DisplayHelper.GetScheduleStageOptions()).ToList() },
             new() { Key = "ExecutionRawMaterialLockRemark", Label = "原锁执行备注", SortKey = "executionrawmateriallockremark", FilterType = "string", Width = "130", GroupKey = 2, GroupName = "工单实时关注" },
             new() { Key = "ExecutionUrgencyLevel",          Label = "计划性",       SortKey = "executionurgencylevel",          FilterType = "string", Width = "100", GroupKey = 2, GroupName = "工单实时关注" },
-            new() { Key = "ExecutionTheoreticalCutoffDate", Label = "理论截止投料日", SortKey = "executiontheoreticalcutoffdate", FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "工单实时关注" },
+            new() { Key = "ExecutionTheoreticalCutoffDate", Label = "理论截止投料日", SortKey = "executiontheoreticalcutoffdate", FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "工单实时关注", Visible = false },
         };
 
         // G3: 执行状态
@@ -152,7 +158,7 @@ public partial class PurchaseOrders : IAsyncDisposable
             new() { Key = "ArrivalDate",         Label = "到货截止日",   SortKey = "lastarrivaldate", FilterField = "LastArrivalDate", FilterType = "date", Width = "120", GroupKey = 3, GroupName = "执行状态" },
             new() { Key = "Received",            Label = "已到货量",     Width = "100", GroupKey = 3, GroupName = "执行状态" },
             new() { Key = "Returned",            Label = "退货量",       Width = "100", GroupKey = 3, GroupName = "执行状态" },
-            new() { Key = "IsForceCompleted",    Label = "属强制完成",   SortKey = "isforcecompleted", FilterType = "enum", Width = "100", GroupKey = 3, GroupName = "执行状态",
+            new() { Key = "IsForceCompleted",    Label = "强制完成",     SortKey = "isforcecompleted", FilterType = "enum", Width = "100", GroupKey = 3, GroupName = "执行状态",
                 EnumOptions = DisplayHelper.GetBoolOptions() },
         };
 
@@ -250,7 +256,7 @@ public partial class PurchaseOrders : IAsyncDisposable
     // ========== 数值列居中（数据单元格） ==========
     private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
     {
-        "UnitWeight", "Quantity", "Weight", "InputMultiple", "Received", "Returned",
+        "UnitWeight", "Quantity", "Weight", "UnitPrice", "TotalAmount", "InputMultiple", "Received", "Returned",
         "WoMaxLength", "WoTotalQuantity", "WoTotalWeight", "WoTotalItemCount",
     };
     private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
@@ -560,7 +566,7 @@ public partial class PurchaseOrders : IAsyncDisposable
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("purchase_orders", null, _allColumns);
+        await ColumnPrefs.SaveAsync("purchase_orders", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -704,6 +710,15 @@ public partial class PurchaseOrders : IAsyncDisposable
                 break;
             case "RequiredDate":
                 builder.AddContent(0, item.RequiredDate.ToString("yyyy-MM-dd"));
+                break;
+            case "PricingUnit":
+                builder.AddContent(0, DisplayHelper.GetPriceUnitText(item.PricingUnit));
+                break;
+            case "UnitPrice":
+                builder.AddContent(0, item.UnitPrice?.ToString("G29") ?? "-");
+                break;
+            case "TotalAmount":
+                builder.AddContent(0, item.TotalAmount?.ToString("G29") ?? "-");
                 break;
             case "SupplierName":
                 builder.AddContent(0, item.SupplierName);
@@ -866,7 +881,7 @@ public partial class PurchaseOrders : IAsyncDisposable
 
         // 列定义与偏好加载
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("purchase_orders", null);
+        var saved = await ColumnPrefs.LoadAsync("purchase_orders", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)

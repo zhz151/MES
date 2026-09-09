@@ -31,6 +31,8 @@ public class SubcontractOrderDto
     /// <summary>退货重量（kg）：退货出库归集到委外单号级</summary>
     public decimal ReturnWeight { get; set; }
     public string? Remark { get; set; }
+    /// <summary>委外金额合计（元）= Σ 明细 ProcessTotalAmount，委外单列表展示</summary>
+    public decimal? TotalAmount { get; set; }
     public List<SubcontractReturnItemDto> ReturnItems { get; set; } = new();
     public string? CreatedBy { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
@@ -72,6 +74,7 @@ public class SubcontractReturnItemDto
     public int? InputMultiple { get; set; }
     public string? ProcessStatusRemark { get; set; }
     public string? Remark { get; set; }
+    public PricingUnit? PricingUnit { get; set; }
     public decimal? ProcessUnitPrice { get; set; }
     public decimal? ProcessTotalAmount { get; set; }
     public string? SourceWorkOrderNo { get; set; }
@@ -133,6 +136,7 @@ public class CreateReturnItemRequest
     public int? InputMultiple { get; set; }
     public string? ProcessStatusRemark { get; set; }
     public string? Remark { get; set; }
+    public PricingUnit? PricingUnit { get; set; }
     public decimal? ProcessUnitPrice { get; set; }
     public decimal? ProcessTotalAmount { get; set; }
     public string? SourceWorkOrderNo { get; set; }

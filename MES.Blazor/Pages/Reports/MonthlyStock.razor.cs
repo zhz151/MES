@@ -11,11 +11,12 @@ using MES.Shared.Constants;
 namespace MES.Blazor.Pages.Reports;
 
 /// <summary>
-/// 物料进出存报表：行=库房×物料类型（库房合并单元格），列=期初 + 12月 + 实时数据/实时结存。
+/// 物料进出存报表：行=库房×物料类型（库房合并单元格），列=期初 + 12月 + 进出汇总/实时库存。
 /// 4 报表切换（入库/出库/库存/物料进出存），同一数据集仅展示列不同；
 /// 结存为真实库存余额（全口径）。入库报表按「入库来源」展开、出库报表按「出库类型」展开，
 /// 均为 库房×物料类型×来源/类型 粒度，并附「物料汇总(t)」合并列。
-/// 当前月份之后的月份尚未发生，单元格留空；实时列=截至当前月的 入/出/结 合计。
+/// 当前月份之后的月份尚未发生，单元格留空；物料进出存(inout) 每月格=彩带入x/出y（绿入/红出），
+/// 末尾两列：进出汇总（全年入/出流量）+ 实时库存（只显示当前库存量）。
 /// </summary>
 public partial class MonthlyStock
 {
@@ -52,12 +53,13 @@ public partial class MonthlyStock
 
     private string CurrentTitle => ReportOptions.First(o => o.Value == _reportType).Label;
 
+    /// <summary>末尾合计列表头（物料进出存报表不走此列——表头渲染「进出汇总」+「实时库存」两列）</summary>
     private string TotalHeader => _reportType switch
     {
         "in" => "来源汇总(t)",
         "out" => "出库类型汇总(t)",
         "stock" => "实时结存",
-        _ => "实时数据"
+        _ => "实时结存"
     };
 
     protected override async Task OnInitializedAsync()
@@ -184,37 +186,46 @@ public partial class MonthlyStock
     private static string FormatWeight(decimal kg)
         => kg != 0m ? (kg / 1000m).ToString("F1") : string.Empty;
 
-    /// <summary>单月格按当前报表类型取值显示</summary>
-    private string FormatMonthCell(MonthlyStockMonthValueDto mv) => _reportType switch
+    /// <summary>单月格按当前月份与报表类型渲染：未来月留空；inout 走彩带入x/出y，其余单值吨。</summary>
+    private MarkupString MonthCell(int m, MonthlyStockRowDto r)
     {
-        "in" => FormatWeight(mv.In),
-        "out" => FormatWeight(mv.Out),
-        "stock" => FormatWeight(mv.Closing),
-        _ => FormatInOutClosing(mv.In, mv.Out, mv.Closing)
-    };
+        if (m > _currentMonthIndex) return new MarkupString(string.Empty);
+        var mv = r.Months[m];
+        return _reportType switch
+        {
+            "in" => new MarkupString(FormatWeight(mv.In)),
+            "out" => new MarkupString(FormatWeight(mv.Out)),
+            "stock" => new MarkupString(FormatWeight(mv.Closing)),
+            _ => BuildFlowMarkup(mv.In, mv.Out)
+        };
+    }
 
-    /// <summary>全年合计列按当前报表类型取值显示</summary>
-    private string FormatTotalCell(MonthlyStockRowDto r) => _reportType switch
+    /// <summary>末尾合计列文本（非 inout 报表单值吨；inout 报表末尾为「进出汇总」彩带 +「实时库存」两列，不走此方法）</summary>
+    private string FooterCellText(MonthlyStockRowDto r) => _reportType switch
     {
         "in" => FormatWeight(r.TotalIn),
         "out" => FormatWeight(r.TotalOut),
         "stock" => FormatWeight(r.ClosingWeight),
-        _ => FormatInOutClosing(r.TotalIn, r.TotalOut, r.ClosingWeight)
+        _ => string.Empty
     };
 
     /// <summary>
-    /// 三值「入/出,[结]」格式化（kg/1000 显示 t，F1，0 值留空；结存负数仍显示）。例：80/15,[65] 表示当月入 80t、出 15t、月末结存 65t。
+    /// 彩带入x/出y（kg→t，F1；0 侧省略、两侧皆 0 返回空）。「入」浅绿底深绿字、「出」浅红底深红字，
+    /// 内联样式保证打印（getTableHtml 抓取 DOM）与屏幕显示一致。例：入80/出15。
     /// </summary>
-    private static string FormatInOutClosing(decimal inKg, decimal outKg, decimal closingKg)
+    private static MarkupString BuildFlowMarkup(decimal inKg, decimal outKg)
     {
-        if (inKg <= 0 && outKg <= 0 && closingKg == 0m) return string.Empty;
-        var flow = new List<string>();
-        if (inKg > 0) flow.Add((inKg / 1000m).ToString("F1"));
-        if (outKg > 0) flow.Add((outKg / 1000m).ToString("F1"));
-        var flowPart = string.Join("/", flow);
-        var closingPart = closingKg != 0m ? "[" + (closingKg / 1000m).ToString("F1") + "]" : string.Empty;
-        if (string.IsNullOrEmpty(flowPart)) return closingPart;
-        return string.IsNullOrEmpty(closingPart) ? flowPart : flowPart + "," + closingPart;
+        var inT = inKg > 0m ? (inKg / 1000m).ToString("F1") : null;
+        var outT = outKg > 0m ? (outKg / 1000m).ToString("F1") : null;
+        if (inT == null && outT == null) return new MarkupString(string.Empty);
+        var html = string.Empty;
+        if (inT != null)
+            html += "<span style=\"color:#1e7e34;background:#e6f4ea;font-weight:600;border-radius:3px;padding:0 4px;\">入" + inT + "</span>";
+        if (inT != null && outT != null)
+            html += "<span style=\"color:#9e9e9e;padding:0 2px;\">/</span>";
+        if (outT != null)
+            html += "<span style=\"color:#c62828;background:#fdecea;font-weight:600;border-radius:3px;padding:0 4px;\">出" + outT + "</span>";
+        return new MarkupString(html);
     }
 
     // ========== 打印 ==========

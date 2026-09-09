@@ -22,6 +22,10 @@ public partial class SectionOutsources
 {
     private MudTable<SectionOutsourceDto>? table;
     private List<SectionOutsourceDto> _pageItems = new();
+
+    // 启用中的委外单位档案全量（active，小表）：行内编辑委外单位下拉候选（按行工段过滤）
+    private List<OutsourceVendorProfileDto> _activeVendors = new();
+
     private int _totalCount;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
@@ -112,8 +116,8 @@ public partial class SectionOutsources
 
     // ========== 列定义 ==========
 
-    /// <summary>列偏好版本键：改默认列显隐后 +1，使旧 localStorage 偏好失效一次以应用新默认（2026-09-09 收敛升 v2）</summary>
-    private const string ColumnPrefsVersion = "v2";
+    /// <summary>列偏好版本键：改默认列显隐后 +1，使旧 localStorage 偏好失效一次以应用新默认（2026-09-09 收敛升 v3 加计价三列；同日二调 v4 计价三列默认隐藏）</summary>
+    private const string ColumnPrefsVersion = "v4";
 
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
@@ -140,6 +144,9 @@ public partial class SectionOutsources
         new() { Key = "OutsourceSpec",       Label = "委外规格",     SortKey = "outsourcespec",       FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "SendQuantity",        Label = "发出支数",     SortKey = "sendquantity", Width = "80", GroupKey = 1, GroupName = "委外信息" },
         new() { Key = "SendWeight",          Label = "发出重量",     SortKey = "sendweight", Width = "80", GroupKey = 1, GroupName = "委外信息" },
+        new() { Key = "PricingUnit",         Label = "计价单位",     SortKey = "pricingunit",   Width = "90", GroupKey = 1, GroupName = "委外信息", Visible = false },
+        new() { Key = "UnitPrice",           Label = "单价(元)",     SortKey = "unitprice",     Width = "100", GroupKey = 1, GroupName = "委外信息", Visible = false },
+        new() { Key = "TotalAmount",         Label = "总价(元)",     SortKey = "totalamount",   Width = "110", GroupKey = 1, GroupName = "委外信息", Visible = false },
         new() { Key = "ExpectedReturnDate",  Label = "要求收回日期", SortKey = "expectedreturndate",  FilterType = "date", Width = "120", GroupKey = 1, GroupName = "委外信息", Visible = false },
         new() { Key = "IsUrgent",            Label = "紧急",         SortKey = "isurgent",            FilterType = "boolean", BoolTrueLabel = "是", BoolFalseLabel = "否", Width = "60", GroupKey = 1, GroupName = "委外信息", Visible = false },
         // ----- 元信息（归属委外记录） -----
@@ -472,6 +479,10 @@ public partial class SectionOutsources
 
     protected override async Task OnInitializedAsync()
     {
+        var vendorResult = await OutsourceVendorService.GetActiveAsync();
+        if (vendorResult.Success && vendorResult.Data != null)
+            _activeVendors = vendorResult.Data;
+
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("section-outsources", ColumnPrefsVersion);
         if (saved.Count > 0)
@@ -562,6 +573,10 @@ public partial class SectionOutsources
         public string? ExpectedReturnDateText { get; set; }
         public bool IsUrgent { get; set; }
         public bool IsInternal { get; set; }
+        // ========== 计价三字段（厂内 IsInternal=true 行无价，均为 null） ==========
+        public PricingUnit? PricingUnit { get; set; }
+        public decimal? UnitPrice { get; set; }
+        public decimal? TotalAmount { get; set; }
         public string? Remark { get; set; }
     }
 
@@ -605,24 +620,14 @@ public partial class SectionOutsources
 
             case "OutsourceVendor":
                 if (isEditing && cache != null)
-                    RenderEditTextField(builder, cache.OutsourceVendor ?? "", v => cache.OutsourceVendor = v);
+                    RenderEditVendorField(builder, cache.OutsourceVendor ?? "", item.SectionName, v => cache.OutsourceVendor = v);
                 else
                     builder.AddContent(0, item.OutsourceVendor);
                 break;
 
             case "IsInternal":
-                if (isEditing && cache != null)
-                {
-                    builder.OpenComponent<MudCheckBox<bool>>(0);
-                    builder.AddAttribute(1, "Value", cache.IsInternal);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<bool>(this, v => cache.IsInternal = v));
-                    builder.AddAttribute(3, "Dense", true);
-                    builder.CloseComponent();
-                }
-                else
-                {
-                    builder.AddContent(0, DisplayHelper.GetYesNoText(item.IsInternal));
-                }
+                // 厂内由委外单位档案(本厂车间)派生，只读展示，不可在行内编辑
+                builder.AddContent(0, DisplayHelper.GetYesNoText(item.IsInternal));
                 break;
 
             case "SendOutDate":
@@ -641,6 +646,58 @@ public partial class SectionOutsources
                     RenderEditDecimalField(builder, cache.SendWeight, v => cache.SendWeight = v);
                 else
                     builder.AddContent(0, $"{(int)(item.SendWeight ?? 0)}");
+                break;
+
+            case "PricingUnit":
+                if (isEditing && cache != null && !cache.IsInternal)
+                {
+                    builder.OpenComponent<MudSelect<PricingUnit>>(0);
+                    builder.AddAttribute(1, "Dense", true);
+                    builder.AddAttribute(2, "Variant", Variant.Outlined);
+                    builder.AddAttribute(3, "Size", Size.Small);
+                    builder.AddAttribute(4, "ToStringFunc", (Func<PricingUnit, string>)(u => DisplayHelper.GetPriceUnitText(u))); // 选中值中文兜底
+                    builder.AddAttribute(5, "Class", "compact-input");
+                    builder.AddAttribute(6, "Value", cache.PricingUnit ?? PricingUnit.PerKg);
+                    builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<PricingUnit>(this, v => cache.PricingUnit = v));
+                    builder.AddAttribute(8, "ChildContent", (RenderFragment)(b =>
+                    {
+                        foreach (var opt in DisplayHelper.GetEnumOptions<PricingUnit>())
+                        {
+                            b.OpenComponent<MudSelectItem<PricingUnit>>(0);
+                            b.AddAttribute(1, "Value", Enum.Parse<PricingUnit>(opt.Value));
+                            b.AddAttribute(2, "Text", opt.Display);
+                            b.AddAttribute(3, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display))); // 展开选项中文
+                            b.CloseComponent();
+                        }
+                    }));
+                    builder.CloseComponent();
+                }
+                else
+                    builder.AddContent(0, DisplayHelper.GetPriceUnitText(item.PricingUnit));
+                break;
+
+            case "UnitPrice":
+                if (isEditing && cache != null)
+                {
+                    if (cache.IsInternal)
+                        builder.AddContent(0, "");
+                    else
+                        RenderEditDecimalField(builder, cache.UnitPrice, v => cache.UnitPrice = v);
+                }
+                else
+                    builder.AddContent(0, item.UnitPrice?.ToString("G29") ?? "");
+                break;
+
+            case "TotalAmount":
+                if (isEditing && cache != null)
+                {
+                    if (cache.IsInternal)
+                        builder.AddContent(0, "");
+                    else
+                        RenderEditDecimalField(builder, cache.TotalAmount, v => cache.TotalAmount = v);
+                }
+                else
+                    builder.AddContent(0, item.TotalAmount?.ToString("G29") ?? "");
                 break;
 
             case "Status":
@@ -767,6 +824,42 @@ public partial class SectionOutsources
         builder.CloseComponent();
     }
 
+    /// <summary>
+    /// 行内编辑委外单位：仅从委外单位档案下拉（启用中 + 按行工段过滤），禁手输造新；
+    /// 历史档外单位名不在启用档案中时作为首项保留（不改动可保存，服务端仅当改名才强制命中档案）
+    /// </summary>
+    private void RenderEditVendorField(RenderTreeBuilder builder, string current, string sectionName, Action<string> onChanged)
+    {
+        builder.OpenComponent<MudAutocomplete<string>>(0);
+        builder.AddAttribute(1, "Dense", true);
+        builder.AddAttribute(2, "Variant", Variant.Outlined);
+        builder.AddAttribute(3, "Size", Size.Small);
+        builder.AddAttribute(4, "Class", "compact-input");
+        builder.AddAttribute(5, "Value", current);
+        builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, onChanged));
+        builder.AddAttribute(7, "SearchFunc", (Func<string, Task<IEnumerable<string>>>)(search =>
+        {
+            var pool = _activeVendors
+                .Where(p => p.IsActive
+                    && string.Equals(p.SectionName, sectionName, StringComparison.OrdinalIgnoreCase))
+                .Select(p => p.VendorName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (!string.IsNullOrWhiteSpace(current)
+                && !pool.Contains(current.Trim(), StringComparer.OrdinalIgnoreCase))
+                pool.Insert(0, current.Trim());
+            IEnumerable<string> result = string.IsNullOrWhiteSpace(search)
+                ? pool
+                : pool.Where(n => n.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
+            return Task.FromResult(result);
+        }));
+        builder.AddAttribute(8, "ToStringFunc", (Func<string, string>)(n => n ?? ""));
+        builder.AddAttribute(9, "MinCharacters", 1);
+        builder.AddAttribute(10, "CoerceValue", false);
+        builder.AddAttribute(11, "DebounceInterval", 200);
+        builder.CloseComponent();
+    }
+
     private void RenderEditIntField(RenderTreeBuilder builder, int? value, Action<int?> onChanged)
     {
         builder.OpenComponent<MudNumericField<int?>>(0);
@@ -804,6 +897,9 @@ public partial class SectionOutsources
             ExpectedReturnDateText = item.ExpectedReturnDate?.ToString("yyyy-MM-dd"),
             IsUrgent = item.IsUrgent,
             IsInternal = item.IsInternal,
+            PricingUnit = item.PricingUnit,
+            UnitPrice = item.UnitPrice,
+            TotalAmount = item.TotalAmount,
             Remark = item.Remark
         };
     }
@@ -830,7 +926,9 @@ public partial class SectionOutsources
                 OutsourceSpec = cache.OutsourceSpec,
                 ExpectedReturnDate = DateTime.TryParse(cache.ExpectedReturnDateText, out var erd) ? erd : null,
                 IsUrgent = cache.IsUrgent,
-                IsInternal = cache.IsInternal,
+                PricingUnit = cache.PricingUnit,
+                UnitPrice = cache.UnitPrice,
+                TotalAmount = cache.TotalAmount,
                 Remark = cache.Remark
             };
 

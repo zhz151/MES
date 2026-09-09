@@ -3,6 +3,7 @@
 @using MES.Blazor.Helpers
 @using MES.Core.Enums
 @using MES.Core.DTOs.Materials
+@using MES.Core.Helpers
 @using Microsoft.AspNetCore.Authorization
 @inject SubcontractOrderService SubcontractService
 @inject SupplierService SupplierService
@@ -219,8 +220,11 @@
         public string? ProcessStatusRemark { get; set; }
         public string? Remark { get; set; }
         public string? SourceWorkOrderNo { get; set; }
+        public PricingUnit PriceUnit { get; set; } = PricingUnit.PerKg;
         public string UnitPriceStr { get; set; } = string.Empty;
         public string TotalAmountStr { get; set; } = string.Empty;
+        /// <summary>金额是否被手动修改过（非空手输优先，改过则不自动覆盖）</summary>
+        public bool AmountEdited { get; set; }
 
         // ========== 回收执行数据（只读展示，由增量更新同步） ==========
         public int ReturnedQuantity { get; set; }
@@ -255,6 +259,14 @@
         public int? InputMultiple => int.TryParse(InputMultipleStr, out var v) ? v : null;
         public decimal? ProcessUnitPrice => decimal.TryParse(UnitPriceStr, out var v) ? v : null;
         public decimal? ProcessTotalAmount => decimal.TryParse(TotalAmountStr, out var v) ? v : null;
+
+        /// <summary>金额自动=单价×需求量（未手动改金额时）：PerKg→需求重量、PerPiece→需求支数</summary>
+        public void AutoFillTotalAmount()
+        {
+            if (AmountEdited || !string.IsNullOrWhiteSpace(TotalAmountStr)) return;
+            var total = MaterialPricingDefaults.ComputeTotal(PriceUnit, ProcessUnitPrice, RequiredWeight, RequiredQuantity, null);
+            TotalAmountStr = total?.ToString("G29") ?? string.Empty;
+        }
     }
 
     // ========== 初始化 ==========
@@ -313,8 +325,9 @@
             new() { Key = "isforcecompleted", Label = "强制完成", Visible = true, GroupKey = 1, GroupName = "加工要求" },
             new() { Key = "remark", Label = "备注", Visible = false, GroupKey = 1, GroupName = "加工要求" },
             new() { Key = "sourceworkorderno", Label = "来源工单号", Visible = true, GroupKey = 1, GroupName = "加工要求" },
-            new() { Key = "processunitprice", Label = "单价", Visible = false, GroupKey = 1, GroupName = "加工要求" },
-            new() { Key = "processtotalamount", Label = "金额", Visible = false, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "pricingunit", Label = "计价单位", Visible = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "processunitprice", Label = "单价", Visible = true, GroupKey = 1, GroupName = "加工要求" },
+            new() { Key = "processtotalamount", Label = "金额(元)", Visible = true, GroupKey = 1, GroupName = "加工要求" },
         };
 
         // G2: 来源工单字段
@@ -352,7 +365,8 @@
     {
         var savedHeader = await ColumnPrefs.LoadAsync(HeaderPrefsKey, null);
         if (savedHeader.Count > 0) ApplyColumnPrefs(_headerColumns, savedHeader);
-        var savedDetail = await ColumnPrefs.LoadAsync(DetailPrefsKey, null);
+        // 子表明细列默认变更（计价单位/单价/金额默认显示），bump 至 v1 使旧偏好失效
+        var savedDetail = await ColumnPrefs.LoadAsync(DetailPrefsKey, "v1");
         if (savedDetail.Count > 0) ApplyColumnPrefs(_detailColumns, savedDetail);
     }
 
@@ -382,7 +396,7 @@
     private async Task SaveColumnPrefs()
     {
         await ColumnPrefs.SaveAsync(HeaderPrefsKey, null, _headerColumns);
-        await ColumnPrefs.SaveAsync(DetailPrefsKey, null, _detailColumns);
+        await ColumnPrefs.SaveAsync(DetailPrefsKey, "v1", _detailColumns);
     }
 
     private async Task OnHeaderColumnToggle(ColumnDef col) => await SaveColumnPrefs();
@@ -446,8 +460,10 @@
             ProcessStatusRemark = i.ProcessStatusRemark,
             Remark = i.Remark,
             SourceWorkOrderNo = i.SourceWorkOrderNo,
+            PriceUnit = i.PricingUnit ?? PricingUnit.PerKg,
             UnitPriceStr = i.ProcessUnitPrice?.ToString("G29") ?? "",
             TotalAmountStr = i.ProcessTotalAmount?.ToString("G29") ?? "",
+            AmountEdited = i.ProcessTotalAmount.HasValue,
             // 回收执行数据
             ReturnedQuantity = i.ReturnedQuantity,
             ReturnedWeight = i.ReturnedWeight,
@@ -538,6 +554,7 @@
                     ProcessStatusRemark = i.ProcessStatusRemark,
                     Remark = i.Remark,
                     SourceWorkOrderNo = i.SourceWorkOrderNo,
+                    PricingUnit = i.PriceUnit,
                     ProcessUnitPrice = i.ProcessUnitPrice,
                     ProcessTotalAmount = i.ProcessTotalAmount,
                     IsForceCompleted = i.IsForceCompleted
@@ -581,7 +598,11 @@
     // ========== 加工要求明细操作 ==========
     private void AddReturnItem()
     {
-        _editReturnItems.Add(new EditReturnItemModel { Sequence = _editReturnItems.Count + 1 });
+        var row = new EditReturnItemModel { Sequence = _editReturnItems.Count + 1 };
+        // 穿孔委外行自动带出默认单价 1.2 元/kg
+        if (string.Equals(_editOrder.ProcessType, "Piercing", StringComparison.OrdinalIgnoreCase))
+            row.UnitPriceStr = MaterialPricingDefaults.PiercingUnitPrice.ToString("G29");
+        _editReturnItems.Add(row);
     }
 
     private void RemoveReturnItem(EditReturnItemModel item)
@@ -924,7 +945,7 @@
                 {
                     builder.OpenComponent<MudTextField<string>>(0);
                     builder.AddAttribute(1, "Value", item.RequiredWeightStr);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => item.RequiredWeightStr = v));
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => { item.RequiredWeightStr = v; item.AutoFillTotalAmount(); }));
                     builder.AddAttribute(3, "Dense", true);
                     builder.AddAttribute(4, "Variant", Variant.Outlined);
                     builder.AddAttribute(5, "Size", Size.Small);
@@ -1064,12 +1085,36 @@
             case "wototalitemcount":
                 builder.AddContent(0, item.WoTotalItemCount);
                 break;
+            case "pricingunit":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudSelect<PricingUnit>>(0);
+                    builder.AddAttribute(1, "Value", item.PriceUnit);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<PricingUnit>(this, v => { item.PriceUnit = v; item.AutoFillTotalAmount(); }));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.AddAttribute(6, "ChildContent", (RenderFragment)(cb =>
+                    {
+                        foreach (var opt in DisplayHelper.GetEnumOptions<PricingUnit>())
+                        {
+                            cb.OpenComponent<MudSelectItem<PricingUnit>>(0);
+                            cb.AddAttribute(1, "Value", Enum.Parse<PricingUnit>(opt.Value));
+                            cb.AddAttribute(2, "Text", opt.Display);
+                            cb.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, opt.Display)));
+                            cb.CloseComponent();
+                        }
+                    }));
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, DisplayHelper.GetPriceUnitText(item.PriceUnit)); }
+                break;
             case "processunitprice":
                 if (_isEditMode)
                 {
                     builder.OpenComponent<MudTextField<string>>(0);
                     builder.AddAttribute(1, "Value", item.UnitPriceStr);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => item.UnitPriceStr = v));
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => { item.UnitPriceStr = v; item.AutoFillTotalAmount(); }));
                     builder.AddAttribute(3, "Dense", true);
                     builder.AddAttribute(4, "Variant", Variant.Outlined);
                     builder.AddAttribute(5, "Size", Size.Small);
@@ -1082,7 +1127,7 @@
                 {
                     builder.OpenComponent<MudTextField<string>>(0);
                     builder.AddAttribute(1, "Value", item.TotalAmountStr);
-                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => item.TotalAmountStr = v));
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<string>(this, v => { item.TotalAmountStr = v; item.AmountEdited = true; }));
                     builder.AddAttribute(3, "Dense", true);
                     builder.AddAttribute(4, "Variant", Variant.Outlined);
                     builder.AddAttribute(5, "Size", Size.Small);

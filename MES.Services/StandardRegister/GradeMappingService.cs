@@ -301,21 +301,15 @@ public class GradeMappingService : IGradeMappingService
             }
             catch (BusinessException) { /* 跳过不存在的牌号映射 */ }
         }
-        return TablePrintHelper.GeneratePdf("牌号对照列表", result.Select(ToPrintDict).ToList(), columns ?? []);
+        // TablePrintHelper 对强类型 DTO 反射取值（FormatValue 自动处理枚举中文/日期/数值 G29），
+        // 仅对口径异于通用格式的列配 resolver，避免手写逐 key 白名单（加列漏同步即静默空白）。
+        return TablePrintHelper.GeneratePdf("牌号对照列表", result, columns ?? [],
+            new Dictionary<string, Func<object?, string>>
+            {
+                ["Density"] = v => v is decimal d ? d.ToString("F4") : "",
+                ["SpecialMaterial"] = v => v is bool b && b ? "特殊" : "常规",
+            });
     }
-
-    private static Dictionary<string, object> ToPrintDict(StandardGradeMappingDto dto) => new()
-    {
-        ["StandardGrade"] = dto.StandardGrade,
-        ["StandardGradeCategory"] = (object?)dto.StandardGradeCategory ?? "",
-        ["PlantGrade"] = dto.PlantGrade,
-        ["Density"] = dto.Density.ToString("F4"),
-        ["HeatTreatment"] = (object?)dto.HeatTreatment ?? "",
-        ["SpecialMaterial"] = dto.SpecialMaterial ? "特殊" : "常规",
-        ["SpecialNote"] = (object?)dto.SpecialNote ?? "",
-        ["SteelProperty"] = dto.SteelProperty,
-        ["Remark"] = (object?)dto.Remark ?? "",
-    };
 
     // ========== 筛选上下文 ==========
 

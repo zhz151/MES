@@ -43,11 +43,8 @@ public class OrderDeliveryBucketDto
     /// <summary>重量（吨，kg 已换算）</summary>
     public decimal Weight { get; set; }
 
-    /// <summary>「急中急」单数（桶内延期罚款=是的订单子集，订单级 HasDelayPenalty；仅表2 统计）</summary>
-    public int UrgentCount { get; set; }
-
-    /// <summary>「急中急」重量（吨，kg 已换算；仅表2 统计）</summary>
-    public decimal UrgentWeight { get; set; }
+    /// <summary>金额（桶内订单的项次总价合计，元；未计价订单计 0）</summary>
+    public decimal Amount { get; set; }
 
     /// <summary>桶日期范围起始（含；null=无下界，如「≤今日」桶），供前端点击联动筛选回传</summary>
     public DateTime? DateFrom { get; set; }

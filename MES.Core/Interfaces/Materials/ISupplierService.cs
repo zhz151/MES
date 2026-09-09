@@ -20,4 +20,7 @@ public interface ISupplierService
 
     // ========== 打印 ==========
     Task<byte[]> PrintSupplierBatchAsync(int[] ids, List<PrintColumnDef>? columns = null);
+
+    /// <summary>列表打印（Mode A）：前端已把当前页可见列转成字典行，服务端仅渲染</summary>
+    Task<byte[]> PrintSupplierListAsync(string title, List<Dictionary<string, object>> items, List<PrintColumnDef> columns);
 }

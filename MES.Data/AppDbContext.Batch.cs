@@ -266,6 +266,9 @@ public partial class AppDbContext
             entity.Property(e => e.SendOutDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.SendQuantity);
             entity.Property(e => e.SendWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.PricingUnit).HasConversion<string>().HasMaxLength(20);
+            entity.Property(e => e.UnitPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
             entity.Property(e => e.Status).IsRequired().HasMaxLength(20).HasConversion<string>().HasDefaultValue(SectionOutsourceStatus.PendingRecovery);
             entity.Property(e => e.TagNo).HasMaxLength(50);
             entity.Property(e => e.PlantGrade).HasMaxLength(50);
@@ -313,6 +316,28 @@ public partial class AppDbContext
             entity.Property(e => e.Remark).HasMaxLength(500);
 
             entity.HasIndex(e => e.SectionOutsourceId).HasDatabaseName("IX_OutsourceRecovery_OutsourceId");
+        });
+    }
+    private static void ConfigureOutsourceVendorProfile(ModelBuilder builder)
+    {
+        builder.Entity<OutsourceVendorProfile>(entity =>
+        {
+            entity.ToTable("OutsourceVendorProfile");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.VendorCode).IsRequired().HasMaxLength(6);
+            entity.HasIndex(e => e.VendorCode).IsUnique().HasDatabaseName("UK_OutsourceVendor_Code");
+            entity.Property(e => e.VendorName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
+            // 行键 = (委外单位名 × 委外工段)，防同单位同工段重复建档
+            entity.HasIndex(e => new { e.VendorName, e.SectionName })
+                .IsUnique()
+                .HasDatabaseName("UK_OutsourceVendor_Name_Section");
+            entity.Property(e => e.IsWorkshop).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.ContactPerson).HasMaxLength(50);
+            entity.Property(e => e.ContactPhone).HasMaxLength(50);
+            entity.Property(e => e.IsActive).IsRequired().HasDefaultValue(true);
+            entity.Property(e => e.Remark).HasMaxLength(500);
         });
     }
     private static void ConfigurePicklingInRecord(ModelBuilder builder)

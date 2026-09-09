@@ -180,8 +180,8 @@
                                                            Class="flex-grow-1"
                                                            Label="制造/交货状态（固溶酸洗、光亮、硬态等）"
                                                            Value="@row.MatchValue" ValueChanged="@(v => row.MatchValue = v)"
-                                                           Disabled="@(!row.IsActive)"
-                                                           Clearable="true">
+                                                           Disabled="@(!row.IsActive)">
+                                                    <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
                                                     @foreach (var opt in _states)
                                                     {
                                                         <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>

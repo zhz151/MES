@@ -82,13 +82,7 @@ public partial class Customers
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
-    // ========== 数值列（② 往来信息统计列：单数/重量/金额，数据格居中） ==========
-    private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
-    {
-        "TotalOrdering", "YearOrdering", "ShippedDone", "ShippedOther",
-        "StockDone", "StockOther", "WipNone", "WipPartial"
-    };
-    private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
+    // ========== ② 往来信息组数据/页脚一律靠左（2026-09-10 同委外单位/供应商页口径，移除居中逻辑） ==========
 
     // ========== ② 往来信息 分组列标题栏（仿订单列表 B23） ==========
     // 选择列 40px + 可见列宽和 + 操作列 90px
@@ -658,13 +652,13 @@ public partial class Customers
         var isEditing = _editingIds.Contains(item.Id);
         var cache = isEditing && _editCache.TryGetValue(item.Id, out var c) ? c : null;
 
-        // 客户业务统计 8 列：只读文本单元格（组合文本：单数/重量/金额），悬停显示完整值
-        var statText = RenderStatText(item, col.Key);
-        if (statText != null)
+        // 客户业务统计 8 列：只读三色单元格（z单/x吨/y万，蓝单/绿吨/万橙），悬停显示完整纯文本值
+        var statMarkup = RenderStatMarkup(item, col.Key);
+        if (statMarkup.HasValue)
         {
             builder.OpenElement(0, "span");
-            builder.AddAttribute(1, "title", statText);
-            builder.AddContent(2, statText);
+            builder.AddAttribute(1, "title", RenderStatText(item, col.Key) ?? "—");
+            builder.AddContent(2, statMarkup.Value);
             builder.CloseElement();
             return;
         }
@@ -841,58 +835,45 @@ public partial class Customers
 
     // ========== 客户业务统计列渲染 ==========
 
-    /// <summary>统计 8 列只读文本：累计·本年接单(单数+重量+金额)/发货·待发·在产(重量+金额)；非统计列返回 null</summary>
+    /// <summary>统计列三色富文本（z单/x吨/y万，取整；与报表业务总况色板一致）；非统计列返回 null</summary>
+    private static MarkupString? RenderStatMarkup(CustomerProfileDto item, string key)
+    {
+        if (!ResolveStat(item, key, out var withCount, out var count, out var weight, out var amount))
+            return null;
+        return OrderOverviewFormatter.RenderTradeMarkup(count, weight, amount, withCount);
+    }
+
+    /// <summary>统计列纯文本（同 RenderStatMarkup 数值口径，供 tooltip/打印）；非统计列返回 null</summary>
     private static string? RenderStatText(CustomerProfileDto item, string key)
     {
-        bool withCount;
-        int count;
-        decimal weight;
-        decimal amount;
+        if (!ResolveStat(item, key, out var withCount, out var count, out var weight, out var amount))
+            return null;
+        return OrderOverviewFormatter.RenderTradeText(count, weight, amount, withCount);
+    }
+
+    /// <summary>解析统计 8 列成分（单数/重量kg/金额元，均为带单数列）</summary>
+    private static bool ResolveStat(CustomerProfileDto item, string key, out bool withCount, out int count, out decimal weight, out decimal amount)
+    {
+        count = 0; weight = 0m; amount = 0m;
         switch (key)
         {
-            case "TotalOrdering":
-                count = item.TotalOrderCount; weight = item.TotalOrderWeight; amount = item.TotalOrderAmount; withCount = true;
-                break;
-            case "YearOrdering":
-                count = item.YearOrderCount; weight = item.YearOrderWeight; amount = item.YearOrderAmount; withCount = true;
-                break;
-            case "ShippedDone":
-                count = item.ShippedCompletedCount; weight = item.ShippedCompletedWeight; amount = item.ShippedCompletedAmount; withCount = true;
-                break;
-            case "ShippedOther":
-                count = item.ShippedOtherCount; weight = item.ShippedOtherWeight; amount = item.ShippedOtherAmount; withCount = true;
-                break;
-            case "StockDone":
-                count = item.StockCompletedCount; weight = item.StockCompletedWeight; amount = item.StockCompletedAmount; withCount = true;
-                break;
-            case "StockOther":
-                count = item.StockOtherCount; weight = item.StockOtherWeight; amount = item.StockOtherAmount; withCount = true;
-                break;
-            case "WipNone":
-                count = item.WipNoneCount; weight = item.WipNoneWeight; amount = item.WipNoneAmount; withCount = true;
-                break;
-            case "WipPartial":
-                count = item.WipPartialCount; weight = item.WipPartialWeight; amount = item.WipPartialAmount; withCount = true;
-                break;
-            default:
-                return null;
+            case "TotalOrdering": count = item.TotalOrderCount; weight = item.TotalOrderWeight; amount = item.TotalOrderAmount; break;
+            case "YearOrdering": count = item.YearOrderCount; weight = item.YearOrderWeight; amount = item.YearOrderAmount; break;
+            case "ShippedDone": count = item.ShippedCompletedCount; weight = item.ShippedCompletedWeight; amount = item.ShippedCompletedAmount; break;
+            case "ShippedOther": count = item.ShippedOtherCount; weight = item.ShippedOtherWeight; amount = item.ShippedOtherAmount; break;
+            case "StockDone": count = item.StockCompletedCount; weight = item.StockCompletedWeight; amount = item.StockCompletedAmount; break;
+            case "StockOther": count = item.StockOtherCount; weight = item.StockOtherWeight; amount = item.StockOtherAmount; break;
+            case "WipNone": count = item.WipNoneCount; weight = item.WipNoneWeight; amount = item.WipNoneAmount; break;
+            case "WipPartial": count = item.WipPartialCount; weight = item.WipPartialWeight; amount = item.WipPartialAmount; break;
+            default: withCount = true; return false;
         }
-
-        return BuildStatText(withCount, count, weight, amount);
+        withCount = true;
+        return true;
     }
 
-    /// <summary>统计单元格/合计文本：单数（可选）+ 重量(吨) + 金额(万)，各保留 1 位小数；全 0 显示占位「—」</summary>
+    /// <summary>统计列页内合计文本（同 RenderStatText 数值口径，整单/吨/万 取整）</summary>
     private static string BuildStatText(bool withCount, int count, decimal weightKg, decimal amountYuan)
-    {
-        var parts = new List<string>();
-        if (withCount && count > 0)
-            parts.Add($"{count}单");
-        if (weightKg > 0m)
-            parts.Add($"{(weightKg / 1000m).ToString("F1")}吨");
-        if (amountYuan > 0m)
-            parts.Add($"{(amountYuan / 10000m).ToString("F1")}万");
-        return parts.Count > 0 ? string.Join("/", parts) : "—";
-    }
+        => OrderOverviewFormatter.RenderTradeText(count, weightKg, amountYuan, withCount);
 
     // ========== 打印方法（Mode A 列表打印：按当前可见列——含 ② 往来信息 全部统计列——完整打印选中行） ==========
 

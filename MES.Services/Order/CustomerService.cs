@@ -29,6 +29,7 @@ using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
+using MES.Core.Helpers;
 using MES.Services.Printing;
 using MES.Data;
 using MES.Data.Entities;
@@ -260,24 +261,10 @@ public class CustomerService : ICustomerService
             var outbound = s?.FinishedOutboundWeight ?? 0m;
             var stock = s?.FinishedStockWeight ?? 0m;
 
-            // 池级金额（重量切片按各池合同重占比近似划池）
-            var shipMoney = 0m;
-            var stockMoney = 0m;
-            var wipMoney = 0m;
-            if (pools.WWeigh > 0m)
-            {
-                var (sm, stm, wm) = CalcPoolMoney(
-                    inbound * pools.WWeigh / totalWeight, outbound * pools.WWeigh / totalWeight,
-                    stock * pools.WWeigh / totalWeight, pools.WWeigh, pools.MWeigh, isWeighing: true);
-                shipMoney += sm; stockMoney += stm; wipMoney += wm;
-            }
-            if (pools.WFixed > 0m)
-            {
-                var (sm, stm, wm) = CalcPoolMoney(
-                    inbound * pools.WFixed / totalWeight, outbound * pools.WFixed / totalWeight,
-                    stock * pools.WFixed / totalWeight, pools.WFixed, pools.MFixed, isWeighing: false);
-                shipMoney += sm; stockMoney += stm; wipMoney += wm;
-            }
+            // 池级金额（重量切片按各池合同重占比近似划池；与报表业务总况同用 SettlementMoneyCalculator，防口径漂移）
+            var (shipMoney, stockMoney, wipMoney) = SettlementMoneyCalculator.SplitOrder(
+                inbound, outbound, stock,
+                pools.WWeigh, pools.MWeigh, pools.WFixed, pools.MFixed);
 
             var isCompleted = s?.ScheduleStage == 1;
             var isSignedThisYear = o.SignYear == year;
@@ -333,29 +320,6 @@ public class CustomerService : ICustomerService
         }
 
         return buckets;
-    }
-
-    /// <summary>
-    /// 结算池金额折算。
-    /// 过磅(Weighing)：计价重量=实际公斤，不封顶（超产照付）；
-    /// 固定池(理算/过磅-负)：发货→库存阶梯认领、公斤认领池上限=合同池重，超产余料只显公斤不计价。
-    /// </summary>
-    private static (decimal ShipMoney, decimal StockMoney, decimal WipMoney) CalcPoolMoney(
-        decimal inboundShare, decimal outboundShare, decimal stockShare, decimal poolWeight, decimal poolMoney, bool isWeighing)
-    {
-        if (poolWeight <= 0m)
-            return (0m, 0m, 0m);
-
-        var rate = poolMoney / poolWeight;
-        var wipMoney = Math.Max(poolWeight - inboundShare, 0m) * rate;
-
-        if (isWeighing)
-            return (outboundShare * rate, stockShare * rate, wipMoney);
-
-        // 固定池：发货先认领合同，库存只能吃发货后的合同余量；超产部分不计价
-        var shippedContract = Math.Min(outboundShare, poolWeight);
-        var stockContract = Math.Min(stockShare, Math.Max(poolWeight - shippedContract, 0m));
-        return (shippedContract * rate, stockContract * rate, wipMoney);
     }
 
     private static CustomerStatsBucket GetBucket(Dictionary<string, CustomerStatsBucket> buckets, string key)

@@ -87,12 +87,14 @@ public class AppMenuTests
             ("生产记录", "/production-records"),
             ("去油酸洗", "/pickling-in-records"),
             ("工段委外", "/section-outsources"),
+            ("委外单位管理", "/outsource-vendors"),
             ("工艺卡打印", "/process-card-print"));
 
         // 旧菜单名「批次首页」全树不得残留
         AppMenu.AllLeaves().Should().NotContain(n => n.Label == "批次首页");
         AppMenu.AllLeaves().Count(n => n.Label == "生产批次").Should().Be(1);
         AppMenu.AllLeaves().Count(n => n.Label == "生产执行核查").Should().Be(1);
+        AppMenu.AllLeaves().Count(n => n.Label == "委外单位管理").Should().Be(1);
     }
 
     [Fact]
@@ -139,9 +141,9 @@ public class AppMenuTests
     public void 根级顺序_与电脑版历史一致()
     {
         AppMenu.Root.Select(n => n.Label).Should().Equal(
-            "首页", "订单管理", "工单管理", "计划排程", "批次管理", "质量管理",
-            "物料管理", "仓库管理", "设备管理", "生产标准", "报表系统", "数据工具",
-            "扫码管理", "工资结算", "参数表", "用户管理");
+            "首页", "报表总览", "订单管理", "工单管理", "计划排程", "批次管理", "质量管理",
+            "物料管理", "仓库管理", "设备管理", "生产标准", "扫码管理",
+            "工资结算", "参数表", "数据工具", "用户管理");
     }
 
     [Fact]

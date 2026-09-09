@@ -10,6 +10,7 @@ using MES.Core.Models;
 using MES.Blazor.Shared;
 using MES.Core.DTOs.Materials;
 using MES.Core.DTOs.Order;
+using MES.Core.DTOs.Shared;
 using MES.Core.Enums;
 using MES.Core.Helpers;
 using System.Text.Json;
@@ -61,20 +62,114 @@ public partial class Suppliers
 
     // ========== 列定义 ==========
 
+    // 列偏好版本键：每次默认显隐/列名变化递增，强制老用户按新默认重新加载（col_prefs_suppliers_v3）
+    // v3：默认隐藏 编码/联系人/联系电话/地址 四列；「已到货」改口径为本年到货[扣除退货]、「本年累计退货」更名「本年退货」
+    private const string ColumnPrefsVersion = "v3";
+
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
+    // ========== ② 往来信息 分组列标题栏（仿客户管理/订单列表 B23） ==========
+    // 选择列 40px + 可见列宽和 + 操作列 100px（供应商操作列含编辑/删除，宽于客户 90px）
+    private int _totalTableWidth =>
+        40 + _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 100;
+
+    private List<GroupHeaderInfo> _groupHeaders => GetGroupHeaders();
+
+    private class GroupHeaderInfo
+    {
+        public int GroupKey { get; init; }
+        public string GroupName { get; init; } = "";
+        public int TotalWidth { get; init; }
+        public int ColumnCount { get; init; }
+        public string CssClass { get; init; } = "";
+    }
+
+    private List<GroupHeaderInfo> GetGroupHeaders()
+    {
+        var result = new List<GroupHeaderInfo>();
+        result.Add(new GroupHeaderInfo { GroupKey = 0, GroupName = "", TotalWidth = 40, ColumnCount = 0, CssClass = "" });
+
+        int? lastKey = null; int totalWidth = 0;
+        var groupKey = 0; var groupName = ""; var count = 0;
+        foreach (var col in _visibleColumns)
+        {
+            var gk = col.GroupKey ?? 0;
+            if (gk != lastKey && lastKey.HasValue)
+            {
+                result.Add(new GroupHeaderInfo
+                {
+                    GroupKey = groupKey,
+                    GroupName = groupName,
+                    TotalWidth = totalWidth,
+                    ColumnCount = count,
+                    CssClass = GetHeaderGroupCss(groupKey, true)
+                });
+                totalWidth = 0; count = 0;
+            }
+            groupKey = gk; groupName = col.GroupName ?? "";
+            totalWidth += int.TryParse(col.Width, out var w) ? w : 100;
+            count++; lastKey = gk;
+        }
+        if (count > 0)
+            result.Add(new GroupHeaderInfo
+            {
+                GroupKey = groupKey,
+                GroupName = groupName,
+                TotalWidth = totalWidth,
+                ColumnCount = count,
+                CssClass = GetHeaderGroupCss(groupKey, true)
+            });
+
+        // 操作列占位（100px）
+        result.Add(new GroupHeaderInfo { GroupKey = 0, GroupName = "", TotalWidth = 100, ColumnCount = 0, CssClass = "" });
+        return result;
+    }
+
+    private static string GetHeaderGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch { 1 => "col-g1", 2 => "col-g2", 3 => "col-g3", 4 => "col-g4", _ => "" };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start";
+        return cls;
+    }
+
+    private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
+    {
+        var cls = groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell", 4 => "col-g4-cell", _ => "" };
+        if (isGroupStart && groupKey > 1) cls += " col-group-start-cell";
+        return cls;
+    }
+
+    // ========== ② 往来信息 统计列（DTO 成分字段映射，用于分页合计；null=该列不展示该成分） ==========
+    // 到货/待收两列补金额（ArrivedAmount/PendingAmount，按单认领参考货款）；退货列仅吨
+    private static readonly Dictionary<string, (string? CountField, string? WeightField, string? AmountField)> _statFieldMap = new()
+    {
+        ["TotalOrdering"] = ("TotalOrderCount", "TotalWeight", "TotalAmount"),
+        ["YearOrdering"] = ("YearOrderCount", "YearWeight", "YearAmount"),
+        ["Arrived"] = (null, "ArrivedWeight", "ArrivedAmount"),
+        ["Pending"] = (null, "PendingWeight", "PendingAmount"),
+        ["YearReturn"] = (null, "YearReturnWeight", null),
+    };
+
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
-        new() { Key = "SupplierCode",    Label = "供应商编码", SortKey = "suppliercode",    FilterType = "string",  Width = "130" },
-        new() { Key = "SupplierName",    Label = "供应商名称", SortKey = "suppliername",    FilterType = "string",  Width = "160" },
-        new() { Key = "MaterialCategory",Label = "物料分类",   SortKey = "materialcategory",FilterType = "enum",   Width = "100", EnumOptions = DisplayHelper.GetEnumFilterOptions<MaterialType>() },
-        new() { Key = "ContactPerson",   Label = "联系人",     SortKey = "contactperson",   FilterType = "string",  Width = "100" },
-        new() { Key = "ContactPhone",    Label = "联系电话",   SortKey = "contactphone",    FilterType = "string",  Width = "130" },
-        new() { Key = "Address",         Label = "地址",         SortKey = "address",       FilterType = "string",  Width = "200" },
-        new() { Key = "Remark",          Label = "备注",          SortKey = "remark",        FilterType = "string",  Width = "200" },
-        new() { Key = "IsActive",        Label = "状态",       SortKey = "isactive",        FilterType = "boolean", Width = "80", BoolTrueLabel = "启用", BoolFalseLabel = "停用" },
+        // ========== ① 基本信息（实体列，可排序/筛选/内联编辑） ==========
+        // v3：编码/联系人/联系电话/地址 默认隐藏（可在列显隐中打开）
+        new() { Key = "SupplierCode",     Label = "供应商编码", SortKey = "suppliercode",     FilterType = "string",  Width = "130", GroupKey = 1, GroupName = "① 基本信息", Visible = false },
+        new() { Key = "SupplierName",     Label = "供应商名称", SortKey = "suppliername",     FilterType = "string",  Width = "160", GroupKey = 1, GroupName = "① 基本信息" },
+        new() { Key = "MaterialCategory", Label = "物料分类",   SortKey = "materialcategory", FilterType = "enum",    Width = "100", GroupKey = 1, GroupName = "① 基本信息", EnumOptions = DisplayHelper.GetEnumFilterOptions<MaterialType>() },
+        new() { Key = "ContactPerson",    Label = "联系人",     SortKey = "contactperson",    FilterType = "string",  Width = "100", GroupKey = 1, GroupName = "① 基本信息", Visible = false },
+        new() { Key = "ContactPhone",     Label = "联系电话",   SortKey = "contactphone",     FilterType = "string",  Width = "130", GroupKey = 1, GroupName = "① 基本信息", Visible = false },
+        new() { Key = "Address",          Label = "地址",       SortKey = "address",          FilterType = "string",  Width = "200", GroupKey = 1, GroupName = "① 基本信息", Visible = false },
+        new() { Key = "Remark",           Label = "备注",       SortKey = "remark",           FilterType = "string",  Width = "200", GroupKey = 1, GroupName = "① 基本信息" },
+        new() { Key = "IsActive",         Label = "状态",       SortKey = "isactive",         FilterType = "boolean", Width = "80",  GroupKey = 1, GroupName = "① 基本信息", BoolTrueLabel = "启用", BoolFalseLabel = "停用" },
+        // ========== ② 往来信息（只读聚合数值列：采购+委外合并；出单列 单数+吨+万、到货/待收 吨+万、退货 仅吨；不可排序/筛选——SortKey=null 即只读标记） ==========
+        new() { Key = "TotalOrdering", Label = "累计出单",          SortKey = null, FilterType = null, Width = "200", GroupKey = 2, GroupName = "② 往来信息" },
+        new() { Key = "YearOrdering",  Label = "本年出单",          SortKey = null, FilterType = null, Width = "200", GroupKey = 2, GroupName = "② 往来信息" },
+        new() { Key = "Arrived",       Label = "本年到货[扣除退货]", SortKey = null, FilterType = null, Width = "220", GroupKey = 2, GroupName = "② 往来信息" },
+        new() { Key = "Pending",       Label = "待收货",            SortKey = null, FilterType = null, Width = "200", GroupKey = 2, GroupName = "② 往来信息" },
+        new() { Key = "YearReturn",    Label = "本年退货",          SortKey = null, FilterType = null, Width = "170", GroupKey = 2, GroupName = "② 往来信息" },
     };
 
     // ========== 服务端数据加载 ==========
@@ -250,13 +345,17 @@ public partial class Suppliers
     }
 
 
-    private async Task ToggleSort(string sortKey)
+    private async Task ToggleSort(string colKey)
     {
-        if (sortColumn == sortKey)
+        // 只读统计列（SortKey=null）不可排序，忽略点击
+        var col = _allColumns.FirstOrDefault(c => c.Key == colKey);
+        if (col == null || col.SortKey == null) return;
+
+        if (sortColumn == colKey)
             sortDescending = !sortDescending;
         else
         {
-            sortColumn = sortKey;
+            sortColumn = colKey;
             sortDescending = false;
         }
         await SavePageStateAsync();
@@ -271,13 +370,37 @@ public partial class Suppliers
         if (table != null) await table.ReloadServerData();
     }
 
-    // ========== 分页汇总 ==========
+    // ========== 分页汇总（仿客户管理：仅对 ② 往来信息 数值列做页内合计） ==========
 
     private void ComputePageSums()
     {
         _pageSums.Clear();
         if (_pageItems.Count == 0) return;
-        // Suppliers 无非数值汇总字段，保持空
+
+        var props = typeof(SupplierProfileDto)
+            .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            .ToDictionary(p => p.Name, p => p);
+        foreach (var col in _visibleColumns)
+        {
+            if (col.GroupKey != 2) continue;
+            if (!_statFieldMap.TryGetValue(col.Key, out var map)) continue;
+
+            var weight = map.WeightField != null
+                ? _pageItems.Sum(item => (decimal)(props[map.WeightField].GetValue(item) ?? 0m))
+                : 0m;
+
+            // 有金额或单数 → 组合文本（吨/万）；仅重量（本年退货）→ 只显吨
+            var count = map.CountField != null
+                ? _pageItems.Sum(item => (int)(props[map.CountField].GetValue(item) ?? 0))
+                : 0;
+            var amount = map.AmountField != null
+                ? _pageItems.Sum(item => (decimal)(props[map.AmountField].GetValue(item) ?? 0m))
+                : 0m;
+            var withCount = map.CountField != null;
+            _pageSums[col.Key] = (withCount || map.AmountField != null)
+                ? BuildStatText(withCount, count, weight, amount)
+                : BuildStatText(false, 0, weight, 0m);
+        }
     }
 
     private string RenderFooterCell(ColumnDef col)
@@ -296,7 +419,7 @@ public partial class Suppliers
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("suppliers", null, _allColumns);
+        await ColumnPrefs.SaveAsync("suppliers", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -321,7 +444,7 @@ public partial class Suppliers
     protected override async Task OnInitializedAsync()
     {
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("suppliers", null);
+        var saved = await ColumnPrefs.LoadAsync("suppliers", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)
@@ -376,6 +499,12 @@ public partial class Suppliers
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        // ①/② 分组标题栏：与表格横向滚动联动（对齐各分组起止位置）
+        try
+        {
+            await JS.InvokeVoidAsync("initGroupHeaders", "#suppliers-list-table");
+        }
+        catch { }
         if (!_isArrowNavSetup)
         {
             _isArrowNavSetup = true;
@@ -514,6 +643,17 @@ public partial class Suppliers
     {
         var isEditing = _editingIds.Contains(item.Id);
         var cache = isEditing && _editCache.TryGetValue(item.Id, out var c) ? c : null;
+
+        // 供应商往来统计 5 列：只读三色单元格（z单/x吨/y万，蓝单/绿吨/万橙），悬停显示完整纯文本值
+        var statMarkup = RenderStatMarkup(item, col.Key);
+        if (statMarkup.HasValue)
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "title", RenderStatText(item, col.Key) ?? "—");
+            builder.AddContent(2, statMarkup.Value);
+            builder.CloseElement();
+            return;
+        }
 
         switch (col.Key)
         {
@@ -660,8 +800,46 @@ public partial class Suppliers
         }
     };
 
-    // ========== 打印方法 ==========
+    // ========== 供应商往来统计列渲染 ==========
 
+    /// <summary>统计 5 列三色富文本：累计·本年出单(单数+吨+万)/到货·待收(吨+万)/本年退货(吨)；非统计列返回 null</summary>
+    private static MarkupString? RenderStatMarkup(SupplierProfileDto item, string key)
+    {
+        if (!ResolveStat(item, key, out var withCount, out var count, out var weight, out var amount))
+            return null;
+        return OrderOverviewFormatter.RenderTradeMarkup(count, weight, amount, withCount);
+    }
+
+    /// <summary>统计列纯文本（同 RenderStatMarkup 数值口径，供 tooltip/打印）；非统计列返回 null</summary>
+    private static string? RenderStatText(SupplierProfileDto item, string key)
+    {
+        if (!ResolveStat(item, key, out var withCount, out var count, out var weight, out var amount))
+            return null;
+        return OrderOverviewFormatter.RenderTradeText(count, weight, amount, withCount);
+    }
+
+    /// <summary>解析统计 5 列成分（出单列 带单数；到货/待收 吨+万；退货 仅吨）</summary>
+    private static bool ResolveStat(SupplierProfileDto item, string key, out bool withCount, out int count, out decimal weight, out decimal amount)
+    {
+        withCount = false; count = 0; weight = 0m; amount = 0m;
+        switch (key)
+        {
+            case "TotalOrdering": withCount = true; count = item.TotalOrderCount; weight = item.TotalWeight; amount = item.TotalAmount; return true;
+            case "YearOrdering": withCount = true; count = item.YearOrderCount; weight = item.YearWeight; amount = item.YearAmount; return true;
+            case "Arrived": weight = item.ArrivedWeight; amount = item.ArrivedAmount; return true;
+            case "Pending": weight = item.PendingWeight; amount = item.PendingAmount; return true;
+            case "YearReturn": weight = item.YearReturnWeight; amount = 0m; return true;
+            default: return false;
+        }
+    }
+
+    /// <summary>统计列页内合计文本（同 RenderStatText 数值口径，单/吨/万 取整）</summary>
+    private static string BuildStatText(bool withCount, int count, decimal weightKg, decimal amountYuan)
+        => OrderOverviewFormatter.RenderTradeText(count, weightKg, amountYuan, withCount);
+
+    // ========== 打印方法（Mode A 列表打印：按当前可见列——含 ② 往来信息 全部统计列——完整打印选中行） ==========
+
+    /// <summary>打印选中供应商（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
     private async Task PrintSelected()
     {
         if (!selectedIds.Any())
@@ -671,14 +849,25 @@ public partial class Suppliers
         }
         try
         {
-            Snackbar.Add("正在生成PDF...", Severity.Info);
-            var ids = selectedIds.ToArray();
-            var request = new OrderPrintBatchRequest
+            // 从当前页取选中行，按可见列把每格转显示文本（保证 ② 往来信息 统计列也能完整打印）
+            var selectedItems = _pageItems
+                .Where(s => selectedIds.Contains(s.Id))
+                .Select(item =>
+                {
+                    var dict = new Dictionary<string, object>();
+                    foreach (var col in _visibleColumns)
+                        dict[col.Key] = GetCellDisplayText(item, col) ?? "-";
+                    return dict;
+                }).ToList();
+
+            var request = new OrderPrintListRequest
             {
-                Ids = ids,
-                Columns = _visibleColumns.Select(c => c.ToPrintColumnDef()).ToList()
+                Title = "供应商列表",
+                Items = selectedItems,
+                Columns = GetPrintColumnDefs()
             };
-            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Supplier}/print-batch-file";
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Navigation.BaseUri}{ApiEndpoints.Supplier}/print-list-file";
             var json = JsonSerializer.Serialize(request);
             await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
         }
@@ -686,6 +875,30 @@ public partial class Suppliers
         {
             Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
         }
+    }
+
+    /// <summary>当前可见列 → 打印列定义（Key/Label 对应当前列显隐与顺序）</summary>
+    private List<PrintColumnDef> GetPrintColumnDefs() =>
+        _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+
+    /// <summary>按列取打印显示文本：① 基本信息原样，② 往来信息走统计渲染（单/吨/万），与页面单元格口径一致</summary>
+    private static string? GetCellDisplayText(SupplierProfileDto item, ColumnDef col)
+    {
+        if (col.GroupKey == 2)
+            return RenderStatText(item, col.Key) ?? "-";
+
+        return col.Key switch
+        {
+            "SupplierCode" => item.SupplierCode,
+            "SupplierName" => item.SupplierName,
+            "MaterialCategory" => DisplayHelper.GetMaterialTypeText(item.MaterialCategory),
+            "ContactPerson" => item.ContactPerson,
+            "ContactPhone" => item.ContactPhone,
+            "Address" => item.Address,
+            "IsActive" => item.IsActive ? "启用" : "停用",
+            "Remark" => item.Remark,
+            _ => "-"
+        };
     }
 
     private void NavigateToCreate() => Navigation.NavigateTo("/suppliers/create");

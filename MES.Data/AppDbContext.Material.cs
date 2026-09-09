@@ -43,6 +43,7 @@ public partial class AppDbContext
             entity.Property(e => e.Quantity);
             entity.Property(e => e.Weight).IsRequired().HasColumnType("decimal(18,3)");
             entity.Property(e => e.RequiredDate).IsRequired().HasColumnType("date");
+            entity.Property(e => e.PricingUnit).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18,4)");
             entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
             entity.Property(e => e.LastArrivalDate).HasColumnType("date");
@@ -118,6 +119,7 @@ public partial class AppDbContext
             entity.Property(e => e.InputMultiple);
             entity.Property(e => e.ProcessStatusRemark).HasMaxLength(500);
             entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.Property(e => e.PricingUnit).HasConversion<string>().HasMaxLength(20);
             entity.Property(e => e.ProcessUnitPrice).HasColumnType("decimal(18,4)");
             entity.Property(e => e.ProcessTotalAmount).HasColumnType("decimal(18,2)");
             entity.Property(e => e.SourceWorkOrderNo).HasMaxLength(50);

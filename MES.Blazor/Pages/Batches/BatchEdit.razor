@@ -1790,7 +1790,7 @@
                 var dialog = await DialogService.ShowAsync<ConfirmDialog>("投料单重存疑", new DialogParameters
                 {
                     ["Title"] = "投料单重存疑",
-                    ["ContentText"] = $"工单单支重（{woUnitWeight:G29}kg）与理论单支重（{theoUnitWeight:G29}kg）偏差超过10%，请确认投料数据是否正确。",
+                    ["ContentText"] = $"投料推算的成品单支重量（{theoUnitWeight:0.##}kg）与工单平均单支重量（{woUnitWeight:0.00}kg）偏差超过10%，请确认投料数据是否正确。",
                     ["ConfirmText"] = "仍然保存"
                 });
                 var result = await dialog.Result;

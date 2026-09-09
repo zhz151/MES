@@ -8,6 +8,9 @@
     #workorder-load-overview-list-table .summary-raw { background: #E3F2FD; }
     #workorder-load-overview-list-table .summary-prod { background: #E8F5E9; }
     #workorder-load-overview-list-table .summary-fi { background: #FFF3E0; }
+
+    /* 序号 4-0「整体完工预计」整行底色（2026-09-10 用户决策） */
+    #workorder-load-overview-list-table .row-overall { background: #FFF8E1; }
 </style>
 <MudContainer MaxWidth="MaxWidth.False">
     <div class="d-flex align-center mt-4 mb-4">
@@ -41,7 +44,7 @@
                 </div>
             </div>
             <div id="workorder-overview-table">
-            <MudTable Items="@_data.Rows"
+            <MudTable Items="@OverviewRows"
                      Dense="true"
                      Hover="true"
                      Bordered="true"

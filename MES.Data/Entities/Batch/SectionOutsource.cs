@@ -66,6 +66,23 @@ public class SectionOutsource : BaseEntity
     /// </summary>
     public decimal? SendWeight { get; set; }
 
+    // ========== 计价信息（厂内 IsInternal=true 时无价，三字段均为 null）==========
+
+    /// <summary>
+    /// 计价单位（PerKg/PerPiece/PerMeter，DB 存英文 Key）
+    /// </summary>
+    public PricingUnit? PricingUnit { get; set; }
+
+    /// <summary>
+    /// 单价（元/Kg、元/支或元/米，厂内无价）
+    /// </summary>
+    public decimal? UnitPrice { get; set; }
+
+    /// <summary>
+    /// 总价（元，可手改；缺省自动 = 单价×取量，保留 2 位）
+    /// </summary>
+    public decimal? TotalAmount { get; set; }
+
     /// <summary>
     /// 状态
     /// </summary>

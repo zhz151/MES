@@ -293,6 +293,7 @@ public class SubcontractOrderService : ISubcontractOrderService
                 InputMultiple = r.InputMultiple,
                 ProcessStatusRemark = r.ProcessStatusRemark,
                 Remark = r.Remark,
+                PricingUnit = r.PricingUnit,
                 ProcessUnitPrice = r.ProcessUnitPrice,
                 ProcessTotalAmount = r.ProcessTotalAmount,
                 SourceWorkOrderNo = r.SourceWorkOrderNo,
@@ -359,6 +360,7 @@ public class SubcontractOrderService : ISubcontractOrderService
                 int seq = 1;
                 foreach (var item in request.ReturnItems)
                 {
+                    var (pricingUnit, unitPrice, totalAmount) = ResolveItemPricing(item, entity.ProcessType);
                     entity.ReturnItems.Add(new SubcontractReturnItem
                     {
                         Sequence = seq++,
@@ -371,8 +373,9 @@ public class SubcontractOrderService : ISubcontractOrderService
                         InputMultiple = item.InputMultiple,
                         ProcessStatusRemark = item.ProcessStatusRemark,
                         Remark = item.Remark,
-                        ProcessUnitPrice = item.ProcessUnitPrice,
-                        ProcessTotalAmount = item.ProcessTotalAmount,
+                        PricingUnit = pricingUnit,
+                        ProcessUnitPrice = unitPrice,
+                        ProcessTotalAmount = totalAmount,
                         SourceWorkOrderNo = item.SourceWorkOrderNo
                     });
                 }
@@ -407,6 +410,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             InputMultiple = r.InputMultiple,
             ProcessStatusRemark = r.ProcessStatusRemark,
             Remark = r.Remark,
+            PricingUnit = r.PricingUnit,
             ProcessUnitPrice = r.ProcessUnitPrice,
             ProcessTotalAmount = r.ProcessTotalAmount,
             SourceWorkOrderNo = r.SourceWorkOrderNo,
@@ -468,6 +472,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             int seq = 1;
             foreach (var item in request.ReturnItems)
             {
+                var (pricingUnit, unitPrice, totalAmount) = ResolveItemPricing(item, entity.ProcessType);
                 entity.ReturnItems.Add(new SubcontractReturnItem
                 {
                     Sequence = seq++,
@@ -480,8 +485,9 @@ public class SubcontractOrderService : ISubcontractOrderService
                     InputMultiple = item.InputMultiple,
                     ProcessStatusRemark = item.ProcessStatusRemark,
                     Remark = item.Remark,
-                    ProcessUnitPrice = item.ProcessUnitPrice,
-                    ProcessTotalAmount = item.ProcessTotalAmount,
+                    PricingUnit = pricingUnit,
+                    ProcessUnitPrice = unitPrice,
+                    ProcessTotalAmount = totalAmount,
                     SourceWorkOrderNo = item.SourceWorkOrderNo,
                     IsForceCompleted = item.IsForceCompleted
                 });
@@ -524,6 +530,7 @@ public class SubcontractOrderService : ISubcontractOrderService
             RequiredWeight = r.RequiredWeight,
             ProcessStatusRemark = r.ProcessStatusRemark,
             Remark = r.Remark,
+            PricingUnit = r.PricingUnit,
             ProcessUnitPrice = r.ProcessUnitPrice,
             ProcessTotalAmount = r.ProcessTotalAmount,
             SourceWorkOrderNo = r.SourceWorkOrderNo,
@@ -819,6 +826,9 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 RequiredQuantity = i.RequiredQuantity,
                 RequiredWeight = i.RequiredWeight,
                 ReturnDeadline = i.SubcontractOrder.ReturnDeadline,
+                PricingUnit = i.PricingUnit,
+                ProcessUnitPrice = i.ProcessUnitPrice,
+                ProcessTotalAmount = i.ProcessTotalAmount,
                 Remark = i.Remark,
                 ReturnedQuantity = i.ReturnedQuantity,
                 ReturnedWeight = i.ReturnedWeight,
@@ -842,6 +852,9 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             RequiredQuantity = i.RequiredQuantity,
             RequiredWeight = i.RequiredWeight,
             RequiredArrivalDate = i.ReturnDeadline,
+            PricingUnit = i.PricingUnit,
+            ProcessUnitPrice = i.ProcessUnitPrice,
+            ProcessTotalAmount = i.ProcessTotalAmount,
             Remark = i.Remark,
             ReturnedQuantity = i.ReturnedQuantity,
             ReturnedWeight = i.ReturnedWeight,
@@ -1556,6 +1569,9 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                 RequiredQuantity = i.RequiredQuantity,
                 RequiredWeight = i.RequiredWeight,
                 ReturnDeadline = i.SubcontractOrder.ReturnDeadline,
+                PricingUnit = i.PricingUnit,
+                ProcessUnitPrice = i.ProcessUnitPrice,
+                ProcessTotalAmount = i.ProcessTotalAmount,
                 Remark = i.Remark,
                 ReturnedQuantity = i.ReturnedQuantity,
                 ReturnedWeight = i.ReturnedWeight,
@@ -1579,6 +1595,9 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
             RequiredQuantity = i.RequiredQuantity,
             RequiredWeight = i.RequiredWeight,
             RequiredArrivalDate = i.ReturnDeadline,
+            PricingUnit = i.PricingUnit,
+            ProcessUnitPrice = i.ProcessUnitPrice,
+            ProcessTotalAmount = i.ProcessTotalAmount,
             Remark = i.Remark,
             ReturnedQuantity = i.ReturnedQuantity,
             ReturnedWeight = i.ReturnedWeight,
@@ -1715,6 +1734,7 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
                     RequiredWeight = r.RequiredWeight,
                     ProcessStatusRemark = r.ProcessStatusRemark,
                     Remark = r.Remark,
+                    PricingUnit = r.PricingUnit,
                     ProcessUnitPrice = r.ProcessUnitPrice,
                     ProcessTotalAmount = r.ProcessTotalAmount,
                     SourceWorkOrderNo = r.SourceWorkOrderNo,
@@ -1775,31 +1795,64 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
         return $"{prefix}{maxSeq + 1:D3}";
     }
 
-    private static SubcontractOrderDto ToDto(SubcontractOrder entity) => new()
+    private static SubcontractOrderDto ToDto(SubcontractOrder entity)
     {
-        Id = entity.Id,
-        OrderNo = entity.OrderNo,
-        SupplierId = entity.SupplierId,
-        SupplierName = entity.SupplierName ?? "",
-        OrderDate = entity.OrderDate,
-        Status = entity.Status,
-        IsForceCompleted = entity.IsForceCompleted,
-        FurnaceNumber = entity.FurnaceNumber,
-        ProcessType = entity.ProcessType ?? "Piercing",
-        OutMaterialCategory = !string.IsNullOrEmpty(entity.OutMaterialCategory) && Enum.TryParse<MaterialType>(entity.OutMaterialCategory, out var category) ? category : default,
-        OutPlantGrade = entity.OutPlantGrade,
-        OutSpecification = entity.OutSpecification,
-        OutQuantity = entity.OutQuantity,
-        OutWeight = entity.OutWeight,
-        ReturnDeadline = entity.ReturnDeadline,
-        InQuantity = entity.InQuantity,
-        InWeight = entity.InWeight,
-        Remark = entity.Remark,
-        CreatedBy = entity.CreatedBy,
-        CreatedTime = entity.CreatedTime,
-        UpdatedBy = entity.UpdatedBy,
-        UpdatedTime = entity.UpdatedTime
-    };
+        var amounts = entity.ReturnItems?
+            .Where(r => r.ProcessTotalAmount.HasValue)
+            .Select(r => r.ProcessTotalAmount!.Value)
+            .ToList();
+
+        return new SubcontractOrderDto
+        {
+            Id = entity.Id,
+            OrderNo = entity.OrderNo,
+            SupplierId = entity.SupplierId,
+            SupplierName = entity.SupplierName ?? "",
+            OrderDate = entity.OrderDate,
+            Status = entity.Status,
+            IsForceCompleted = entity.IsForceCompleted,
+            FurnaceNumber = entity.FurnaceNumber,
+            ProcessType = entity.ProcessType ?? "Piercing",
+            OutMaterialCategory = !string.IsNullOrEmpty(entity.OutMaterialCategory) && Enum.TryParse<MaterialType>(entity.OutMaterialCategory, out var category) ? category : default,
+            OutPlantGrade = entity.OutPlantGrade,
+            OutSpecification = entity.OutSpecification,
+            OutQuantity = entity.OutQuantity,
+            OutWeight = entity.OutWeight,
+            ReturnDeadline = entity.ReturnDeadline,
+            InQuantity = entity.InQuantity,
+            InWeight = entity.InWeight,
+            // 委外金额合计（元）= Σ 明细 ProcessTotalAmount
+            TotalAmount = amounts is { Count: > 0 } ? amounts.Sum() : null,
+            Remark = entity.Remark,
+            CreatedBy = entity.CreatedBy,
+            CreatedTime = entity.CreatedTime,
+            UpdatedBy = entity.UpdatedBy,
+            UpdatedTime = entity.UpdatedTime
+        };
+    }
+
+    /// <summary>
+    /// 委外明细计价三字段解析：计价单位默认 PerKg；未手填单价且为穿孔工序自动带 1.2 元/kg；
+    /// 总价 = 手填优先，否则单价存在时按计价单位自动算（PerKg→RequiredWeight、PerPiece→RequiredQuantity）。
+    /// 默认价与 MaterialPricingDefaults 常量人工一致（EF 迁移回填 SQL 同源，勿单独改）。
+    /// </summary>
+    private static (PricingUnit Unit, decimal? UnitPrice, decimal? TotalAmount) ResolveItemPricing(CreateReturnItemRequest item, string processType)
+    {
+        var unit = item.PricingUnit ?? MaterialPricingDefaults.DefaultPricingUnit;
+        var unitPrice = item.ProcessUnitPrice;
+        if (!unitPrice.HasValue && string.Equals(processType, "Piercing", StringComparison.OrdinalIgnoreCase))
+            unitPrice = MaterialPricingDefaults.PiercingUnitPrice;
+
+        decimal? total;
+        if (item.ProcessTotalAmount.HasValue)
+            total = item.ProcessTotalAmount; // 手动总价优先
+        else if (unitPrice.HasValue)
+            total = MaterialPricingDefaults.ComputeTotal(unit, unitPrice, item.RequiredWeight, item.RequiredQuantity, null);
+        else
+            total = null;
+
+        return (unit, unitPrice, total);
+    }
 
     private static void FillWorkOrderFields(SubcontractOrderDto dto, WoEntity wo)
     {

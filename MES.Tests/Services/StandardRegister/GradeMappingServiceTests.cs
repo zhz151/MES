@@ -8,6 +8,7 @@ using MES.Services.StandardRegister;
 using MES.Tests.Tests;
 using MES.Data.Entities.StandardRegister;
 using MES.Core.DTOs.StandardRegister;
+using MES.Core.DTOs.Shared;
 
 namespace MES.Tests.Services;
 
@@ -460,5 +461,29 @@ public class GradeMappingServiceTests : TestBase
         // HeatTreatment 为 null 的不会被返回
         var contexts = await svc.GetFilterContextsAsync();
         contexts["HeatTreatment"].Should().BeEmpty();
+    }
+
+    // ========== 打印回归（2026-09-09：删手写 ToPrintDict → DTO 反射） ==========
+
+    [Fact]
+    public async Task PrintGradeMappingBatchAsync_覆盖页面全列_生成PDF成功()
+    {
+        var ctx = CreateDbContext();
+        await SeedMappingAsync(ctx);
+        var id = await ctx.StandardGradeMappings.Select(g => g.Id).FirstAsync();
+        var svc = CreateService(ctx);
+
+        // 打印列全集 = StandardGradeMappingDto 属性名（TablePrintHelper 按列 Key 反射取值，
+        // 特殊列由 resolver 兜底：Density=F4、SpecialMaterial=特殊/常规）
+        var columns = new[]
+        {
+            "StandardGrade", "StandardGradeCategory", "PlantGrade", "Density",
+            "HeatTreatment", "SpecialMaterial", "SpecialNote", "SteelProperty", "Remark"
+        }.Select(k => new PrintColumnDef { Key = k }).ToList();
+
+        var pdf = await svc.PrintGradeMappingBatchAsync(new[] { id }, columns);
+
+        pdf.Should().NotBeNull();
+        pdf.Length.Should().BeGreaterThan(0);
     }
 }

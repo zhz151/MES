@@ -5,6 +5,7 @@
 @using MES.Core.Enums
 @using MES.Core.DTOs.Materials
 @using MES.Core.DTOs.WorkOrder
+@using MES.Core.Helpers
 @using Microsoft.AspNetCore.Authorization
 @inject SubcontractOrderService SubcontractService
 @inject PurchaseOrderService PurchaseService
@@ -172,8 +173,9 @@
                             <MudTh Style="width: 70px;">投料制成倍</MudTh>
                             <MudTh Style="width: 100px;">状态说明</MudTh>
                             <MudTh Style="width: 100px;">备注</MudTh>
+                            <MudTh Style="width: 80px;">计价单位</MudTh>
                             <MudTh Style="width: 70px;">单价</MudTh>
-                            <MudTh Style="width: 70px;">金额</MudTh>
+                            <MudTh Style="width: 80px;">金额(元)</MudTh>
                             <MudTh Style="width: 50px;">操作</MudTh>
                         </HeaderContent>
                         <RowTemplate Context="item">
@@ -215,12 +217,20 @@
                             <MudTd><MudTextField T="string" @bind-Value="item.ProcessSpecification" Dense="true" Variant="Variant.Outlined" Size="Size.Small"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.UnitWeightStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 60px;"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.RequiredQuantityStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 60px;"/></MudTd>
-                            <MudTd><MudTextField T="string" @bind-Value="item.RequiredWeightStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 70px;"/></MudTd>
+                            <MudTd><MudTextField T="string" Value="@item.RequiredWeightStr" ValueChanged="@(v => { item.RequiredWeightStr = v; item.AutoFillTotalAmount(); })" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 70px;"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.InputMultipleStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 60px;"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.ProcessStatusRemark" Dense="true" Variant="Variant.Outlined" Size="Size.Small"/></MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="item.Remark" Dense="true" Variant="Variant.Outlined" Size="Size.Small"/></MudTd>
-                            <MudTd><MudTextField T="string" @bind-Value="item.UnitPriceStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 60px;"/></MudTd>
-                            <MudTd><MudTextField T="string" @bind-Value="item.TotalAmountStr" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 60px;"/></MudTd>
+                            <MudTd>
+                                <MudSelect T="PricingUnit" @bind-Value="item.PriceUnit" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="min-width: 76px;">
+                                    @foreach (var opt in DisplayHelper.GetEnumOptions<PricingUnit>())
+                                    {
+                                        <MudSelectItem Value="@(Enum.Parse<PricingUnit>(opt.Value))">@opt.Display</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudTd>
+                            <MudTd><MudTextField T="string" Value="@item.UnitPriceStr" ValueChanged="@(v => { item.UnitPriceStr = v; item.AutoFillTotalAmount(); })" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 60px;"/></MudTd>
+                            <MudTd><MudTextField T="string" Value="@item.TotalAmountStr" ValueChanged="@(v => { item.TotalAmountStr = v; item.AmountEdited = true; })" Dense="true" Variant="Variant.Outlined" Size="Size.Small" Style="width: 70px;"/></MudTd>
                             <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="() => RemoveReturnItem(item)" /></MudTd>
                         </RowTemplate>
                     </MudTable>
@@ -269,8 +279,11 @@
         public string? ProcessStatusRemark { get; set; }
         public string? Remark { get; set; }
         public string? SourceWorkOrderNo { get; set; }
+        public PricingUnit PriceUnit { get; set; } = PricingUnit.PerKg;
         public string UnitPriceStr { get; set; } = string.Empty;
         public string TotalAmountStr { get; set; } = string.Empty;
+        /// <summary>金额是否被手动修改过（非空手输优先，改过则不自动覆盖）</summary>
+        public bool AmountEdited { get; set; }
         public bool ShowWorkOrderInfo { get; set; }
         public bool WorkOrderLoading { get; set; }
         public WorkOrderDetailDto? WorkOrderInfo { get; set; }
@@ -281,6 +294,17 @@
         public int? InputMultiple => int.TryParse(InputMultipleStr, out var v) ? v : null;
         public decimal? UnitPrice => decimal.TryParse(UnitPriceStr, out var v) ? v : null;
         public decimal? TotalAmount => decimal.TryParse(TotalAmountStr, out var v) ? v : null;
+
+        /// <summary>自动带出默认单价（穿孔 1.2 元/kg）</summary>
+        public void ApplyDefaultUnitPrice() => UnitPriceStr = MaterialPricingDefaults.PiercingUnitPrice.ToString("G29");
+
+        /// <summary>金额自动=单价×需求量（未手动改金额时）：PerKg→需求重量、PerPiece→需求支数</summary>
+        public void AutoFillTotalAmount()
+        {
+            if (AmountEdited || !string.IsNullOrWhiteSpace(TotalAmountStr)) return;
+            var total = MaterialPricingDefaults.ComputeTotal(PriceUnit, UnitPrice, RequiredWeight, RequiredQuantity, null);
+            TotalAmountStr = total?.ToString("G29") ?? string.Empty;
+        }
     }
 
     protected override async Task OnInitializedAsync()
@@ -320,7 +344,9 @@
 
     private void AddReturnItem()
     {
-        returnItems.Add(new ReturnItemRow { Sequence = returnItems.Count + 1 });
+        var row = new ReturnItemRow { Sequence = returnItems.Count + 1 };
+        row.ApplyDefaultUnitPrice();
+        returnItems.Add(row);
     }
 
     private void RemoveReturnItem(ReturnItemRow item)
@@ -341,7 +367,7 @@
 
         var plan = result.Data;
         var planCategory = EnumHelper.TryParse<MaterialType>(plan.MaterialCategory?.ToString() ?? "") ?? MaterialType.RoundBar;
-        returnItems.Add(new ReturnItemRow
+        var row = new ReturnItemRow
         {
             Sequence = returnItems.Count + 1,
             SourceWorkOrderNo = plan.WorkOrderNo,
@@ -353,7 +379,10 @@
             RequiredWeightStr = plan.Weight.ToString("G29"),
             InputMultipleStr = plan.InputMultiple?.ToString() ?? "",
             Remark = plan.Remark
-        });
+        };
+        row.ApplyDefaultUnitPrice();
+        row.AutoFillTotalAmount();
+        returnItems.Add(row);
         Snackbar.Add($"已添加工单 {plan.WorkOrderNo}（{DisplayHelper.GetMaterialTypeText(planCategory)}）", Severity.Success);
     }
 
@@ -502,6 +531,7 @@
                     ProcessStatusRemark = i.ProcessStatusRemark,
                     Remark = i.Remark,
                     SourceWorkOrderNo = i.SourceWorkOrderNo,
+                    PricingUnit = i.PriceUnit,
                     ProcessUnitPrice = i.UnitPrice,
                     ProcessTotalAmount = i.TotalAmount
                 }).ToList()

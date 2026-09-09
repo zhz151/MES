@@ -123,6 +123,17 @@ public class SupplierController : ControllerBase
         return File(pdfBytes, "application/pdf", $"供应商批量.pdf");
     }
 
+    /// <summary>
+    /// 打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据，统计列文本由此带出）
+    /// </summary>
+    [HttpPost("print-list-file")]
+    [Authorize(Roles = Roles.Policies.MaterialView)]
+    public async Task<IActionResult> PrintListFile([FromBody] OrderPrintListRequest request)
+    {
+        var pdfBytes = await _service.PrintSupplierListAsync(request.Title, request.Items, request.Columns);
+        return File(pdfBytes, "application/pdf", "供应商列表.pdf");
+    }
+
     [HttpGet("active")]
     [Authorize(Roles = Roles.Policies.MaterialView)]
     public async Task<ActionResult<ApiResponse<List<SupplierProfileDto>>>> GetActive()

@@ -148,8 +148,7 @@
                         var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
                         _prevGk2 = col.GroupKey;
                         var _cellClass = GetCellGroupCss(col.GroupKey, _isGroupStart2);
-                        var _cellAlignClass = IsNumericColumn(col) ? " text-center" : "";
-                        <MudTd Class="@(_cellClass + _cellAlignClass)">@RenderCell(item, col)</MudTd>
+                        <MudTd Class="@_cellClass">@RenderCell(item, col)</MudTd>
                     }
                     <MudTd Style="white-space: nowrap; width: 90px;">
                         @{
@@ -179,8 +178,7 @@
                         var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
                         _prevGk3 = col.GroupKey;
                         var _footerClass = GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell";
-                        var _footerAlignClass = IsNumericColumn(col) ? " text-center" : "";
-                        <MudTd Class="@(_footerClass + _footerAlignClass)"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                        <MudTd Class="@_footerClass"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
                     }
                     <MudTd Class="col-footer-cell"></MudTd>
                 </FooterContent>

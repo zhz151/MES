@@ -17,12 +17,15 @@ public static class AppMenu
         // ─── 首页（仅需登录即可见，精确匹配 /）───
         new() { Label = "首页", Href = "/", MatchAll = true },
 
+        // ─── 报表总览（管理层看板，紧跟首页置顶；2026-09-10 用户决策：单叶组「报表系统」拍平为一级单项，门控 ReportView 移至叶子）───
+        new() { Label = "报表总览", Href = "/reports/overview", Policy = Roles.Policies.ReportView },
+
         // ─── 订单管理 ───
         new() { Label = "订单管理", Policy = Roles.Policies.OrderMenu, Children =
         [
             new() { Label = "订单列表", Href = "/orders" },
             new() { Label = "客户管理", Href = "/customers" },
-            new() { Label = "订单成品(在库)", Href = "/orders/pending-delivery" },
+            new() { Label = "订单在库成品", Href = "/orders/pending-delivery" },
         ] },
 
         // ─── 工单管理（二级分组：工单操作 / 工单查询）───
@@ -60,6 +63,7 @@ public static class AppMenu
             new() { Label = "生产记录", Href = "/production-records" },
             new() { Label = "去油酸洗", Href = "/pickling-in-records" },
             new() { Label = "工段委外", Href = "/section-outsources" },
+            new() { Label = "委外单位管理", Href = "/outsource-vendors" },
             new() { Label = "工艺卡打印", Href = "/process-card-print" },
         ] },
 
@@ -135,15 +139,6 @@ public static class AppMenu
             new() { Label = "工厂牌号化分验证", Href = "/chemical-validate" },
         ] },
 
-        // ─── 报表系统 ───
-        new() { Label = "报表系统", Policy = Roles.Policies.ReportView, Children =
-        [
-            new() { Label = "报表总览", Href = "/reports/overview" },
-        ] },
-
-        // ─── 数据工具（单项，非分组）───
-        new() { Label = "数据工具", Href = "/data-exchange", Policy = Roles.Policies.DataToolView },
-
         // ─── 扫码管理（整组仅需登录；工位/员工单独 ScanView 档）───
         new() { Label = "扫码管理", Children =
         [
@@ -185,6 +180,9 @@ public static class AppMenu
             new() { Label = "字典显示配置(全局显示)", Href = "/dict-value-definitions" },
             new() { Label = "系统参数(全局参数)", Href = "/config-parameters" },
         ] },
+
+        // ─── 数据工具（单项，非分组；2026-09-10 用户决策移至参数表之后）───
+        new() { Label = "数据工具", Href = "/data-exchange", Policy = Roles.Policies.DataToolView },
 
         // ─── 用户管理（单项，非分组）───
         new() { Label = "用户管理", Href = "/admin/users", Policy = Roles.Policies.UserView },

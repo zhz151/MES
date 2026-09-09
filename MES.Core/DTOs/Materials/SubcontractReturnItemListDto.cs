@@ -30,6 +30,9 @@ public class SubcontractReturnItemListDto
     public decimal? UnitWeight { get; set; }
     public int? RequiredQuantity { get; set; }
     public decimal? RequiredWeight { get; set; }
+    public PricingUnit? PricingUnit { get; set; }
+    public decimal? ProcessUnitPrice { get; set; }
+    public decimal? ProcessTotalAmount { get; set; }
 
     /// <summary>
     /// 要求到货日（主表 ReturnDeadline 收回期限）

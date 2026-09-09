@@ -43,6 +43,12 @@ public class SectionOutsourceDto
     public int? SendQuantity { get; set; }
     /// <summary>发出重量(kg)</summary>
     public decimal? SendWeight { get; set; }
+    /// <summary>计价单位（PerKg/PerPiece/PerMeter，DB 存英文 Key）</summary>
+    public PricingUnit? PricingUnit { get; set; }
+    /// <summary>单价（元/Kg、元/支或元/米；厂内无价）</summary>
+    public decimal? UnitPrice { get; set; }
+    /// <summary>总价（元，可手改；缺省自动=单价×取量）</summary>
+    public decimal? TotalAmount { get; set; }
     /// <summary>是否厂内（虚拟发外，仅限冷轧拔，无需回收，状态=略）</summary>
     public bool IsInternal { get; set; }
     /// <summary>状态（PendingRecovery=待回收, Recovered=已回收, Virtual=略）</summary>
@@ -128,6 +134,15 @@ public class CreateSectionOutsourceRequest
     public int? SendQuantity { get; set; }
     public decimal? SendWeight { get; set; }
 
+    /// <summary>计价单位（空→PerKg）</summary>
+    public PricingUnit? PricingUnit { get; set; }
+
+    /// <summary>单价（空→按工段默认：冷轧拔1.4/其他0.8；厂内无价）</summary>
+    public decimal? UnitPrice { get; set; }
+
+    /// <summary>总价（手填优先；空→服务端自动=单价×取量）</summary>
+    public decimal? TotalAmount { get; set; }
+
     [MaxLength(50)]
     public string? TagNo { get; set; }
 
@@ -157,6 +172,15 @@ public class UpdateSectionOutsourceRequest
 {
     public int? SendQuantity { get; set; }
     public decimal? SendWeight { get; set; }
+
+    /// <summary>计价单位（空→保持原值/厂外默认 PerKg）</summary>
+    public PricingUnit? PricingUnit { get; set; }
+
+    /// <summary>单价（空→保持原值；厂内清空）</summary>
+    public decimal? UnitPrice { get; set; }
+
+    /// <summary>总价（手填优先；空→自动=单价×取量）</summary>
+    public decimal? TotalAmount { get; set; }
 
     [MaxLength(100)]
     public string? OutsourceVendor { get; set; }

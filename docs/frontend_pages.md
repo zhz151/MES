@@ -1,8 +1,57 @@
 # MES 前端页面结构参考
 
-> 版本：V71（2026-09-09；生成 2026-08-19）
+> 版本：V81（2026-09-10；生成 2026-08-19）
 > 用途/状态：Quick Reference - 按导航菜单分组的前端页面结构参考，§1 上下文总览 / §2 各上下文页面块 / §3 列表页全量清单。
-> 上次实质变更（V71）：**质量管理 15 张列表页默认列显隐收敛**（2026-09-09，成品检验/过程检验已于 V69 收敛，其余 13 页对齐；隐藏列均可经列选择器开启）：
+> 上次实质变更（V81）：**菜单整序：订单在库成品改名 + 报表系统拍平「报表总览」 + 数据工具移至参数表后**（2026-09-10，批二十四；**纯 WASM，后端/DB 零改动**）：
+> ① `AppMenu.Root` 订单管理组叶子 **「订单成品(在库)」改名「订单在库成品」**（Href `/orders/pending-delivery` 不变；页面正式名仍「订单成品(实时库存)」）。
+> ② **「报表系统」单叶组拍平为一级单项「报表总览」** `/reports/overview`（删组节点，`ReportView` 门控移至叶子，与 数据工具/用户管理 单项一级形态统一），置首页下方第 2 位。
+> ③ **「数据工具」单项自 生产标准/扫码管理 之间移至 参数表之后、用户管理之前**（扫码管理顺延前移一格）；一级顺序其余维持现状。定稿一级序：`首页, 报表总览, 订单管理, 工单管理, 计划排程, 批次管理, 质量管理, 物料管理, 仓库管理, 设备管理, 生产标准, 扫码管理, 工资结算, 参数表, 数据工具, 用户管理`。菜单单源树桌面/手机共用；`AppMenuTests.根级顺序` 断言同步。角色域文案（Roles 注释/用户管理角色名「报表系统」三档）**不随菜单改**。
+> 验证 `dotnet build MES.Blazor` 0 错 0 警 + 定向 `AppMenuTests` 9 例全绿。
+> 历史变更（V80）：**报表子表口径微调：月度汇总合并列 + 冷轧去标注/吨位小数 + 段落靠左 + 负荷表删延期行**（2026-09-10，批二十三；**纯 WASM，后端/DB 零改动**）：
+> ① **质量管理 Tab「不合格品月度汇总」**（ReportOverview `/reports/overview`，NcrMonthlySummaryDto）：**删除 处置方式汇总/责任部门汇总/责任类别汇总 三列**，只留一列 **「合计」**（表头浅黄 #fff8e1 加粗、格背景 #fffde7）= 每处置方式行全年（12 月）合计量（=原 `r.TotalQuantity/TotalWeight`）；**责任类别/责任部门为空直接显「-」**（替换原「未填写」文字，处置方式空值仍显「未填写」）；注记文本同步。`.razor.cs` 删 `_ncrDeptTotals`/`_ncrCategoryTotals` 及 `ComputeNcrMonthlyRowspans` 求和，仅保留类别/部门 rowspan 计算。
+> ② **生产执行 Tab「冷轧拔近日排程」**：**删「矛盾标注」列**（th/td 及 `hasConflict` 局部）；**吨位数值保留 1 位小数**（可流转量/计划流转量/后流转 t 值，`TonsText` helper 由 G29→F1，0 显 "0"；仅本卡使用）。
+> ③ **生产执行 Tab「段落流转分析」**：待在产重量/计划重点批流转量/特急批重量 **三数值列 表头（去 `mud-table-cell--right`）/单元格（去 `text-center`）/页脚（去 `text-center`）全靠左**；总况判定/计划流转判定 Chip 列保持居中。
+> ④ **Tab2「现订单负荷总量」= WorkOrderLoadOverview 共享组件**（报表 Tab2 及 计划排程 PlanOverview 同用）：`OverviewRows` 过滤**剔除「订单交期负荷」组三行（订单延期-原料/在产/成检）**，日期桶列保留（其余行日期桶有值）；**序号 4-0「整体完工预计」整行底色 #FFF8E1**（`.row-overall`，颜色可再调）。
+> 验证 `dotnet build MES.Blazor`（含 MES.Api）0 错 0 警。
+> 历史变更（V79）：**报表往来数据卡交互增强（默认折叠+行数下拉+显示行合计+表头去箭头） + 客户列表 ② 靠左 + 质量管理 Tab 标题分色**（2026-09-10，批二十二；**纯 WASM，后端/DB 零改动**）：
+> ① **客户管理 Customers.razor ② 往来信息组数据格+页脚去 `text-center` 靠左**（`.razor.cs` 删 `_centerColumnKeys`/`IsNumericColumn`），同供应商/委外单位 V74 口径——客户列表列格式与 ② 列样式两个批（批二十一 V78 加三色）已闭环。
+> ② **ReportOverview.razor `/reports/overview` 三张「往来数据」卡交互收敛**（客户卡在业务总况顶、供应商卡物料执行末尾、委外卡生产执行末尾）：卡片**默认折叠**（折叠键 `report:customer-trade`/`report:supplier-trade`/`report:outsource-trade`，localStorage 记忆，随 `DefaultCollapsedCards` 首次默认收起）；展开工具栏=220px 即时搜索 + **显示行数 MudSelect(10/20/50/0=全部，默认 10)** + `显示 N / 共 M 条｜合计按显示行计`；身份列点击排序保留但**去 ▲/▼ 箭头文字**，改 `.report-th-sorted` 浅蓝底(#e3f2fd)+加粗；tbody 只渲当前显示行；表格底部新增 `<tfoot>` 合计行（背景 #fffde7 加粗，客户 2 身份列 colspan=2 / 供应商 3 身份列 colspan=3 / 委外 2 身份列 colspan=2），各统计列 `*TradeSummary` 按当前显示行汇总，与单元格 `*TradeValues` 同 `withCount` 成员规则。
+> ③ **质量管理 Tab 五张小表标题分色**（`.razor.cs` 逻辑不改，仅标题文字包 `<span class="report-tt report-tt-N">`）：不合格品实时待处理/不合格品月度汇总→`report-tt-1`(蓝)、待检批支重汇总→`report-tt-2`(绿)、近日成检量数据/月度成检量数据→`report-tt-3`(紫)——按「同源逻辑上下文同色」仿生产执行 1~5 色系。
+> ④ CSS app.css +`.report-th-sort`（排序 th 基础：左对齐/浅灰底 #f5f5f5/1px 边框/pointer/no-select/nowrap）+`.report-th-sorted`（浅蓝 #e3f2fd 底 + 边框 #90caf9 + font-weight:700）；打印表头/合计走同 `<table>` 内联样式，`getTableHtml` 取 `table.outerHTML` 含 thead/tbody/tfoot。验证 `dotnet build MES.Blazor` 0 错 0 警。
+> 历史变更（V78）：**报表总览三个 Tab 加「往来数据」表 + 源列表页 ② 列样式统一**（2026-09-10，批二十一；**纯 WASM，后端/DB 零改动**，三表复用既有 list 端点 + 已回填统计字段）：
+> ① **ReportOverview.razor `/reports/overview`** 三个 Tab 各插一张「往来数据」卡（`summary-card`，**标题着色 + `::before` 左侧 4px 色条** `.report-tt-1~5` 五色，220px 即时搜索、整表一次性加载 `GetPagedAsync` PageSize=5000、身份列点击排序 ▲/▼、打印按钮；表格容器 `#report-{customer,supplier,outsource}-trade` `max-height:50vh` 内滚动）：
+> 　- **业务总况 Tab 顶部「客户往来数据」**（同源订单上下文「客户管理」Customers.razor）：业务员/最终用户 + 本年接单 / 本年已发货(整单/非整单) / 待发货(整单/非整单) / 待在产(整单未入库/扣除部分入库) 七统计列（均 `z单/x吨/y万`）。
+> 　- **物料执行 Tab 末尾「供应商往来数据」**（同源「供应商管理」Suppliers.razor）：供应商名称/物料分类/备注 + 累计出单 / 本年出单（z单/x吨/y万）/ 本年到货[扣除退货] / 待收货（x吨/y万）/ 本年退货（仅吨）。
+> 　- **生产执行 Tab 末尾「委外单位往来数据」**（同源「委外单位管理」OutsourceVendors.razor，**排除本厂 IsWorkshop 行**）：委外单位名/委外工段（中文）+ 累计委外 / 本年委外（z单/x吨/y万）/ 本年回收[扣除退回] / 委外未回收（x吨/y万）/ 本年退回（仅吨）。
+> ② **标题区分色**：物料执行 荒管类(1 蓝)/成品类(2 绿)/圆钢类(3 紫) + 供应商往来(**4 橙**)；生产执行 冷轧拔近日排程(1)/段落流转(2)/生产量(3)/委外(4) + 委外单位往来数据(**5 青**)。CSS：app.css `.report-tt` + `.report-tt-1~5`。
+> ③ **三个源列表页 ② 统计列样式统一**（Customers/Suppliers/OutsourceVendors 三 `.razor.cs` 原私有 `BuildStatText/RenderStat*` 改走共享 `OrderOverviewFormatter.RenderTradeMarkup/Text`）：**单数蓝/吨绿/万橙三色、吨与万取整无小数、0 成分省略、全 0 显「—」**（此前吨/万为小数位）；悬停 title/打印同走纯文本同口径。
+> ④ 共享格式化器 `OrderOverviewFormatter` 新增 `RenderTradeMarkup`（富文本）/`RenderTradeText`（纯文本）；新测试 `OrderOverviewFormatterTests` 10 例。验证 `dotnet build MES.Blazor` / `MES.Api` 0 错 0 警 + 定向 10 全绿。
+> 历史变更（V77）：**报表业务总况 + 订单列表页 3 小表加「金额」三色展示**（2026-09-09，批二十；后端共享 `SettlementMoneyCalculator` 结算分治折算）：
+> ① ReportOverview.razor `/reports/overview`（报表·业务总况 Tab）：「订单接单·出库及现负荷汇总」5×12 表，**接单量/出库量两行月度分布、成品库存(完工/未完工)/订单负荷量(实时)三行仅当前月格取值（余显 `-`）** 每格改 **`x吨/y万`**（重量 t、金额万元=项次总价结算分治折算，均取整；吨绿 `#2E7D32`/万橙 `#E65100` 区分，全 0 显 `-`）；两交期预估小表格改 **`z单/x吨/y万`**（蓝单 `#1565C0`/绿吨/万橙三色）。渲染走共享 `OrderOverviewFormatter`（内联样式保打印一致）。
+> ② Orders.razor `/orders`「完成预估及延期风险」两折叠小表格改 `z单/x吨/y万` 三色（行标签「单数/重量」→「单数/重量/金额」+ 图例注记）；**原「延期罚款」急中急子集红标 `[*a/b]` 不再显示**（DTO `UrgentCount/UrgentWeight` 删除）。金额=桶内整单项次总价合计（未计价计 0）。
+> 验证 `dotnet build MES.Api` / `dotnet build MES.Blazor` 0 错 0 警 + Order/Customer 定向单测 229 通过。
+> 历史变更（V76）：**物料进出存报表 inout 月格改彩带入x/出y + 末尾拆「进出汇总/实时库存」两列**（2026-09-09）：
+> ① MonthlyStock.razor `/warehouse/monthly-stock`（物料进出存报表，4 报表切换之 inout）：每月格**去月末结存**、改**彩带「入x/出y」**——入=浅绿底深绿字（`#1e7e34/#e6f4ea`）、出=浅红底深红字（`#c62828/#fdecea`），**内联样式**屏显/打印（getTableHtml）一致，0 侧省略；末尾单列拆**两列：「进出汇总」**（该行全年 入/出 TotalIn/TotalOut，同彩带格式，倒数第 2 列）**+「实时库存」**（只显示当前库存量 ClosingWeight 单值 t，原「实时数据」更名，末列）；入库/出库/库存报表单值展示不变。AskUserQuestion 拍板：去月结存 + 绿入/红出。
+> ② 验证 `dotnet build MES.Blazor` 0 错 0 警。
+> 历史变更（V75）：**工段委外列表计价三列默认隐藏**（2026-09-09，批十七追加）：
+> ① SectionOutsources.razor `/section-outsources` 委外信息组 **计价单位/单价(元)/总价(元) 三列改默认隐藏**（列显隐勾选可显，需看价格时手动开）；创建页/详情保留价字段不变，扫码页不受影响（价格服务端自动落库）；`ColumnPrefsVersion` v3→**v4**（`col_prefs_section-outsources_v4`）。
+> ② 验证 `dotnet build MES.Api` / `dotnet build MES.Blazor` 0 错 0 警。
+> 历史变更（V74）：**委外单位列表批十八 UX 细化 + 供应商页 ② 数据靠左**（2026-09-09，批十八追加）：
+> ① OutsourceVendors.razor `/outsource-vendors`（V73 两分组基础上）5 点细化：**「本厂/外协」字段改「本厂」**（本厂标「是」、外协留空，编辑态 MudSwitch、布尔筛选 是/外协）；**列改名** `本年回收`→**`本年回收[扣除退回]`**、`在委外未回收`→**`委外未回收`**；**本年回收[扣除退回]/委外未回收 两列补金额（按重量份额分摊）**——`OutsourceRecovery` 无单价，金额从发出单 `TotalAmount` 按份额分摊（回收仅正常 `RecoveryWeight`，非正常属退回、不产生金额；净欠=Max(0,发出−(正常回收+退回))，负数截 0），渲染 单/吨/万；**② 往来信息组数据一律靠左**；新建页 OutsourceVendorCreate.razor 表头同改「本厂」。仅标签/文案/宽度/CSS 变 → ColumnPrefsVersion 不 bump（仍 `col_prefs_outsource-vendors_v2`）。
+> ② **Suppliers.razor（供应商管理）② 往来信息组数据同样一律靠左**（`.razor.cs` 删 `_centerColumnKeys/IsNumericColumn` 的 text-center 居中逻辑，数据格+页脚均左对齐）。
+> ③ 服务层 `OutsourceVendorProfileService` DTO 补 `YearRecoveredAmount`（本年回收分摊金额，退回不产生）/`PendingAmount`（委外未回收分摊金额）；供应商页不涉及服务端改动。
+> 验证 `dotnet build MES.Api` / `dotnet build MES.Blazor` 0 错 0 警 + OutsourceVendorProfileServiceTests 定向 19 通过。
+> 历史变更（V73）：**委外单位档案列表仿供应商管理建 ② 往来信息 统计列组 + 打印选中**（2026-09-09，批十八）：
+> ① OutsourceVendors.razor `/outsource-vendors` 由单组基本信息升级为 **① 基本信息 / ② 往来信息 两分组**（col-g1/g2 表头标色 + 分组标题栏，仿供应商 Suppliers.razor）：基本信息组保留 8 列原样（编码/委外单位名/委外工段(枚举)/本厂外协/联系人/联系电话/备注/状态，内联编辑不变）；② 往来信息组追加 5 只读统计列（不可编辑/排序/筛选）：**累计委外**（委外单数+发出吨+金额万）/ **本年委外**（按发出日期切本年，单数+吨+万）/ **本年回收[扣除退回]**（吨+金额万，按回收日期切本年取正常回收 RecoveryWeight）/ **委外未回收**（吨+金额万，净值=发出−(正常回收+退回)，负数截 0）/ **本年退回**（吨，非正常退回 UnprocessedWeight），全 0 显示「—」，页脚合计仅统计组列；② 组列均默认显示，编码/联系人/电话/备注默认隐藏；列偏好键 v1→**v2**（`col_prefs_outsource-vendors_v2`）。
+> ② 工具栏右侧加 **「打印选中 (N)」**（Mode A `POST api/outsource-vendor/print-list-file`，BatchView，仿供应商）：选中行按当前可见列逐格转显示文本（② 组走统计文本 单/吨/万）→ `OrderPrintListRequest` → `openPdfFromApi` 预览/下载「委外单位列表.pdf」。
+> ③ 服务层 `OutsourceVendorProfileService` 仿供应商 `AttachTradeStats` 回填 9 统计字段（页内明细行），统计口径=仅 `!IsInternal` 发出单且 (OutsourceVendor×SectionName) 命中档案行（本厂车间 IsWorkshop 行/档外文本均不计）。
+> 验证 `dotnet build MES.Api` / `dotnet build MES.Blazor` 0 错 0 警 + OutsourceVendorProfileServiceTests 定向 18 通过。
+> 历史变更（V72）：**批次上下文 委外单位档案主档页 + 工段委外加计价三字段、委外单位改档案驱动下拉**（2026-09-09，批次页面 15→17）：
+> ① 新增 委外单位管理 `/outsource-vendors`（列表页，OutsourceVendors.razor）与 `/outsource-vendors/create`（创建页，OutsourceVendorCreate.razor），菜单置于「工段委外」与「工艺卡打印」之间；档案行键=委外单位名×委外工段、编码 VendorCode WV+4 自动，`IsWorkshop`=本厂车间（锁定冷轧拔、作工段委外厂内虚拟发外来源）；列表 8 列 编码(默认隐)/委外单位名/委外工段/本厂外协/联系人/联系电话/备注/状态(启用·停用)，列偏好键 `col_prefs_outsource-vendors_v1`。
+> ② 工段委外 `/section-outsources` 委外信息组加 **计价单位(元/Kg·元/米·元/支)/单价/总价 三列**（发出重量之后，默认显）；委外单位改为档案驱动下拉（新建页/行内编辑按行工段过滤 active 档案，`CoerceValue=false`，先建档后可选），IsInternal 列改只读派生显示（档案 IsWorkshop 自动厂内，不再手动开关）；列偏好键 v2→**v3**（`col_prefs_section-outsources_v3`）。
+> ③ 扫码报工工段委外表单同步：委外单位改档案下拉、去厂内开关（本厂车间档案自动厂内，价格由服务端按工段默认自动落库）。
+> 验证 `dotnet build MES.Api` / `dotnet build MES.Blazor` 0 错 0 警 + SectionOutsource/OutsourceVendorProfile/OutsourceVendors 定向单测通过；真库迁移 `20260909112729_AddSectionOutsourcePricing` 已回填计价三列。
+> 历史变更（V71）：**质量管理 15 张列表页默认列显隐收敛**（2026-09-09，成品检验/过程检验已于 V69 收敛，其余 13 页对齐；隐藏列均可经列选择器开启）：
 > ① 过程检验 `/quality/process-inspection`：隐 工单号/设备名称/班次（默认显 挂牌号/订单号/主号/执行序号/执行日期/检验项目/检验结果/不合格处理等）；列偏好键 v1→**v2**（`col_prefs_process-inspection_v2`）。
 > ② 成检到料 `/quality/material-receive-check`：隐 执行序/班次/数据来源/更新时间；该页此前未并列偏好版本（Save/Load 第 2 参传 null），本次首并 `ColumnPrefsVersion="v1"`（`col_prefs_material-receive-checks_v1`）。
 > ③ 成品检验 `/quality/final-inspection`：隐 设备名称/班次/工单号（更新时间已于 V69 在 G8 默认隐藏）；列偏好键 v1→**v2**（`col_prefs_final-inspection_v2`）。
@@ -62,13 +111,13 @@
 | 订单 | 订单管理 | OrderViewer/Editor/Full + Admin | 8 | 3 |
 | 工单 | 工单管理 | WorkOrderViewer/Editor/Full + Admin | 18 | 6 |
 | 计划排程 | 计划排程 | SchedulingViewer/Editor/Full + Admin | 6 | 5 |
-| 批次 | 批次管理 | BatchViewer/Editor/Full + Admin | 15 | 7 |
+| 批次 | 批次管理 | BatchViewer/Editor/Full + Admin | 17 | 8 |
 | 质量 | 质量管理 | QualityViewer/Editor/Full + Admin | 32 | 16 |
 | 物料 | 物料管理 | MaterialViewer/Editor/Full + Admin | 9 | 4 |
 | 仓库 | 仓库管理 | WarehouseViewer/Editor/Full + Admin | 7 | 4 |
 | 设备 | 设备管理 | EquipmentViewer/Editor/Full + Admin | 8 | 4 |
 | 生产标准 | 生产标准 | StandardViewer/Editor/Full + Admin | 18 | 9 |
-| 报表系统 | (已并入仓库管理) | ReportViewer/Editor/Full + Admin | 0 | 0 |
+| 报表系统 | 报表总览 | ReportViewer/Editor/Full + Admin | 1 | 0 |
 | 数据工具 | (独立按钮) | DataToolViewer/Editor/Full + Admin | 2 | 0 |
 | 扫码报工 | (独立按钮) | 所有（仅登录） | 1 | 0 |
 | 设备扫码 | (独立按钮) | 所有（仅登录） | 1 | 0 |
@@ -84,7 +133,7 @@
 
 ```
 路由前缀: /orders, /customers, /orders/progress, /orders/pending-delivery
-菜单: 订单管理 → [订单列表, 客户管理, 订单成品(实时库存)]
+菜单: 订单管理 → [订单列表, 客户管理, 订单在库成品]
 
 ┌─ 订单管理 ───────────────────────────────────────────────┐
 │                                                           │
@@ -175,8 +224,9 @@
 
 ```
 路由前缀: /batches, /production-execution-check, /production-records, /section-outsources,
-         /outsource-recoveries, /pickling-in-records, /pickling-out-records, /process-card-print
-菜单: 批次管理 → [生产批次, 生产执行核查, 生产记录, 去油酸洗, 工段委外, 工艺卡打印]
+         /outsource-vendors, /outsource-recoveries, /pickling-in-records, /pickling-out-records,
+         /process-card-print
+菜单: 批次管理 → [生产批次, 生产执行核查, 生产记录, 去油酸洗, 工段委外, 委外单位管理, 工艺卡打印]
 
 ┌─ 批次管理 ───────────────────────────────────────────────┐
 │                                                           │
@@ -193,6 +243,9 @@
 │  SectionOutsourceCreate.razor /section-outsources/create [创建页]│
 │  OutsourceRecoveryCreate.razor /section-outsources/create-recovery [创建页]│
 │                                                           │
+│  OutsourceVendors.razor     /outsource-vendors [列表页]       │
+│  OutsourceVendorCreate.razor /outsource-vendors/create [创建页]│
+│                                                           │
 │  OutsourceRecoveries.razor  /outsource-recoveries [列表页]   │
 │                                                           │
 │  PicklingInRecords.razor    /pickling-in-records [列表页]                 │
@@ -202,7 +255,7 @@
 │  ProcessCardPrint.razor     /process-card-print [功能页]     │
 │                                                           │
 │  列表页: Batches, ProductionExecutionCheck, ProductionRecords, │
-│          SectionOutsources, OutsourceRecoveries,             │
+│          SectionOutsources, OutsourceVendors, OutsourceRecoveries, │
 │          PicklingInRecords, PicklingOutRecords               │
 │  ※ Batches.razor 实现了通知轮询（StartNotificationPollingAsync），│
 │    每30秒检查工单变更通知；原顶部「批次-错疑执行」折叠卡片已迁出至 │
@@ -242,7 +295,26 @@
 │    col_prefs_pickling-out-records_v2                                 │
 │  ※ SectionOutsources.razor 工段委外 2026-09-09 默认显隐收敛（V70 v2）： │
 │    委外信息 隐 要求收回日期/紧急；回收信息 隐 非正常回收(支)/非正常回收  │
-│    (重)/回收备注；列偏好键 col_prefs_section-outsources_v2            │
+│    (重)/回收备注；列偏好键 col_prefs_section-outsources_v2。2026-09-09  │
+│    再改（V72 升 v3）：加计价三列（计价单位/单价/总价，委外信息组发出重量 │
+│    后，默认显），委外单位列改为档案下拉驱动（行内编辑 RenderEditVendorField │
+│    取 active 档案按行工段过滤）、IsInternal 列改只读派生显示；列偏好键   │
+│    col_prefs_section-outsources_v3。同日二调（V75 升 v4）：计价三列默认  │
+│    隐藏（列显隐勾选可显），列偏好键 col_prefs_section-outsources_v4     │
+│  ※ OutsourceVendors.razor 委外单位档案 /outsource-vendors（V72 新增、V73 建 ② │
+│    往来信息统计列组）：委外单位×委外工段主档（行键 VendorName+SectionName 唯一、│
+│    编码 VendorCode WV+4 位自动）、本厂车间 IsWorkshop 行（锁定冷轧拔、IsInternal │
+│    厂内虚拟发外来源）与外协单位 IsWorkshop=外协 分流。①基本信息组 列=编码(默认隐)│
+│    /委外单位名/委外工段(枚举)/本厂(boolean 本厂标是·外协留空)/联系人/联系电话/  │
+│    备注/状态(启用·停用 chip)，内联编辑 + ConfirmDialog 删除 + 默认按编码降序；   │
+│    ②往来信息组（V73 仿供应商、V74 细化）5 只读统计列=累计委外(单+吨+万)/本年    │
+│    委外/本年回收[扣除退回](吨+金额万,金额按重量份额分摊、退回无金额)/委外未回收 │
+│    (吨+金额万,净值截0)/本年退回(吨)，页脚合计，全 0 显「—」，② 组数据均靠左（供 │
+│    应商页 ② 同样靠左）、默认显示；工具栏「打印选中」(Mode A POST                │
+│    api/outsource-vendor/print-list-file)；列                              │
+│    偏好键 v2（col_prefs_outsource-vendors_v2）；新建入口 OutsourceVendorCreate.razor│
+│    /outsource-vendors/create（先建档后工段委外下拉才可选，供 SectionOutsource 新建│
+│    /行内编辑/扫码按行工段过滤取数 GetActiveAsync）                              │
 │  ※ OutsourceRecoveries.razor 委外回收 2026-09-09 默认显隐收敛（V70 首并 │
 │    v1）：回收信息 隐 数据来源/更新时间；列偏好键                       │
 │    col_prefs_outsource-recoveries_v1                                 │
@@ -376,7 +448,7 @@
 │  OutboundHistory.razor        /warehouse/outbound-history      [列表页]│
 │  OutboundHistory.razor        /warehouse/outbound-history/{Code}[列表页(复用)]│
 │  MonthlyStock.razor          /warehouse/monthly-stock          [报表页]   │
-│  报表页: MonthlyStock（原生 table，4 报表切换：入库/出库/库存/物料进出存；入库按来源展开、出库按类型展开（含物料汇总合并列）；行=库房×物料类型，库房+物料类型双层合并单元格，无合计行；当前月之后月份单元格留空，「实时结存/实时数据」=截至当前月合计，三值格「入/出,[结]」如 80/15,[65]；打印横向 A4 撑满页宽）│
+│  报表页: MonthlyStock（原生 table，4 报表切换：入库/出库/库存/物料进出存；入库按来源展开、出库按类型展开（含物料汇总合并列）；行=库房×物料类型，库房+物料类型双层合并单元格，无合计行；当前月之后月份单元格留空；物料进出存 inout V76：每月格彩带「入x/出y」（入浅绿/出浅红，内联样式屏显打印一致），末尾「进出汇总」（全年入/出，倒数第2列）+「实时库存」（只显当前库存 ClosingWeight 单值，原「实时数据」更名）；入库/出库/库存单值展示，库存「实时结存」=ClosingWeight；打印横向 A4 撑满页宽）│
 │  ※ API: InventoryController (api/inventory/monthly-stock-summary) │
 │                                                           │
 │  列表页: WarehouseInventory, InboundHistory, OutboundHistory  │
@@ -549,6 +621,7 @@
 │                                                           │
 │  导航栏：左侧 MudNavMenu 树形导航（200px 宽）            │
 │          首页                                          │
+│          ▸ 报表总览（原报表系统单叶拍平，置首页下）        │
 │          ▸ 订单管理 / ▸ 工单管理 / ▸ 计划排程            │
 │          ▸ 批次管理                                     │
 │          ▾ 质量管理（2 级嵌套）                          │
@@ -582,18 +655,18 @@
 
 ## 3. 列表页完整清单（需检查加载/排序/筛选）
 
-共 **87 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
+共 **88 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
 
 | # | 页面文件 | 路由 | 上下文 | 内联编辑 | 备注 |
 |---|---------|------|-------|---------|------|
-| 1 | Orders.razor | /orders | 订单 | ✅ | B23 列分组3组(基本信息/订单确认/订单执行)；「基本信息」=原基本信息+合同交付合并，默认仅显示订单号/签订日期/业务员/客户名称/交期截止/订单总重量/含项次数，余(最终客户/交期起始/延期罚款等)默认隐藏 + ExcelFilter + B23分组标题栏 + 搜索栏3组(模糊搜索+签订日期+交货日期) + 工具栏「完成预估及延期风险」折叠卡片（仅两张交期预估小表：订单(整单)完成预估 / 风险-已延期订单(整单)，逐格联动筛选订单列表、各表可打印；原「接单-出库及现负荷」5指标×12月小表已删除，页面标题=订单列表） |
+| 1 | Orders.razor | /orders | 订单 | ✅ | B23 列分组3组(基本信息/订单确认/订单执行)；「基本信息」=原基本信息+合同交付合并，默认仅显示订单号/签订日期/业务员/客户名称/交期截止/订单总重量/含项次数，余(最终客户/交期起始/延期罚款等)默认隐藏 + ExcelFilter + B23分组标题栏 + 搜索栏3组(模糊搜索+签订日期+交货日期) + 工具栏「完成预估及延期风险」折叠卡片（仅两张交期预估小表：订单(整单)完成预估 / 风险-已延期订单(整单)，单元格 `z单/x吨/y万` 三色（蓝单/绿吨/万橙，2026-09-09 加金额、不再显示延期罚款 `[*a/b]`），逐格联动筛选订单列表、各表可打印；原「接单-出库及现负荷」5指标×12月小表已删除，页面标题=订单列表） |
 | 2 | Customers.razor | /customers | 订单 | ✅(①组档案列内联) | B23 列分组 2 组 + 底部合计 + 完整打印：① 基本信息（默认仅显 业务员/最终用户/状态，客户编码/客户单位/联系人/电话/地址/备注默认隐藏，内联编辑）；② 往来信息（8 业务统计只读列，服务层按「业务员+最终用户」聚合实时注入，仅 GetPagedAsync 回填；8 列均按「X单/吨/万」三位一体显示（单数=落入该状态桶的订单张数，可跨阶段并列），吨/万保留 1 位小数；金额按结算分治：过磅=实际公斤不封顶、理算/过磅-负=封顶合同额发货→库存→在产阶梯认领；待在产两桶仅统计主号未完成(阶段≠1)订单（已完成单欠产/未入库不计在产）；统计列不可排序/筛选（SortKey=null 标记）；底部合计仿订单=②组数值列页内合计；打印选中=Mode A 列表 PDF 按可见列含统计列完整打印 → print-list-file；ColumnPrefsVersion=v2） |
 | 3 | GradeMappings.razor | /grade-mappings | 生产标准 | | |
 | 4 | WorkOrders.razor | /workorders | 工单 | ✅ | 2026-09-08 默认隐藏 次号/最终客户/钢管制造（列偏好键升 col_prefs_workorders_v1） |
 | 5 | MaterialPlanOverview.razor | /material-plan-overview | 工单 | | |
 | 6 | **Batches.razor** | /batches | 批次 | | ✅ 已过规范检查 |
 | 7 | **ProductionRecords.razor** | /production-records | 批次 | ✅ | 列分组4组（G1执行信息/G2产出数据/G3工艺参数/G4追溯信息）+ ExcelFilter + 内联编辑 + 分组标题栏；**2026-09-09 默认显隐收敛**：G1仅显 执行日期/生产编号/挂牌号/订单号/主号/工序名称/工段名称/工厂牌号/制造规格（工单号/执行序号 隐），G2仅显 加工支数/加工重量/产类/平头数/断切倍数/预成切/长度状态/成品长度/符合工单长度/切后支数（设备名称/班次/操作人 隐），G3工艺参数/G4追溯信息 整组隐；列偏好键 `ColumnPrefsVersion="v1"`（`col_prefs_production-records_v1`）；**列宽修复**：表格移除 `table-min-width`+`--table-min-width`（原把表根 min-width 锁到全部可见列宽总和致过宽），与生产批次表格设置对齐 |
-| 8 | **SectionOutsources.razor** | /section-outsources | 批次 | | 2026-09-09 默认列显隐收敛（列偏好键 col_prefs_section-outsources_v2）：委外信息 隐 要求收回日期/紧急；回收信息 隐 非正常回收(支)/非正常回收(重)/回收备注 |
+| 8 | **SectionOutsources.razor** | /section-outsources | 批次 | ✅ | 列分组（委外信息+回收信息）+ 内联编辑；2026-09-09 默认列显隐收敛（V70 v2，列偏好键 col_prefs_section-outsources_v2）：委外信息 隐 要求收回日期/紧急；回收信息 隐 非正常回收(支)/非正常回收(重)/回收备注；**V72 再改（列偏好键 v2→v3）**：委外信息组加 计价单位(元/Kg·元/米·元/支 下拉)/单价/总价 三列（发出重量之后，默认显，厂内行禁用留空），委外单位列改档案下拉驱动（RenderEditVendorField 取 active 档案按 item 工段过滤、当前档外历史值不改可不拦），IsInternal 列改只读派生显示（不再手动开关），保存触发服务端重判定厂内/计价；列偏好键 col_prefs_section-outsources_v3 |
 | 9 | **OutsourceRecoveries.razor** | /outsource-recoveries | 批次 | | 2026-09-09 默认列显隐收敛（首并列偏好键 col_prefs_outsource-recoveries_v1）：回收信息 隐 数据来源/更新时间 |
 | 10 | PicklingInRecords.razor | /pickling-in-records | 批次 | | 去油/酸洗入缸记录（入缸报工）；2026-09-09 默认列显隐收敛 + 移除 table-min-width，2026-09-09 二调（列偏好键 v1→v2）：G1 默认仅显 登记日期/生产编号/挂牌号/订单号/主号/工序名称/工段名称/工厂牌号/制造规格/生产支数/生产重量/产类（工单号/执行序号/设备名称/班次/操作人/备注/数据来源/更新时间 隐）；G2 状态/完工日期 默认显示、完工班次/完工操作人 默认隐藏（由整组隐改回，col_prefs_pickling-in-records_v2） |
 | 11 | PicklingOutRecords.razor | /pickling-out-records | 批次 | | 去油/酸洗完工记录；2026-09-09 默认隐 备注/数据来源/更新时间 + 移除 table-min-width，2026-09-09 二调（列偏好键 v1→v2）：入缸信息 增隐 设备名称（col_prefs_pickling-out-records_v2） |
@@ -667,6 +740,7 @@
 | 85 | MonthlySummary.razor | /payroll/monthly-summary | 工资结算 | ✅ | 月工资津贴汇总页：员工某结算月「完整应发/实发」汇总表（参考 Excel《工资条及打印.xlsx》17 列：工号/姓名/月份常量/出勤天数/本月基础工资/本月杂辅工资 + 岗位补贴·工龄奖·满勤奖·带班费·夜班津贴·高温费·工伤补贴 7 正津贴 + 处罚·代缴社保(存负)/应发/实发）；基础工资按各子页「已保存金额」归口（Fixed=Employee.MonthlyWage、PieceCollective→集体月结快照、PieceAttendance→靠工月结快照、Hourly/Daily/PieceIndividual→每日工资当月Σ），出勤天数=当月考勤去重日期数；应发=基础+杂辅+7 正津贴，实发=应发+处罚+代缴（后两列存负）；行集=IsActive 在册 ∪ 当月任一来源有行（停用行灰显），工号升序 + 页内关键词（工号/姓名）+ 金额 0 网格留空 + tfoot 列合计；顶部年/月导航 + 已保存/未保存徽标 +「保存本月」(SalaryEdit，整月重算替换快照 PayrollMonthlySummaryRecord 每人每月一行 UK)+「全部打印」A4 横向整表 +「个人打印」每员工一条带表头工资条（两打印读已保存快照、未保存禁用提示「先保存本月」）；写操作 SalaryEdit 门控 |
 | 86 | MaterialInputConsistency.razor | /material-input-consistency | 工单 | | 用料投料核查页（2026-09-08 拆分两页之一，独立终态视图）：列组=基础数据 / 实时关注（3 字段主号级）/ 用料及投料（7 列 2026-09-08 拆出：分类用料/分类到料/原料未至/到料未投/生产投料量/投料比/投料状态，除投料状态外不支持排序筛选），默认隐藏 最终用户/最大长度，投料状态超量=chip-dark 深底白字区分满足绿色；**无**待投料汇总卡、**无**计划类型勾选、**无**用料计划列组；两张异常卡「错疑-用料投料不一致」(ErrorDoubt，原料锁定档位) +「错误-用料计划及其执行」(InProductionInspection，主号完成/生产执行/成品检验 三档已过投料期，标题旁附注「以下执行状态无需再投料」) 卡↔主表 ScheduleStage/待料联动筛选（自原用料计划页迁入）；错疑卡重量三列表头=工单重量/计划投料重量/到料重量（到货量口径）；错误卡聚合行首列表头=工单执行状态，聚合列=原料未至/到料未投；仅显示投影，数据层/读模型零改动；列偏好 key `materialInputConsistency_v4`、页面状态 key `materialInputConsistency` |
 | 87 | ProductionExecutionCheck.razor | /production-execution-check | 批次 | | 生产执行核查页（2026-09-08 批次管理拆分两入口之一）：承载「错疑-生产批次执行」聚合卡（即原「批次-错疑执行」，2026-09-09 改名；4 类错疑 匹配工单/工段流转/有效投料/成品切割 批次数+领料重量合计，**默认折叠、点开才懒加载**，BatchCount>0 可点选联动筛下列表，可取消筛选；列头错疑列手动筛选同样可用）+ 页内自足精简批次列表（服务端分页，列组=批次与工单（批次与执行及关联工单合并，生产编号/状态/工单号/工单关注 + 挂牌号/次号隐藏；V61 裁剪 当前工序/当前工段/截止执行日/工段完工/订单号/主号 六列）/ 执行核查（**4 灯** 匹配工单/工段流转/投料需调整/成切存疑 必显；V62 成切存疑由投料组回归）/ 理论产出对照（**错疑缘由数据对照**：过程检理论成支·现理论成支/理论成品重·成切需求/执行/支数；V64 取消 过程检成重 列；V63 组名「投料与有效量」改名点题 + 过程检列前移到 现理论成支 前 + 列名精简（过程检理论成品支→过程检理论成支、理论成品支→现理论成支，理论成品重列名保持）；V62 裁 领料支数/领料重量/现有效原料支数/现有效原料重量/缺陷-返整量/缺陷-纯次品量 六列，页底合计）；只读仅「查看详情」跳 /batches/{id}，无删除/编辑，无通知轮询/无打印全部）；**顶部无搜索栏**（2026-09-09 模糊搜索+登记日期整行删除，定位靠错疑卡联动+列头筛选））；列偏好 key `batchExecutionCheck_v6`、页面状态 key `batchExecutionCheck`（排序/列筛选） |
+| 88 | **OutsourceVendors.razor** | /outsource-vendors | 批次 | ✅ | 委外单位档案主档页（V72 新增，2026-09-09）：委外单位×委外工段 主档，行键 VendorName+SectionName 唯一（英文字段名大小写不敏感）、编码 VendorCode WV+4 位（新增自动，列表列默认隐藏）；8 列=编码(默认隐)/委外单位名/委外工段(工段枚举下拉)/本厂外协(IsWorkshop MudSwitch，勾选本厂车间→工段锁定冷轧拔)/联系人/联系电话/备注/状态(启用·停用 MudChip)，内联编辑 + ConfirmDialog 删除；服务端分页 + ExcelFilter + 列头排序 + 模糊搜索（委外单位名/联系人）+ 默认按编码降序 + 方向键导航；列偏好键 `col_prefs_outsource-vendors_v1`；新建入口 → 独立创建页 OutsourceVendorCreate.razor `/outsource-vendors/create`（本厂车间 IsWorkshop 仅冷轧拔可选）；本档供工段委外新建/行内编辑/扫码 按行工段过滤取数（`GetActiveAsync` active 全量），未建档委外单位工段委外不可选（先建档） |
 
 ---
 

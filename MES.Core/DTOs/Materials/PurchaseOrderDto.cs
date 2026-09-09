@@ -19,6 +19,7 @@ public class PurchaseOrderDto
     public int? Quantity { get; set; }
     public decimal Weight { get; set; }
     public DateTime RequiredDate { get; set; }
+    public PricingUnit? PricingUnit { get; set; }
     public decimal? UnitPrice { get; set; }
     public decimal? TotalAmount { get; set; }
     public DateTime? LastArrivalDate { get; set; }
@@ -78,6 +79,7 @@ public class CreatePurchaseOrderRequest
     public int? Quantity { get; set; }
     public decimal Weight { get; set; }
     public DateTime RequiredDate { get; set; }
+    public PricingUnit? PricingUnit { get; set; }
     public decimal? UnitPrice { get; set; }
     public int? InputMultiple { get; set; }
     public string? SourceWorkOrderNo { get; set; }
@@ -94,6 +96,7 @@ public class UpdatePurchaseOrderRequest
     public int? Quantity { get; set; }
     public decimal Weight { get; set; }
     public DateTime RequiredDate { get; set; }
+    public PricingUnit? PricingUnit { get; set; }
     public decimal? UnitPrice { get; set; }
     public int? InputMultiple { get; set; }
     public string? SourceWorkOrderNo { get; set; }

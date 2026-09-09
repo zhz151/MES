@@ -214,7 +214,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             x.p.Id, x.p.OrderNo, x.p.SupplierId, x.p.SupplierName,
             x.p.OrderDate, x.p.Status, x.p.IsForceCompleted, x.MaterialCategory,
             x.p.PlantGrade, x.p.Specification, x.p.UnitWeight, x.p.Quantity,
-            x.p.Weight, x.p.RequiredDate, x.p.UnitPrice, x.p.TotalAmount,
+            x.p.Weight, x.p.RequiredDate, x.p.PricingUnit, x.p.UnitPrice, x.p.TotalAmount,
             x.p.LastArrivalDate, x.p.ReceivedQuantity, x.p.ReceivedWeight,
             x.p.SourceWorkOrderNo, x.p.InputMultiple, x.p.Remark, x.p.CreatedTime,
             x.p.CreatedBy, x.p.UpdatedBy, x.p.UpdatedTime,
@@ -270,6 +270,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             Quantity = x.Quantity,
             Weight = x.Weight,
             RequiredDate = x.RequiredDate,
+            PricingUnit = x.PricingUnit,
             UnitPrice = x.UnitPrice,
             TotalAmount = x.TotalAmount,
             LastArrivalDate = x.LastArrivalDate,
@@ -351,6 +352,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             Quantity = item.p.Quantity,
             Weight = item.p.Weight,
             RequiredDate = item.p.RequiredDate,
+            PricingUnit = item.p.PricingUnit,
             UnitPrice = item.p.UnitPrice,
             TotalAmount = item.p.TotalAmount,
             LastArrivalDate = item.p.LastArrivalDate,
@@ -408,6 +410,9 @@ public class PurchaseOrderService : IPurchaseOrderService
                     .Select(s => s.SupplierName)
                     .FirstOrDefaultAsync();
 
+                var pricingUnit = request.PricingUnit ?? MaterialPricingDefaults.DefaultPricingUnit;
+                var unitPrice = request.UnitPrice ?? MaterialPricingDefaults.DefaultPurchaseUnitPrice(request.MaterialCategory);
+
                 entity = new PurchaseOrder
                 {
                     OrderNo = orderNo,
@@ -421,15 +426,15 @@ public class PurchaseOrderService : IPurchaseOrderService
                     Quantity = request.Quantity,
                     Weight = request.Weight,
                     RequiredDate = request.RequiredDate,
-                    UnitPrice = request.UnitPrice,
+                    PricingUnit = pricingUnit,
+                    UnitPrice = unitPrice,
                     SourceWorkOrderNo = request.SourceWorkOrderNo,
                     InputMultiple = request.InputMultiple,
                     Remark = request.Remark
                 };
 
-                // 计算总金额
-                if (request.Quantity.HasValue && request.UnitPrice.HasValue)
-                    entity.TotalAmount = request.Quantity.Value * request.UnitPrice.Value;
+                // 总金额 = 按计价单位取量（PerKg→重量kg、PerPiece→支数）
+                entity.TotalAmount = MaterialPricingDefaults.ComputeTotal(pricingUnit, unitPrice, request.Weight, request.Quantity, null);
 
                 _context.PurchaseOrders.Add(entity);
                 await _context.SaveChangesAsync();
@@ -486,6 +491,9 @@ public class PurchaseOrderService : IPurchaseOrderService
                     var orderNo = $"{prefix}{seq:D3}";
                     seq++;
 
+                    var pricingUnit = request.PricingUnit ?? MaterialPricingDefaults.DefaultPricingUnit;
+                    var unitPrice = request.UnitPrice ?? MaterialPricingDefaults.DefaultPurchaseUnitPrice(request.MaterialCategory);
+
                     var entity = new PurchaseOrder
                     {
                         OrderNo = orderNo,
@@ -499,14 +507,14 @@ public class PurchaseOrderService : IPurchaseOrderService
                         Quantity = request.Quantity,
                         Weight = request.Weight,
                         RequiredDate = request.RequiredDate,
-                        UnitPrice = request.UnitPrice,
+                        PricingUnit = pricingUnit,
+                        UnitPrice = unitPrice,
                         SourceWorkOrderNo = request.SourceWorkOrderNo,
                         InputMultiple = request.InputMultiple,
                         Remark = request.Remark
                     };
 
-                    if (request.Quantity.HasValue && request.UnitPrice.HasValue)
-                        entity.TotalAmount = request.Quantity.Value * request.UnitPrice.Value;
+                    entity.TotalAmount = MaterialPricingDefaults.ComputeTotal(pricingUnit, unitPrice, request.Weight, request.Quantity, null);
 
                     _context.PurchaseOrders.Add(entity);
                     entities.Add(entity);
@@ -606,16 +614,15 @@ public class PurchaseOrderService : IPurchaseOrderService
         entity.Quantity = request.Quantity ?? entity.Quantity;
         entity.Weight = request.Weight;
         entity.RequiredDate = request.RequiredDate;
+        entity.PricingUnit = request.PricingUnit ?? entity.PricingUnit;
         entity.UnitPrice = request.UnitPrice ?? entity.UnitPrice;
         entity.InputMultiple = request.InputMultiple;
         entity.SourceWorkOrderNo = request.SourceWorkOrderNo ?? entity.SourceWorkOrderNo;
         entity.Remark = request.Remark ?? entity.Remark;
 
-        // 重新计算总金额
-        if (request.Quantity.HasValue && request.UnitPrice.HasValue)
-            entity.TotalAmount = request.Quantity.Value * request.UnitPrice.Value;
-        else
-            entity.TotalAmount = null;
+        // 重新计算总金额（按计价单位取量：PerKg→重量kg、PerPiece→支数）
+        var pricingUnit = entity.PricingUnit ?? MaterialPricingDefaults.DefaultPricingUnit;
+        entity.TotalAmount = MaterialPricingDefaults.ComputeTotal(pricingUnit, entity.UnitPrice, entity.Weight, entity.Quantity, null);
     }
 
     public async Task SyncAllAsync()
@@ -752,6 +759,7 @@ public class PurchaseOrderService : IPurchaseOrderService
         Quantity = entity.Quantity,
         Weight = entity.Weight,
         RequiredDate = entity.RequiredDate,
+        PricingUnit = entity.PricingUnit,
         UnitPrice = entity.UnitPrice,
         TotalAmount = entity.TotalAmount,
         LastArrivalDate = entity.LastArrivalDate,
@@ -1489,13 +1497,27 @@ public class PurchaseOrderService : IPurchaseOrderService
     public async Task<byte[]> PrintOrderAsync(int id, List<PrintColumnDef>? columns = null)
     {
         var dto = await GetByIdAsync(id);
-        return TablePrintHelper.GeneratePdf("采购订单列表", new List<Dictionary<string, object>> { ToPrintDict(dto) }, columns ?? []);
+        return PrintOrderCore("采购订单列表", new List<Dictionary<string, object>> { ToPrintDict(dto) }, columns);
     }
 
     public async Task<byte[]> PrintOrderBatchAsync(int[] ids, List<PrintColumnDef>? columns = null)
     {
         var orders = await GetByIdsAsync(ids);
-        return TablePrintHelper.GeneratePdf("采购订单列表", orders.Select(ToPrintDict).ToList(), columns ?? []);
+        return PrintOrderCore("采购订单列表", orders.Select(ToPrintDict).ToList(), columns);
+    }
+
+    /// <summary>采购订单打印统一出口：渲染前校验「前端请求打印列 ⊆ ToPrintDict 已注册列」，缺列即抛业务异常提示补齐，
+    /// 防止手写白名单加列漏同步时打印格子静默空白（2026-09-09 PricingUnit/UnitPrice/TotalAmount 曾漏 → 此护栏防复发）。</summary>
+    private static byte[] PrintOrderCore(string title, List<Dictionary<string, object>> rows, List<PrintColumnDef>? columns)
+    {
+        if (rows.Count > 0 && columns is { Count: > 0 })
+        {
+            var available = rows[0].Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var missing = columns.Where(c => !available.Contains(c.Key)).Select(c => c.Key).ToList();
+            if (missing.Count > 0)
+                throw new BusinessException($"打印列 {string.Join("/", missing)} 未在服务端打印投影(ToPrintDict)中注册，请同步补 key，否则打印该列将空白");
+        }
+        return TablePrintHelper.GeneratePdf(title, rows, columns ?? []);
     }
 
     public async Task<List<PurchaseOrderDto>> GetByIdsAsync(int[] ids)
@@ -1524,6 +1546,7 @@ public class PurchaseOrderService : IPurchaseOrderService
             Quantity = x.p.Quantity,
             Weight = x.p.Weight,
             RequiredDate = x.p.RequiredDate,
+            PricingUnit = x.p.PricingUnit,
             UnitPrice = x.p.UnitPrice,
             TotalAmount = x.p.TotalAmount,
             LastArrivalDate = x.p.LastArrivalDate,
@@ -1582,6 +1605,10 @@ public class PurchaseOrderService : IPurchaseOrderService
         ["Quantity"] = (object?)dto.Quantity ?? "",
         ["InputMultiple"] = (object?)dto.InputMultiple ?? "",
         ["Weight"] = dto.Weight,
+        // 计价（与前端 RenderCell 口径一致：计价单位中文、单价/总价 G29 去零）
+        ["PricingUnit"] = dto.PricingUnit.HasValue ? EnumHelper.GetDisplayName(dto.PricingUnit.Value) : "-",
+        ["UnitPrice"] = dto.UnitPrice?.ToString("G29") ?? "-",
+        ["TotalAmount"] = dto.TotalAmount?.ToString("G29") ?? "-",
         ["RequiredDate"] = dto.RequiredDate,
         ["SupplierName"] = dto.SupplierName,
         ["Status"] = dto.Status,

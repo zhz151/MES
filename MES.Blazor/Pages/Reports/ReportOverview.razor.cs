@@ -36,6 +36,11 @@ public partial class ReportOverview
     [Inject] private IJSRuntime JS { get; set; } = null!;
     [Inject] private ILocalStorageService LocalStorage { get; set; } = null!;
 
+    // 三张「往来数据」表（客户/供应商/委外单位）：直接调源上下文列表同款分页端点取整表
+    [Inject] private CustomerService CustomerSvc { get; set; } = null!;
+    [Inject] private SupplierService SupplierSvc { get; set; } = null!;
+    [Inject] private OutsourceVendorService OutsourceVendorSvc { get; set; } = null!;
+
     // ========== 懒加载状态 ==========
 
     private int _activeIndex;
@@ -58,6 +63,7 @@ public partial class ReportOverview
     // 方案B（生产执行/质量管理/物料执行）：默认折叠「月度/历史」类低频卡，核心实时卡展开
     // 业务总况/原料需求 为单区域大表 Tab（非多卡），不参与折叠
     // 现订单负荷总量/仓库报表 为嵌入组件 Tab，无可打印汇总卡，不参与折叠
+    // 三张「往来数据」卡（2026-09-10 批二十二）：低频查看、默认折叠，展开默认显 10 行 + 行数切换
 
     /// <summary>卡折叠状态字典：key=卡片标识 → true=折叠；未记录时取默认折叠集</summary>
     private readonly Dictionary<string, bool> _cardCollapsed = new(StringComparer.OrdinalIgnoreCase);
@@ -66,6 +72,10 @@ public partial class ReportOverview
     /// <summary>默认折叠的卡（首次进入/未持久化时的展示策略）</summary>
     private static readonly HashSet<string> DefaultCollapsedCards = new(StringComparer.OrdinalIgnoreCase)
     {
+        // 三张「往来数据」卡（批二十二）：默认折叠，展开显 10 行
+        "report:customer-trade",
+        "report:supplier-trade",
+        "report:outsource-trade",
         // 物料执行（方案B：3 张月度历史卡默认折叠）
         "material:semi-monthly",
         "material:finished-monthly",
@@ -164,7 +174,8 @@ public partial class ReportOverview
     {
         var t1 = OrderService.GetInOutSummaryAsync(DateTime.Today.Year);
         var t2 = OrderService.GetDeliveryEstimateAsync();
-        await Task.WhenAll(t1, t2);
+        var t3 = LoadCustomerTradeAsync();
+        await Task.WhenAll(t1, t2, t3);
 
         var r1 = await t1;
         if (r1.Success && r1.Data != null)
@@ -176,6 +187,98 @@ public partial class ReportOverview
         if (r2.Success && r2.Data != null)
             _deliveryEstimate = r2.Data;
         // 交期预估加载失败不阻断主表：保留 null，页面显示「暂无数据」
+    }
+
+    // ========== Tab1 业务总况·客户往来数据（同源客户管理列表：整表一次性加载 + 身份列排序 + 搜索） ==========
+
+    private List<CustomerProfileDto> _customerTradeRows = new();
+    private string _customerTradeKeyword = "";
+    private string? _customerTradeSortBy;   // null=原序；salesman / endcustomer
+    private bool _customerTradeDesc;
+    private int _customerTradeTake = 10;    // 显示行数：0=全部；默认 10
+
+    /// <summary>拉取客户档案全量（PageSize=5000 覆盖全量小档案，统计随 GetPagedAsync 回填；失败不阻断总览）</summary>
+    private async Task LoadCustomerTradeAsync()
+    {
+        try
+        {
+            var r = await CustomerSvc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 5000 });
+            _customerTradeRows = OkData(r)?.Items ?? new List<CustomerProfileDto>();
+        }
+        catch { _customerTradeRows = new List<CustomerProfileDto>(); }
+    }
+
+    /// <summary>客户往来可见行：身份列关键字过滤 + 业务员/最终用户点击排序（中文按 Unicode，客户端小集够用）</summary>
+    private List<CustomerProfileDto> CustomerTradeVisible()
+    {
+        IEnumerable<CustomerProfileDto> q = _customerTradeRows;
+        if (!string.IsNullOrWhiteSpace(_customerTradeKeyword))
+        {
+            var kw = _customerTradeKeyword.Trim();
+            q = q.Where(r => r.Salesman.Contains(kw, StringComparison.OrdinalIgnoreCase)
+                          || r.EndCustomer.Contains(kw, StringComparison.OrdinalIgnoreCase));
+        }
+        if (_customerTradeSortBy != null)
+        {
+            var sel = _customerTradeSortBy == "endcustomer"
+                ? (Func<CustomerProfileDto, string>)(r => r.EndCustomer)
+                : r => r.Salesman;
+            q = _customerTradeDesc
+                ? q.OrderByDescending(sel, StringComparer.OrdinalIgnoreCase)
+                : q.OrderBy(sel, StringComparer.OrdinalIgnoreCase);
+        }
+        return q.ToList();
+    }
+
+    /// <summary>客户往来显示行：过滤排序后按行数设置截取（0=全部；无翻页，显示前 N 条）</summary>
+    private List<CustomerProfileDto> CustomerTradeShown()
+    {
+        var all = CustomerTradeVisible();
+        return _customerTradeTake > 0 && all.Count > _customerTradeTake
+            ? all.Take(_customerTradeTake).ToList()
+            : all;
+    }
+
+    private void SortCustomerTrade(string col)
+    {
+        if (_customerTradeSortBy == col) _customerTradeDesc = !_customerTradeDesc;
+        else { _customerTradeSortBy = col; _customerTradeDesc = false; }
+    }
+
+    /// <summary>排序指示类名：被排序列浅蓝背景+加粗（表头不再渲染 ▲/▼ 箭头文字）</summary>
+    private string CustomerTradeSortedClass(string col)
+        => _customerTradeSortBy == col ? " report-th-sorted" : "";
+
+    /// <summary>客户往来统计格（z单/x吨/y万 三色取整；与客户管理列表口径一致）</summary>
+    private static MarkupString CustomerTradeCell(CustomerProfileDto r, string col)
+    {
+        var v = CustomerTradeValues(r, col);
+        return OrderOverviewFormatter.RenderTradeMarkup(v.Count, v.Weight, v.Amount, v.WithCount);
+    }
+
+    /// <summary>单行 7 统计列取值（客户 7 列均含单数成分）</summary>
+    private static (bool WithCount, int Count, decimal Weight, decimal Amount) CustomerTradeValues(CustomerProfileDto r, string col) => col switch
+    {
+        "YearOrder" => (true, r.YearOrderCount, r.YearOrderWeight, r.YearOrderAmount),
+        "ShippedDone" => (true, r.ShippedCompletedCount, r.ShippedCompletedWeight, r.ShippedCompletedAmount),
+        "ShippedOther" => (true, r.ShippedOtherCount, r.ShippedOtherWeight, r.ShippedOtherAmount),
+        "StockDone" => (true, r.StockCompletedCount, r.StockCompletedWeight, r.StockCompletedAmount),
+        "StockOther" => (true, r.StockOtherCount, r.StockOtherWeight, r.StockOtherAmount),
+        "WipNone" => (true, r.WipNoneCount, r.WipNoneWeight, r.WipNoneAmount),
+        "WipPartial" => (true, r.WipPartialCount, r.WipPartialWeight, r.WipPartialAmount),
+        _ => (true, 0, 0m, 0m)
+    };
+
+    /// <summary>客户往来列合计（按当前显示行汇总，供卡内「合计」行）</summary>
+    private static MarkupString CustomerTradeSummary(IEnumerable<CustomerProfileDto> rows, string col)
+    {
+        var c = 0; decimal w = 0m, a = 0m;
+        foreach (var r in rows)
+        {
+            var v = CustomerTradeValues(r, col);
+            c += v.Count; w += v.Weight; a += v.Amount;
+        }
+        return OrderOverviewFormatter.RenderTradeMarkup(c, w, a, true);
     }
 
     // ========== Tab3 原料需求：原锁待投料量汇总 ==========
@@ -225,6 +328,101 @@ public partial class ReportOverview
         _piercingPendingItems = OkData(await t7) ?? new();
         _piercingInProgressData = OkData(await t8);
         _piercingMonthlyData = OkData(await t9);
+        await LoadSupplierTradeAsync();
+    }
+
+    // ========== Tab4 物料执行·供应商往来数据（同源供应商管理列表：整表加载 + 身份列排序 + 搜索） ==========
+
+    private List<SupplierProfileDto> _supplierTradeRows = new();
+    private string _supplierTradeKeyword = "";
+    private string? _supplierTradeSortBy;   // null=原序；name / category
+    private bool _supplierTradeDesc;
+    private int _supplierTradeTake = 10;    // 显示行数：0=全部；默认 10
+
+    /// <summary>拉取供应商档案全量（统计随 GetPagedAsync 回填；失败不阻断物料执行卡组）</summary>
+    private async Task LoadSupplierTradeAsync()
+    {
+        try
+        {
+            var r = await SupplierSvc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 5000 });
+            _supplierTradeRows = OkData(r)?.Items ?? new List<SupplierProfileDto>();
+        }
+        catch { _supplierTradeRows = new List<SupplierProfileDto>(); }
+    }
+
+    private static string SupplierMaterialText(SupplierProfileDto r) => DisplayHelper.GetMaterialTypeText(r.MaterialCategory);
+
+    /// <summary>供应商往来可见行：名称/物料分类/备注 关键字过滤 + 名称/分类 点击排序</summary>
+    private List<SupplierProfileDto> SupplierTradeVisible()
+    {
+        IEnumerable<SupplierProfileDto> q = _supplierTradeRows;
+        if (!string.IsNullOrWhiteSpace(_supplierTradeKeyword))
+        {
+            var kw = _supplierTradeKeyword.Trim();
+            q = q.Where(r => r.SupplierName.Contains(kw, StringComparison.OrdinalIgnoreCase)
+                          || SupplierMaterialText(r).Contains(kw, StringComparison.OrdinalIgnoreCase)
+                          || (r.Remark?.Contains(kw, StringComparison.OrdinalIgnoreCase) ?? false));
+        }
+        if (_supplierTradeSortBy != null)
+        {
+            var sel = _supplierTradeSortBy == "category"
+                ? (Func<SupplierProfileDto, string>)(SupplierMaterialText)
+                : (Func<SupplierProfileDto, string>)(r => r.SupplierName);
+            q = _supplierTradeDesc
+                ? q.OrderByDescending(sel, StringComparer.OrdinalIgnoreCase)
+                : q.OrderBy(sel, StringComparer.OrdinalIgnoreCase);
+        }
+        return q.ToList();
+    }
+
+    /// <summary>供应商往来显示行：过滤排序后按行数设置截取（0=全部；无翻页）</summary>
+    private List<SupplierProfileDto> SupplierTradeShown()
+    {
+        var all = SupplierTradeVisible();
+        return _supplierTradeTake > 0 && all.Count > _supplierTradeTake
+            ? all.Take(_supplierTradeTake).ToList()
+            : all;
+    }
+
+    private void SortSupplierTrade(string col)
+    {
+        if (_supplierTradeSortBy == col) _supplierTradeDesc = !_supplierTradeDesc;
+        else { _supplierTradeSortBy = col; _supplierTradeDesc = false; }
+    }
+
+    /// <summary>排序指示类名：被排序列浅蓝背景+加粗（表头不再渲染 ▲/▼ 箭头文字）</summary>
+    private string SupplierTradeSortedClass(string col)
+        => _supplierTradeSortBy == col ? " report-th-sorted" : "";
+
+    /// <summary>供应商往来统计格（出单列 z单/x吨/y万；到货/待收 x吨/y万；退货 仅吨；与供应商管理列表口径一致）</summary>
+    private static MarkupString SupplierTradeCell(SupplierProfileDto r, string col)
+    {
+        var v = SupplierTradeValues(r, col);
+        return OrderOverviewFormatter.RenderTradeMarkup(v.Count, v.Weight, v.Amount, v.WithCount);
+    }
+
+    /// <summary>单行 5 统计列取值（出单列含单数；到货/待收 吨+万；退货 仅吨）</summary>
+    private static (bool WithCount, int Count, decimal Weight, decimal Amount) SupplierTradeValues(SupplierProfileDto r, string col) => col switch
+    {
+        "TotalOrder" => (true, r.TotalOrderCount, r.TotalWeight, r.TotalAmount),
+        "YearOrder" => (true, r.YearOrderCount, r.YearWeight, r.YearAmount),
+        "Arrived" => (false, 0, r.ArrivedWeight, r.ArrivedAmount),
+        "Pending" => (false, 0, r.PendingWeight, r.PendingAmount),
+        "YearReturn" => (false, 0, r.YearReturnWeight, 0m),
+        _ => (false, 0, 0m, 0m)
+    };
+
+    /// <summary>供应商往来列合计（按当前显示行汇总，供卡内「合计」行）</summary>
+    private static MarkupString SupplierTradeSummary(IEnumerable<SupplierProfileDto> rows, string col)
+    {
+        var c = 0; decimal w = 0m, a = 0m;
+        foreach (var r in rows)
+        {
+            var v = SupplierTradeValues(r, col);
+            c += v.Count; w += v.Weight; a += v.Amount;
+        }
+        var withCount = col is "TotalOrder" or "YearOrder";
+        return OrderOverviewFormatter.RenderTradeMarkup(c, w, a, withCount);
     }
 
     // ========== Tab5 生产执行：冷轧拔近日排程 + 段落流转 + 近日/月度生产量 + 实时委外在产 + 月度委外 ==========
@@ -283,6 +481,101 @@ public partial class ReportOverview
         _monthlyLabels = Enumerable.Range(1, 12)
             .Select(m => new DateTime(DateTime.Today.Year, m, 1).ToString("yyyy-MM"))
             .ToList();
+        await LoadOutsourceTradeAsync();
+    }
+
+    // ========== Tab5 生产执行·委外单位往来数据（同源委外单位档案：排除本厂 IsWorkshop，整表加载 + 身份列排序 + 搜索） ==========
+
+    private List<OutsourceVendorProfileDto> _outsourceTradeRows = new();
+    private string _outsourceTradeKeyword = "";
+    private string? _outsourceTradeSortBy;   // null=原序；vendor / section
+    private bool _outsourceTradeDesc;
+    private int _outsourceTradeTake = 10;    // 显示行数：0=全部；默认 10
+
+    /// <summary>拉取委外单位档案全量（仅保留外协行：厂内 IsWorkshop=1 无往来不计，统计随 GetPagedAsync 回填；失败不阻断生产执行卡组）</summary>
+    private async Task LoadOutsourceTradeAsync()
+    {
+        try
+        {
+            var r = await OutsourceVendorSvc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 5000 });
+            _outsourceTradeRows = (OkData(r)?.Items ?? new List<OutsourceVendorProfileDto>())
+                .Where(v => !v.IsWorkshop).ToList();
+        }
+        catch { _outsourceTradeRows = new List<OutsourceVendorProfileDto>(); }
+    }
+
+    private static string OutsourceSectionText(OutsourceVendorProfileDto r) => SectionKeys.ToChinese(r.SectionName) ?? r.SectionName;
+
+    /// <summary>委外单位往来可见行：单位名/工段 关键字过滤 + 单位名/工段 点击排序</summary>
+    private List<OutsourceVendorProfileDto> OutsourceTradeVisible()
+    {
+        IEnumerable<OutsourceVendorProfileDto> q = _outsourceTradeRows;
+        if (!string.IsNullOrWhiteSpace(_outsourceTradeKeyword))
+        {
+            var kw = _outsourceTradeKeyword.Trim();
+            q = q.Where(r => r.VendorName.Contains(kw, StringComparison.OrdinalIgnoreCase)
+                          || OutsourceSectionText(r).Contains(kw, StringComparison.OrdinalIgnoreCase));
+        }
+        if (_outsourceTradeSortBy != null)
+        {
+            var sel = _outsourceTradeSortBy == "section"
+                ? (Func<OutsourceVendorProfileDto, string>)(OutsourceSectionText)
+                : (Func<OutsourceVendorProfileDto, string>)(r => r.VendorName);
+            q = _outsourceTradeDesc
+                ? q.OrderByDescending(sel, StringComparer.OrdinalIgnoreCase)
+                : q.OrderBy(sel, StringComparer.OrdinalIgnoreCase);
+        }
+        return q.ToList();
+    }
+
+    /// <summary>委外单位往来显示行：过滤排序后按行数设置截取（0=全部；无翻页）</summary>
+    private List<OutsourceVendorProfileDto> OutsourceTradeShown()
+    {
+        var all = OutsourceTradeVisible();
+        return _outsourceTradeTake > 0 && all.Count > _outsourceTradeTake
+            ? all.Take(_outsourceTradeTake).ToList()
+            : all;
+    }
+
+    private void SortOutsourceTrade(string col)
+    {
+        if (_outsourceTradeSortBy == col) _outsourceTradeDesc = !_outsourceTradeDesc;
+        else { _outsourceTradeSortBy = col; _outsourceTradeDesc = false; }
+    }
+
+    /// <summary>排序指示类名：被排序列浅蓝背景+加粗（表头不再渲染 ▲/▼ 箭头文字）</summary>
+    private string OutsourceTradeSortedClass(string col)
+        => _outsourceTradeSortBy == col ? " report-th-sorted" : "";
+
+    /// <summary>委外单位往来统计格（累计/本年 z单/x吨/y万；回收/未回收 x吨/y万；退回 仅吨；与委外单位档案列表口径一致）</summary>
+    private static MarkupString OutsourceTradeCell(OutsourceVendorProfileDto r, string col)
+    {
+        var v = OutsourceTradeValues(r, col);
+        return OrderOverviewFormatter.RenderTradeMarkup(v.Count, v.Weight, v.Amount, v.WithCount);
+    }
+
+    /// <summary>单行 5 统计列取值（累计/本年含单数；回收/未回收 吨+万；退回 仅吨）</summary>
+    private static (bool WithCount, int Count, decimal Weight, decimal Amount) OutsourceTradeValues(OutsourceVendorProfileDto r, string col) => col switch
+    {
+        "TotalOrder" => (true, r.TotalOrderCount, r.TotalWeight, r.TotalAmount),
+        "YearOrder" => (true, r.YearOrderCount, r.YearWeight, r.YearAmount),
+        "YearRecovered" => (false, 0, r.YearRecoveredWeight, r.YearRecoveredAmount),
+        "Pending" => (false, 0, r.PendingWeight, r.PendingAmount),
+        "YearReturn" => (false, 0, r.YearReturnWeight, 0m),
+        _ => (false, 0, 0m, 0m)
+    };
+
+    /// <summary>委外单位往来列合计（按当前显示行汇总，供卡内「合计」行）</summary>
+    private static MarkupString OutsourceTradeSummary(IEnumerable<OutsourceVendorProfileDto> rows, string col)
+    {
+        var c = 0; decimal w = 0m, a = 0m;
+        foreach (var r in rows)
+        {
+            var v = OutsourceTradeValues(r, col);
+            c += v.Count; w += v.Weight; a += v.Amount;
+        }
+        var withCount = col is "TotalOrder" or "YearOrder";
+        return OrderOverviewFormatter.RenderTradeMarkup(c, w, a, withCount);
     }
 
     /// <summary>预计算同委外单位连续行数（后端已保证同单位相邻），供「委外单位」列合并单元格 rowspan</summary>
@@ -314,8 +607,6 @@ public partial class ReportOverview
     private List<NcrMonthlyRowDto> _ncrMonthlyRows = new();
     private List<int> _ncrCategoryRowspans = new();
     private List<int> _ncrDeptRowspans = new();
-    private List<(int Qty, int? Weight)> _ncrDeptTotals = new();
-    private List<(int Qty, int? Weight)> _ncrCategoryTotals = new();
 
     private async Task LoadTab6Async()
     {
@@ -344,13 +635,11 @@ public partial class ReportOverview
         ComputeNcrMonthlyRowspans();
     }
 
-    /// <summary>计算月度汇总三级合并 rowspan（后端已按 责任类别→责任部门→处置方式 排序，同组相邻）+ 部门/类别全年合计</summary>
+    /// <summary>计算月度汇总 责任类别/责任部门 合并 rowspan（后端已按 责任类别→责任部门→处置方式 排序，同组相邻）</summary>
     private void ComputeNcrMonthlyRowspans()
     {
         _ncrCategoryRowspans = new List<int>(new int[_ncrMonthlyRows.Count]);
         _ncrDeptRowspans = new List<int>(new int[_ncrMonthlyRows.Count]);
-        _ncrDeptTotals = new List<(int, int?)>(new (int, int?)[_ncrMonthlyRows.Count]);
-        _ncrCategoryTotals = new List<(int, int?)>(new (int, int?)[_ncrMonthlyRows.Count]);
 
         var i = 0;
         while (i < _ncrMonthlyRows.Count)
@@ -361,9 +650,6 @@ public partial class ReportOverview
                    && string.Equals(_ncrMonthlyRows[i + catCount].ResponsibilityCategory, category, StringComparison.Ordinal))
                 catCount++;
             _ncrCategoryRowspans[i] = catCount;
-            _ncrCategoryTotals[i] = (
-                _ncrMonthlyRows.Skip(i).Take(catCount).Sum(r => r.TotalQuantity),
-                _ncrMonthlyRows.Skip(i).Take(catCount).Sum(r => r.TotalWeight ?? 0));
 
             var j = i;
             var catEnd = i + catCount;
@@ -375,9 +661,6 @@ public partial class ReportOverview
                        && string.Equals(_ncrMonthlyRows[j + deptCount].ResponsibleDept, dept, StringComparison.Ordinal))
                     deptCount++;
                 _ncrDeptRowspans[j] = deptCount;
-                _ncrDeptTotals[j] = (
-                    _ncrMonthlyRows.Skip(j).Take(deptCount).Sum(r => r.TotalQuantity),
-                    _ncrMonthlyRows.Skip(j).Take(deptCount).Sum(r => r.TotalWeight ?? 0));
                 j += deptCount;
             }
 
@@ -505,18 +788,11 @@ public partial class ReportOverview
 
     // ========== 格式化 ==========
 
-    // Tab1 接单/出库/库存（t）
-    private static string FormatInOutWeight(decimal kg) => kg == 0m ? "-" : $"{kg / 1000m:F1}";
-
-    // Tab1 订单交期预估（两小表，x单/y吨，急中急子集 [*a/b] 标红）
-    private static MarkupString FormatDeliveryBucket(OrderDeliveryBucketDto b)
-    {
-        if (b.Count <= 0 && b.Weight <= 0) return new MarkupString("-");
-        var s = $"{b.Count}单/{b.Weight.ToString("F1")}吨";
-        if (b.UrgentCount > 0 || b.UrgentWeight > 0)
-            s += $"[<span style=\"color:#d32f2f;font-weight:700;\">*{b.UrgentCount}/{b.UrgentWeight.ToString("F1")}</span>]";
-        return new MarkupString(s);
-    }
+    /// <summary>Tab1 现负荷三行：仅当前月份显示 x吨/y万（彩色），其余月份 "-"。</summary>
+    private MarkupString RenderCurrentOnly(decimal weightKg, decimal amountYuan, int monthIndex)
+        => monthIndex == _currentMonthIndex
+            ? OrderOverviewFormatter.RenderInOutCell(weightKg, amountYuan)
+            : new MarkupString("-");
 
     // Tab4 采购待购（kg 取整，0 空）
     private static string FormatPendingWeight(decimal kg) => kg > 0 ? ((int)kg).ToString() : string.Empty;
@@ -577,8 +853,8 @@ public partial class ReportOverview
             ? $"[在制 {SuggestionTierText(group.InProdTier)}；成品 {SuggestionTierText(group.FinishedTier)}]"
             : group.SuggestedTier;
 
-    /// <summary>重量(kg) → 吨显示（G29 去零）</summary>
-    private static string TonsText(decimal kg) => kg > 0 ? (kg / 1000m).ToString("G29") : "0";
+    /// <summary>重量(kg) → 吨显示（保留 1 位小数，0 显 "0"）</summary>
+    private static string TonsText(decimal kg) => kg > 0 ? (kg / 1000m).ToString("F1") : "0";
 
     // Tab5 实时委外在产单元格「总量/[流转]/[*特急]」（t）
     private static MarkupString FormatOutsourceCell(OutsourcePendingCellDto? cell)

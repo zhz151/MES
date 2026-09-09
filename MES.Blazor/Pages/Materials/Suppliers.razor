@@ -80,6 +80,17 @@
 
             <!-- 数据表格 -->
             <div id="suppliers-list-table">
+            @* ① 基本信息 / ② 往来信息 分组标题栏（仿客户管理/订单列表 B23） *@
+            <div class="col-group-header-scroll">
+                <div class="col-group-header-bar" style="width: @(_totalTableWidth)px">
+                    @foreach (var gh in _groupHeaders)
+                    {
+                        <div class="col-group-header-item @gh.CssClass" style="width: @(gh.TotalWidth)px">
+                            <span class="col-group-badge">@gh.GroupName</span>
+                        </div>
+                    }
+                </div>
+            </div>
             <MudTable @ref="table"
                       T="SupplierProfileDto"
                       ServerData="@LoadDataFromServer"
@@ -90,12 +101,18 @@
                       RowsPerPage="@_pageSize"
                       RowsPerPageLabel="每页行数:">
                 <HeaderContent>
+                    @{
+                        int? _prevGk = null;
+                    }
                     <MudTh Class="col-selection-th" Style="width:40px;padding:0 4px;">
                         <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />
                     </MudTh>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTh Style="@($"width:{col.Width}px")">
+                        var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
+                        _prevGk = col.GroupKey;
+                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
+                        <MudTh Class="@_headerClass" Style="@($"width:{col.Width}px")">
                             <div style="display:inline-flex; align-items:center; gap:4px;">
                                 <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)
@@ -114,6 +131,9 @@
                     <MudTh Style="width:100px;">操作</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="item">
+                    @{
+                        int? _prevGk2 = null;
+                    }
                     <MudTd Class="col-selection-td" Style="width:40px;padding:0 4px;">
                         @if (!_editingIds.Contains(item.Id))
                         {
@@ -125,7 +145,10 @@
                     </MudTd>
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd>@RenderCell(item, col)</MudTd>
+                        var _isGroupStart2 = col.GroupKey.HasValue && col.GroupKey != _prevGk2;
+                        _prevGk2 = col.GroupKey;
+                        // ② 往来信息统计列数据靠左（2026-09-09 供应商页对齐）
+                        <MudTd Class="@GetCellGroupCss(col.GroupKey, _isGroupStart2)">@RenderCell(item, col)</MudTd>
                     }
                     <MudTd Style="min-width:100px;">
                         @if (_editingIds.Contains(item.Id))
@@ -156,10 +179,15 @@
                     </MudTd>
                 </RowTemplate>
                 <FooterContent>
+                    @{
+                        int? _prevGk3 = null;
+                    }
                     <MudTd Class="col-selection-td col-footer-cell" Style="width:40px;padding:0 4px;"></MudTd>  @* checkbox占位 *@
                     @foreach (var col in _visibleColumns)
                     {
-                        <MudTd Class="col-footer-cell"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
+                        var _isGroupStart3 = col.GroupKey.HasValue && col.GroupKey != _prevGk3;
+                        _prevGk3 = col.GroupKey;
+                        <MudTd Class="@(GetCellGroupCss(col.GroupKey, _isGroupStart3) + " col-footer-cell")"><span class="col-footer-sum">@RenderFooterCell(col)</span></MudTd>
                     }
                     <MudTd Class="col-footer-cell"></MudTd>  @* 操作列占位 *@
                 </FooterContent>

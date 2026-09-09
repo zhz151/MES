@@ -61,7 +61,7 @@ public partial class SubcontractOrders : IAsyncDisposable
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
-        "OutQuantity", "OutWeight", "ActualOutboundWeight", "Returned", "ReturnQuantity",
+        "OutQuantity", "OutWeight", "ActualOutboundWeight", "Returned", "ReturnQuantity", "TotalAmount",
     };
 
     private string sortColumn = "OrderDate";
@@ -103,6 +103,7 @@ public partial class SubcontractOrders : IAsyncDisposable
         new() { Key = "ActualOutboundWeight",Label = "实发量",                                                                 Width = "90"  },
         new() { Key = "Returned",            Label = "已回收",                                                                 Width = "130" },
         new() { Key = "ReturnQuantity",      Label = "已退货",                                                                 Width = "130" },
+        new() { Key = "TotalAmount",         Label = "委外金额(元)",                                                           Width = "110" },
         new() { Key = "CreatedBy",           Label = "创建人",     SortKey = "createdby",   FilterType = "string", Width = "100", Visible = false },
         new() { Key = "CreatedTime",         Label = "创建时间",   SortKey = "createdtime",  FilterType = "date",   Width = "130", Visible = false },
         new() { Key = "UpdatedBy",           Label = "更新人",     SortKey = "updatedby",   FilterType = "string", Width = "100", Visible = false },
@@ -431,7 +432,7 @@ public partial class SubcontractOrders : IAsyncDisposable
     // ========== 数值列居中（数据单元格） ==========
     private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
     {
-        "OutQuantity", "OutWeight", "ActualOutboundWeight", "Returned", "ReturnQuantity",
+        "OutQuantity", "OutWeight", "ActualOutboundWeight", "Returned", "ReturnQuantity", "TotalAmount",
     };
     private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
 
@@ -502,6 +503,9 @@ public partial class SubcontractOrders : IAsyncDisposable
             case "ReturnQuantity":
                 builder.AddContent(0, $"{item.ReturnQuantity}支/{((int)item.ReturnWeight).ToString()}kg");
                 break;
+            case "TotalAmount":
+                builder.AddContent(0, item.TotalAmount?.ToString("G29") ?? "-");
+                break;
             case "CreatedBy":
                 builder.AddContent(0, string.IsNullOrEmpty(item.CreatedBy) ? "-" : item.CreatedBy);
                 break;
@@ -540,6 +544,7 @@ public partial class SubcontractOrders : IAsyncDisposable
             : "-",
         "Returned" => $"{item.InQuantity?.ToString() ?? "0"}支/{((int)(item.InWeight ?? 0)).ToString()}kg",
         "ReturnQuantity" => $"{item.ReturnQuantity}支/{((int)item.ReturnWeight).ToString()}kg",
+        "TotalAmount" => item.TotalAmount?.ToString("G29") ?? "-",
         "CreatedBy" => string.IsNullOrEmpty(item.CreatedBy) ? "-" : item.CreatedBy,
         "CreatedTime" => item.CreatedTime == default ? "-" : item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
         "UpdatedBy" => string.IsNullOrEmpty(item.UpdatedBy) ? "-" : item.UpdatedBy,

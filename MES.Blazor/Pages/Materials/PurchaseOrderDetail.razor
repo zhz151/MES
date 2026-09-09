@@ -121,6 +121,7 @@
     private string _unitWeightStr = "";
     private string _weightStr = "";
     private string _unitPriceStr = "";
+    private PricingUnit _pricingUnit = PricingUnit.PerKg;
     private List<SupplierProfileDto> _suppliers = new();
 
     // ========== 单行列表辅助 ==========
@@ -193,8 +194,9 @@
             new() { Key = "inputmultiple", Label = "投料制成倍", Visible = true },
             new() { Key = "weight", Label = "采购重量", Visible = true },
             new() { Key = "requireddate", Label = "要求到货日", Visible = true },
-            new() { Key = "unitprice", Label = "单价", Visible = false },
-            new() { Key = "totalamount", Label = "总金额", Visible = false },
+            new() { Key = "pricingunit", Label = "计价单位", Visible = true },
+            new() { Key = "unitprice", Label = "单价", Visible = true },
+            new() { Key = "totalamount", Label = "总价", Visible = true },
             new() { Key = "sourceworkorderno", Label = "来源工单号", Visible = true },
             // 到货进度
             new() { Key = "receivedquantity", Label = "已到货支数", Visible = true },
@@ -306,6 +308,7 @@
         _quantityStr = _order.Quantity?.ToString() ?? "";
         _inputMultipleStr = _order.InputMultiple?.ToString() ?? "";
         _weightStr = _order.Weight.ToString("G29");
+        _pricingUnit = _order.PricingUnit ?? PricingUnit.PerKg;
         _unitPriceStr = _order.UnitPrice?.ToString("G29") ?? "";
     }
 
@@ -356,6 +359,7 @@
                 InputMultiple = _editOrder.SourceInputMultiple,
                 Weight = _editOrder.SourceWeight,
                 RequiredDate = requiredDate,
+                PricingUnit = _pricingUnit,
                 UnitPrice = _editOrder.SourceUnitPrice,
                 SourceWorkOrderNo = _editOrder.SourceWorkOrderNo,
                 Remark = _editOrder.Remark
@@ -591,6 +595,29 @@
                     builder.CloseComponent();
                 }
                 else { builder.AddContent(0, item.RequiredDate.ToString("yyyy-MM-dd")); }
+                break;
+            case "pricingunit":
+                if (_isEditMode)
+                {
+                    builder.OpenComponent<MudSelect<PricingUnit>>(0);
+                    builder.AddAttribute(1, "Value", _pricingUnit);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<PricingUnit>(this, v => _pricingUnit = v));
+                    builder.AddAttribute(3, "Dense", true);
+                    builder.AddAttribute(4, "Variant", Variant.Outlined);
+                    builder.AddAttribute(5, "Size", Size.Small);
+                    builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 =>
+                    {
+                        foreach (var opt in DisplayHelper.GetEnumOptions<PricingUnit>())
+                        {
+                            b2.OpenComponent<MudSelectItem<PricingUnit>>(0);
+                            b2.AddAttribute(1, "Value", Enum.Parse<PricingUnit>(opt.Value));
+                            b2.AddAttribute(2, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display)));
+                            b2.CloseComponent();
+                        }
+                    }));
+                    builder.CloseComponent();
+                }
+                else { builder.AddContent(0, DisplayHelper.GetPriceUnitText(_pricingUnit)); }
                 break;
             case "unitprice":
                 if (_isEditMode)

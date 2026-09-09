@@ -927,15 +927,9 @@ public partial class Orders
         if (table != null) await table.ReloadServerData();
     }
 
-    /// <summary>订单交期预估小表单元格（x单/y吨，急中急子集 [*a/b] 标红）</summary>
+    /// <summary>订单交期预估小表单元格（z单/x吨/y万，彩色取整；延期罚款不再单列显示）</summary>
     private static MarkupString FormatDeliveryBucket(OrderDeliveryBucketDto b)
-    {
-        if (b.Count <= 0 && b.Weight <= 0) return new MarkupString("-");
-        var s = $"{b.Count}单/{b.Weight.ToString("F1")}吨";
-        if (b.UrgentCount > 0 || b.UrgentWeight > 0)
-            s += $"[<span style=\"color:#d32f2f;font-weight:700;\">*{b.UrgentCount}/{b.UrgentWeight.ToString("F1")}</span>]";
-        return new MarkupString(s);
-    }
+        => OrderOverviewFormatter.RenderEstimateCell(b.Count, b.Weight, b.Amount);
 
     /// <summary>打印订单交期预估小表（两小表：订单(整单)完成预估 / 风险-已延期订单(整单)）</summary>
     private async Task PrintDeliveryEstimate(string tableId, string title)

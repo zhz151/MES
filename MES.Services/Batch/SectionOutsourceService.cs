@@ -115,6 +115,9 @@ public class SectionOutsourceService : ISectionOutsourceService
                 SendOutDate = s.SendOutDate,
                 SendQuantity = s.SendQuantity,
                 SendWeight = s.SendWeight,
+                PricingUnit = s.PricingUnit,
+                UnitPrice = s.UnitPrice,
+                TotalAmount = s.TotalAmount,
                 IsInternal = s.IsInternal,
                 Status = s.Status,
                 TagNo = s.TagNo,
@@ -277,6 +280,12 @@ public class SectionOutsourceService : ISectionOutsourceService
             ("sendquantity", true) => queryable.OrderByDescending(s => s.SendQuantity ?? 0),
             ("sendweight", false) => queryable.OrderBy(s => s.SendWeight ?? 0),
             ("sendweight", true) => queryable.OrderByDescending(s => s.SendWeight ?? 0),
+            ("pricingunit", false) => queryable.OrderBy(s => s.PricingUnit),
+            ("pricingunit", true) => queryable.OrderByDescending(s => s.PricingUnit),
+            ("unitprice", false) => queryable.OrderBy(s => s.UnitPrice ?? 0),
+            ("unitprice", true) => queryable.OrderByDescending(s => s.UnitPrice ?? 0),
+            ("totalamount", false) => queryable.OrderBy(s => s.TotalAmount ?? 0),
+            ("totalamount", true) => queryable.OrderByDescending(s => s.TotalAmount ?? 0),
             ("status", false) => queryable.OrderBy(s => s.Status),
             ("status", true) => queryable.OrderByDescending(s => s.Status),
             ("expectedreturndate", false) => queryable.OrderBy(s => s.ExpectedReturnDate ?? DateTime.MaxValue),
@@ -328,6 +337,9 @@ public class SectionOutsourceService : ISectionOutsourceService
                 SendOutDate = s.SendOutDate,
                 SendQuantity = s.SendQuantity,
                 SendWeight = s.SendWeight,
+                PricingUnit = s.PricingUnit,
+                UnitPrice = s.UnitPrice,
+                TotalAmount = s.TotalAmount,
                 IsInternal = s.IsInternal,
                 Status = s.Status,
                 TagNo = s.TagNo,
@@ -367,9 +379,28 @@ public class SectionOutsourceService : ISectionOutsourceService
             .FirstOrDefaultAsync(b => b.BatchNo == request.BatchNo)
             ?? throw new BusinessException($"批次不存在: {request.BatchNo}");
 
-        // 厂内（虚拟发外）仅限冷轧拔工段
-        if (request.IsInternal && request.SectionName != SectionKeys.ColdRollDraw)
+        // 委外单位必须命中档案（厂内=本厂车间档案 IsWorkshop），由档案驱动 IsInternal 与是否计价
+        if (string.IsNullOrWhiteSpace(request.OutsourceVendor))
+            throw new BusinessException("委外单位不能为空");
+        var profiles = await LoadVendorProfilesAsync();
+        var profile = ResolveProfile(profiles, request.OutsourceVendor, request.SectionName);
+        if (profile == null)
+            throw new BusinessException($"委外单位「{request.OutsourceVendor}」在工段「{SectionKeys.ToChinese(request.SectionName)}」无档案，请先在委外单位管理建档");
+        if (!profile.IsActive)
+            throw new BusinessException($"委外单位「{request.OutsourceVendor}」在工段「{SectionKeys.ToChinese(request.SectionName)}」档案已停用，无法使用");
+        var isInternal = profile.IsWorkshop;
+        if (isInternal && request.SectionName != SectionKeys.ColdRollDraw)
             throw new BusinessException("厂内（虚拟发外）仅限冷轧拔工段，不能用于其他工段");
+
+        // 计价默认：厂内无价；厂外缺省元/Kg + 按工段默认单价（冷轧拔1.4/其他0.8），总价手填优先否则自动
+        var pricingUnit = request.PricingUnit ?? MaterialPricingDefaults.DefaultPricingUnit;
+        decimal? unitPrice = null;
+        decimal? totalAmount = null;
+        if (!isInternal)
+        {
+            unitPrice = request.UnitPrice ?? MaterialPricingDefaults.DefaultSectionOutsourceUnitPrice(request.SectionName);
+            totalAmount = request.TotalAmount ?? MaterialPricingDefaults.ComputeTotal(pricingUnit, unitPrice, request.SendWeight, request.SendQuantity, null);
+        }
 
         // 自动解析 ProcessGroupId 和 SequenceNumber（语义A：序号=工段步骤号，始终对齐工序组；工段不存在时下方抛错）
         var processGroupId = request.ProcessGroupId;
@@ -403,12 +434,15 @@ public class SectionOutsourceService : ISectionOutsourceService
             ManufacturingSpec = request.ManufacturingSpec,
             SectionName = request.SectionName,
             SequenceNumber = sequenceNumber,
-            OutsourceVendor = request.OutsourceVendor,
+            OutsourceVendor = request.OutsourceVendor.Trim(),
             SendOutDate = request.SendOutDate,
             SendQuantity = request.SendQuantity ?? 0,
             SendWeight = request.SendWeight ?? 0,
-            IsInternal = request.IsInternal,
-            Status = request.IsInternal ? SectionOutsourceStatus.Virtual : SectionOutsourceStatus.PendingRecovery,
+            IsInternal = isInternal,
+            PricingUnit = isInternal ? null : pricingUnit,
+            UnitPrice = unitPrice,
+            TotalAmount = totalAmount,
+            Status = isInternal ? SectionOutsourceStatus.Virtual : SectionOutsourceStatus.PendingRecovery,
             TagNo = request.TagNo ?? batch.TagNo,
             PlantGrade = string.IsNullOrWhiteSpace(request.PlantGrade) ? batch.PlantGrade : request.PlantGrade,
             OutsourceSpec = request.OutsourceSpec,
@@ -460,6 +494,9 @@ public class SectionOutsourceService : ISectionOutsourceService
         var pgByBatch = processGroups.GroupBy(pg => pg.ProductionBatchId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        // 预加载委外单位档案（全量小表）：厂内判定与计价由档案驱动
+        var vendorProfiles = await LoadVendorProfilesAsync();
+
         // ========== 业务规则验证 ==========
         var requestErrors = new List<string>();
         for (int i = 0; i < requests.Count; i++)
@@ -475,8 +512,18 @@ public class SectionOutsourceService : ISectionOutsourceService
             if (string.IsNullOrWhiteSpace(request.OutsourceSpec))
                 requestErrors.Add($"第{i + 1}行：委外规格不能为空");
 
-            // 厂内（虚拟发外）仅限冷轧拔工段
-            if (request.IsInternal && request.SectionName != SectionKeys.ColdRollDraw)
+            // 委外单位必须命中档案（厂内=本厂车间档案 IsWorkshop）；厂内（虚拟发外）仅限冷轧拔工段
+            if (string.IsNullOrWhiteSpace(request.OutsourceVendor))
+                requestErrors.Add($"第{i + 1}行：委外单位不能为空");
+            var vendorProfile = string.IsNullOrWhiteSpace(request.OutsourceVendor)
+                ? null
+                : ResolveProfile(vendorProfiles, request.OutsourceVendor, request.SectionName);
+            if (vendorProfile == null)
+                requestErrors.Add($"第{i + 1}行：委外单位「{request.OutsourceVendor}」在工段「{SectionKeys.ToChinese(request.SectionName)}」无档案，请先在委外单位管理建档");
+            else if (!vendorProfile.IsActive)
+                requestErrors.Add($"第{i + 1}行：委外单位「{request.OutsourceVendor}」在工段「{SectionKeys.ToChinese(request.SectionName)}」档案已停用，无法使用");
+            var isInternalRow = vendorProfile?.IsWorkshop == true;
+            if (isInternalRow && request.SectionName != SectionKeys.ColdRollDraw)
                 requestErrors.Add($"第{i + 1}行：厂内（虚拟发外）仅限冷轧拔工段，不能用于其他工段");
 
             // 3) 发出重量不能大于批次领料重量
@@ -582,6 +629,18 @@ public class SectionOutsourceService : ISectionOutsourceService
                 batchProcessGroups,
                 batch.Specification);
 
+            // 计价默认（校验循环已保证档外/停用不会进入此处）：厂内无价；厂外缺省元/Kg+工段默认单价，总价手填优先否则自动
+            var rowProfile = ResolveProfile(vendorProfiles, request.OutsourceVendor, request.SectionName);
+            var isInternal = rowProfile?.IsWorkshop == true;
+            var unit = request.PricingUnit ?? MaterialPricingDefaults.DefaultPricingUnit;
+            decimal? unitPrice = null;
+            decimal? totalAmount = null;
+            if (!isInternal)
+            {
+                unitPrice = request.UnitPrice ?? MaterialPricingDefaults.DefaultSectionOutsourceUnitPrice(request.SectionName);
+                totalAmount = request.TotalAmount ?? MaterialPricingDefaults.ComputeTotal(unit, unitPrice, request.SendWeight, request.SendQuantity, null);
+            }
+
             entities.Add(new SectionOutsource
             {
                 ProductionBatchId = batch.Id,
@@ -590,12 +649,15 @@ public class SectionOutsourceService : ISectionOutsourceService
                 ManufacturingSpec = request.ManufacturingSpec,
                 SectionName = request.SectionName,
                 SequenceNumber = sequenceNumber,
-                OutsourceVendor = request.OutsourceVendor,
+                OutsourceVendor = request.OutsourceVendor.Trim(),
                 SendOutDate = request.SendOutDate,
                 SendQuantity = request.SendQuantity ?? 0,
                 SendWeight = request.SendWeight ?? 0,
-                IsInternal = request.IsInternal,
-                Status = request.IsInternal ? SectionOutsourceStatus.Virtual : SectionOutsourceStatus.PendingRecovery,
+                IsInternal = isInternal,
+                PricingUnit = isInternal ? null : unit,
+                UnitPrice = unitPrice,
+                TotalAmount = totalAmount,
+                Status = isInternal ? SectionOutsourceStatus.Virtual : SectionOutsourceStatus.PendingRecovery,
                 TagNo = request.TagNo ?? batch.TagNo,
                 PlantGrade = string.IsNullOrWhiteSpace(request.PlantGrade) ? batch.PlantGrade : request.PlantGrade,
                 OutsourceSpec = request.OutsourceSpec,
@@ -629,29 +691,63 @@ public class SectionOutsourceService : ISectionOutsourceService
 
         entity.SendQuantity = request.SendQuantity ?? entity.SendQuantity;
         entity.SendWeight = request.SendWeight ?? entity.SendWeight;
-        if (request.OutsourceVendor != null) entity.OutsourceVendor = request.OutsourceVendor;
         if (request.OutsourceSpec != null) entity.OutsourceSpec = request.OutsourceSpec;
         entity.ExpectedReturnDate = request.ExpectedReturnDate ?? entity.ExpectedReturnDate;
         if (request.IsUrgent.HasValue) entity.IsUrgent = request.IsUrgent.Value;
         if (request.Remark != null) entity.Remark = request.Remark;
 
-        // 厂内（虚拟发外）开关切换：改为厂内限冷轧拔且无回收记录，状态联动「略」/「待回收」
-        if (request.IsInternal.HasValue && request.IsInternal.Value != entity.IsInternal)
+        // 厂内判定由委外单位档案驱动（本厂车间 IsWorkshop=厂内）；委外单位被改时须命中档案
+        if (request.OutsourceVendor != null)
         {
-            if (request.IsInternal.Value)
+            var newVendor = request.OutsourceVendor.Trim();
+            if (string.IsNullOrWhiteSpace(newVendor))
+                throw new BusinessException("委外单位不能为空");
+            if (!string.Equals(entity.OutsourceVendor, newVendor, StringComparison.OrdinalIgnoreCase))
             {
-                if (entity.SectionName != SectionKeys.ColdRollDraw)
-                    throw new BusinessException("厂内（虚拟发外）仅限冷轧拔工段，不能用于其他工段");
-                var hasRecovery = await _context.OutsourceRecoveries.AnyAsync(r => r.SectionOutsourceId == entity.Id);
-                if (hasRecovery)
-                    throw new BusinessException("该委外已有回收记录，不能改为厂内（虚拟发外）");
-                entity.Status = SectionOutsourceStatus.Virtual;
+                var profiles = await LoadVendorProfilesAsync();
+                var profile = ResolveProfile(profiles, newVendor, entity.SectionName);
+                if (profile == null)
+                    throw new BusinessException($"委外单位「{newVendor}」在工段「{SectionKeys.ToChinese(entity.SectionName)}」无档案，请先在委外单位管理建档");
+                if (!profile.IsActive)
+                    throw new BusinessException($"委外单位「{newVendor}」在工段「{SectionKeys.ToChinese(entity.SectionName)}」档案已停用，无法使用");
+                var newInternal = profile.IsWorkshop;
+                if (newInternal != entity.IsInternal)
+                {
+                    if (newInternal)
+                    {
+                        if (entity.SectionName != SectionKeys.ColdRollDraw)
+                            throw new BusinessException("厂内（虚拟发外）仅限冷轧拔工段，不能用于其他工段");
+                        var hasRecovery = await _context.OutsourceRecoveries.AnyAsync(r => r.SectionOutsourceId == entity.Id);
+                        if (hasRecovery)
+                            throw new BusinessException("该委外已有回收记录，不能改为厂内（虚拟发外）");
+                        entity.Status = SectionOutsourceStatus.Virtual;
+                    }
+                    else
+                    {
+                        entity.Status = SectionOutsourceStatus.PendingRecovery;
+                    }
+                }
+                entity.OutsourceVendor = newVendor;
+                entity.IsInternal = newInternal;
             }
-            else
-            {
-                entity.Status = SectionOutsourceStatus.PendingRecovery;
-            }
-            entity.IsInternal = request.IsInternal.Value;
+        }
+
+        // 计价联动：厂内（本厂车间）无价清空；厂外保持/回填默认并按取量自动算总价（手填优先）
+        if (entity.IsInternal)
+        {
+            entity.PricingUnit = null;
+            entity.UnitPrice = null;
+            entity.TotalAmount = null;
+        }
+        else
+        {
+            if (request.PricingUnit.HasValue) entity.PricingUnit = request.PricingUnit.Value;
+            else entity.PricingUnit ??= MaterialPricingDefaults.DefaultPricingUnit;
+            if (request.UnitPrice.HasValue) entity.UnitPrice = request.UnitPrice.Value;
+            else entity.UnitPrice ??= MaterialPricingDefaults.DefaultSectionOutsourceUnitPrice(entity.SectionName);
+            var unit = entity.PricingUnit ?? MaterialPricingDefaults.DefaultPricingUnit;
+            entity.TotalAmount = request.TotalAmount
+                ?? MaterialPricingDefaults.ComputeTotal(unit, entity.UnitPrice, entity.SendWeight, entity.SendQuantity, null);
         }
 
         // 重算产品状态（产类）：与生产记录行为一致，更新时基于批次最新信息刷新
@@ -1136,6 +1232,9 @@ public class SectionOutsourceService : ISectionOutsourceService
             ["SendOutDate"] = s.SendOutDate.ToString("yyyy-MM-dd"),
             ["SendQuantity"] = (object)(s.SendQuantity ?? (object?)DBNull.Value)!,
             ["SendWeight"] = (object)(s.SendWeight ?? (object?)DBNull.Value)!,
+            ["PricingUnit"] = s.PricingUnit.HasValue ? EnumHelper.GetDisplayName(s.PricingUnit.Value) : "",
+            ["UnitPrice"] = (object)(s.UnitPrice ?? (object?)DBNull.Value)!,
+            ["TotalAmount"] = (object)(s.TotalAmount ?? (object?)DBNull.Value)!,
             ["Status"] = EnumHelper.GetDisplayName(s.Status),
             ["TagNo"] = s.TagNo ?? "",
             ["PlantGrade"] = s.PlantGrade ?? "",
@@ -1350,6 +1449,9 @@ public class SectionOutsourceService : ISectionOutsourceService
             SendOutDate = entity.SendOutDate,
             SendQuantity = entity.SendQuantity,
             SendWeight = entity.SendWeight,
+            PricingUnit = entity.PricingUnit,
+            UnitPrice = entity.UnitPrice,
+            TotalAmount = entity.TotalAmount,
             IsInternal = entity.IsInternal,
             Status = entity.Status,
             TagNo = entity.TagNo,
@@ -1456,20 +1558,20 @@ public class SectionOutsourceService : ISectionOutsourceService
         }
     }
 
-    // ========== 搜索委外单位（MudAutocomplete）==========
+    // ========== 委外单位档案解析（厂内判定 = 档案 IsWorkshop）==========
 
-    public async Task<List<string>> SearchVendorsAsync(string? keyword)
-    {
-        var query = _context.SectionOutsources
+    /// <summary>全量加载委外单位档案（小表，供解析厂内/计价）</summary>
+    private async Task<List<OutsourceVendorProfile>> LoadVendorProfilesAsync()
+        => await _context.OutsourceVendorProfiles
             .AsNoTracking()
-            .Select(s => s.OutsourceVendor)
-            .Distinct();
+            .ToListAsync();
 
-        if (!string.IsNullOrWhiteSpace(keyword))
-            query = query.Where(v => v.Contains(keyword));
-
-        return await query.OrderBy(v => v).ToListAsync();
-    }
+    /// <summary>按 (单位名 × 工段) 解析档案（大小写不敏感）；未命中返回 null</summary>
+    private static OutsourceVendorProfile? ResolveProfile(
+        List<OutsourceVendorProfile> profiles, string vendorName, string sectionName)
+        => profiles.FirstOrDefault(p =>
+            string.Equals(p.VendorName, vendorName.Trim(), StringComparison.OrdinalIgnoreCase)
+            && string.Equals(p.SectionName, sectionName, StringComparison.OrdinalIgnoreCase));
 
     // ========== 按批次查询待回收记录 ==========
 
@@ -1498,6 +1600,9 @@ public class SectionOutsourceService : ISectionOutsourceService
                 SendOutDate = s.SendOutDate,
                 SendQuantity = s.SendQuantity,
                 SendWeight = s.SendWeight,
+                PricingUnit = s.PricingUnit,
+                UnitPrice = s.UnitPrice,
+                TotalAmount = s.TotalAmount,
                 IsInternal = s.IsInternal,
                 Status = s.Status,
                 TagNo = s.TagNo,

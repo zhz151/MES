@@ -13,9 +13,11 @@ public class SectionOutsourcesTests : TestBase
 {
     public SectionOutsourcesTests()
     {
-        RegisterServices(typeof(SectionOutsourceService), typeof(ProductionRecordService), typeof(BatchPlanService));
+        RegisterServices(typeof(SectionOutsourceService), typeof(OutsourceVendorService), typeof(ProductionRecordService), typeof(BatchPlanService));
         ConfigureEmptyResponse("/api/section-outsource/list");
         ConfigureEmptyResponse("/api/section-outsource/recoveries/filter-contexts");
+        // 列表行内编辑「委外单位」改从档案 active 下拉（GetActiveAsync）
+        ConfigureEmptyResponse("/api/outsource-vendor/active");
     }
 
     [Fact]

@@ -286,16 +286,19 @@ public class PurchaseOrderServiceTests : TestBase
 
         result.Should().NotBeNull();
         result.OrderNo.Should().StartWith("CG" + DateTime.Now.ToString("yyMMdd"));
-        result.TotalAmount.Should().Be(5000m); // 100 * 50
+        // 计价单位默认 PerKg → 按重量计：1000kg × 50 = 50000（不再按支数 100×50）
+        result.TotalAmount.Should().Be(50000m);
+        result.PricingUnit.Should().Be(PricingUnit.PerKg);
         result.SourceWorkOrderNo.Should().Be("GD20260101001");
 
         var saved = await ctx.PurchaseOrders.FirstAsync(p => p.OrderNo == result.OrderNo);
         saved.OrderNo.Should().Be(result.OrderNo);
-        saved.TotalAmount.Should().Be(5000m);
+        saved.TotalAmount.Should().Be(50000m);
+        saved.PricingUnit.Should().Be(PricingUnit.PerKg);
     }
 
     [Fact]
-    public async Task CreateAsync_无数量和单价_TotalAmount为Null()
+    public async Task CreateAsync_未填单价_荒管按默认18元kg_按重量算总金额()
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
@@ -313,7 +316,46 @@ public class PurchaseOrderServiceTests : TestBase
             RequiredDate = DateTime.Today.AddDays(30)
         });
 
-        result.TotalAmount.Should().BeNull();
+        // 未填单价 → 荒管族默认 18 元/kg；PerKg 按重量：1000×18=18000
+        result.PricingUnit.Should().Be(PricingUnit.PerKg);
+        result.UnitPrice.Should().Be(18m);
+        result.TotalAmount.Should().Be(18000m);
+    }
+
+    [Fact]
+    public async Task CreateAsync_成品族默认26元kg_未定价分类单价为空_金额空()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var svc = CreateService(ctx);
+
+        // 成品族：临界成品 CriticalFinished → 26 元/kg
+        var finished = await svc.CreateAsync(new CreatePurchaseOrderRequest
+        {
+            SupplierId = sid,
+            OrderDate = DateTime.Today,
+            MaterialCategory = MaterialType.CriticalFinished,
+            PlantGrade = "304",
+            Specification = "219*8",
+            Weight = 500m,
+            RequiredDate = DateTime.Today.AddDays(30)
+        });
+        finished.UnitPrice.Should().Be(26m);
+        finished.TotalAmount.Should().Be(13000m); // 500×26
+
+        // 未定价分类（圆钢 RoundBar）：默认单价为空 → 金额空
+        var undef = await svc.CreateAsync(new CreatePurchaseOrderRequest
+        {
+            SupplierId = sid,
+            OrderDate = DateTime.Today,
+            MaterialCategory = MaterialType.RoundBar,
+            PlantGrade = "45#",
+            Specification = "50*1000",
+            Weight = 100m,
+            RequiredDate = DateTime.Today.AddDays(30)
+        });
+        undef.UnitPrice.Should().BeNull();
+        undef.TotalAmount.Should().BeNull();
     }
 
     // ========== UpdateAsync ==========
@@ -339,7 +381,32 @@ public class PurchaseOrderServiceTests : TestBase
         });
 
         result.PlantGrade.Should().Be("25#");
-        result.TotalAmount.Should().Be(16000m); // 200 * 80
+        // 计价单位默认 PerKg → 按重量：2000kg × 80 = 160000
+        result.TotalAmount.Should().Be(160000m);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_PerPiece_按支数算总金额()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid, quantity: 100);
+        var svc = CreateService(ctx);
+
+        var result = await svc.UpdateAsync(order.Id, new UpdatePurchaseOrderRequest
+        {
+            SupplierId = sid,
+            MaterialCategory = MaterialType.RoughTube,
+            PlantGrade = "25#",
+            Specification = "273*10",
+            Quantity = 200,
+            Weight = 2000m,
+            RequiredDate = DateTime.Today.AddDays(60),
+            PricingUnit = PricingUnit.PerPiece,
+            UnitPrice = 80m
+        });
+
+        result.TotalAmount.Should().Be(16000m); // PerPiece 按支数：200 支 × 80
     }
 
     [Fact]
@@ -1435,5 +1502,54 @@ public class PurchaseOrderServiceTests : TestBase
         var result = await svc.GetPurchaseMonthlyAsync(false);
 
         result.Rows.Should().ContainSingle(r => r.SupplierName == "合计");
+    }
+
+    // ========== 打印护栏回归（2026-09-09：ToPrintDict 曾漏价格三 key → 打印静默空白） ==========
+
+    /// <summary>
+    /// 与 PurchaseOrders.razor.cs GetAllColumnDefs 中默认可见（未设 Visible=false）的打印列 Key 保持一致。
+    /// 新增默认可见打印列须同步本清单：若漏同步 ToPrintDict，PrintOrderCore 护栏会抛业务异常而非静默空白。
+    /// </summary>
+    private static readonly string[] PageVisiblePrintKeys =
+    {
+        "OrderNo", "SupplierName", "OrderDate", "SourceWorkOrderNo", "MaterialCategory",
+        "PlantGrade", "Specification", "UnitWeight", "Quantity", "Weight",
+        "PricingUnit", "UnitPrice", "TotalAmount", "RequiredDate",
+        "ExecutionScheduleStage", "ExecutionRawMaterialLockRemark", "ExecutionUrgencyLevel",
+        "Status", "ArrivalDate", "Received", "Returned", "IsForceCompleted"
+    };
+
+    [Fact]
+    public async Task PrintOrderBatchAsync_页面默认可见列全集_生成PDF成功()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid);
+        var svc = CreateService(ctx);
+
+        var columns = PageVisiblePrintKeys.Select(k => new PrintColumnDef { Key = k }).ToList();
+        var pdf = await svc.PrintOrderBatchAsync(new[] { order.Id }, columns);
+
+        pdf.Should().NotBeNull();
+        pdf.Length.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task PrintOrderBatchAsync_传入未注册列_抛出BusinessException防静默空白()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid);
+        var svc = CreateService(ctx);
+
+        var columns = new List<PrintColumnDef>
+        {
+            new() { Key = "TotalAmount" },
+            new() { Key = "ANewColumnNotRegisteredInToPrintDict" }
+        };
+
+        var act = () => svc.PrintOrderBatchAsync(new[] { order.Id }, columns);
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*ANewColumnNotRegisteredInToPrintDict*");
     }
 }

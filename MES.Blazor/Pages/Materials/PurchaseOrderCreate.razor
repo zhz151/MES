@@ -3,6 +3,7 @@
 @using MES.Blazor.Shared
 @using MES.Blazor.Helpers
 @using MES.Core.Enums
+@using MES.Core.Helpers
 @using MES.Core.DTOs.Materials
 @using MES.Core.DTOs.WorkOrder
 @using Microsoft.AspNetCore.Authorization
@@ -106,7 +107,9 @@
                             <MudTh Style="width: 140px;">要求到货日期</MudTh>
                             <MudTh Style="width: 120px;">备注</MudTh>
                             <MudTh Style="width: 140px;">供应商<span class="required-star">*</span></MudTh>
+                            <MudTh Style="width: 90px;">计价单位</MudTh>
                             <MudTh Style="width: 70px;">单价</MudTh>
+                            <MudTh Style="width: 90px;">总价(元)</MudTh>
                             <MudTh Style="width: 50px;">操作</MudTh>
                         </HeaderContent>
                         <RowTemplate Context="row">
@@ -156,7 +159,7 @@
                                 }
                             </MudTd>
                             <MudTd>
-                                <MudSelect T="MaterialType" @bind-Value="row.MaterialCategory"
+                                <MudSelect T="MaterialType" Value="@row.MaterialCategory" ValueChanged="@(v => row.ApplyCategory(v))"
                                            Dense="true" Variant="Variant.Outlined" Size="Size.Small">
                                     @foreach (var opt in DisplayHelper.GetEnumOptions<MaterialType>())
                                     {
@@ -230,11 +233,23 @@
                                                 />
                             </MudTd>
                             <MudTd>
+                                <MudSelect T="PricingUnit" @bind-Value="row.PriceUnit"
+                                           Dense="true" Variant="Variant.Outlined" Size="Size.Small">
+                                    @foreach (var opt in DisplayHelper.GetEnumOptions<PricingUnit>())
+                                    {
+                                        <MudSelectItem Value="@(Enum.Parse<PricingUnit>(opt.Value))">@opt.Display</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudTd>
+                            <MudTd>
                                 <MudTextField T="string"
                                               @bind-Value="row.UnitPriceStr"
                                               Dense="true" Variant="Variant.Outlined" Size="Size.Small"
-                                              Style="width: 60px;"
+                                              Style="width: 70px;"
                                               />
+                            </MudTd>
+                            <MudTd>
+                                <MudText Typo="Typo.body2">@row.TotalAmountPreview</MudText>
                             </MudTd>
                             <MudTd>
                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Title="删除"
@@ -271,6 +286,7 @@
         public string QuantityStr { get; set; } = string.Empty;
         public string InputMultipleStr { get; set; } = string.Empty;
         public string WeightStr { get; set; } = string.Empty;
+        public PricingUnit PriceUnit { get; set; } = PricingUnit.PerKg;
         public string UnitPriceStr { get; set; } = string.Empty;
         public string? Remark { get; set; }
         public bool ShowWorkOrderInfo { get; set; }
@@ -282,6 +298,36 @@
         public int? InputMultiple => ParseInt(InputMultipleStr);
         public decimal Weight => decimal.TryParse(WeightStr, out var v) ? v : 0;
         public decimal? UnitPrice => ParseDecimal(UnitPriceStr);
+
+        /// <summary>切换物料分类并自动带出默认单价（仅当未手输或当前值为自动默认时覆盖）</summary>
+        public void ApplyCategory(MaterialType category)
+        {
+            var prevDefault = MaterialPricingDefaults.DefaultPurchaseUnitPrice(MaterialCategory);
+            var auto = string.IsNullOrWhiteSpace(UnitPriceStr)
+                || (prevDefault.HasValue && ParseDecimal(UnitPriceStr) == prevDefault.Value);
+            MaterialCategory = category;
+            if (auto)
+                UnitPriceStr = MaterialPricingDefaults.DefaultPurchaseUnitPrice(category)?.ToString("G29") ?? string.Empty;
+        }
+
+        /// <summary>总价只读预览（与后端 ComputeTotal 口径一致：PerKg→重量kg、PerPiece→支数，保留 2 位小数）</summary>
+        public string TotalAmountPreview
+        {
+            get
+            {
+                var price = UnitPrice;
+                if (!price.HasValue) return "-";
+                decimal? amount = PriceUnit switch
+                {
+                    PricingUnit.PerKg => Weight,
+                    PricingUnit.PerPiece => Quantity,
+                    _ => null
+                };
+                if (!amount.HasValue) return "-";
+                return decimal.Round(price.Value * amount.Value, 2, MidpointRounding.AwayFromZero).ToString("G29");
+            }
+        }
+
         private static decimal? ParseDecimal(string v) => decimal.TryParse(v, out var r) ? r : null;
         private static int? ParseInt(string v) => int.TryParse(v, out var r) ? r : null;
     }
@@ -338,6 +384,7 @@
             QuantityStr = plan.Quantity?.ToString() ?? string.Empty,
             InputMultipleStr = plan.InputMultiple?.ToString() ?? string.Empty,
             WeightStr = plan.Weight.ToString("G29"),
+            UnitPriceStr = MaterialPricingDefaults.DefaultPurchaseUnitPrice(planCategory)?.ToString("G29") ?? string.Empty,
             Remark = plan.Remark,
             RequiredDateStr = plan.RequiredDate?.ToString("yyyy-MM-dd") ?? string.Empty
         });
@@ -513,6 +560,7 @@
                 Quantity = r.Quantity,
                 InputMultiple = r.InputMultiple,
                 Weight = r.Weight,
+                PricingUnit = r.PriceUnit,
                 UnitPrice = r.UnitPrice,
                 SourceWorkOrderNo = r.SourceWorkOrderNo,
                 Remark = r.Remark

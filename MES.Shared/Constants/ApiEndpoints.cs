@@ -14,6 +14,7 @@ public static class ApiEndpoints
     public const string Batch = "api/batch";
     public const string ProductionRecord = "api/production-record";
     public const string SectionOutsource = "api/section-outsource";
+    public const string OutsourceVendorProfile = "api/outsource-vendor";
     public const string Pickling = "api/pickling";
 
     // ===== Order 订单 =====

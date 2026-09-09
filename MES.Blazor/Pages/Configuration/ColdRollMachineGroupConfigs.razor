@@ -180,9 +180,9 @@
                                            Variant="Variant.Outlined"
                                            Value="@rowCache.SupplyTargetGroupKey"
                                            ValueChanged="@(v => rowCache.SupplyTargetGroupKey = v)"
-                                           Clearable="true"
                                            Label="选择供给目标组"
                                            Class="compact-input">
+                                    <MudSelectItem Value="@((string?)null)">（无）</MudSelectItem>
                                     @foreach (var g in _groupOptions.Where(x => x.Id != item.Id))
                                     {
                                         <MudSelectItem Value="@g.GroupKey">@g.DisplayName</MudSelectItem>

@@ -1,0 +1,208 @@
+@page "/outsource-vendors/create"
+@using MES.Blazor.Services
+@using MES.Core.DTOs.Batch
+@using MES.Core.Constants
+@using Microsoft.AspNetCore.Authorization
+@using MES.Shared.Constants
+@inject OutsourceVendorService OutsourceVendorSvc
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@attribute [Authorize(Roles = Roles.Policies.BatchEdit)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold"><MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" Color="Color.Primary" />新建委外单位</MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" OnClick="GoBack">返回</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAll" Loading="@isSubmitting">
+                    保存
+                </MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <div class="d-flex justify-space-between align-center mb-3">
+                <MudText Typo="Typo.subtitle1">委外单位列表</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddRow">添加单位</MudButton>
+            </div>
+
+            <div id="outsource-vendor-create-table" style="overflow-x: auto;">
+                <MudTable T="VendorRow" Items="@rows" Dense="true" Hover="true" Elevation="0" Class="auto-table">
+                    <HeaderContent>
+                        <MudTh Style="width: 50px;">行号</MudTh>
+                        <MudTh Style="width:200px;">委外单位名<span class="required-star">*</span></MudTh>
+                        <MudTh Style="width:140px;">委外工段<span class="required-star">*</span></MudTh>
+                        <MudTh Style="width: 90px;">本厂</MudTh>
+                        <MudTh Style="width:110px;">联系人</MudTh>
+                        <MudTh Style="width:130px;">联系电话</MudTh>
+                        <MudTh Style="width: 70px;">启用</MudTh>
+                        <MudTh Style="width:200px;">备注</MudTh>
+                        <MudTh Style="width: 60px;">操作</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="row">
+                        <MudTd Class="text-center">
+                            <MudText Typo="Typo.body2">@row.Sequence</MudText>
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField T="string"
+                                          @bind-Value="row.VendorName"
+                                          Dense="true"
+                                          Variant="Variant.Outlined"
+                                          Size="Size.Small"
+                                          MaxLength="100" />
+                        </MudTd>
+                        <MudTd>
+                            <MudSelect T="string"
+                                       Value="row.SectionName"
+                                       ValueChanged="(string? v) => row.SectionName = v ?? SectionKeys.ColdRollDraw"
+                                       Disabled="@row.IsWorkshop"
+                                       Dense="true"
+                                       Variant="Variant.Outlined"
+                                       Placeholder="选择委外工段">
+                                @foreach (var k in SectionKeys.All)
+                                {
+                                    <MudSelectItem Value="k" Text="@(SectionKeys.ToChinese(k) ?? k)" />
+                                }
+                            </MudSelect>
+                        </MudTd>
+                        <MudTd>
+                            <MudCheckBox T="bool"
+                                         Value="row.IsWorkshop"
+                                         ValueChanged="(bool v) => OnWorkshopChanged(row, v)" />
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField T="string"
+                                          @bind-Value="row.ContactPerson"
+                                          Dense="true"
+                                          Variant="Variant.Outlined"
+                                          Size="Size.Small"
+                                          MaxLength="50" />
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField T="string"
+                                          @bind-Value="row.ContactPhone"
+                                          Dense="true"
+                                          Variant="Variant.Outlined"
+                                          Size="Size.Small"
+                                          MaxLength="50" />
+                        </MudTd>
+                        <MudTd>
+                            <MudCheckBox T="bool" Value="row.IsActive" ValueChanged="(bool v) => row.IsActive = v" />
+                        </MudTd>
+                        <MudTd>
+                            <MudTextField T="string"
+                                          @bind-Value="row.Remark"
+                                          Dense="true"
+                                          Variant="Variant.Outlined"
+                                          Size="Size.Small"
+                                          MaxLength="500" />
+                        </MudTd>
+                        <MudTd>
+                            @if (rows.Count > 1)
+                            {
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Title="删除"
+                                               Color="Color.Error"
+                                               Size="Size.Small"
+                                               OnClick="() => RemoveRow(row)" />
+                            }
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </div>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    private List<VendorRow> rows = new();
+    private bool isSubmitting;
+
+    private class VendorRow
+    {
+        public int Sequence { get; set; }
+        public string VendorName { get; set; } = string.Empty;
+        public string SectionName { get; set; } = string.Empty;
+        public bool IsWorkshop { get; set; }
+        public string? ContactPerson { get; set; }
+        public string? ContactPhone { get; set; }
+        public bool IsActive { get; set; } = true;
+        public string? Remark { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        AddRow();
+    }
+
+    private void AddRow()
+    {
+        rows.Add(new VendorRow { Sequence = rows.Count + 1 });
+    }
+
+    private void RemoveRow(VendorRow row)
+    {
+        if (rows.Count <= 1) { Snackbar.Add("至少保留一条记录", Severity.Warning); return; }
+        rows.Remove(row);
+        for (int i = 0; i < rows.Count; i++) rows[i].Sequence = i + 1;
+    }
+
+    /// <summary>本厂车间勾选 → 工段锁定冷轧拔（厂内虚拟发外仅冷轧拔开放）</summary>
+    private static void OnWorkshopChanged(VendorRow row, bool isWorkshop)
+    {
+        row.IsWorkshop = isWorkshop;
+        if (isWorkshop)
+            row.SectionName = SectionKeys.ColdRollDraw;
+    }
+
+    private async Task SaveAll()
+    {
+        var errors = new List<string>();
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var r = rows[i];
+            var seq = i + 1;
+            if (string.IsNullOrWhiteSpace(r.VendorName)) errors.Add($"行{seq}: 委外单位名不能为空");
+            else if (string.IsNullOrWhiteSpace(r.SectionName)) errors.Add($"行{seq}: 请选择委外工段");
+        }
+        if (errors.Any()) { Snackbar.Add(string.Join("；", errors), Severity.Warning); return; }
+
+        isSubmitting = true; StateHasChanged();
+
+        var requests = rows.Select(r => new CreateOutsourceVendorRequest
+        {
+            VendorName = r.VendorName.Trim(),
+            SectionName = r.IsWorkshop ? SectionKeys.ColdRollDraw : r.SectionName.Trim(),
+            IsWorkshop = r.IsWorkshop,
+            ContactPerson = r.ContactPerson,
+            ContactPhone = r.ContactPhone,
+            IsActive = r.IsActive,
+            Remark = r.Remark
+        }).ToList();
+
+        try
+        {
+            var result = await OutsourceVendorSvc.CreateBatchAsync(requests);
+            isSubmitting = false; StateHasChanged();
+
+            if (result.Success)
+            {
+                Snackbar.Add($"成功创建 {result.Data?.Count ?? 0} 条记录", Severity.Success);
+                Navigation.NavigateTo("/outsource-vendors");
+            }
+            else
+            {
+                Snackbar.Add($"批量创建失败：{result.Message}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            isSubmitting = false; StateHasChanged();
+            Snackbar.Add($"批量创建失败：{ex.Message}", Severity.Error);
+        }
+    }
+
+    private void GoBack() => Navigation.NavigateTo("/outsource-vendors");
+}

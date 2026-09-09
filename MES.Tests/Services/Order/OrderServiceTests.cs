@@ -531,7 +531,7 @@ public class OrderServiceTests : TestBase
     /// </summary>
     private async Task<InventoryBatch> SeedFinishedInventoryBatchAsync(AppDbContext ctx,
         string workOrderNo, string materialType, decimal initialWeight, decimal remainingWeight,
-        string manufacturingStatus = "SolutionAnnealedAndPickled")
+        string manufacturingStatus = "SolutionAnnealedAndPickled", string? salesOrderNo = null)
     {
         var batch = new InventoryBatch
         {
@@ -550,7 +550,8 @@ public class OrderServiceTests : TestBase
             RemainingQuantity = (int)(remainingWeight / 100m),
             RemainingWeight = remainingWeight,
             WorkOrderNo = workOrderNo,
-            ManufacturingStatus = manufacturingStatus
+            ManufacturingStatus = manufacturingStatus,
+            SalesOrderNo = salesOrderNo
         };
         ctx.InventoryBatches.Add(batch);
         await ctx.SaveChangesAsync();
@@ -756,6 +757,54 @@ public class OrderServiceTests : TestBase
             UpdatedTime = DateTimeOffset.Now
         };
 
+    /// <summary>
+    /// 种子含成品入库/出库/库存重量的读模型行（金额折算测试用，kg）
+    /// </summary>
+    private static OrderListSummaryEntity SeedSummaryFull(int orderId, string orderNo, DateTime signDate, SalesOrderStatus status,
+        int contractWeight = 0, int? scheduleStage = null, decimal inbound = 0m, decimal outbound = 0m, decimal stock = 0m)
+        => new()
+        {
+            OrderId = orderId,
+            OrderNumber = orderNo,
+            SignDate = signDate,
+            CustomerName = "客户A",
+            Salesman = "张三",
+            Status = status,
+            TotalContractWeight = contractWeight,
+            ScheduleStage = scheduleStage,
+            FinishedInboundWeight = inbound,
+            FinishedOutboundWeight = outbound,
+            FinishedStockWeight = stock,
+            CreatedTime = DateTimeOffset.Now,
+            UpdatedTime = DateTimeOffset.Now
+        };
+
+    /// <summary>
+    /// 种子订单项次（金额池 = ContractWeight 合同重量 kg × TotalPrice 元）
+    /// </summary>
+    private static OrderItem SeedOrderItem(int salesOrderId, SettlementMethod method, decimal contractWeight, decimal totalPrice)
+        => new()
+        {
+            SalesOrderId = salesOrderId,
+            OrderNumber = $"SO-{salesOrderId}",
+            Sequence = 1,
+            DeliveryDate = DateTime.Today.AddMonths(1),
+            SettlementMethod = method,
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
+            StandardGrade = "Q345B",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            Density = 7.85m,
+            OuterDiameter = 219m,
+            WallThickness = 8m,
+            ContractWeight = contractWeight,
+            TheoreticalWeight = contractWeight,
+            TotalPrice = totalPrice,
+            LengthStatus = LengthStatus.Fixed,
+            CreatedTime = DateTimeOffset.Now,
+            UpdatedTime = DateTimeOffset.Now
+        };
+
     [Fact]
     public async Task GetOrderInOutSummaryAsync_接单量按签订月份汇总_排除取消订单()
     {
@@ -883,6 +932,97 @@ public class OrderServiceTests : TestBase
         result.TurnoverTotal.Should().Be(10200m);
     }
 
+    [Fact]
+    public async Task GetOrderInOutSummaryAsync_金额按结算池折算_接单额库存额负荷额()
+    {
+        var ctx = CreateDbContext();
+        var year = DateTime.Today.Year;
+        ctx.Set<OrderListSummaryEntity>().AddRange(
+            // 完工订单（执行关注=1）：上年签订不计接单额；1000kg 池 @5000 元 → 库存额 5000
+            SeedSummaryFull(1, "SO-01", new DateTime(year - 1, 12, 1), SalesOrderStatus.Confirmed,
+                contractWeight: 1000, scheduleStage: 1, inbound: 1000, stock: 1000),
+            // 未完工订单（执行关注=3）：本年1月签订；入库 600/库存 600 → 库存额 3000、在制 2000
+            SeedSummaryFull(2, "SO-02", new DateTime(year, 1, 5), SalesOrderStatus.Confirmed,
+                contractWeight: 1000, scheduleStage: 3, inbound: 600, stock: 600),
+            // 未完工订单（执行关注=null）：本年3月签订；无成品（全部在制）→ 库存额 0、全单计入负荷
+            SeedSummaryFull(3, "SO-03", new DateTime(year, 3, 8), SalesOrderStatus.Confirmed,
+                contractWeight: 2000, scheduleStage: null),
+            // 已取消：全不计
+            SeedSummaryFull(4, "SO-04", new DateTime(year, 5, 1), SalesOrderStatus.Cancelled,
+                contractWeight: 999, scheduleStage: 3, inbound: 999, stock: 999));
+        ctx.OrderItems.AddRange(
+            SeedOrderItem(1, SettlementMethod.Weighing, 1000m, 5000m),
+            SeedOrderItem(2, SettlementMethod.Weighing, 1000m, 5000m),
+            SeedOrderItem(3, SettlementMethod.Weighing, 2000m, 8000m),
+            SeedOrderItem(4, SettlementMethod.Weighing, 999m, 99999m));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetOrderInOutSummaryAsync(year);
+
+        // 接单额按签订月（上年/取消不计）
+        result.OrderAmountByMonth[0].Should().Be(5000m);   // 1月 SO-02
+        result.OrderAmountByMonth[2].Should().Be(8000m);   // 3月 SO-03
+        result.OrderAmountByMonth.Sum().Should().Be(13000m);
+        // 库存金额：完工/未完工分档（结算分治：发货=0 全库存）
+        result.FinishedStockCompletedAmount.Should().Be(5000m);       // SO-01 库存1000kg×5
+        result.FinishedStockUncompletedAmount.Should().Be(3000m);     // SO-02 库存600kg×5；SO-03 无库存
+        // 负荷额 = 未完工订单项次总价合计(5000+8000) − 未完工库存额(3000)
+        result.TurnoverAmount.Should().Be(10000m);
+        // 重量口径不变（回归）
+        result.FinishedStockCompleted.Should().Be(1000m);
+        result.FinishedStockUncompleted.Should().Be(600m);
+        result.TurnoverTotal.Should().Be(2400m);
+    }
+
+    [Fact]
+    public async Task GetOrderInOutSummaryAsync_出库金额按订单分摊到出库月份()
+    {
+        var ctx = CreateDbContext();
+        var year = DateTime.Today.Year;
+        ctx.Set<OrderListSummaryEntity>().Add(SeedSummaryFull(1, "SO-OUT", new DateTime(year, 1, 10),
+            SalesOrderStatus.Confirmed, contractWeight: 1000, scheduleStage: 3,
+            inbound: 1000, outbound: 700, stock: 300));
+        ctx.OrderItems.Add(SeedOrderItem(1, SettlementMethod.Weighing, 1000m, 5000m));
+        // 订单成品批次（SalesOrderNo 关联订单号）本年销售出库 2月500kg / 8月200kg
+        var batch = await SeedFinishedInventoryBatchAsync(ctx, "WO-FG-OUT", InventoryMaterialTypes.OrderFinished,
+            1000m, 300m, salesOrderNo: "SO-OUT");
+        ctx.OutboundRecords.AddRange(
+            new OutboundRecord
+            {
+                InventoryBatchId = batch.Id,
+                BatchNo = batch.BatchNo,
+                OutboundType = OutboundType.SalesOut,
+                OutboundDate = new DateTime(year, 2, 10),
+                OutboundQuantity = 5,
+                OutboundWeight = 500m,
+                CreatedTime = DateTimeOffset.Now,
+                UpdatedTime = DateTimeOffset.Now
+            },
+            new OutboundRecord
+            {
+                InventoryBatchId = batch.Id,
+                BatchNo = batch.BatchNo,
+                OutboundType = OutboundType.SalesOut,
+                OutboundDate = new DateTime(year, 8, 20),
+                OutboundQuantity = 2,
+                OutboundWeight = 200m,
+                CreatedTime = DateTimeOffset.Now,
+                UpdatedTime = DateTimeOffset.Now
+            });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetOrderInOutSummaryAsync(year);
+
+        // 出库量不变
+        result.OutboundWeightByMonth[1].Should().Be(500m);   // 2月
+        result.OutboundWeightByMonth[7].Should().Be(200m);   // 8月
+        // 出库额 = 发货额 3500（过磅实称 700kg×5 元/kg）按出库月重量分摊
+        result.OutboundAmountByMonth[1].Should().Be(2500m);  // 500/700×3500
+        result.OutboundAmountByMonth[7].Should().Be(1000m);  // 200/700×3500
+    }
+
     // ========== 订单交期预估（GetDeliveryEstimateAsync，2026-08-23） ==========
 
     private static OrderListSummaryEntity SeedDeliverySummary(int orderId, string orderNo, int weight, int? scheduleStage, DateTime? deliveryEnd, DateTime? estimated, bool hasDelayPenalty = false)
@@ -962,15 +1102,42 @@ public class OrderServiceTests : TestBase
         result.Tables[1].Buckets[1].Count.Should().Be(1);
         result.Tables[1].Buckets[1].Weight.Should().Be(1.0m);
         result.Tables[1].Buckets.Sum(b => b.Count).Should().Be(2);
+    }
 
-        // 表2 急中急子集（延期罚款=是）：桶0 订单C 无延期罚款 → 0；桶1 订单A 有延期罚款 → 1单/1.0吨
-        result.Tables[1].Buckets[0].UrgentCount.Should().Be(0);
-        result.Tables[1].Buckets[0].UrgentWeight.Should().Be(0m);
-        result.Tables[1].Buckets[1].UrgentCount.Should().Be(1);
-        result.Tables[1].Buckets[1].UrgentWeight.Should().Be(1.0m);
-        result.Tables[1].Buckets.Sum(b => b.UrgentCount).Should().Be(1);
-        // 表1 完成预估不统计急中急（恒 0）
-        result.Tables[0].Buckets.Sum(b => b.UrgentCount).Should().Be(0);
+    [Fact]
+    public async Task GetDeliveryEstimateAsync_桶金额为项次总价合计_延期罚款不再参与()
+    {
+        var ctx = CreateDbContext();
+        var today = DateTime.Today;
+        ctx.Set<OrderListSummaryEntity>().AddRange(
+            // A：延期（预计 today+10 > 交期 today+3）→ 完成预估桶2、延期表桶1；项次总价 3000
+            SeedDeliverySummary(1, "SO-01", 1000, 3, today.AddDays(3), today.AddDays(10)),
+            // B：非延期（预计 today+3 <= 交期 today+10）→ 完成预估按交期桶2；项次总价 7000
+            SeedDeliverySummary(2, "SO-02", 2000, 3, today.AddDays(10), today.AddDays(3)),
+            // C：延期（预计 today+5 > 交期 today-1，交期已过）→ 完成预估桶1、延期表桶0；项次总价 1000
+            SeedDeliverySummary(3, "SO-03", 3000, 2, today.AddDays(-1), today.AddDays(5)),
+            // 未排产：两表均不计；项次总价不应入桶
+            SeedDeliverySummary(4, "SO-04", 999, null, today.AddDays(3), today.AddDays(10)));
+        ctx.OrderItems.AddRange(
+            SeedOrderItem(1, SettlementMethod.Weighing, 1000m, 3000m),
+            SeedOrderItem(2, SettlementMethod.Weighing, 2000m, 7000m),
+            SeedOrderItem(3, SettlementMethod.Weighing, 3000m, 1000m),
+            SeedOrderItem(4, SettlementMethod.Weighing, 999m, 99999m));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetDeliveryEstimateAsync();
+
+        // 表1 完成预估：桶1=仅C(1000)；桶2=A+B(3000+7000=10000)
+        result.Tables[0].Buckets[1].Count.Should().Be(1);
+        result.Tables[0].Buckets[1].Amount.Should().Be(1000m);
+        result.Tables[0].Buckets[2].Count.Should().Be(2);
+        result.Tables[0].Buckets[2].Amount.Should().Be(10000m);
+        // 表2 延期：桶0=仅C(1000)；桶1=仅A(3000)
+        result.Tables[1].Buckets[0].Count.Should().Be(1);
+        result.Tables[1].Buckets[0].Amount.Should().Be(1000m);
+        result.Tables[1].Buckets[1].Count.Should().Be(1);
+        result.Tables[1].Buckets[1].Amount.Should().Be(3000m);
     }
 
     [Fact]

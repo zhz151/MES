@@ -325,51 +325,170 @@ public class OrderService : IOrderService
         // 订单数据：所有年份、排除已取消（接单量仅取本年签订部分）
         var orders = await _context.Set<OrderListSummary>()
             .Where(s => s.Status != SalesOrderStatus.Cancelled)
-            .Select(s => new { s.SignDate, s.TotalContractWeight, s.ScheduleStage, s.FinishedStockWeight })
+            .Select(s => new
+            {
+                s.OrderId,
+                s.OrderNumber,
+                s.SignDate,
+                s.TotalContractWeight,
+                s.ScheduleStage,
+                s.FinishedInboundWeight,
+                s.FinishedOutboundWeight,
+                s.FinishedStockWeight
+            })
             .ToListAsync();
 
+        // 项次结算池（SalesOrderId → 过磅/固定池 重量×金额；金额=项次总价，元）
+        var pools = await LoadPoolsByOrderAsync();
+        var orderByNo = orders.Where(o => !string.IsNullOrEmpty(o.OrderNumber))
+            .ToDictionary(o => o.OrderNumber!, o => o, StringComparer.OrdinalIgnoreCase);
+
         var orderWeightByMonth = new decimal[12];
+        var orderAmountByMonth = new decimal[12];
         var finishedStockCompleted = 0m;
+        var finishedStockCompletedAmount = 0m;
         var finishedStockUncompleted = 0m;
+        var finishedStockUncompletedAmount = 0m;
         var uncompletedOrderWeight = 0m;
+        var uncompletedOrderAmount = 0m;
         foreach (var o in orders)
         {
+            pools.TryGetValue(o.OrderId, out var p);
+            var amount = p.MWeigh + p.MFixed;
+
             if (o.SignDate >= yearStart && o.SignDate < nextYearStart)
-                orderWeightByMonth[o.SignDate.Month - 1] += o.TotalContractWeight;
+            {
+                var idx = o.SignDate.Month - 1;
+                orderWeightByMonth[idx] += o.TotalContractWeight;
+                orderAmountByMonth[idx] += amount;
+            }
+
+            // 金额折算（结算分治：过磅实称不封顶 / 固定池发货→库存阶梯认领封顶合同）
+            var (_, stockMoney, _) = SettlementMoneyCalculator.SplitOrder(
+                o.FinishedInboundWeight, o.FinishedOutboundWeight, o.FinishedStockWeight,
+                p.WWeigh, p.MWeigh, p.WFixed, p.MFixed);
 
             if (o.ScheduleStage == 1)
+            {
                 finishedStockCompleted += o.FinishedStockWeight;
+                finishedStockCompletedAmount += stockMoney;
+            }
             else
             {
                 finishedStockUncompleted += o.FinishedStockWeight;
+                finishedStockUncompletedAmount += stockMoney;
                 uncompletedOrderWeight += o.TotalContractWeight;
+                uncompletedOrderAmount += amount;
             }
         }
 
-        // 出库量：本年成品销售出库（SalesOut + OrderFinished 批次）
-        var outbound = await (
+        // 出库量：本年成品销售出库（SalesOut + OrderFinished 批次）；金额按订单结算折算、本年按月分摊
+        var outboundWeightByMonth = new decimal[12];
+        var outboundAmountByMonth = new decimal[12];
+        var finishedBatches = await _context.InventoryBatches.AsNoTracking()
+            .Where(ib => ib.MaterialType == InventoryMaterialTypes.OrderFinished && ib.SalesOrderNo != null)
+            .Select(ib => new { ib.Id, ib.SalesOrderNo })
+            .ToListAsync();
+        var salesNoByBatchId = new Dictionary<int, string>(finishedBatches.Count);
+        foreach (var fb in finishedBatches)
+        {
+            if (!string.IsNullOrEmpty(fb.SalesOrderNo))
+                salesNoByBatchId[fb.Id] = fb.SalesOrderNo!;
+        }
+
+        var outboundRows = await (
             from r in _context.OutboundRecords
             join ib in _context.InventoryBatches on r.InventoryBatchId equals ib.Id
             where r.OutboundType == OutboundType.SalesOut
                 && ib.MaterialType == InventoryMaterialTypes.OrderFinished
                 && r.OutboundDate >= yearStart && r.OutboundDate < nextYearStart
-            select new { Month = r.OutboundDate.Month, r.OutboundWeight })
+            select new { r.InventoryBatchId, Month = r.OutboundDate.Month, r.OutboundWeight })
             .ToListAsync();
 
-        var outboundWeightByMonth = new decimal[12];
-        foreach (var o in outbound)
+        var monthOutByOrderNo = new Dictionary<string, decimal[]>(StringComparer.OrdinalIgnoreCase);
+        foreach (var o in outboundRows)
+        {
             outboundWeightByMonth[o.Month - 1] += o.OutboundWeight;
+            if (salesNoByBatchId.TryGetValue(o.InventoryBatchId, out var no) && orderByNo.ContainsKey(no))
+            {
+                if (!monthOutByOrderNo.TryGetValue(no, out var arr))
+                {
+                    arr = new decimal[12];
+                    monthOutByOrderNo[no] = arr;
+                }
+                arr[o.Month - 1] += o.OutboundWeight;
+            }
+        }
+
+        foreach (var kv in monthOutByOrderNo)
+        {
+            if (!orderByNo.TryGetValue(kv.Key, out var o)) continue;
+            pools.TryGetValue(o.OrderId, out var p);
+            if (p.WWeigh + p.WFixed <= 0m) continue;
+
+            var (shipMoney, _, _) = SettlementMoneyCalculator.SplitOrder(
+                o.FinishedInboundWeight, o.FinishedOutboundWeight, o.FinishedStockWeight,
+                p.WWeigh, p.MWeigh, p.WFixed, p.MFixed);
+            if (shipMoney <= 0m) continue;
+
+            var yearOutTotal = kv.Value.Sum();
+            if (yearOutTotal <= 0m) continue;
+            var lifeOut = o.FinishedOutboundWeight;
+            var yearShare = lifeOut > 0m ? Math.Min(yearOutTotal, lifeOut) / lifeOut : 1m;
+            var yearShipMoney = shipMoney * yearShare;
+            for (var m = 0; m < 12; m++)
+            {
+                if (kv.Value[m] > 0m)
+                    outboundAmountByMonth[m] += yearShipMoney * kv.Value[m] / yearOutTotal;
+            }
+        }
 
         return new OrderInOutSummaryDto
         {
             Year = year,
             MonthLabels = Enumerable.Range(1, 12).Select(m => $"{year}年{m}月").ToArray(),
             OrderWeightByMonth = orderWeightByMonth,
+            OrderAmountByMonth = orderAmountByMonth,
             OutboundWeightByMonth = outboundWeightByMonth,
+            OutboundAmountByMonth = outboundAmountByMonth,
             FinishedStockCompleted = finishedStockCompleted,
+            FinishedStockCompletedAmount = finishedStockCompletedAmount,
             FinishedStockUncompleted = finishedStockUncompleted,
-            TurnoverTotal = uncompletedOrderWeight - finishedStockUncompleted
+            FinishedStockUncompletedAmount = finishedStockUncompletedAmount,
+            TurnoverTotal = uncompletedOrderWeight - finishedStockUncompleted,
+            TurnoverAmount = uncompletedOrderAmount - finishedStockUncompletedAmount
         };
+    }
+
+    /// <summary>
+    /// 项次结算池聚合（SalesOrderId → 过磅/固定池 重量(kg)×金额(元)）。
+    /// 过磅池 = SettlementMethod==Weighing；固定池 = 理算 Theoretical + 过磅-负 WeighingNegative。
+    /// 与客户往来统计 / 业务总况金额折算共用同一池口径。
+    /// </summary>
+    private async Task<Dictionary<int, (decimal WWeigh, decimal MWeigh, decimal WFixed, decimal MFixed)>> LoadPoolsByOrderAsync()
+    {
+        var itemRows = await _context.OrderItems.AsNoTracking()
+            .Select(oi => new
+            {
+                oi.SalesOrderId,
+                IsFixed = oi.SettlementMethod != SettlementMethod.Weighing,
+                oi.ContractWeight,
+                Amount = oi.TotalPrice ?? 0m
+            })
+            .ToListAsync();
+
+        var pools = new Dictionary<int, (decimal WWeigh, decimal MWeigh, decimal WFixed, decimal MFixed)>();
+        foreach (var g in itemRows.GroupBy(x => x.SalesOrderId))
+        {
+            decimal ww = 0m, mw = 0m, wf = 0m, mf = 0m;
+            foreach (var it in g)
+            {
+                if (it.IsFixed) { wf += it.ContractWeight; mf += it.Amount; }
+                else { ww += it.ContractWeight; mw += it.Amount; }
+            }
+            pools[g.Key] = (ww, mw, wf, mf);
+        }
+        return pools;
     }
 
     /// <summary>
@@ -400,13 +519,22 @@ public class OrderService : IOrderService
                         && s.DeliveryEnd != null)
             .Select(s => new
             {
+                s.OrderId,
                 s.OrderNumber,
                 DeliveryEnd = s.DeliveryEnd!.Value,
                 Estimated = s.EstimatedCompletionDate!.Value,
-                s.TotalContractWeight,
-                s.HasDelayPenalty
+                s.TotalContractWeight
             })
             .ToListAsync();
+
+        // 金额 = 桶内整单项次总价合计（元）；未计价订单计 0
+        var pools = await LoadPoolsByOrderAsync();
+        var poolsByOrder = new Dictionary<int, (decimal Weight, decimal Amount)>(orders.Count);
+        foreach (var o in orders)
+        {
+            pools.TryGetValue(o.OrderId, out var p);
+            poolsByOrder[o.OrderId] = (p.WWeigh + p.WFixed, p.MWeigh + p.MFixed);
+        }
 
         var delayOrders = orders.Where(o => o.Estimated > o.DeliveryEnd).ToList();
         var onTimeOrders = orders.Where(o => o.Estimated <= o.DeliveryEnd).ToList();
@@ -425,18 +553,16 @@ public class OrderService : IOrderService
         }
         bucketBounds[6] = (now.AddDays(bucket5 + 1), null);
 
-        // 表2：延期交货订单预估（延期订单按交期截止归桶；急中急=其中延期罚款=是的订单子集）
+        // 表2：延期交货订单预估（延期订单按交期截止归桶）
         var delayBuckets = new List<OrderDeliveryBucketDto>();
         for (var i = 0; i < 7; i++)
         {
             var subset = delayOrders.Where(o => GetDeliveryBucket(o.DeliveryEnd, now, bucket1, bucket2, bucket3, bucket4, bucket5) == i).ToList();
-            var urgent = subset.Where(o => o.HasDelayPenalty).ToList();
             delayBuckets.Add(new OrderDeliveryBucketDto
             {
                 Count = subset.Count,
                 Weight = subset.Sum(o => o.TotalContractWeight) / 1000m,
-                UrgentCount = urgent.Count,
-                UrgentWeight = urgent.Sum(o => o.TotalContractWeight) / 1000m,
+                Amount = subset.Sum(o => poolsByOrder.TryGetValue(o.OrderId, out var p) ? p.Amount : 0m),
                 DateFrom = bucketBounds[i].From,
                 DateTo = bucketBounds[i].To
             });
@@ -448,10 +574,12 @@ public class OrderService : IOrderService
         {
             var d = delayOrders.Where(o => GetDeliveryBucket(o.Estimated, now, bucket1, bucket2, bucket3, bucket4, bucket5) == i).ToList();
             var t = onTimeOrders.Where(o => GetDeliveryBucket(o.DeliveryEnd, now, bucket1, bucket2, bucket3, bucket4, bucket5) == i).ToList();
+            var bucketOrders = d.Concat(t).ToList();
             completeBuckets.Add(new OrderDeliveryBucketDto
             {
-                Count = d.Count + t.Count,
-                Weight = (d.Sum(o => o.TotalContractWeight) + t.Sum(o => o.TotalContractWeight)) / 1000m,
+                Count = bucketOrders.Count,
+                Weight = bucketOrders.Sum(o => o.TotalContractWeight) / 1000m,
+                Amount = bucketOrders.Sum(o => poolsByOrder.TryGetValue(o.OrderId, out var p) ? p.Amount : 0m),
                 DateFrom = bucketBounds[i].From,
                 DateTo = bucketBounds[i].To
             });

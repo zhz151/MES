@@ -122,10 +122,11 @@ public class PurchaseOrdersTests : TestBase
         });
 
         var cut = RenderPage<PurchaseOrders>();
-        cut.Markup.Should().Contain("工单实时关注");
+        cut.Markup.Should().Contain("工单实时关注");   // G2 组名
         cut.Markup.Should().Contain("生产执行");      // 工单关注（ScheduleStage=3）
         cut.Markup.Should().Contain("A急");           // 计划性（AUrgent → 字典中文）
-        cut.Markup.Should().Contain("2026-08-15");    // 理论截止投料日
+        cut.Markup.Should().Contain("原锁执行备注");  // G2 默认可见关注列
+        // 注：理论截止投料日（ExecutionTheoreticalCutoffDate）列已默认隐藏（列收敛定稿），默认渲染不含其日期值，故不断言 "2026-08-15"
     }
 
     private void ConfigureListResponse(List<PurchaseOrderDto> items)

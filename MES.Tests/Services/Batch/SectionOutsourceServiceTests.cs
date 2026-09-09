@@ -94,6 +94,25 @@ public class SectionOutsourceServiceTests : TestBase
         return entity;
     }
 
+    private static int _profileSeed;
+
+    private static async Task<OutsourceVendorProfile> SeedVendorProfileAsync(AppDbContext ctx,
+        string vendor = "委外厂A", string section = SectionKeys.ColdRollDraw,
+        bool isWorkshop = false, bool active = true)
+    {
+        var profile = new OutsourceVendorProfile
+        {
+            VendorCode = $"WV{9000 + _profileSeed++}",
+            VendorName = vendor,
+            SectionName = section,
+            IsWorkshop = isWorkshop,
+            IsActive = active
+        };
+        ctx.OutsourceVendorProfiles.Add(profile);
+        await ctx.SaveChangesAsync();
+        return profile;
+    }
+
     // ========== GetPagedAsync ==========
 
     [Fact]
@@ -181,6 +200,7 @@ public class SectionOutsourceServiceTests : TestBase
             ColdRollDraw = 1
         });
         await ctx.SaveChangesAsync();
+        await SeedVendorProfileAsync(ctx, vendor: "委外厂A", section: SectionKeys.ColdRollDraw);
         var svc = CreateService(ctx);
 
         var result = await svc.CreateAsync(new CreateSectionOutsourceRequest
@@ -227,6 +247,8 @@ public class SectionOutsourceServiceTests : TestBase
         var ctx = CreateDbContext();
         await SeedBatchAsync(ctx, "BATCH001");
         await SeedBatchAsync(ctx, "BATCH002");
+        await SeedVendorProfileAsync(ctx, vendor: "委外厂A", section: SectionKeys.ColdRollDraw);
+        await SeedVendorProfileAsync(ctx, vendor: "委外厂B", section: SectionKeys.Pickle);
         var svc = CreateService(ctx);
 
         var result = await svc.BatchCreateAsync(new List<CreateSectionOutsourceRequest>
@@ -259,6 +281,7 @@ public class SectionOutsourceServiceTests : TestBase
         var ctx = CreateDbContext();
         var batch = await SeedBatchAsync(ctx);
         await SeedOutsourceAsync(ctx, batch.Id);
+        await SeedVendorProfileAsync(ctx, vendor: "新委外厂", section: SectionKeys.ColdRollDraw);
         var id = await ctx.SectionOutsources.Select(s => s.Id).FirstAsync();
         var svc = CreateService(ctx);
 
@@ -642,6 +665,8 @@ public class SectionOutsourceServiceTests : TestBase
         var ctx = CreateDbContext();
         var batch = await SeedBatchAsync(ctx);
         await SeedColdRollDrawProcessGroupAsync(ctx, batch.Id);
+        // 本厂车间档案挂在酸洗工段下：选到即厂内，但仅限冷轧拔 → 应拦截
+        await SeedVendorProfileAsync(ctx, vendor: "一车间", section: SectionKeys.Pickle, isWorkshop: true);
         var svc = CreateService(ctx);
 
         var act = () => svc.CreateAsync(new CreateSectionOutsourceRequest
@@ -650,7 +675,6 @@ public class SectionOutsourceServiceTests : TestBase
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
             SectionName = SectionKeys.Pickle,
-            IsInternal = true,
             OutsourceVendor = "一车间",
             SendOutDate = DateTime.Today,
             SendWeight = 1000m
@@ -660,11 +684,12 @@ public class SectionOutsourceServiceTests : TestBase
     }
 
     [Fact]
-    public async Task CreateAsync_厂内_冷轧拔_状态为略()
+    public async Task CreateAsync_厂内_冷轧拔_状态为略且无价()
     {
         var ctx = CreateDbContext();
         var batch = await SeedBatchAsync(ctx);
         await SeedColdRollDrawProcessGroupAsync(ctx, batch.Id);
+        await SeedVendorProfileAsync(ctx, vendor: "一车间", section: SectionKeys.ColdRollDraw, isWorkshop: true);
         var svc = CreateService(ctx);
 
         var result = await svc.CreateAsync(new CreateSectionOutsourceRequest
@@ -673,7 +698,6 @@ public class SectionOutsourceServiceTests : TestBase
             ProcessName = "60冷轧",
             ManufacturingSpec = "219*8",
             SectionName = SectionKeys.ColdRollDraw,
-            IsInternal = true,
             OutsourceVendor = "一车间",
             SendOutDate = DateTime.Today,
             SendQuantity = 10,
@@ -685,6 +709,9 @@ public class SectionOutsourceServiceTests : TestBase
         var db = await ctx.SectionOutsources.SingleAsync();
         db.IsInternal.Should().BeTrue();
         db.Status.Should().Be(SectionOutsourceStatus.Virtual);
+        db.PricingUnit.Should().BeNull();
+        db.UnitPrice.Should().BeNull();
+        db.TotalAmount.Should().BeNull();
     }
 
     [Fact]
@@ -692,12 +719,13 @@ public class SectionOutsourceServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         await SeedBatchAsync(ctx, "BATCH001");
+        await SeedVendorProfileAsync(ctx, vendor: "一车间", section: SectionKeys.Pickle, isWorkshop: true);
         var svc = CreateService(ctx);
 
         var act = () => svc.BatchCreateAsync(new List<CreateSectionOutsourceRequest>
         {
             new() { BatchNo = "BATCH001", ProcessName = "60冷轧", ManufacturingSpec = "219*8",
-                SectionName = SectionKeys.Pickle, IsInternal = true, OutsourceVendor = "一车间",
+                SectionName = SectionKeys.Pickle, OutsourceVendor = "一车间",
                 OutsourceSpec = "219*8", SendOutDate = DateTime.Today }
         });
 
@@ -710,12 +738,13 @@ public class SectionOutsourceServiceTests : TestBase
         var ctx = CreateDbContext();
         var batch = await SeedBatchAsync(ctx, "BATCH001");
         await SeedColdRollDrawProcessGroupAsync(ctx, batch.Id);
+        await SeedVendorProfileAsync(ctx, vendor: "一车间", section: SectionKeys.ColdRollDraw, isWorkshop: true);
         var svc = CreateService(ctx);
 
         var result = await svc.BatchCreateAsync(new List<CreateSectionOutsourceRequest>
         {
             new() { BatchNo = "BATCH001", ProcessName = "60冷轧", ManufacturingSpec = "219*8",
-                SectionName = SectionKeys.ColdRollDraw, IsInternal = true, OutsourceVendor = "一车间",
+                SectionName = SectionKeys.ColdRollDraw, OutsourceVendor = "一车间",
                 OutsourceSpec = "219*8", SendOutDate = DateTime.Today }
         });
 
@@ -781,28 +810,34 @@ public class SectionOutsourceServiceTests : TestBase
         var outsource = await SeedOutsourceAsync(ctx, batch.Id);
         outsource.SectionName = SectionKeys.Pickle;
         await ctx.SaveChangesAsync();
+        // 本厂车间档案挂在酸洗下：把委外单位改为它 → 派生厂内，但非冷轧拔 → 拦截
+        await SeedVendorProfileAsync(ctx, vendor: "一车间", section: SectionKeys.Pickle, isWorkshop: true);
         var svc = CreateService(ctx);
 
-        var act = () => svc.UpdateAsync(outsource.Id, new UpdateSectionOutsourceRequest { IsInternal = true });
+        var act = () => svc.UpdateAsync(outsource.Id, new UpdateSectionOutsourceRequest { OutsourceVendor = "一车间" });
 
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*厂内*冷轧拔*");
     }
 
     [Fact]
-    public async Task UpdateAsync_改厂内_冷轧拔_状态为略()
+    public async Task UpdateAsync_改厂内_冷轧拔_状态为略且无价()
     {
         var ctx = CreateDbContext();
         var batch = await SeedBatchAsync(ctx);
         var outsource = await SeedOutsourceAsync(ctx, batch.Id);
+        await SeedVendorProfileAsync(ctx, vendor: "一车间", section: SectionKeys.ColdRollDraw, isWorkshop: true);
         var svc = CreateService(ctx);
 
-        var result = await svc.UpdateAsync(outsource.Id, new UpdateSectionOutsourceRequest { IsInternal = true });
+        var result = await svc.UpdateAsync(outsource.Id, new UpdateSectionOutsourceRequest { OutsourceVendor = "一车间" });
 
         result.IsInternal.Should().BeTrue();
         result.Status.Should().Be(SectionOutsourceStatus.Virtual);
         var db = await ctx.SectionOutsources.SingleAsync();
         db.IsInternal.Should().BeTrue();
         db.Status.Should().Be(SectionOutsourceStatus.Virtual);
+        db.PricingUnit.Should().BeNull();
+        db.UnitPrice.Should().BeNull();
+        db.TotalAmount.Should().BeNull();
     }
 
     [Fact]
@@ -818,9 +853,10 @@ public class SectionOutsourceServiceTests : TestBase
             RecoveryWeight = 800m
         });
         await ctx.SaveChangesAsync();
+        await SeedVendorProfileAsync(ctx, vendor: "一车间", section: SectionKeys.ColdRollDraw, isWorkshop: true);
         var svc = CreateService(ctx);
 
-        var act = () => svc.UpdateAsync(outsource.Id, new UpdateSectionOutsourceRequest { IsInternal = true });
+        var act = () => svc.UpdateAsync(outsource.Id, new UpdateSectionOutsourceRequest { OutsourceVendor = "一车间" });
 
         await act.Should().ThrowAsync<BusinessException>().WithMessage("*已有回收记录*厂内*");
     }
@@ -830,16 +866,182 @@ public class SectionOutsourceServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var batch = await SeedBatchAsync(ctx);
-        var outsource = await SeedOutsourceAsync(ctx, batch.Id, status: SectionOutsourceStatus.Virtual, isInternal: true);
+        var outsource = await SeedOutsourceAsync(ctx, batch.Id, vendor: "一车间", status: SectionOutsourceStatus.Virtual, isInternal: true);
+        await SeedVendorProfileAsync(ctx, vendor: "委外厂A", section: SectionKeys.ColdRollDraw);
         var svc = CreateService(ctx);
 
-        var result = await svc.UpdateAsync(outsource.Id, new UpdateSectionOutsourceRequest { IsInternal = false });
+        var result = await svc.UpdateAsync(outsource.Id, new UpdateSectionOutsourceRequest { OutsourceVendor = "委外厂A" });
 
         result.IsInternal.Should().BeFalse();
         result.Status.Should().Be(SectionOutsourceStatus.PendingRecovery);
         var db = await ctx.SectionOutsources.SingleAsync();
         db.IsInternal.Should().BeFalse();
         db.Status.Should().Be(SectionOutsourceStatus.PendingRecovery);
+        db.PricingUnit.Should().Be(PricingUnit.PerKg);
+        db.UnitPrice.Should().Be(1.4m);
+    }
+
+    // ========== 计价（厂外默认价 + 手填优先 + 档外校验） ==========
+
+    [Fact]
+    public async Task CreateAsync_厂外_冷轧拔_默认单价1_4总价自动算()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedColdRollDrawProcessGroupAsync(ctx, batch.Id);
+        await SeedVendorProfileAsync(ctx, vendor: "委外厂A", section: SectionKeys.ColdRollDraw);
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateAsync(new CreateSectionOutsourceRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            OutsourceVendor = "委外厂A",
+            SendOutDate = DateTime.Today,
+            SendQuantity = 10,
+            SendWeight = 1000m
+        });
+
+        result.PricingUnit.Should().Be(PricingUnit.PerKg);
+        result.UnitPrice.Should().Be(1.4m);
+        result.TotalAmount.Should().Be(1400m);   // 1000 × 1.4
+    }
+
+    [Fact]
+    public async Task CreateAsync_厂外_其他工段_默认单价0_8()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        ctx.ProcessGroups.Add(new ProcessGroup
+        {
+            ProductionBatchId = batch.Id,
+            SequenceNumber = 1,
+            ProcessName = "酸洗",
+            ManufacturingSpec = "219*8",
+            Pickle = 1
+        });
+        await ctx.SaveChangesAsync();
+        await SeedVendorProfileAsync(ctx, vendor: "委外厂B", section: SectionKeys.Pickle);
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateAsync(new CreateSectionOutsourceRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "酸洗",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.Pickle,
+            OutsourceVendor = "委外厂B",
+            SendOutDate = DateTime.Today,
+            SendWeight = 500m
+        });
+
+        result.PricingUnit.Should().Be(PricingUnit.PerKg);
+        result.UnitPrice.Should().Be(0.8m);
+        result.TotalAmount.Should().Be(400m);    // 500 × 0.8
+    }
+
+    [Fact]
+    public async Task CreateAsync_厂外_手填单价总价优先于默认()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedColdRollDrawProcessGroupAsync(ctx, batch.Id);
+        await SeedVendorProfileAsync(ctx, vendor: "委外厂A", section: SectionKeys.ColdRollDraw);
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateAsync(new CreateSectionOutsourceRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            OutsourceVendor = "委外厂A",
+            SendOutDate = DateTime.Today,
+            SendQuantity = 10,
+            SendWeight = 1000m,
+            UnitPrice = 2.0m,
+            TotalAmount = 999m
+        });
+
+        result.UnitPrice.Should().Be(2.0m);
+        result.TotalAmount.Should().Be(999m);
+    }
+
+    [Fact]
+    public async Task CreateAsync_档外委外单位_抛无档案()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedColdRollDrawProcessGroupAsync(ctx, batch.Id);
+        // 委外厂A在冷轧拔有档案，但"档外厂"无档案
+        await SeedVendorProfileAsync(ctx, vendor: "委外厂A", section: SectionKeys.ColdRollDraw);
+        var svc = CreateService(ctx);
+
+        var act = () => svc.CreateAsync(new CreateSectionOutsourceRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            OutsourceVendor = "档外厂",
+            SendOutDate = DateTime.Today,
+            SendWeight = 1000m
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*无档案*建档*");
+    }
+
+    [Fact]
+    public async Task CreateAsync_档案已停用_抛业务异常()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedColdRollDrawProcessGroupAsync(ctx, batch.Id);
+        await SeedVendorProfileAsync(ctx, vendor: "停用厂", section: SectionKeys.ColdRollDraw, active: false);
+        var svc = CreateService(ctx);
+
+        var act = () => svc.CreateAsync(new CreateSectionOutsourceRequest
+        {
+            BatchNo = "BATCH001",
+            ProcessName = "60冷轧",
+            ManufacturingSpec = "219*8",
+            SectionName = SectionKeys.ColdRollDraw,
+            OutsourceVendor = "停用厂",
+            SendOutDate = DateTime.Today,
+            SendWeight = 1000m
+        });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*已停用*");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_改成档外委外单位_抛无档案()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        var outsource = await SeedOutsourceAsync(ctx, batch.Id);   // 委外厂A 记录，但未建档案
+        var svc = CreateService(ctx);
+
+        var act = () => svc.UpdateAsync(outsource.Id, new UpdateSectionOutsourceRequest { OutsourceVendor = "档外厂" });
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*无档案*建档*");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_委外单位不变_不强制命中档案()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        // 历史档外单位记录：档案未建但原值保留，不改委外单位就不拦
+        var outsource = await SeedOutsourceAsync(ctx, batch.Id, vendor: "历史档外单位");
+        var svc = CreateService(ctx);
+
+        var result = await svc.UpdateAsync(outsource.Id, new UpdateSectionOutsourceRequest { OutsourceVendor = "历史档外单位" });
+
+        result.OutsourceVendor.Should().Be("历史档外单位");
+        result.IsInternal.Should().BeFalse();
     }
 
     // ========== 月度委外数据汇总 + 厂内单位 ==========

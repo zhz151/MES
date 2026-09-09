@@ -52,4 +52,5 @@ public static class CacheKeys
     public const string PicklingFilterContexts = "PicklingService:FilterContexts";
     public const string PicklingOutRecordFilterContexts = "PicklingService:OutRecordFilterContexts";
     public const string BatchFilterContexts = "BatchService:FilterContexts";
+    public const string OutsourceVendorProfileFilterContexts = "OutsourceVendorProfileService:FilterContexts";
 }

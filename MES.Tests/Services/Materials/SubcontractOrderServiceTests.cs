@@ -1543,4 +1543,145 @@ public class SubcontractOrderServiceTests : TestBase
         result.Rows[0].SupplierName.Should().Be("合计");
         result.Rows[0].Months.Should().HaveCount(12);
     }
+
+    // ========== 计价（计价单位/加工单价/加工金额 + 委外主表金额合计） ==========
+
+    [Fact]
+    public async Task GetByIdAsync_委外金额合计_为明细加工金额求和()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid); // 1 条明细 1000
+        var svc = CreateService(ctx);
+
+        var byId = await svc.GetByIdAsync(order.Id);
+        byId.TotalAmount.Should().Be(1000m);
+
+        // 追加第 2 条明细（手动金额 500）
+        order.ReturnItems.Add(new SubcontractReturnItem
+        {
+            Sequence = 2,
+            MaterialCategory = "RoughTube",
+            ProcessSpecification = "273*10",
+            ProcessUnitPrice = 5m,
+            ProcessTotalAmount = 500m
+        });
+        await ctx.SaveChangesAsync();
+
+        var byId2 = await svc.GetByIdAsync(order.Id);
+        byId2.TotalAmount.Should().Be(1500m);
+
+        var page = await svc.GetPagedAsync(new SubcontractQueryParams { PageIndex = 1, PageSize = 20 });
+        page.Items.Should().ContainSingle().Which.TotalAmount.Should().Be(1500m);
+    }
+
+    [Fact]
+    public async Task CreateAsync_穿孔明细未填单价_自动1_2元kg_金额按需求重量算()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateAsync(new CreateSubcontractOrderRequest
+        {
+            SupplierId = sid,
+            OrderDate = DateTime.Today,
+            ProcessType = "Piercing",
+            OutMaterialCategory = MaterialType.RoughTube,
+            OutPlantGrade = "20#",
+            OutSpecification = "219*8",
+            OutQuantity = 100,
+            OutWeight = 1000m,
+            ReturnDeadline = DateTime.Today.AddDays(60),
+            ReturnItems = new List<MES.Core.DTOs.Materials.CreateReturnItemRequest>
+            {
+                new()
+                {
+                    MaterialCategory = MaterialType.RoughTube,
+                    ProcessSpecification = "219*8",
+                    RequiredWeight = 100m
+                }
+            }
+        });
+
+        var dto = result.ReturnItems.Should().ContainSingle().Subject;
+        dto.PricingUnit.Should().Be(PricingUnit.PerKg);
+        dto.ProcessUnitPrice.Should().Be(1.2m);
+        dto.ProcessTotalAmount.Should().Be(120.00m); // 100kg × 1.2
+        result.TotalAmount.Should().Be(120.00m);
+    }
+
+    [Fact]
+    public async Task CreateAsync_手动填金额_以手填为准_自动不算()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var result = await svc.CreateAsync(new CreateSubcontractOrderRequest
+        {
+            SupplierId = sid,
+            OrderDate = DateTime.Today,
+            ProcessType = "Piercing",
+            OutMaterialCategory = MaterialType.RoughTube,
+            OutPlantGrade = "20#",
+            OutSpecification = "219*8",
+            OutQuantity = 100,
+            OutWeight = 1000m,
+            ReturnDeadline = DateTime.Today.AddDays(60),
+            ReturnItems = new List<MES.Core.DTOs.Materials.CreateReturnItemRequest>
+            {
+                new()
+                {
+                    MaterialCategory = MaterialType.RoughTube,
+                    ProcessSpecification = "219*8",
+                    RequiredWeight = 200m,
+                    ProcessUnitPrice = 5m,
+                    ProcessTotalAmount = 999m
+                }
+            }
+        });
+
+        var dto = result.ReturnItems.Should().ContainSingle().Subject;
+        dto.ProcessUnitPrice.Should().Be(5m);
+        dto.ProcessTotalAmount.Should().Be(999m); // 手填金额优先，不再按 200×5 重算
+    }
+
+    [Fact]
+    public async Task UpdateAsync_明细未填金额_自动按重量乘单价算()
+    {
+        var ctx = CreateDbContext();
+        var sid = await SeedSupplierAsync(ctx);
+        var order = await SeedOrderAsync(ctx, sid);
+        var svc = CreateService(ctx);
+
+        await svc.UpdateAsync(order.Id, new UpdateSubcontractOrderRequest
+        {
+            SupplierId = sid,
+            ProcessType = "Piercing",
+            OutMaterialCategory = MaterialType.RoundBar,
+            OutPlantGrade = "304",
+            OutSpecification = "273*10",
+            OutQuantity = 200,
+            OutWeight = 2000m,
+            ReturnDeadline = DateTime.Today.AddDays(90),
+            ReturnItems = new List<MES.Core.DTOs.Materials.CreateReturnItemRequest>
+            {
+                new()
+                {
+                    MaterialCategory = MaterialType.RoundBar,
+                    ProcessSpecification = "273*10",
+                    RequiredWeight = 250m,
+                    ProcessUnitPrice = 2m
+                }
+            }
+        });
+
+        var savedItem = await ctx.SubcontractReturnItems
+            .OrderByDescending(r => r.Id)
+            .FirstAsync();
+        savedItem.PricingUnit.Should().Be(PricingUnit.PerKg);
+        savedItem.ProcessUnitPrice.Should().Be(2m);
+        savedItem.ProcessTotalAmount.Should().Be(500.00m); // 250kg × 2
+    }
 }

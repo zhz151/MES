@@ -246,6 +246,7 @@ builder.Services.AddScoped<IFlatteningTestService, FlatteningTestService>();
 builder.Services.AddScoped<IFlaringTestService, FlaringTestService>();
 builder.Services.AddScoped<INcrService, NcrService>();
 builder.Services.AddScoped<ISectionOutsourceService, SectionOutsourceService>();
+builder.Services.AddScoped<IOutsourceVendorProfileService, OutsourceVendorProfileService>();
 builder.Services.AddScoped<IPicklingService, PicklingService>();
 builder.Services.AddScoped<IMaterialReceiveCheckService, MaterialReceiveCheckService>();
 

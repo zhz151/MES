@@ -66,8 +66,8 @@
                                Label="成检项目筛选"
                                Value="_itemFilter"
                                ValueChanged="@OnItemFilterChanged"
-                               Clearable="true"
                                AdornmentIcon="@Icons.Material.Filled.FilterList">
+                        <MudSelectItem Value="@((string?)null)">不限</MudSelectItem>
                         @foreach (var opt in _itemOptions)
                         {
                             <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
@@ -79,8 +79,8 @@
                                Label="启停筛选"
                                Value="_activeFilter"
                                ValueChanged="@OnActiveFilterChanged"
-                               Clearable="true"
                                AdornmentIcon="@Icons.Material.Filled.FilterList">
+                        <MudSelectItem Value="@((string?)null)">不限</MudSelectItem>
                         <MudSelectItem Value="@("true")">启用</MudSelectItem>
                         <MudSelectItem Value="@("false")">停用</MudSelectItem>
                     </MudSelect>
@@ -103,8 +103,8 @@
                                            Label="成检项目筛选"
                                            Value="_trialItemFilter"
                                            ValueChanged="@OnTrialItemFilterChanged"
-                                           Clearable="true"
                                            AdornmentIcon="@Icons.Material.Filled.FilterList">
+                                    <MudSelectItem Value="@((string?)null)">不限</MudSelectItem>
                                     @foreach (var opt in _itemOptions)
                                     {
                                         <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>

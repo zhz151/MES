@@ -77,6 +77,7 @@ builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<BatchService>();
 builder.Services.AddScoped<ProductionRecordService>();
 builder.Services.AddScoped<SectionOutsourceService>();
+builder.Services.AddScoped<OutsourceVendorService>();
 builder.Services.AddScoped<PicklingService>();
 
 // ========== 质量上下文 ==========

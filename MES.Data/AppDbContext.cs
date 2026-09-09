@@ -88,6 +88,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<ProductionRecord> ProductionRecords { get; set; } = null!;
     public DbSet<SectionOutsource> SectionOutsources { get; set; } = null!;
     public DbSet<OutsourceRecovery> OutsourceRecoveries { get; set; } = null!;
+    public DbSet<OutsourceVendorProfile> OutsourceVendorProfiles { get; set; } = null!;
     public DbSet<OperationLog> OperationLogs { get; set; } = null!;
     public DbSet<PicklingInRecord> PicklingInRecords { get; set; } = null!;
     public DbSet<PicklingOutRecord> PicklingOutRecords { get; set; } = null!;
@@ -227,6 +228,7 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigureProductionRecord(builder);
         ConfigureSectionOutsource(builder);
         ConfigureOutsourceRecovery(builder);
+        ConfigureOutsourceVendorProfile(builder);
         ConfigureOperationLog(builder);
         ConfigurePicklingInRecord(builder);
         ConfigurePicklingOutRecord(builder);

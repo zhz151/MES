@@ -4,9 +4,12 @@
 @using MES.Blazor.Helpers
 @using MES.Blazor.Shared
 @using MES.Core.Constants
+@using MES.Core.Enums
+@using MES.Core.Helpers
 @using MES.Core.DTOs.Batch
 @inject SectionOutsourceService SectionOutsourceService
 @inject BatchService BatchService
+@inject OutsourceVendorService OutsourceVendorService
 @inject StandardWorkDayService StandardWorkDayService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -192,6 +195,9 @@
     // 工段下拉选项（Key 存储值 + 中文显示文本；从参数表加载启用工段，失败降级为预置 26 工段）
     private List<(string Key, string Text)> _sectionOptions = new();
 
+    // 启用中的委外单位档案全量（active，小表）：委外单位/厂内判定由档案驱动，按行工段过滤
+    private List<OutsourceVendorProfileDto> _activeVendors = new();
+
     // ========== 列定义 ==========
 
     private List<ColumnDef> _allColumns = new();
@@ -225,6 +231,9 @@
         "ManufacturingSpec" => 170,
         "SendQuantity" => 110,
         "SendWeight" => 120,
+        "PricingUnit" => 110,
+        "UnitPrice" => 120,
+        "TotalAmount" => 130,
         "OutsourceVendor" => 150,
         "ExpectedReturnDate" => 140,
         "IsUrgent" => 80,
@@ -247,6 +256,10 @@
         // G3：发出计量
         new() { Key = "SendQuantity",      Label = "发出支数",                 GroupKey = 3, GroupName = "发出计量" },
         new() { Key = "SendWeight",        Label = "发出重量",                 GroupKey = 3, GroupName = "发出计量" },
+        // G3.5：计价（随发出计量一起，厂内无价禁用）
+        new() { Key = "PricingUnit",       Label = "计价单位",                 GroupKey = 3, GroupName = "发出计量" },
+        new() { Key = "UnitPrice",         Label = "单价(元)",                 GroupKey = 3, GroupName = "发出计量" },
+        new() { Key = "TotalAmount",       Label = "总价(元)",                 GroupKey = 3, GroupName = "发出计量" },
         // G4：其他
         new() { Key = "OutsourceVendor",   Label = "委外单位", IsRequired = true, GroupKey = 4, GroupName = "其他" },
         new() { Key = "IsInternal",        Label = "厂内",                     GroupKey = 4, GroupName = "其他" },
@@ -316,9 +329,16 @@
         public string ProcessName { get; set; } = string.Empty;
         public string? ManufacturingSpec { get; set; }
         public string SectionName { get; set; } = string.Empty;
-        // 厂内（虚拟发外）：仅限冷轧拔工段，无需回收，状态=略，OutsourceVendor 填车间名称
+        // 厂内（虚拟发外）：仅限冷轧拔工段，无需回收，状态=略；由委外单位档案(本厂车间 IsWorkshop)派生，无手动开关
         public bool IsInternal { get; set; }
         public string OutsourceVendor { get; set; } = string.Empty;
+        public OutsourceVendorProfileDto? VendorProfile { get; set; }
+        // ========== 计价三字段（厂内无价，均 null） ==========
+        public PricingUnit? PricingUnit { get; set; }
+        public decimal? UnitPrice { get; set; }
+        public decimal? TotalAmount { get; set; }
+        /// <summary>总价是否被手动改过（手填优先，后续重量/单价变更不再自动覆盖）</summary>
+        public bool TotalAmountTouched { get; set; }
         public string? SendOutDateText { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
         public DateTime? SendOutDate => DateTime.TryParse(SendOutDateText, out var d) ? d : null;
         public int? SendQuantity { get; set; }
@@ -412,6 +432,10 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var vendorResult = await OutsourceVendorService.GetActiveAsync();
+        if (vendorResult.Success && vendorResult.Data != null)
+            _activeVendors = vendorResult.Data;
+
         await LoadSectionOptionsAsync();
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("section-outsource-create", null);
@@ -476,7 +500,12 @@
             newRow.ExpectedReturnDateText = source.ExpectedReturnDateText;
             newRow.IsUrgent = source.IsUrgent;
             newRow.OutsourceVendor = source.OutsourceVendor;
+            newRow.VendorProfile = source.VendorProfile;
+            newRow.IsInternal = source.IsInternal;
         }
+        if (newRow.VendorProfile == null) newRow.IsInternal = false;
+        else if (newRow.VendorProfile.IsWorkshop) ClearPricing(newRow);
+        else ApplyPricingDefaults(newRow);
         _rows.Add(newRow);
     }
 
@@ -505,7 +534,95 @@
         row.ExpectedReturnDateText = source.ExpectedReturnDateText;
         row.IsUrgent = source.IsUrgent;
         row.OutsourceVendor = source.OutsourceVendor;
+        row.VendorProfile = source.VendorProfile;
+        row.IsInternal = source.IsInternal;
+        if (row.VendorProfile == null) row.IsInternal = false;
+        else if (row.VendorProfile.IsWorkshop) ClearPricing(row);
+        else ApplyPricingDefaults(row);
         StateHasChanged();
+    }
+
+    // ========== 委外单位档案下拉 + 计价联动 ==========
+
+    /// <summary>当前行可选档案候选（启用中 + 工段匹配），供 MudAutocomplete SearchFunc 使用</summary>
+    private List<OutsourceVendorProfileDto> GetVendorCandidates(EditRow r)
+        => _activeVendors
+            .Where(p => p.IsActive
+                        && (string.IsNullOrWhiteSpace(r.SectionName) // 行工段未定时列出全部启用档案，先选单位再带出工段
+                            || string.Equals(p.SectionName, r.SectionName, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+    /// <summary>选择委外单位档案：本厂车间(IsWorkshop)→厂内；厂内仅限冷轧拔，自动锁定工段为冷轧拔</summary>
+    private async Task OnVendorSelectedAsync(EditRow r, OutsourceVendorProfileDto? p)
+    {
+        if (p != null)
+        {
+            // 委外单位×委外工段 档案绑定：行工段未定/与档案不符时，一律同步为档案工段后联动重填委外规格
+            if (!string.Equals(p.SectionName, r.SectionName, StringComparison.OrdinalIgnoreCase))
+            {
+                r.SectionName = p.SectionName;
+                await ApplyAutoFillAsync(r); // 工段变更后重填委外规格/制造规格（冷轧拔取上个工序组、其它取本工序组）
+            }
+        }
+        r.VendorProfile = p;
+        r.OutsourceVendor = p?.VendorName ?? "";
+        r.IsInternal = p?.IsWorkshop == true;
+        if (r.IsInternal) ClearPricing(r);
+        else ApplyPricingDefaults(r);
+        StateHasChanged();
+    }
+
+    /// <summary>工段变更：校验已选委外单位档案是否仍命中新工段，不命中则清空让用户重选；刷新计价默认</summary>
+    private async Task OnSectionChangedAsync(EditRow r, string section)
+    {
+        r.SectionName = section ?? "";
+        if (r.VendorProfile != null
+            && !string.Equals(r.VendorProfile.SectionName, r.SectionName, StringComparison.OrdinalIgnoreCase))
+        {
+            r.VendorProfile = null;
+            r.OutsourceVendor = "";
+            r.IsInternal = false;
+            ClearPricing(r);
+        }
+        await ApplyAutoFillAsync(r);
+        if (!r.IsInternal) ApplyPricingDefaults(r);
+        StateHasChanged();
+    }
+
+    /// <summary>厂内（本厂车间）：无价，三价格字段清空</summary>
+    private static void ClearPricing(EditRow r)
+    {
+        r.PricingUnit = null;
+        r.UnitPrice = null;
+        r.TotalAmount = null;
+        r.TotalAmountTouched = false;
+    }
+
+    /// <summary>厂外计价默认：计价单位空→元/Kg；单价空→按工段默认（冷轧拔1.4/其他0.8）；未手改总价则按取量自动算</summary>
+    private void ApplyPricingDefaults(EditRow r)
+    {
+        if (r.IsInternal) { ClearPricing(r); return; }
+        r.PricingUnit ??= MaterialPricingDefaults.DefaultPricingUnit;
+        if (r.UnitPrice == null && !string.IsNullOrWhiteSpace(r.SectionName))
+            r.UnitPrice = MaterialPricingDefaults.DefaultSectionOutsourceUnitPrice(r.SectionName);
+        RecomputeTotal(r);
+    }
+
+    /// <summary>按计价单位自动算总价：PerKg→重量、PerPiece→支数、PerMeter→无米数不入自动（留空手填）</summary>
+    private static void RecomputeTotal(EditRow r)
+    {
+        if (r.IsInternal) { ClearPricing(r); return; }
+        if (r.TotalAmountTouched) return;
+        decimal? qty = r.PricingUnit switch
+        {
+            PricingUnit.PerKg => r.SendWeight,
+            PricingUnit.PerPiece => r.SendQuantity,
+            _ => null
+        };
+        if (r.UnitPrice.HasValue && qty.HasValue && qty > 0)
+            r.TotalAmount = decimal.Round(r.UnitPrice.Value * qty.Value, 2, MidpointRounding.AwayFromZero);
+        else
+            r.TotalAmount = null;
     }
 
     // ========== 自动填充 ==========
@@ -631,7 +748,7 @@
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(4, "ToStringFunc", (Func<string, string>)GetSectionDisplayText);
                 builder.AddAttribute(5, "Value", r.SectionName);
-                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => { r.SectionName = v ?? ""; await ApplyAutoFillAsync(r); }));
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<string>(this, async v => await OnSectionChangedAsync(r, v ?? "")));
                 builder.AddAttribute(7, "ChildContent", (RenderFragment)(b =>
                 {
                     foreach (var opt in _sectionOptions)
@@ -647,28 +764,28 @@
                 builder.CloseComponent();
                 break;
             case "IsInternal":
-                builder.OpenComponent<MudSwitch<bool>>(0);
-                builder.AddAttribute(1, "Color", Color.Primary);
-                builder.AddAttribute(2, "Value", r.IsInternal);
-                builder.AddAttribute(3, "ValueChanged", EventCallback.Factory.Create<bool>(this, v =>
-                {
-                    r.IsInternal = v;
-                    if (v && r.SectionName != SectionKeys.ColdRollDraw)
-                        r.SectionName = SectionKeys.ColdRollDraw;
-                }));
-                builder.CloseComponent();
+                // 厂内由委外单位档案(本厂车间)派生，仅只读展示，不再可手动切换
+                builder.AddContent(0, r.IsInternal ? "本厂" : "—");
                 break;
             case "OutsourceVendor":
-                // CoerceValue=true：允许输入历史列表外的新委外单位（自由文本直接写入 Value）
-                builder.OpenComponent<MudAutocomplete<string>>(0);
+                // 委外单位从档案下拉（启用中 + 当前行工段匹配），禁手输造新；档外先建档
+                builder.OpenComponent<MudAutocomplete<OutsourceVendorProfileDto>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(2, "Variant", Variant.Outlined);
                 builder.AddAttribute(3, "Size", Size.Small);
-                builder.AddAttribute(4, "Value", r.OutsourceVendor);
-                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<string>(this, v => r.OutsourceVendor = v ?? ""));
-                builder.AddAttribute(6, "SearchFunc", (Func<string, Task<IEnumerable<string>>>)(async search => await SearchVendorsAsync(search)));
-                builder.AddAttribute(7, "MinCharacters", 1);
-                builder.AddAttribute(8, "CoerceValue", true);
+                builder.AddAttribute(4, "Value", r.VendorProfile);
+                builder.AddAttribute(5, "ValueChanged", EventCallback.Factory.Create<OutsourceVendorProfileDto>(this, async v => await OnVendorSelectedAsync(r, v)));
+                builder.AddAttribute(6, "SearchFunc", (Func<string, Task<IEnumerable<OutsourceVendorProfileDto>>>)(search =>
+                {
+                    var list = GetVendorCandidates(r);
+                    if (!string.IsNullOrWhiteSpace(search))
+                        list = list.Where(p => p.VendorName.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
+                    return Task.FromResult((IEnumerable<OutsourceVendorProfileDto>)list);
+                }));
+                builder.AddAttribute(7, "ToStringFunc", (Func<OutsourceVendorProfileDto, string>)(p => p?.VendorName ?? ""));
+                builder.AddAttribute(8, "MinCharacters", 0); // 点击/聚焦即列出全部候选，不必先打字
+                builder.AddAttribute(9, "CoerceValue", false);
+                builder.AddAttribute(10, "DebounceInterval", 200);
                 builder.CloseComponent();
                 break;
             case "SendOutDate":
@@ -688,7 +805,7 @@
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(4, "HideSpinButtons", true);
                 builder.AddAttribute(5, "Value", r.SendQuantity);
-                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => r.SendQuantity = v));
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => { r.SendQuantity = v; RecomputeTotal(r); }));
                 builder.CloseComponent();
                 break;
             case "SendWeight":
@@ -699,7 +816,53 @@
                 builder.AddAttribute(4, "HideSpinButtons", true);
                 builder.AddAttribute(5, "Format", "G29");
                 builder.AddAttribute(6, "Value", r.SendWeight);
-                builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => r.SendWeight = v));
+                builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => { r.SendWeight = v; RecomputeTotal(r); }));
+                builder.CloseComponent();
+                break;
+            case "PricingUnit":
+                builder.OpenComponent<MudSelect<PricingUnit>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "ToStringFunc", (Func<PricingUnit, string>)(u => DisplayHelper.GetPriceUnitText(u))); // 选中值中文兜底
+                builder.AddAttribute(5, "Value", r.PricingUnit ?? MaterialPricingDefaults.DefaultPricingUnit);
+                builder.AddAttribute(6, "Disabled", r.IsInternal);
+                builder.AddAttribute(7, "ValueChanged", EventCallback.Factory.Create<PricingUnit>(this, v => { r.PricingUnit = v; RecomputeTotal(r); }));
+                builder.AddAttribute(8, "ChildContent", (RenderFragment)(b =>
+                {
+                    foreach (var opt in DisplayHelper.GetEnumOptions<PricingUnit>())
+                    {
+                        b.OpenComponent<MudSelectItem<PricingUnit>>(0);
+                        b.AddAttribute(1, "Value", Enum.Parse<PricingUnit>(opt.Value));
+                        b.AddAttribute(2, "Text", opt.Display);
+                        b.AddAttribute(3, "ChildContent", (RenderFragment)(b3 => b3.AddContent(0, opt.Display))); // 展开选项中文
+                        b.CloseComponent();
+                    }
+                }));
+                builder.CloseComponent();
+                break;
+            case "UnitPrice":
+                builder.OpenComponent<MudNumericField<decimal?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "HideSpinButtons", true);
+                builder.AddAttribute(5, "Format", "G29");
+                builder.AddAttribute(6, "Value", r.UnitPrice);
+                builder.AddAttribute(7, "Disabled", r.IsInternal);
+                builder.AddAttribute(8, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => { r.UnitPrice = v; RecomputeTotal(r); }));
+                builder.CloseComponent();
+                break;
+            case "TotalAmount":
+                builder.OpenComponent<MudNumericField<decimal?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(4, "HideSpinButtons", true);
+                builder.AddAttribute(5, "Format", "G29");
+                builder.AddAttribute(6, "Value", r.TotalAmount);
+                builder.AddAttribute(7, "Disabled", r.IsInternal);
+                builder.AddAttribute(8, "ValueChanged", EventCallback.Factory.Create<decimal?>(this, v => { r.TotalAmount = v; r.TotalAmountTouched = true; }));
                 builder.CloseComponent();
                 break;
             case "TagNo":
@@ -800,11 +963,14 @@
                 ProcessName = r.ProcessName.Trim(),
                 ManufacturingSpec = r.ManufacturingSpec?.Trim() ?? "",
                 SectionName = r.SectionName.Trim(),
-                IsInternal = r.IsInternal,
                 OutsourceVendor = r.OutsourceVendor.Trim(),
                 SendOutDate = r.SendOutDate ?? DateTime.Today,
                 SendQuantity = r.SendQuantity,
                 SendWeight = r.SendWeight,
+                // 计价（厂内无价 → null；厂外按行手填/自动默认）
+                PricingUnit = r.IsInternal ? null : (r.PricingUnit ?? MaterialPricingDefaults.DefaultPricingUnit),
+                UnitPrice = r.IsInternal ? null : r.UnitPrice,
+                TotalAmount = r.IsInternal ? null : r.TotalAmount,
                 TagNo = r.TagNo?.Trim(),
                 PlantGrade = r.PlantGrade?.Trim(),
                 OutsourceSpec = r.OutsourceSpec?.Trim(),
@@ -840,21 +1006,5 @@
     private void GoBack()
     {
         Navigation.NavigateTo("/section-outsources");
-    }
-
-    // ========== 搜索委外单位（MudAutocomplete）==========
-
-    private async Task<IEnumerable<string>> SearchVendorsAsync(string? keyword)
-    {
-        var result = (await SectionOutsourceService.SearchVendorsAsync(keyword)) ?? new List<string>();
-        // 输入的新单位名不在历史列表中时，作为首项呈现，便于新建委外单位（配合 CoerceValue 点选确认）
-        if (!string.IsNullOrWhiteSpace(keyword)
-            && !result.Any(v => string.Equals(v, keyword, StringComparison.OrdinalIgnoreCase)))
-        {
-            var list = result.ToList();
-            list.Insert(0, keyword.Trim());
-            return list;
-        }
-        return result;
     }
 }

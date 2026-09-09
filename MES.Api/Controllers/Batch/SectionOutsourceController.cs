@@ -280,17 +280,6 @@ public class SectionOutsourceController : ControllerBase
         return Ok(ApiResponse<Dictionary<string, List<string>>>.Ok(result));
     }
 
-    /// <summary>
-    /// 模糊搜索委外单位（用于 MudAutocomplete）
-    /// </summary>
-    [HttpGet("vendors")]
-    [Authorize]
-    public async Task<ActionResult<ApiResponse<List<string>>>> SearchVendors([FromQuery] string? keyword)
-    {
-        var result = await _service.SearchVendorsAsync(keyword);
-        return Ok(ApiResponse<List<string>>.Ok(result));
-    }
-
     // ========== 汇总 ==========
 
     /// <summary>

@@ -82,7 +82,7 @@
                                         </thead>
                                         <tbody>
                                             <tr>
-                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">单数/重量</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">单数/重量/金额</td>
                                                 @for (var bi = 0; bi < estimateTable.Buckets.Count; bi++)
                                                 {
                                                     var bucketIndex = bi; // 捕获副本（for 循环变量被闭包共享，事件触发时读到结束值）
@@ -101,6 +101,9 @@
                                     </div>
                                 </div>
                             }
+                            <MudText Typo="Typo.caption" Class="text-hint">
+                                注：单元格 = 单数(蓝)/重量吨(绿)/金额万元(橙)，均取整显示，点击联动筛选订单。金额 = 桶内订单项次计价总价合计（未计价订单计 0）。
+                            </MudText>
                         }
                         else
                         {

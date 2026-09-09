@@ -1187,6 +1187,49 @@ td.col-edit-actions { background: #E8EAF6 !important; }
 }
 
 /* ============================================================
+   报表分类标题（着色 + 左侧 4px 色条）
+   物料执行 4 类：荒管(1)/成品(2)/圆钢(3)/供应商往来(4)
+   生产执行 5 类：冷轧拔近日排程(1)/段落流转分析(2)/生产量(3)/委外类(4)/委外单位往来(5)
+   跨 Tab 复用同色类名无冲突（各 Tab 内仅需互异即可）
+   ============================================================ */
+.report-tt {
+    display: inline-flex;
+    align-items: center;
+    font-weight: 600;
+    vertical-align: middle;
+}
+.report-tt::before {
+    content: "";
+    width: 4px;
+    height: 1.05em;
+    border-radius: 2px;
+    margin-right: 8px;
+    background: currentColor;
+    flex-shrink: 0;
+}
+.report-tt-1 { color: #1976D2; }
+.report-tt-2 { color: #43A047; }
+.report-tt-3 { color: #8E24AA; }
+.report-tt-4 { color: #FB8C00; }
+.report-tt-5 { color: #00897B; }
+
+/* 报表往来数据卡：可排序身份列 th（点击排序，无 ▲/▼ 箭头文字） */
+.report-th-sort {
+    text-align: left;
+    padding: 4px 10px;
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+.report-th-sort.report-th-sorted {
+    background: #e3f2fd;
+    border-color: #90caf9;
+    font-weight: 700;
+}
+
+/* ============================================================
    考勤表（月视图网格）
    ============================================================ */
 

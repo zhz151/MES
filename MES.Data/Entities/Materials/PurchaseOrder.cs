@@ -73,6 +73,11 @@ public class PurchaseOrder : BaseEntity
     public DateTime RequiredDate { get; set; }
 
     /// <summary>
+    /// 计价单位（PricingUnit 枚举名，默认 PerKg 元/kg）
+    /// </summary>
+    public PricingUnit? PricingUnit { get; set; }
+
+    /// <summary>
     /// 单价
     /// </summary>
     public decimal? UnitPrice { get; set; }

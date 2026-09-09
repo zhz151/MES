@@ -81,6 +81,9 @@ public partial class SubcontractReturnItems : IAsyncDisposable
     // 空值筛选哨兵（与 ExcelFilter 组件/后端 Service 的 "__EXCEL_FILTER_NULL__" 一致）
     private const string FilterNull = "__EXCEL_FILTER_NULL__";
 
+    // 列偏好版本（首次集成：v1，变更默认显隐后需 bump 使存量偏好失效）
+    private const string ColumnPrefsVersion = "v2"; // v2：计价单位/加工单价/加工金额 三列默认隐藏（委外子项查询）
+
     // ========== 列管理 ==========
     private List<ColumnDef> _allColumns = new();
     private List<ColumnDef> _visibleColumns => _allColumns.Where(c => c.Visible).ToList();
@@ -100,6 +103,9 @@ public partial class SubcontractReturnItems : IAsyncDisposable
             new() { Key = "UnitWeight",          Label = "单重(kg)",       SortKey = "unitweight",                             Width = "80",  GroupKey = 1, GroupName = "委外信息" },
             new() { Key = "RequiredQuantity",    Label = "需求支数",       SortKey = "requiredquantity",                       Width = "80",  GroupKey = 1, GroupName = "委外信息" },
             new() { Key = "RequiredWeight",      Label = "需求重量(kg)",   SortKey = "requiredweight",                         Width = "100", GroupKey = 1, GroupName = "委外信息" },
+            new() { Key = "PricingUnit",         Label = "计价单位",       SortKey = "pricingunit",                            Width = "80",  GroupKey = 1, GroupName = "委外信息", Visible = false },
+            new() { Key = "ProcessUnitPrice",    Label = "加工单价",       SortKey = "processunitprice",                       Width = "90",  GroupKey = 1, GroupName = "委外信息", Visible = false },
+            new() { Key = "ProcessTotalAmount",  Label = "加工金额",       SortKey = "processtotalamount",                     Width = "100", GroupKey = 1, GroupName = "委外信息", Visible = false },
             new() { Key = "RequiredArrivalDate", Label = "要求到货日",     SortKey = "requiredarrivaldate", FilterType = "date", Width = "110", GroupKey = 1, GroupName = "委外信息" },
             new() { Key = "Remark",              Label = "委外备注",       SortKey = "remark",           FilterType = "string", Width = "120", GroupKey = 1, GroupName = "委外信息", Visible = false },
         };
@@ -111,7 +117,7 @@ public partial class SubcontractReturnItems : IAsyncDisposable
                 EnumOptions = new List<EnumOption> { new(FilterNull, "空值") }.Concat(DisplayHelper.GetScheduleStageOptions()).ToList() },
             new() { Key = "ExecutionRawMaterialLockRemark", Label = "原锁执行备注", SortKey = "executionrawmateriallockremark", FilterType = "string", Width = "130", GroupKey = 2, GroupName = "工单实时关注" },
             new() { Key = "ExecutionUrgencyLevel",          Label = "计划性",       SortKey = "executionurgencylevel",          FilterType = "string", Width = "100", GroupKey = 2, GroupName = "工单实时关注" },
-            new() { Key = "ExecutionTheoreticalCutoffDate", Label = "理论截止投料日", SortKey = "executiontheoreticalcutoffdate", FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "工单实时关注" },
+            new() { Key = "ExecutionTheoreticalCutoffDate", Label = "理论截止投料日", SortKey = "executiontheoreticalcutoffdate", FilterType = "date",   Width = "120", GroupKey = 2, GroupName = "工单实时关注", Visible = false },
         };
 
         // G3: 执行状态
@@ -123,7 +129,7 @@ public partial class SubcontractReturnItems : IAsyncDisposable
             new() { Key = "ReturnedQuantity",    Label = "回收支数",       SortKey = "returnedquantity",                       Width = "80",  GroupKey = 3, GroupName = "执行状态" },
             new() { Key = "ReturnedWeight",      Label = "回收重量(kg)",   SortKey = "returnedweight",                         Width = "100", GroupKey = 3, GroupName = "执行状态" },
             new() { Key = "ReturnQuantity",      Label = "退货量",                                                   Width = "100", GroupKey = 3, GroupName = "执行状态" },
-            new() { Key = "IsForceCompleted",    Label = "属强制完成",     SortKey = "isforcecompleted",   FilterType = "enum",  Width = "100", GroupKey = 3, GroupName = "执行状态",
+            new() { Key = "IsForceCompleted",    Label = "强制完成",       SortKey = "isforcecompleted",   FilterType = "enum",  Width = "100", GroupKey = 3, GroupName = "执行状态",
                 EnumOptions = DisplayHelper.GetBoolOptions() },
         };
 
@@ -138,7 +144,7 @@ public partial class SubcontractReturnItems : IAsyncDisposable
     {
         // 列定义与偏好加载
         _allColumns = GetAllColumnDefs();
-        var saved = await ColumnPrefs.LoadAsync("subcontract_return_items", null);
+        var saved = await ColumnPrefs.LoadAsync("subcontract_return_items", ColumnPrefsVersion);
         if (saved.Count > 0)
         {
             foreach (var s in saved)
@@ -564,7 +570,7 @@ public partial class SubcontractReturnItems : IAsyncDisposable
 
     private async Task SaveColumnPrefs()
     {
-        await ColumnPrefs.SaveAsync("subcontract_return_items", null, _allColumns);
+        await ColumnPrefs.SaveAsync("subcontract_return_items", ColumnPrefsVersion, _allColumns);
     }
 
     private async Task ResetColumnDisplay()
@@ -661,6 +667,15 @@ public partial class SubcontractReturnItems : IAsyncDisposable
             case "RequiredWeight":
                 builder.AddContent(0, item.RequiredWeight?.ToString("G29"));
                 break;
+            case "PricingUnit":
+                builder.AddContent(0, DisplayHelper.GetPriceUnitText(item.PricingUnit));
+                break;
+            case "ProcessUnitPrice":
+                builder.AddContent(0, item.ProcessUnitPrice?.ToString("G29") ?? "-");
+                break;
+            case "ProcessTotalAmount":
+                builder.AddContent(0, item.ProcessTotalAmount?.ToString("G29") ?? "-");
+                break;
             case "RequiredArrivalDate":
                 builder.AddContent(0, item.RequiredArrivalDate?.ToString("yyyy-MM-dd"));
                 break;
@@ -703,6 +718,7 @@ public partial class SubcontractReturnItems : IAsyncDisposable
     private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
     {
         "UnitWeight", "RequiredQuantity", "RequiredWeight",
+        "ProcessUnitPrice", "ProcessTotalAmount",
         "ReturnedQuantity", "ReturnedWeight", "ReturnQuantity",
     };
     private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);

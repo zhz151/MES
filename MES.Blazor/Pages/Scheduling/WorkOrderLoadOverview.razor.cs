@@ -56,6 +56,18 @@ public partial class WorkOrderLoadOverview : ComponentBase
         await JS.InvokeVoidAsync("initGroupHeaders", "#workorder-load-overview-list-table");
     }
 
+    /// <summary>展示行：剔除「订单交期负荷」（订单延期-原料/在产/成检）整组行（2026-09-10 用户决策），其余维持后端自然序</summary>
+    private List<OverviewRowDto> OverviewRows
+    {
+        get
+        {
+            if (_data == null) return new List<OverviewRowDto>();
+            return _data.Rows
+                .Where(r => !string.Equals(r.Category, "订单交期负荷", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+    }
+
     private async Task PrintTable()
     {
         // 打印仅输出表格本身；分组标题栏因打印窗口按 11px 字号重新布局，与实测像素宽度无法对齐，故不打印（2026-08-19 用户决策）
@@ -139,9 +151,12 @@ public partial class WorkOrderLoadOverview : ComponentBase
         return $"{row.CategoryNo}-{row.RowNo}";
     }
 
-    /// <summary>汇总行单元格样式：加粗 + 分类底色（原料浅蓝/投料-在产浅绿/投料-成检浅橙）</summary>
+    /// <summary>单元格样式：序号 4-0「整体完工预计」整行浅黄底；汇总行加粗 + 分类底色（原料浅蓝/投料-在产浅绿/投料-成检浅橙）</summary>
     private static string CellClass(OverviewRowDto row, string baseClass)
     {
+        // 序号 4-0（CategoryNo=4 RowNo=0，整体完工预计）整行底色（2026-09-10 用户决策）
+        if (row.CategoryNo == 4 && row.RowNo == 0)
+            return string.IsNullOrEmpty(baseClass) ? "row-overall" : $"{baseClass} row-overall";
         if (!row.IsSummary) return baseClass;
         var summaryClass = row.Category switch
         {

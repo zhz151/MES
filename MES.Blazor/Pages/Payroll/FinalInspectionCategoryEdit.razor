@@ -134,8 +134,8 @@
                                                            Class="flex-grow-1"
                                                            Label="长度状态（定尺/范围尺/非定尺）"
                                                            Value="@row.MatchValue" ValueChanged="@(v => row.MatchValue = v)"
-                                                           Disabled="@(!row.IsActive)"
-                                                           Clearable="true">
+                                                           Disabled="@(!row.IsActive)">
+                                                    <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
                                                     @foreach (var opt in _lengthStatuses)
                                                     {
                                                         <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>
@@ -148,8 +148,8 @@
                                                            Class="flex-grow-1"
                                                            Label="特殊制造状态"
                                                            Value="@row.MatchValue" ValueChanged="@(v => row.MatchValue = v)"
-                                                           Disabled="@(!row.IsActive)"
-                                                           Clearable="true">
+                                                           Disabled="@(!row.IsActive)">
+                                                    <MudSelectItem Value="@((string?)null)">请选择</MudSelectItem>
                                                     @foreach (var opt in _states)
                                                     {
                                                         <MudSelectItem Value="@opt.Key" Text="@opt.Name">@opt.Name</MudSelectItem>

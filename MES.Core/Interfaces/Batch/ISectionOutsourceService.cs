@@ -95,11 +95,6 @@ public interface ISectionOutsourceService
     /// </summary>
     Task<List<SectionOutsourceDto>> GetPendingByBatchAsync(string batchNo, string sectionName);
 
-    /// <summary>
-    /// 模糊搜索委外单位（用于 MudAutocomplete）
-    /// </summary>
-    Task<List<string>> SearchVendorsAsync(string? keyword);
-
     // ========== 汇总 ==========
 
     /// <summary>

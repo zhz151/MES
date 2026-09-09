@@ -18,6 +18,7 @@
 @inject MaterialReceiveCheckService ProductionRecordService
 @inject PicklingService PicklingService
 @inject SectionOutsourceService SectionOutsourceService
+@inject OutsourceVendorService OutsourceVendorService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -801,16 +802,23 @@
                             </div>
                         </MudPaper>
 
-                        @* 委外表单字段（委外单位 Autocomplete：历史 Distinct + 手输新增） *@
-                        <MudAutocomplete T="string"
-                                         Value="@_sectionOutsourceVendor"
-                                         ValueChanged="@(EventCallback.Factory.Create<string?>(this, v => _sectionOutsourceVendor = v))"
-                                         SearchFunc="@SearchVendorsAsync"
+                        @* 委外表单字段（委外单位从档案下拉，按当前工段过滤；本厂车间档案=厂内虚拟发外） *@
+                        <MudAutocomplete T="OutsourceVendorProfileDto"
+                                         Value="@_sectionOutsourceVendorProfile"
+                                         ValueChanged="@(EventCallback.Factory.Create<OutsourceVendorProfileDto>(this, OnSectionOutsourceVendorSelected))"
+                                         SearchFunc="@SearchSectionVendorsAsync"
                                          MinCharacters="1"
-                                         CoerceValue="true"
+                                         CoerceValue="false"
+                                         ToStringFunc="@((OutsourceVendorProfileDto p) => p?.VendorName ?? "")"
                                          Label="委外单位 *"
                                          Variant="Variant.Outlined"
                                          Style="font-size: 0.875rem; height: 44px;" />
+                        @if (_sectionOutsourceVendorProfile?.IsWorkshop == true)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Info" Class="mt-1">
+                                已选本厂车间 → 厂内（虚拟发外），发出即完（状态=略），无需回收，不计价
+                            </MudText>
+                        }
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;" class="mt-2">
                             <MudTextField @bind-Value="_sectionOutsourceSendOutDate"
@@ -859,18 +867,6 @@
                                          Label="是否紧急"
                                          Color="Color.Primary" />
                         </div>
-
-                        @if (string.Equals(_workstationContext?.SectionName, SectionKeys.ColdRollDraw, StringComparison.OrdinalIgnoreCase))
-                        {
-                            <div class="mt-2">
-                                <MudSwitch @bind-Value="_sectionOutsourceIsInternal"
-                                           Label="厂内加工（虚拟委外，仅冷轧拔）"
-                                           Color="Color.Primary" />
-                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
-                                    厂内：委外单位填车间名称，发出即完（状态=略，无需回收），不产生厂外委外/采购计划
-                                </MudText>
-                            </div>
-                        }
 
                         <MudTextField @bind-Value="_sectionOutsourceRemark"
                                       Label="备注（可选）"
@@ -1617,14 +1613,17 @@
     private string? _picklingOutRemark;
 
     // ========== 工段委外发出专用状态 ==========
+    // 委外单位从委外单位档案下拉（按工段过滤）；本厂车间档案(IsWorkshop)=厂内虚拟发外，无手动厂内开关
     private string? _sectionOutsourceVendor;
+    private OutsourceVendorProfileDto? _sectionOutsourceVendorProfile;
+    private List<OutsourceVendorProfileDto> _sectionActiveVendors = new();
+    private bool _sectionActiveVendorsLoaded;
     private string _sectionOutsourceSendOutDate = DateTime.Today.ToString("yyyy-MM-dd");
     private string? _sectionOutsourceExpectedReturnDate;
     private int? _sectionOutsourceSendQuantity;
     private decimal? _sectionOutsourceSendWeight;
     private string? _sectionOutsourceSpec;
     private bool _sectionOutsourceIsUrgent;
-    private bool _sectionOutsourceIsInternal; // 厂内虚拟委外（外发厂=厂内，不产生厂外采购/委外计划）
     private string? _sectionOutsourceRemark;
 
     // ========== 委外回收专用状态 ==========
@@ -2230,13 +2229,13 @@
 
         // 重置工段委外字段
         _sectionOutsourceVendor = null;
+        _sectionOutsourceVendorProfile = null;
         _sectionOutsourceSendOutDate = DateTime.Today.ToString("yyyy-MM-dd");
         _sectionOutsourceExpectedReturnDate = null;
         _sectionOutsourceSendQuantity = null;
         _sectionOutsourceSendWeight = null;
         _sectionOutsourceSpec = null;
         _sectionOutsourceIsUrgent = false;
-        _sectionOutsourceIsInternal = false;
         _sectionOutsourceRemark = null;
 
         // 重置过程检验字段
@@ -2584,14 +2583,13 @@
                     SectionName = _workstationContext!.SectionName ?? "",
                     SequenceNumber = _resolveResult.AvailableSections
                         .FirstOrDefault(s => s.SectionName == SectionDisplayHelper.GetSectionNameText(_workstationContext!.SectionName))?.SequenceNumber ?? 0,
-                    OutsourceVendor = _sectionOutsourceVendor,
+                    OutsourceVendor = _sectionOutsourceVendorProfile?.VendorName ?? _sectionOutsourceVendor,
                     SendOutDate = DateTime.TryParse(_sectionOutsourceSendOutDate, out var sd) ? sd : DateTime.Today,
                     SendQuantity = _sectionOutsourceSendQuantity,
                     SendWeight = _sectionOutsourceSendWeight,
                     OutsourceSpec = _sectionOutsourceSpec,
                     ExpectedReturnDate = DateTime.TryParse(_sectionOutsourceExpectedReturnDate, out var erd) ? erd : null,
                     IsUrgent = _sectionOutsourceIsUrgent,
-                    IsInternal = _sectionOutsourceIsInternal,
                     Remark = _sectionOutsourceRemark,
                     DataSource = "SCAN"
                 };
@@ -2914,25 +2912,35 @@
         _picklingOutRemark = null;
     }
 
-    // ========== 搜索委外单位（MudAutocomplete，支持手输新增）==========
+    // ========== 搜索委外单位（从档案 active 下拉，按当前工段过滤；CoerceValue=false 禁手输造新）==========
 
-    private async Task<IEnumerable<string>> SearchVendorsAsync(string? keyword)
+    private async Task<IEnumerable<OutsourceVendorProfileDto>> SearchSectionVendorsAsync(string? keyword)
     {
-        var result = (await SectionOutsourceService.SearchVendorsAsync(keyword)) ?? new List<string>();
-        // 输入的新单位名不在历史列表中时，作为首项呈现，便于新建委外单位（配合 CoerceValue 点选确认）
-        if (!string.IsNullOrWhiteSpace(keyword)
-            && !result.Any(v => string.Equals(v, keyword, StringComparison.OrdinalIgnoreCase)))
+        if (!_sectionActiveVendorsLoaded)
         {
-            var list = result.ToList();
-            list.Insert(0, keyword.Trim());
-            return list;
+            var resp = await OutsourceVendorService.GetActiveAsync();
+            if (resp.Success && resp.Data != null)
+                _sectionActiveVendors = resp.Data;
+            _sectionActiveVendorsLoaded = true;
         }
-        return result;
+        var section = _workstationContext?.SectionName;
+        return _sectionActiveVendors
+            .Where(p => p.IsActive
+                        && (string.IsNullOrEmpty(section) || string.Equals(p.SectionName, section, StringComparison.OrdinalIgnoreCase))
+                        && (string.IsNullOrWhiteSpace(keyword) || p.VendorName.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+    }
+
+    private void OnSectionOutsourceVendorSelected(OutsourceVendorProfileDto profile)
+    {
+        _sectionOutsourceVendorProfile = profile;
+        _sectionOutsourceVendor = profile?.VendorName;
     }
 
     private void ResetSectionOutsourceState()
     {
         _sectionOutsourceVendor = null;
+        _sectionOutsourceVendorProfile = null;
         _sectionOutsourceSendOutDate = DateTime.Today.ToString("yyyy-MM-dd");
         _sectionOutsourceExpectedReturnDate = null;
         _sectionOutsourceSendQuantity = null;
@@ -2940,7 +2948,6 @@
         _sectionOutsourceSendWeightAuto = false;
         _sectionOutsourceSpec = null;
         _sectionOutsourceIsUrgent = false;
-        _sectionOutsourceIsInternal = false;
         _sectionOutsourceRemark = null;
     }
 
