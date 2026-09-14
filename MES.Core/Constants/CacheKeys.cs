@@ -34,6 +34,8 @@ public static class CacheKeys
     public const string ProcessInspectionFilterContexts = "ProcessInspectionService:FilterContexts";
     public const string PittingCorrosionTestFilterContexts = "PittingCorrosionTestService:FilterContexts";
     public const string NcrFilterContexts = "NcrService:FilterContexts";
+    public const string NonconformingFeedbackFilterContexts = "NonconformingFeedbackService:FilterContexts";
+    public const string InspectionPatrolFilterContexts = "InspectionPatrolService:FilterContexts";
     public const string MetallographicTestFilterContexts = "MetallographicTestService:FilterContexts";
     public const string MaterialReceiveCheckFilterContexts = "MaterialReceiveCheckService:FilterContexts";
     public const string FlaringTestFilterContexts = "FlaringTestService:FilterContexts";

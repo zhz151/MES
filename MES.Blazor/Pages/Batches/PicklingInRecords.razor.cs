@@ -365,6 +365,13 @@ public partial class PicklingInRecords
         Navigation.NavigateTo("/pickling-in-records/create");
     }
 
+    /// <summary>点「生产编号」跳生产批次详情页（本页页级策略与批次详情页同为 BatchView，跳转不会被拦）</summary>
+    private void OpenBatchDetail(int productionBatchId)
+    {
+        if (productionBatchId <= 0) return;
+        Navigation.NavigateTo($"/batches/{productionBatchId}");
+    }
+
     // ========== 服务端数据加载 ==========
 
     private async Task<TableData<PicklingInRecordDto>> LoadDataFromServer(TableState state)
@@ -681,7 +688,19 @@ public partial class PicklingInRecords
         switch (col.Key)
         {
             case "BatchNo":
-                builder.AddContent(0, item.BatchNo);
+                // 本页页级策略与批次详情页同为 BatchView，跳转不会被拦；无匹配批次时降级为纯文本
+                if (item.ProductionBatchId > 0)
+                {
+                    builder.OpenComponent<MudLink>(0);
+                    builder.AddAttribute(1, "Typo", Typo.body2);
+                    builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create<Microsoft.AspNetCore.Components.Web.MouseEventArgs?>(this, () => OpenBatchDetail(item.ProductionBatchId)));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, item.BatchNo)));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.BatchNo);
+                }
                 break;
             case "WorkOrderNo":
                 builder.AddContent(0, item.WorkOrderNo);

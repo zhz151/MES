@@ -82,6 +82,12 @@ public class SupplierService : ISupplierService
 
         queryable = queryable.ApplySort(query.SortBy, query.IsDescending);
 
+        // 区间模式（出单区间 / 到货区间任一有值）：按「激活列有数据」过滤供应商行后再分页（见下）
+        var orderRangeMode = query.SupplierOrderDateFrom.HasValue || query.SupplierOrderDateTo.HasValue;
+        var arrivalRangeMode = query.SupplierArrivalDateFrom.HasValue || query.SupplierArrivalDateTo.HasValue;
+        if (orderRangeMode || arrivalRangeMode)
+            return await GetPagedInRangeModeAsync(query, queryable, orderRangeMode, arrivalRangeMode);
+
         var totalCount = await queryable.CountAsync();
         var items = await queryable
             .Skip(query.Skip)
@@ -101,19 +107,8 @@ public class SupplierService : ISupplierService
             })
             .ToListAsync();
 
-        var dtos = items.Select(s => new SupplierProfileDto
-        {
-            Id = s.Id,
-            SupplierCode = s.SupplierCode,
-            SupplierName = s.SupplierName,
-            MaterialCategory = EnumHelper.TryParse<MaterialType>(s.MaterialCategory),
-            ContactPerson = s.ContactPerson,
-            ContactPhone = s.ContactPhone,
-            Address = s.Address,
-            IsActive = s.IsActive,
-            Remark = s.Remark,
-            CreatedTime = s.CreatedTime
-        }).ToList();
+        var dtos = items.Select(s => ToDto(s.Id, s.SupplierCode, s.SupplierName, s.MaterialCategory,
+            s.ContactPerson, s.ContactPhone, s.Address, s.IsActive, s.Remark, s.CreatedTime)).ToList();
 
         // ② 往来信息统计回填（采购+委外合并，仅当前页明细行聚合）
         await AttachTradeStatsAsync(dtos);
@@ -122,6 +117,82 @@ public class SupplierService : ISupplierService
         {
             Items = dtos,
             TotalCount = totalCount,
+            PageIndex = query.PageIndex,
+            PageSize = query.PageSize
+        };
+    }
+
+    private static SupplierProfileDto ToDto(int id, string code, string name, string? materialCategory,
+        string? contactPerson, string? contactPhone, string? address, bool isActive, string? remark, DateTimeOffset createdTime)
+        => new()
+        {
+            Id = id,
+            SupplierCode = code,
+            SupplierName = name,
+            MaterialCategory = EnumHelper.TryParse<MaterialType>(materialCategory),
+            ContactPerson = contactPerson,
+            ContactPhone = contactPhone,
+            Address = address,
+            IsActive = isActive,
+            Remark = remark,
+            CreatedTime = createdTime
+        };
+
+    /// <summary>
+    /// 区间模式分页：出单区间 / 到货区间任一生效时，只保留「激活列有数据」的供应商行
+    /// （与报表总览「供应商往来数据」卡的行过滤同口径）。行过滤须在分页之前完成，故内存过滤后再切页——
+    /// 供应商档案量级小（百位数量级），代价可忽略；<c>TotalCount</c> 返回过滤后条数，前端「共 N 条记录」与显示行一致。
+    /// </summary>
+    private async Task<PagedResult<SupplierProfileDto>> GetPagedInRangeModeAsync(
+        QueryParams query, IQueryable<SupplierProfile> queryable, bool orderRangeMode, bool arrivalRangeMode)
+    {
+        var rows = await queryable.Select(s => new
+        {
+            s.Id,
+            s.SupplierCode,
+            s.SupplierName,
+            s.MaterialCategory,
+            s.ContactPerson,
+            s.ContactPhone,
+            s.Address,
+            s.IsActive,
+            s.Remark,
+            s.CreatedTime
+        }).ToListAsync();
+
+        var statsRows = rows.Select(r => new SupplierStatsRow
+        {
+            Id = r.Id,
+            SupplierName = r.SupplierName,
+            MaterialCategory = r.MaterialCategory ?? ""
+        }).ToList();
+
+        var buckets = await BuildTradeStatsAsync(_context, DateTime.Today.Year, statsRows,
+            query.SupplierOrderDateFrom, query.SupplierOrderDateTo,
+            query.SupplierArrivalDateFrom, query.SupplierArrivalDateTo);
+
+        var activeColumns = ActiveStatsColumns(orderRangeMode, arrivalRangeMode);
+
+        var filtered = rows.Where(r => HasDataInActiveColumns(buckets, r.Id, activeColumns)).ToList();
+
+        var dtos = filtered
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .Select(r => ToDto(r.Id, r.SupplierCode, r.SupplierName, r.MaterialCategory,
+                r.ContactPerson, r.ContactPhone, r.Address, r.IsActive, r.Remark, r.CreatedTime))
+            .ToList();
+
+        // ② 往来信息统计回填（同一份桶，随行过滤复用，不重复聚合）
+        foreach (var dto in dtos)
+        {
+            if (buckets.TryGetValue(dto.Id, out var b))
+                ApplyStats(dto, b);
+        }
+
+        return new PagedResult<SupplierProfileDto>
+        {
+            Items = dtos,
+            TotalCount = filtered.Count,
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
@@ -158,8 +229,12 @@ public class SupplierService : ISupplierService
     /// 为当前页供应商明细回填 ② 往来信息 9 字段。
     /// 列表每行 =「供应商名 + 物料分类」档案，单据按同名+同分类精确分流到该行，
     /// 与列表行标签一致（真实库 217 采购单 105 单 SupplierId 只指向同名档案之一但单头分类各异 → 不能按 SupplierId 混算）。
+    /// 两个**互相独立**的区间，可单独或叠加使用：<paramref name="orderFrom"/>/<paramref name="orderTo"/>（出单）、
+    /// <paramref name="arrivalFrom"/>/<paramref name="arrivalTo"/>（到货）。未指定者仍按自然年 <c>year</c> 统计。
     /// </summary>
-    private async Task AttachTradeStatsAsync(List<SupplierProfileDto> items)
+    private async Task AttachTradeStatsAsync(List<SupplierProfileDto> items,
+        DateTime? orderFrom = null, DateTime? orderTo = null,
+        DateTime? arrivalFrom = null, DateTime? arrivalTo = null)
     {
         if (items.Count == 0)
             return;
@@ -172,25 +247,66 @@ public class SupplierService : ISupplierService
             MaterialCategory = x.MaterialCategory?.ToString() ?? ""
         }).ToList();
 
-        var buckets = await BuildTradeStatsAsync(_context, year, rows);
+        var buckets = await BuildTradeStatsAsync(_context, year, rows, orderFrom, orderTo, arrivalFrom, arrivalTo);
 
         foreach (var dto in items)
         {
-            if (!buckets.TryGetValue(dto.Id, out var b))
-                continue;
-
-            dto.TotalOrderCount = b.TotalCount;
-            dto.TotalWeight = b.TotalWeight;
-            dto.TotalAmount = b.TotalAmount;
-            dto.YearOrderCount = b.YearCount;
-            dto.YearWeight = b.YearWeight;
-            dto.YearAmount = b.YearAmount;
-            dto.ArrivedWeight = b.ArrivedWeight;
-            dto.ArrivedAmount = b.ArrivedAmount;
-            dto.PendingWeight = b.PendingWeight;
-            dto.PendingAmount = b.PendingAmount;
-            dto.YearReturnWeight = b.YearReturnWeight;
+            if (buckets.TryGetValue(dto.Id, out var b))
+                ApplyStats(dto, b);
         }
+    }
+
+    /// <summary>把统计桶回填到 DTO 的 9 个往来字段（出单类 3 + 到货 2 + 待收 2 + 退货 1，另含累计类由桶直接带出）</summary>
+    private static void ApplyStats(SupplierProfileDto dto, SupplierStatsBucket b)
+    {
+        dto.TotalOrderCount = b.TotalCount;
+        dto.TotalWeight = b.TotalWeight;
+        dto.TotalAmount = b.TotalAmount;
+        dto.YearOrderCount = b.YearCount;
+        dto.YearWeight = b.YearWeight;
+        dto.YearAmount = b.YearAmount;
+        dto.ArrivedWeight = b.ArrivedWeight;
+        dto.ArrivedAmount = b.ArrivedAmount;
+        dto.PendingWeight = b.PendingWeight;
+        dto.PendingAmount = b.PendingAmount;
+        dto.YearReturnWeight = b.YearReturnWeight;
+    }
+
+    // ========== 区间模式下的「激活列」（与报表总览「供应商往来数据」卡的列激活同口径，两处须同步） ==========
+
+    /// <summary>出单区间生效时唯一有数据的统计列</summary>
+    private static readonly string[] OrderRangeColumns = ["YearOrder"];
+    /// <summary>到货区间生效时有数据的统计列（到货净重 + 本年退货，两者同源同一区间窗口）</summary>
+    private static readonly string[] ArrivalRangeColumns = ["Arrived", "YearReturn"];
+
+    private static string[] ActiveStatsColumns(bool orderRangeMode, bool arrivalRangeMode)
+    {
+        var list = new List<string>(3);
+        if (orderRangeMode) list.AddRange(OrderRangeColumns);
+        if (arrivalRangeMode) list.AddRange(ArrivalRangeColumns);
+        return list.ToArray();
+    }
+
+    /// <summary>该供应商档案行在激活列上是否有数据（单数或重量任一 &gt; 0；无桶即无数据）</summary>
+    private static bool HasDataInActiveColumns(
+        Dictionary<int, SupplierStatsBucket> buckets, int id, string[] activeColumns)
+    {
+        if (!buckets.TryGetValue(id, out var b))
+            return false;
+
+        foreach (var col in activeColumns)
+        {
+            var (count, weight) = col switch
+            {
+                "YearOrder" => (b.YearCount, b.YearWeight),
+                "Arrived" => (0, b.ArrivedWeight),
+                "YearReturn" => (0, b.YearReturnWeight),
+                _ => (0, 0m)
+            };
+            if (count > 0 || weight > 0m)
+                return true;
+        }
+        return false;
     }
 
     private static string BuildRowKey(string name, string category) => name + "\u0001" + category;
@@ -213,13 +329,39 @@ public class SupplierService : ISupplierService
     /// - 本年退货(kg) = 退货出库 OutboundRecord(OutboundType==ReturnOut) 按 OutboundDate.Year==year 累计。
     /// 归行键：采购=PO.SupplierName+PO.MaterialCategory；委外=WW.SupplierName+WW.OutMaterialCategory（与供应商档案行名+分类精确相等，OrdinalIgnoreCase）。
     /// 退货关联链：ReturnOut.ReturnSourceBatchNo → InventoryBatch.BatchNo → InventoryBatch.SourceOrderNo(CG=采购/WW=委外) → 订单号 → 订单(名,分类) → 档案行。
+    /// <para>
+    /// **双区间（与客户往来同构，两个互相独立可叠加的窗口）**：
+    /// <list type="bullet">
+    /// <item><b>出单区间</b>（<paramref name="orderFrom"/>/<paramref name="orderTo"/> 任一有值）：出单类列（<c>YearOrder*</c>）改按 <c>OrderDate ∈ 区间</c>。</item>
+    /// <item><b>到货区间</b>（<paramref name="arrivalFrom"/>/<paramref name="arrivalTo"/> 任一有值）：到货类列（到货毛/净重、到货货款）与「本年退货」列改按 <c>InboundDate</c> / <c>OutboundDate ∈ 区间</c>（两者同源同一窗口）。</item>
+    /// </list>
+    /// 未指定区间的维度仍按自然年 <paramref name="year"/> 统计；累计出单与待收货（存量口径）恒为原语义。
+    /// 前端在任一区间生效时，把不属于该区间的列渲染为「—」（详见 <c>ReportOverview</c> 的列激活判定）。结束日按闭区间含当天处理。
+    /// </para>
     /// </summary>
     private static async Task<Dictionary<int, SupplierStatsBucket>> BuildTradeStatsAsync(
-        AppDbContext ctx, int year, List<SupplierStatsRow> rows)
+        AppDbContext ctx, int year, List<SupplierStatsRow> rows,
+        DateTime? orderFrom = null, DateTime? orderTo = null,
+        DateTime? arrivalFrom = null, DateTime? arrivalTo = null)
     {
         var buckets = new Dictionary<int, SupplierStatsBucket>();
         if (rows.Count == 0)
             return buckets;
+
+        // 出单窗口：区间模式 ? [orderFrom, orderTo] : 自然年
+        var orderRangeMode = orderFrom.HasValue || orderTo.HasValue;
+        var orderFromBound = orderFrom?.Date;
+        var orderToBoundExclusive = orderTo?.Date.AddDays(1);
+        // 到货窗口：区间模式 ? [arrivalFrom, arrivalTo] : 自然年（退货归属同该窗口，因到货净额 = 到货毛 − 退货）
+        var arrivalRangeMode = arrivalFrom.HasValue || arrivalTo.HasValue;
+        var arrivalFromBound = arrivalFrom?.Date;
+        var arrivalToBoundExclusive = arrivalTo?.Date.AddDays(1);
+
+        // 入厂批是否落在到货窗口（区间模式按闭区间，否则按自然年）
+        bool InArrivalWindow(DateTimeOffset d) => arrivalRangeMode
+            ? (!arrivalFromBound.HasValue || d.Date >= arrivalFromBound.Value)
+              && (!arrivalToBoundExclusive.HasValue || d.Date < arrivalToBoundExclusive.Value)
+            : d.Year == year;
 
         // 页内供应商名（同名跨分类档案共享，再由分类精确分流到行）
         var names = rows.Select(r => r.SupplierName).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
@@ -287,9 +429,9 @@ public class SupplierService : ISupplierService
 
         // 单次仓库批查询做两件事（一次带出避免重复扫）：
         // ① 退货归单：ReturnOut.ReturnSourceBatchNo → 批.BatchNo → 批.SourceOrderNo(采购单/委外单号)
-        // ② 本年到货毛：批.InboundSource∈{Purchase,Subcontract} 且批.InboundDate.Year==year → 按单累计 InitialWeight（到货发生在今年，不按下单年）
+        // ② 到货毛：批.InboundSource∈{Purchase,Subcontract} 且批.InboundDate 落入到货窗口 → 按单累计 InitialWeight（到货发生在到货窗口，不按下单年）
         var orderReturn = new Dictionary<string, (decimal All, decimal Year)>(StringComparer.OrdinalIgnoreCase);
-        var yearArrivalByOrder = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        var arrivalByOrder = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         if (orderKey.Count > 0)
         {
             var orderNos = orderKey.Keys.ToList();
@@ -306,10 +448,10 @@ public class SupplierService : ISupplierService
                 if (!string.IsNullOrEmpty(b.BatchNo))
                     batchNoToOrderNo.TryAdd(b.BatchNo!, b.SourceOrderNo!);
 
-                if (b.InboundDate.Year == year
+                if (InArrivalWindow(b.InboundDate)
                     && (b.InboundSource == "Purchase" || b.InboundSource == "Subcontract"))
                 {
-                    yearArrivalByOrder[b.SourceOrderNo!] = yearArrivalByOrder.GetValueOrDefault(b.SourceOrderNo!) + b.InitialWeight;
+                    arrivalByOrder[b.SourceOrderNo!] = arrivalByOrder.GetValueOrDefault(b.SourceOrderNo!) + b.InitialWeight;
                 }
             }
 
@@ -331,7 +473,7 @@ public class SupplierService : ISupplierService
                             continue;
                         var (all, yr) = orderReturn.GetValueOrDefault(orderNo);
                         all += r.OutboundWeight;
-                        if (r.OutboundDate.Year == year) yr += r.OutboundWeight;
+                        if (InArrivalWindow(r.OutboundDate)) yr += r.OutboundWeight;
                         orderReturn[orderNo] = (all, yr);
                     }
                 }
@@ -351,19 +493,24 @@ public class SupplierService : ISupplierService
             b.TotalCount++;
             b.TotalWeight += p.Weight;
             b.TotalAmount += p.Amount;
-            if (p.OrderDate.Year == year)
+            // 出单窗口判定：出单区间模式 = OrderDate 落 [orderFrom, orderTo]（闭区间）；否则 = 自然年
+            var isOrderedInWindow = orderRangeMode
+                ? (!orderFromBound.HasValue || p.OrderDate.Date >= orderFromBound.Value)
+                  && (!orderToBoundExclusive.HasValue || p.OrderDate.Date < orderToBoundExclusive.Value)
+                : p.OrderDate.Year == year;
+            if (isOrderedInWindow)
             {
                 b.YearCount++;
                 b.YearWeight += p.Weight;
                 b.YearAmount += p.Amount;
             }
             // 到货货款（毛）与本年退货货款：按本单金额 × 重量份额认领（单号级聚合，非全局单价）；收尾统一净额化
-            var yearArrival = yearArrivalByOrder.GetValueOrDefault(p.OrderNo);
-            b.ArrivedWeight += yearArrival; // 本年到货毛（入厂批当年，非 ReceivedWeight 累计快照）
+            var windowArrival = arrivalByOrder.GetValueOrDefault(p.OrderNo);
+            b.ArrivedWeight += windowArrival; // 窗口到货毛（入厂批落在到货窗口，非 ReceivedWeight 累计快照）
             if (p.Weight > 0m && p.Amount > 0m)
             {
-                if (yearArrival > 0m)
-                    b.ArrivedAmount += p.Amount * yearArrival / p.Weight;
+                if (windowArrival > 0m)
+                    b.ArrivedAmount += p.Amount * windowArrival / p.Weight;
                 if (ret.Year > 0m)
                     b.YearReturnAmount += p.Amount * ret.Year / p.Weight;
             }
@@ -391,19 +538,24 @@ public class SupplierService : ISupplierService
             b.TotalCount++;
             b.TotalWeight += w.OutWeight;
             b.TotalAmount += amount;
-            if (w.OrderDate.Year == year)
+            // 出单窗口判定：出单区间模式 = OrderDate 落 [orderFrom, orderTo]（闭区间）；否则 = 自然年
+            var isOrderedInWindow = orderRangeMode
+                ? (!orderFromBound.HasValue || w.OrderDate.Date >= orderFromBound.Value)
+                  && (!orderToBoundExclusive.HasValue || w.OrderDate.Date < orderToBoundExclusive.Value)
+                : w.OrderDate.Year == year;
+            if (isOrderedInWindow)
             {
                 b.YearCount++;
                 b.YearWeight += w.OutWeight;
                 b.YearAmount += amount;
             }
             // 委外到货/退货/待收货款：加工费(amount=Σ子项) × 重量份额认领（分母=发出 OutWeight）
-            var yearArrival = yearArrivalByOrder.GetValueOrDefault(w.OrderNo);
-            b.ArrivedWeight += yearArrival; // 本年到货毛（收回入厂批当年）
+            var windowArrival = arrivalByOrder.GetValueOrDefault(w.OrderNo);
+            b.ArrivedWeight += windowArrival; // 窗口到货毛（收回入厂批落在到货窗口）
             if (w.OutWeight > 0m && amount > 0m)
             {
-                if (yearArrival > 0m)
-                    b.ArrivedAmount += amount * yearArrival / w.OutWeight;
+                if (windowArrival > 0m)
+                    b.ArrivedAmount += amount * windowArrival / w.OutWeight;
                 if (ret.Year > 0m)
                     b.YearReturnAmount += amount * ret.Year / w.OutWeight;
             }
@@ -417,7 +569,7 @@ public class SupplierService : ISupplierService
             b.YearReturnWeight += ret.Year;
         }
 
-        // 本年到货净 = 本年到货毛 − 本年退货；货款同步净额化（与「本年退货」列同源：退货出库年==今年）；负数截 0
+        // 到货净 = 窗口到货毛 − 窗口退货；货款同步净额化（与「本年退货」列同源：退货出库落在到货窗口）；负数截 0
         foreach (var bucket in buckets.Values)
         {
             bucket.ArrivedWeight = Math.Max(0m, bucket.ArrivedWeight - bucket.YearReturnWeight);

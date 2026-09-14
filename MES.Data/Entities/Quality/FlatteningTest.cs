@@ -12,7 +12,7 @@ public class FlatteningTest : BaseEntity
     public string Inspector { get; set; } = null!;
 
     /// <summary>生产编号</summary>
-    public string FurnaceNo { get; set; } = null!;
+    public string BatchNo { get; set; } = null!;
 
     /// <summary>牌号</summary>
     public string Grade { get; set; } = null!;

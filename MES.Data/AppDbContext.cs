@@ -109,6 +109,13 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<FlatteningTest> FlatteningTests { get; set; } = null!;
     public DbSet<FlaringTest> FlaringTests { get; set; } = null!;
     public DbSet<Ncr> Ncrs { get; set; } = null!;
+    public DbSet<NonconformingFeedback> NonconformingFeedbacks { get; set; } = null!;
+    public DbSet<NonconformingFeedbackAttachment> NonconformingFeedbackAttachments { get; set; } = null!;
+    public DbSet<ProcessInspectionAttachment> ProcessInspectionAttachments { get; set; } = null!;
+    public DbSet<FinalInspectionAttachment> FinalInspectionAttachments { get; set; } = null!;
+    public DbSet<InspectionPatrol> InspectionPatrols { get; set; } = null!;
+    public DbSet<InspectionPatrolItem> InspectionPatrolItems { get; set; } = null!;
+    public DbSet<InspectionPatrolAttachment> InspectionPatrolAttachments { get; set; } = null!;
     public DbSet<QualityProcessTracking> QualityProcessTrackings { get; set; } = null!;
     public DbSet<Certificate> Certificates { get; set; } = null!;
     public DbSet<CertificateItem> CertificateItems { get; set; } = null!;
@@ -248,6 +255,13 @@ public partial class AppDbContext : IdentityDbContext<AppUser>
         ConfigureFlatteningTest(builder);
         ConfigureFlaringTest(builder);
         ConfigureNcr(builder);
+        ConfigureNonconformingFeedback(builder);
+        ConfigureNonconformingFeedbackAttachment(builder);
+        ConfigureProcessInspectionAttachment(builder);
+        ConfigureFinalInspectionAttachment(builder);
+        ConfigureInspectionPatrol(builder);
+        ConfigureInspectionPatrolItem(builder);
+        ConfigureInspectionPatrolAttachment(builder);
         ConfigureQualityProcessTracking(builder);
         ConfigureCertificate(builder);
         ConfigureCertificateItem(builder);

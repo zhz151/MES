@@ -79,7 +79,7 @@
                     <MudText Typo="Typo.body2" Class="ml-4">共 @_totalCount 条记录</MudText>
                 </div>
             </div>
-            <MudTable @ref="table" T="GrainSizeTestDto" ServerData="@LoadDataFromServer"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table" T="GrainSizeTestDto" ServerData="@LoadDataFromServer"
                       Dense="true" Hover="true" Class="mt-0 auto-table compact-table" Elevation="0"
                       RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
                 <HeaderContent>

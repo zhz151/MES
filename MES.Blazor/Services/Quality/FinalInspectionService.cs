@@ -1,5 +1,7 @@
+using System.Net.Http.Headers;
 using System.Text.Json;
 using MES.Shared.Constants;
+using MES.Core.Constants;
 using MES.Core.Models;
 using MES.Core.DTOs.Quality;
 
@@ -9,6 +11,9 @@ public class FinalInspectionService
 {
     private readonly AuthHttpClient _http;
     private const string BaseUrl = ApiEndpoints.FinalInspection;
+
+    /// <summary>照片张数上限（单一出口 QualityPhotoLimits.PerRecord，与后端同源）</summary>
+    public const int MaxAttachmentCount = QualityPhotoLimits.PerRecord;
 
     public FinalInspectionService(AuthHttpClient http) => _http = http;
 
@@ -123,5 +128,59 @@ public class FinalInspectionService
                    ?? ApiResponse<BatchLookupResultDto?>.Ok(null, "查询成功");
         }
         catch (Exception ex) { return ApiResponse<BatchLookupResultDto?>.Ok(null, $"网络错误: {ex.Message}"); }
+    }
+
+    // ========== 照片附件 ==========
+
+    public async Task<ApiResponse<List<FinalInspectionAttachmentDto>>> GetAttachmentsAsync(int id)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<FinalInspectionAttachmentDto>>>($"{BaseUrl}/{id}/attachments")
+                   ?? ApiResponse<List<FinalInspectionAttachmentDto>>.Fail("获取照片失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<FinalInspectionAttachmentDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    /// <summary>上传照片（base64 转字节，前端已压缩）</summary>
+    public async Task<ApiResponse<FinalInspectionAttachmentDto>> UploadAttachmentAsync(
+        int id, byte[] content, string fileName, string contentType)
+    {
+        try
+        {
+            using var multipart = new MultipartFormDataContent();
+            var fileContent = new ByteArrayContent(content);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+            multipart.Add(fileContent, "file", fileName);
+
+            return await _http.PostMultipartAsync<ApiResponse<FinalInspectionAttachmentDto>>(
+                       $"{BaseUrl}/{id}/attachments", multipart)
+                   ?? ApiResponse<FinalInspectionAttachmentDto>.Fail("上传失败");
+        }
+        catch (Exception ex) { return ApiResponse<FinalInspectionAttachmentDto>.Fail($"网络错误: {ex.Message}"); }
+    }
+
+    /// <summary>读取照片字节（用于缩略图/大图预览）</summary>
+    public async Task<byte[]?> GetAttachmentBytesAsync(int id, int attachmentId)
+    {
+        try
+        {
+            return await _http.GetByteArrayAsync($"{BaseUrl}/{id}/attachments/{attachmentId}/file");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"读取照片失败: {ex.Message}");
+            return null;
+        }
+    }
+
+    public async Task<ApiResponse<object>> DeleteAttachmentAsync(int id, int attachmentId)
+    {
+        try
+        {
+            return await _http.DeleteFromJsonAsync<ApiResponse<object>>($"{BaseUrl}/{id}/attachments/{attachmentId}")
+                   ?? ApiResponse<object>.Fail("删除照片失败");
+        }
+        catch (Exception ex) { return ApiResponse<object>.Fail($"网络错误: {ex.Message}"); }
     }
 }

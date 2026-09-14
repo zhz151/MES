@@ -214,14 +214,17 @@ public class EnumHelperTests
         EnumHelper.GetDisplayName(NcrStatus.Pending).Should().Be("待处理");
         EnumHelper.GetDisplayName(NcrStatus.Processing).Should().Be("处理中");
         EnumHelper.GetDisplayName(NcrStatus.Closed).Should().Be("已关闭");
+        EnumHelper.GetDisplayName(NcrStatus.Ignored).Should().Be("忽略");
     }
 
     [Fact]
-    public void GetDisplayName_DisposalMethod()
+    public void GetDisplayName_FlowDirection()
     {
-        EnumHelper.GetDisplayName(DisposalMethod.Rework).Should().Be("返整");
-        EnumHelper.GetDisplayName(DisposalMethod.WarehouseEntry).Should().Be("入库");
-        EnumHelper.GetDisplayName(DisposalMethod.Scrap).Should().Be("报废");
+        EnumHelper.GetDisplayName(FlowDirection.Rework).Should().Be("返整");
+        EnumHelper.GetDisplayName(FlowDirection.InProcessWarehouse).Should().Be("入在制库");
+        EnumHelper.GetDisplayName(FlowDirection.FinishedWarehouse).Should().Be("可入备库");
+        EnumHelper.GetDisplayName(FlowDirection.Scrap).Should().Be("入次品库");
+        EnumHelper.GetDisplayName(FlowDirection.Return).Should().Be("退货");
     }
 
     [Fact]
@@ -379,10 +382,10 @@ public class EnumHelperTests
             typeof(SubcontractOrderStatus), typeof(SectionOutsourceStatus), typeof(RepairPriority),
             typeof(LifecycleStatus), typeof(UsageType), typeof(RunningStatus),
             typeof(RepairOrderStatus), typeof(EquipmentTaskStatus),
-            typeof(InspectionItem), typeof(DisposalMethod),
+            typeof(InspectionItem), typeof(FlowDirection),
             typeof(NcrStatus), typeof(PicklingStatus),
             typeof(SeverityLevel), typeof(VerifyResult), typeof(SectionStatus),
-            typeof(InspectionRequirementStage)
+            typeof(InspectionRequirementStage), typeof(NonconformingFeedbackSourceType)
         };
 
         foreach (var enumType in enumTypes)
@@ -436,7 +439,7 @@ public class EnumHelperTests
         ("RequirementType", typeof(RequirementType)),  // GetRequirementTypeText(RequirementType) — 注意：是枚举版本委托 EnumHelper
         ("FinishedProductType", typeof(FinishedProductType)),
         ("MaterialType", typeof(MaterialType)),
-        ("DisposalMethod", typeof(DisposalMethod)),
+        ("FlowDirection", typeof(FlowDirection)),   // GetFlowDirectionText(FlowDirection) — 原 DisposalMethod 已更名
         ("NcrStatus", typeof(NcrStatus)),
         ("SeverityLevel", typeof(SeverityLevel)),
         ("VerifyResult", typeof(VerifyResult)),

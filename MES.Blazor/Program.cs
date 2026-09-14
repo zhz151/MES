@@ -39,7 +39,8 @@ builder.Services.AddScoped(sp =>
     var baseAddress = string.IsNullOrWhiteSpace(apiBaseUrl)
         ? sp.GetRequiredService<NavigationManager>().BaseUri
         : apiBaseUrl;
-    return new HttpClient { BaseAddress = new Uri(baseAddress) };
+    // 显式超时：默认 100s 会让「照片上传」等请求挂起时按钮长时间保持 Loading（用户感知为点了没反应）
+    return new HttpClient { BaseAddress = new Uri(baseAddress), Timeout = TimeSpan.FromSeconds(60) };
 });
 builder.Services.AddScoped<AuthHttpClient>();
 
@@ -95,6 +96,8 @@ builder.Services.AddScoped<MetallographicTestService>();
 builder.Services.AddScoped<FlatteningTestService>();
 builder.Services.AddScoped<FlaringTestService>();
 builder.Services.AddScoped<NcrService>();
+builder.Services.AddScoped<NonconformingFeedbackService>();
+builder.Services.AddScoped<InspectionPatrolService>();
 builder.Services.AddScoped<MaterialReceiveCheckService>();
 builder.Services.AddScoped<CertificateService>();
 

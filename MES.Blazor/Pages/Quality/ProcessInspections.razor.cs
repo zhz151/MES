@@ -125,8 +125,8 @@ public partial class ProcessInspections
     {
         "Quantity", "Weight", "QualifiedQuantity", "QualifiedWeight",
         "QualifiedConcessionQuantity", "DefectReworkQuantity",
-        "DefectWarehouseQuantity", "DefectScrapQuantity",
-        "TheoreticalReworkWeight", "TheoreticalWarehouseWeight", "TheoreticalScrapWeight"
+        "DefectWarehouseQuantity", "DefectScrapQuantity", "DefectReturnQuantity",
+        "TheoreticalReworkWeight", "TheoreticalWarehouseWeight", "TheoreticalScrapWeight", "TheoreticalReturnWeight"
     };
 
     // ========== ExcelFilter 筛选 ==========
@@ -143,15 +143,15 @@ public partial class ProcessInspections
     private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
     { "SequenceNumber", "Quantity", "Weight", "QualifiedQuantity", "QualifiedWeight",
       "QualifiedConcessionQuantity", "DefectReworkQuantity", "DefectWarehouseQuantity",
-      "DefectScrapQuantity", "TheoreticalReworkWeight", "TheoreticalWarehouseWeight",
-      "TheoreticalScrapWeight" };
+      "DefectScrapQuantity", "DefectReturnQuantity", "TheoreticalReworkWeight", "TheoreticalWarehouseWeight",
+      "TheoreticalScrapWeight", "TheoreticalReturnWeight" };
     private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
 
     private int _totalTableWidth =>
         _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40 + 90;
 
-    // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_process-inspection_v2）
-    private const string ColumnPrefsVersion = "v2";
+    // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_process-inspection_v4）
+    private const string ColumnPrefsVersion = "v4";
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
@@ -191,6 +191,8 @@ public partial class ProcessInspections
             GroupKey = 2, GroupName = "G2 检验执行" },
         new() { Key = "InspectionItem",        Label = "检验项目",   SortKey = "inspectionitem", FilterType = "string", Width = "120",
             GroupKey = 2, GroupName = "G2 检验执行" },
+        new() { Key = "AttachmentCount",       Label = "照片",       SortKey = "attachmentcount", Width = "90",
+            GroupKey = 2, GroupName = "G2 检验执行" },
 
         // G3: 检验结果
         new() { Key = "Quantity",              Label = "检验支数",   SortKey = "quantity", Width = "80",
@@ -206,21 +208,25 @@ public partial class ProcessInspections
         new() { Key = "ConcessionRemark",            Label = "让步说明",     SortKey = "concessionremark", FilterType = "string", Width = "120",
             GroupKey = 3, GroupName = "G3 检验结果" },
 
-        // G4: 不合格处理
-        new() { Key = "DefectReworkQuantity",        Label = "次品返整支",   SortKey = "defectreworkquantity", Width = "80",
-            GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "DefectWarehouseQuantity", Label = "次品入库支",   SortKey = "defectwarehousequantity", Width = "80",
-            GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "DefectScrapQuantity",   Label = "次品报废支",   SortKey = "defectscrapquantity", Width = "80",
-            GroupKey = 4, GroupName = "G4 不合格处理" },
+        // G4: 不合格品去向（4 档：返整/入在制库/入次品库/退货）
+        new() { Key = "DefectReworkQuantity",        Label = "返整支",     SortKey = "defectreworkquantity", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectWarehouseQuantity", Label = "入在制库支",   SortKey = "defectwarehousequantity", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectScrapQuantity",   Label = "入次品库支",   SortKey = "defectscrapquantity", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectReturnQuantity",  Label = "退货支",     SortKey = "defectreturnquantity", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
         new() { Key = "TheoreticalReworkWeight", Label = "理论返整重", SortKey = "theoreticalreworkweight", Width = "80", Visible = false,
-            GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "TheoreticalWarehouseWeight", Label = "理论入库重", SortKey = "theoreticalwarehouseweight", Width = "80", Visible = false,
-            GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "TheoreticalScrapWeight", Label = "理论报废重", SortKey = "theoreticalscrapweight", Width = "80", Visible = false,
-            GroupKey = 4, GroupName = "G4 不合格处理" },
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "TheoreticalWarehouseWeight", Label = "理论入在制重", SortKey = "theoreticalwarehouseweight", Width = "80", Visible = false,
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "TheoreticalScrapWeight", Label = "理论入次库重", SortKey = "theoreticalscrapweight", Width = "80", Visible = false,
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "TheoreticalReturnWeight", Label = "理论退货重", SortKey = "theoreticalreturnweight", Width = "80", Visible = false,
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
         new() { Key = "DefectDescription",     Label = "次品情况描述", SortKey = "defectdescription", FilterType = "string", Width = "120", Visible = false,
-            GroupKey = 4, GroupName = "G4 不合格处理" },
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
 
         // G5: 辅助信息
         new() { Key = "SourceUnit",            Label = "来料单位",   SortKey = "sourceunit", FilterType = "string", Width = "120", Visible = false,
@@ -568,9 +574,11 @@ public partial class ProcessInspections
         public int? DefectReworkQuantity { get; set; }
         public int? DefectWarehouseQuantity { get; set; }
         public int? DefectScrapQuantity { get; set; }
+        public int? DefectReturnQuantity { get; set; }
         public int? TheoreticalReworkWeight { get; set; }
         public int? TheoreticalWarehouseWeight { get; set; }
         public int? TheoreticalScrapWeight { get; set; }
+        public int? TheoreticalReturnWeight { get; set; }
         public string? DefectDescription { get; set; }
         public string? SourceUnit { get; set; }
         public string? TagNo { get; set; }
@@ -597,9 +605,11 @@ public partial class ProcessInspections
             DefectReworkQuantity = item.DefectReworkQuantity,
             DefectWarehouseQuantity = item.DefectWarehouseQuantity,
             DefectScrapQuantity = item.DefectScrapQuantity,
+            DefectReturnQuantity = item.DefectReturnQuantity,
             TheoreticalReworkWeight = item.TheoreticalReworkWeight,
             TheoreticalWarehouseWeight = item.TheoreticalWarehouseWeight,
             TheoreticalScrapWeight = item.TheoreticalScrapWeight,
+            TheoreticalReturnWeight = item.TheoreticalReturnWeight,
             DefectDescription = item.DefectDescription,
             SourceUnit = item.SourceUnit,
             TagNo = item.TagNo,
@@ -645,6 +655,7 @@ public partial class ProcessInspections
                 DefectReworkQuantity = cache.DefectReworkQuantity,
                 DefectWarehouseQuantity = cache.DefectWarehouseQuantity,
                 DefectScrapQuantity = cache.DefectScrapQuantity,
+                DefectReturnQuantity = cache.DefectReturnQuantity,
                 DefectDescription = cache.DefectDescription,
                 SourceUnit = cache.SourceUnit,
                 TagNo = cache.TagNo,
@@ -1005,6 +1016,21 @@ public partial class ProcessInspections
                     builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectScrapQuantity));
                 }
                 break;
+            case "DefectReturnQuantity":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudNumericField<int?>>(0);
+                    builder.AddAttribute(1, "Value", cache.DefectReturnQuantity);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => cache.DefectReturnQuantity = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectReturnQuantity));
+                }
+                break;
             case "TheoreticalReworkWeight":
                 builder.AddContent(0, DisplayHelper.FormatNullableInt(item.TheoreticalReworkWeight));
                 break;
@@ -1013,6 +1039,9 @@ public partial class ProcessInspections
                 break;
             case "TheoreticalScrapWeight":
                 builder.AddContent(0, DisplayHelper.FormatNullableInt(item.TheoreticalScrapWeight));
+                break;
+            case "TheoreticalReturnWeight":
+                builder.AddContent(0, DisplayHelper.FormatNullableInt(item.TheoreticalReturnWeight));
                 break;
             case "DefectDescription":
                 if (isEditing && cache != null)
@@ -1103,11 +1132,39 @@ public partial class ProcessInspections
             case "UpdatedTime":
                 builder.AddContent(0, item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"));
                 break;
+            case "AttachmentCount":
+                builder.OpenComponent<MudButton>(0);
+                builder.AddAttribute(1, "Variant", Variant.Text);
+                builder.AddAttribute(2, "Size", Size.Small);
+                builder.AddAttribute(3, "Color", item.AttachmentCount > 0 ? Color.Primary : Color.Default);
+                builder.AddAttribute(4, "StartIcon", Icons.Material.Filled.PhotoCamera);
+                builder.AddAttribute(5, "OnClick", EventCallback.Factory.Create<MouseEventArgs?>(this, () => OpenPhotoDialogAsync(item)));
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, $"照片({item.AttachmentCount})")));
+                builder.CloseComponent();
+                break;
             default:
                 builder.AddContent(0, "");
                 break;
         }
     };
+
+    // ========== 照片 ==========
+
+    /// <summary>打开检验照片弹窗（查看 / 补拍 / 删除）</summary>
+    private async Task OpenPhotoDialogAsync(ProcessInspectionDto item)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Kind"] = InspectionPhotoKind.Process,
+            ["RecordId"] = item.Id,
+            ["BatchNo"] = item.BatchNo
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<InspectionPhotoDialog>("检验照片", parameters, options);
+        await dialog.Result;
+        // 数量可能变化 → 刷新列表（附件计数列）
+        if (table != null) await table.ReloadServerData();
+    }
 
     // ========== 打印 ==========
 
@@ -1125,6 +1182,24 @@ public partial class ProcessInspections
         };
         var json = JsonSerializer.Serialize(request);
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
+    }
+
+    /// <summary>单据式打印单次条数上限（每条一页，含照片，避免一次生成过厚 PDF）</summary>
+    private const int MaxDocPrintCount = 20;
+
+    /// <summary>打印选中单据（A4 竖版每条一页，含检验照片）</summary>
+    private async Task PrintSelectedDoc()
+    {
+        if (!selectedIds.Any()) return;
+        if (selectedIds.Count > MaxDocPrintCount)
+        {
+            Snackbar.Add($"单据式打印单次最多 {MaxDocPrintCount} 条，请减少选择后重试", Severity.Warning);
+            return;
+        }
+
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.ProcessInspection}/print-selected-doc-file";
+        var request = new ProcessInspectionPrintBatchRequest { Ids = selectedIds.ToArray() };
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
     }
 
     // ========== 分页汇总（B33） ==========

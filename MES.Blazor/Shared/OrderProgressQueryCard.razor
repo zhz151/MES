@@ -1,0 +1,59 @@
+@* 首页「订单进度查询」卡（2026-09-14 用户拍板）：
+   卡内查询框（订单号）→ 结果**就地渲染进度树**，不是链接、不跳转 /orders/progress。
+   数据源：GET api/order/progress?salesOrderNo=（2026-09-14 起仅需登录、不带 OrderView 档，首页人人可查）。
+   树本体复用 Shared/OrderProgressTree.razor，Compact=true → 全部主号默认折叠，点主号才展开分支。
+   桌面端外壳 = .home-stack-card（半屏宽居中，与首页其它卡一致）；手机端外壳 = .mh-card。 *@
+@namespace MES.Blazor.Shared
+
+<MudPaper Class="@CardClass" Elevation="@CardElevation">
+    <div class="d-flex align-center mb-3">
+        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-1" Color="Color.Primary" />
+        <MudText Typo="@TitleTypo" Class="font-weight-bold">订单进度查询</MudText>
+    </div>
+
+    <div class="home-query-bar">
+        <MudTextField @bind-Value="_orderNo"
+                      T="string"
+                      Label="订单号"
+                      Variant="Variant.Outlined"
+                      Dense="true"
+                      Class="home-query-input"
+                      OnKeyDown="OnOrderNoEnter" />
+        <div class="home-query-actions">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Search"
+                       OnClick="QueryAsync"
+                       Disabled="_loading">
+                查询
+            </MudButton>
+            @* 取消查询：清空输入与结果，回到未查询的空态（原只能靠刷新页面，用户反馈无入口） *@
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.Clear"
+                       OnClick="Clear"
+                       Disabled="_loading || !CanClear">
+                清除
+            </MudButton>
+        </div>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="d-flex justify-center py-4">
+            <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+        </div>
+    }
+    else if (_searched && _tree == null)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Text" Dense="true">
+            未找到该订单的工单数据，请核对订单号。
+        </MudAlert>
+    }
+    else if (_tree != null)
+    {
+        <div class="home-query-result">
+            <OrderProgressTree Tree="_tree" Compact="true" />
+        </div>
+    }
+</MudPaper>

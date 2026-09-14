@@ -87,13 +87,6 @@ public class WorkOrderQueryParams : QueryParams
     /// </summary>
     public string? PlanTypeFilter { get; set; }
 
-    /// <summary>
-    /// 签订日期范围筛选-开始
-    /// </summary>
-    public DateTime? SignDateFrom { get; set; }
-
-    /// <summary>
-    /// 签订日期范围筛选-结束
-    /// </summary>
-    public DateTime? SignDateTo { get; set; }
+    // 注：签订日期范围 SignDateFrom/SignDateTo 已上提至基类 QueryParams（工单过滤 WorkOrder.SignDate、
+    //     客户往来过滤 SalesOrder.SignDate，同名同类型同语义，2026-09-14 去重）
 }

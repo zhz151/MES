@@ -1,403 +1,65 @@
 @page "/"
 @using Microsoft.AspNetCore.Authorization
-@using MES.Blazor.Services
-@inject WorkOrderExecutionService WorkOrderService
-@inject SectionParagraphFlowAnalysisService ParagraphFlowSvc
-@inject FinalInspectionPlanService FinalInspectionSvc
-@inject NcrService NcrSvc
-@inject NavigationManager Navigation
 @attribute [Authorize]
 
-@* 手机端（MobileLayout 下传 IsMobile=true）走 mh-* 手机看板；桌面端走下方原双栏网格。 *@
+@* 手机端（MobileLayout 下传 IsMobile=true）走 mh-* 手机看板（常用入口磁贴 + 两张查询卡，纵向堆叠）；
+   桌面端走下方 stack（常用入口 + 两张查询卡）。 *@
 <MudContainer MaxWidth="MaxWidth.False" Class="@(IsMobile ? "mh-container" : "mt-4")">
 @if (IsMobile)
 {
-    <!-- ============ 手机端首页看板（工单执行 / 质量检验 / 批次生产） ============ -->
+    <!-- ============ 手机端首页看板（上：常用入口 / 下：两张查询卡） ============ -->
 
-    <!-- ======== 卡片1：工单执行 —— 3 张并排大数字卡 ======== -->
     <MudPaper Class="mh-card pa-3" Elevation="0">
-        <div class="d-flex justify-space-between align-center mb-2">
-            <MudText Typo="Typo.subtitle1" Class="font-weight-bold d-flex align-center">
-                <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-1" Color="Color.Primary" />
-                工单执行
-            </MudText>
-            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
-                       OnClick="@(() => Navigation.NavigateTo("/plan-overview"))">
-                负荷总量 →
-            </MudButton>
+        <div class="d-flex align-center mb-2">
+            <MudIcon Icon="@Icons.Material.Filled.Apps" Class="mr-1" Color="Color.Primary" />
+            <MudText Typo="Typo.subtitle1" Class="font-weight-bold">常用入口</MudText>
         </div>
-        @* 仿质量检验：白底细边小卡并排，主统计 caption + 红急单 chip + 阶段名 label chip，整卡点击跳转 *@
-        <MudGrid Spacing="2">
-            @foreach (var row in _rows)
+        @* 与桌面同一份清单（Shared/AppShortcuts.cs），仅样式在手机断点下更紧凑（三列） *@
+        <div class="shortcut-grid">
+            @foreach (var shortcut in AppShortcuts.Items)
             {
-                <MudItem xs="4" Class="d-flex">
-                    <a href="@row.NavigateUrl" class="mh-stage-tap">
-                        <MudPaper Class="pa-3 text-center form-card d-flex flex-column align-center justify-center" Elevation="0">
-                            <MudText Typo="Typo.body2" Class="font-weight-bold">@row.StageName</MudText>
-                            <MudText Typo="Typo.body1" Class="font-weight-bold mt-1">@($"{row.TotalCount}单/{row.TotalWeightTons}吨")</MudText>
-                            <MudChip Size="Size.Small" Color="@(row.UrgentCount > 0 ? Color.Error : Color.Default)" Class="mt-1">
-                                @(row.UrgentCount > 0 ? $"急 {row.UrgentCount}单/{row.UrgentWeightTons}吨" : "无急单")
-                            </MudChip>
-                        </MudPaper>
+                <AuthorizeView @key="shortcut.Href" Roles="@shortcut.Policy">
+                    <a href="@shortcut.Href" class="shortcut-tile">
+                        <MudIcon Icon="@shortcut.Icon" Size="Size.Small" Style="@($"color:{shortcut.Accent}")" />
+                        <span>@shortcut.Label</span>
                     </a>
-                </MudItem>
-            }
-        </MudGrid>
-        @if (_isLoadingCard1)
-        {
-            <div class="d-flex justify-center mt-3">
-                <MudProgressCircular Indeterminate="true" Size="Size.Small" />
-            </div>
-        }
-    </MudPaper>
-
-    <!-- ======== 卡片3：质量检验（沿用桌面内容，手机上保持原观感） ======== -->
-    <MudPaper Class="mh-card pa-3" Elevation="0">
-        <div class="d-flex justify-space-between align-center mb-2">
-            <MudText Typo="Typo.subtitle1" Class="font-weight-bold d-flex align-center">
-                <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-1" Color="Color.Primary" />
-                质量检验
-            </MudText>
-        </div>
-
-        <div class="d-flex justify-space-between align-center mb-2">
-            <MudText Typo="Typo.caption" Class="font-weight-bold">成品检验</MudText>
-            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
-                       OnClick="@(() => Navigation.NavigateTo("/final-inspection-plan"))">
-                成检计划 →
-            </MudButton>
-        </div>
-        <MudGrid Spacing="2">
-            <MudItem xs="4">
-                <MudPaper Class="pa-3 text-center form-card" Elevation="0">
-                    <MudText Typo="Typo.caption" Class="font-weight-bold">@Card3StatText(_card3AwaitingMaterialCount, _card3AwaitingMaterialWeight)</MudText>
-                    <MudChip Size="Size.Small" Color="Color.Error">@Card3StatText(_card3AwaitingMaterialUrgentCount, _card3AwaitingMaterialUrgentWeight)</MudChip>
-                    <MudChip Size="Size.Small" Color="Color.Warning" Class="mt-1">待到料</MudChip>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="4">
-                <MudPaper Class="pa-3 text-center form-card" Elevation="0">
-                    <MudText Typo="Typo.caption" Class="font-weight-bold">@Card3StatText(_card3AwaitingInspectionCount, _card3AwaitingInspectionWeight)</MudText>
-                    <MudChip Size="Size.Small" Color="Color.Error">@Card3StatText(_card3AwaitingInspectionUrgentCount, _card3AwaitingInspectionUrgentWeight)</MudChip>
-                    <MudChip Size="Size.Small" Color="Color.Primary" Class="mt-1">待检验</MudChip>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="4">
-                <MudPaper Class="pa-3 text-center form-card" Elevation="0">
-                    <MudText Typo="Typo.caption" Class="font-weight-bold">@Card3StatText(_card3InInspectionCount, _card3InInspectionWeight)</MudText>
-                    <MudChip Size="Size.Small" Color="Color.Error">@Card3StatText(_card3InInspectionUrgentCount, _card3InInspectionUrgentWeight)</MudChip>
-                    <MudChip Size="Size.Small" Color="Color.Info" Class="mt-1">检验中</MudChip>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
-
-        <div class="d-flex justify-space-between align-center mb-2 mt-3">
-            <MudText Typo="Typo.caption" Class="font-weight-bold">不合格报告</MudText>
-            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
-                       OnClick="@(() => Navigation.NavigateTo("/quality/ncr"))">
-                NCR列表 →
-            </MudButton>
-        </div>
-        <MudGrid Spacing="2">
-            <MudItem xs="6">
-                <MudPaper Class="pa-3 text-center form-card" Elevation="0">
-                    <MudText Typo="Typo.h5" Class="font-weight-bold" Color="Color.Error">@_card3PendingCheckBatches</MudText>
-                    <MudText Typo="Typo.caption">待处理批次</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="6">
-                <MudPaper Class="pa-3 text-center form-card" Elevation="0">
-                    <MudText Typo="Typo.h5" Class="font-weight-bold" Color="Color.Warning">@_card3ProcessingNcrs</MudText>
-                    <MudText Typo="Typo.caption">处理中</MudText>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
-
-        @if (_isLoadingCard3)
-        {
-            <div class="d-flex justify-center mt-3">
-                <MudProgressCircular Indeterminate="true" Size="Size.Small" />
-            </div>
-        }
-    </MudPaper>
-
-    <!-- ======== 卡片2：批次生产 —— 精简 4 列（段落/待在产/总况判定/特急批重量） ======== -->
-    <MudPaper Class="mh-card pa-3" Elevation="0">
-        <div class="d-flex justify-space-between align-center mb-2">
-            <MudText Typo="Typo.subtitle1" Class="font-weight-bold d-flex align-center">
-                <MudIcon Icon="@Icons.Material.Filled.Analytics" Class="mr-1" Color="Color.Primary" />
-                批次生产
-            </MudText>
-            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
-                       OnClick="@(() => Navigation.NavigateTo("/batch-plans"))">
-                详情 →
-            </MudButton>
-        </div>
-
-        @* 顶部汇总小卡（仿质量检验「不合格报告」样式） *@
-        <MudGrid Spacing="2" Class="mt-1">
-            <MudItem xs="4">
-                <MudPaper Class="pa-3 text-center form-card" Elevation="0">
-                    <MudText Typo="Typo.h6" Class="font-weight-bold">@FlowRenderInt(_flowTotalPending)</MudText>
-                    <MudText Typo="Typo.caption">在产合计(吨)</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="4">
-                <MudPaper Class="pa-3 text-center form-card" Elevation="0">
-                    <MudText Typo="Typo.h6" Class="font-weight-bold" Color="Color.Error">@FlowRenderInt(_flowTotalPlanKeyWeight)</MudText>
-                    <MudText Typo="Typo.caption">特急批重量(吨)</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="4">
-                <MudPaper Class="pa-3 text-center form-card" Elevation="0">
-                    <MudText Typo="Typo.h6" Class="font-weight-bold" Color="@(FlowAbnormalCount > 0 ? Color.Warning : Color.Default)">@FlowAbnormalCount</MudText>
-                    <MudText Typo="Typo.caption">异常段落(段)</MudText>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
-
-        @* 段落横向信息卡流：段名 + 待在产/特急吨 + 总况判定色 chip *@
-        <div class="mh-paragraph-list mt-3">
-            @foreach (var item in _paragraphFlowItems)
-            {
-                <MudPaper Class="pa-2 form-card mh-paragraph-row" Elevation="0">
-                    <div class="d-flex align-center justify-space-between">
-                        <div class="d-flex flex-column">
-                            <MudText Typo="Typo.body2" Class="font-weight-bold">@item.ParagraphName</MudText>
-                            <MudText Typo="Typo.caption">
-                                待在产 @FlowRenderInt(item.PendingTotal) 吨
-                                @if ((item.PlanKeyWeight ?? 0m) > 0)
-                                {
-                                    <span> · 特急 @FlowRenderInt(item.PlanKeyWeight) 吨</span>
-                                }
-                            </MudText>
-                        </div>
-                        <MudChip Size="Size.Small" Color="@FlowGetStatusColor(item.StatusJudgment)">
-                            @(item.StatusJudgment ?? "-")
-                        </MudChip>
-                    </div>
-                </MudPaper>
+                </AuthorizeView>
             }
         </div>
-
-        @if (_isLoadingCard2)
-        {
-            <div class="d-flex justify-center mt-3">
-                <MudProgressCircular Indeterminate="true" Size="Size.Small" />
-            </div>
-        }
     </MudPaper>
+
+    @* 查询卡：结果就地渲染（非链接跳转）；两个组件自判 IsMobile 走 mh-card 外壳 *@
+    <OrderProgressQueryCard />
+    <BatchProgressQueryCard />
 }
 else
 {
-    <!-- ======== 桌面端：双栏网格（原观感，保持不变） ======== -->
-    <MudGrid Spacing="3">
-        <!-- ======== 左列：工单执行 + 成品检验（各占页面 1/4） ======== -->
-        <MudItem xs="12" md="6" Class="d-flex flex-column">
-            <MudPaper Class="pa-4 d-flex flex-column flex-grow-1 mb-3" Elevation="1" Style="height:50%">
-                <div class="d-flex justify-space-between align-center mb-3">
-                    <MudText Typo="Typo.h6" Class="font-weight-bold d-flex align-center">
-                        <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-1" Color="Color.Primary" />
-                        工单执行
-                    </MudText>
-                    <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
-                               OnClick="@(() => Navigation.NavigateTo("/plan-overview"))">
-                        负荷总量 →
-                    </MudButton>
-                </div>
-
-                <MudTable Items="@_rows" Dense="true" Elevation="0" Class="auto-table">
-                    <HeaderContent>
-                        <MudTh Class="font-weight-bold">执行阶段</MudTh>
-                        <MudTh Class="mud-table-cell--right font-weight-bold">合计（工单数/吨）</MudTh>
-                        <MudTh Class="mud-table-cell--right font-weight-bold text-brand">急单合计（工单数/吨）</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd>
-                            <a href="@context.NavigateUrl" class="mud-link font-weight-bold" style="text-decoration:none; color:#ffffff; background-color:#0d47a1; padding:3px 10px; border-radius:4px; display:inline-block">
-                                @context.StageName
-                            </a>
-                        </MudTd>
-                        <MudTd Class="text-center font-weight-bold">@context.TotalText</MudTd>
-                        <MudTd Class="text-center">
-                            <MudChip Size="Size.Small" Color="Color.Error">@context.UrgentTotalText</MudChip>
-                        </MudTd>
-                    </RowTemplate>
-                    <FooterContent>
-                        <MudTd Class="font-weight-bold">合计</MudTd>
-                        <MudTd Class="text-center font-weight-bold">@_footerTotal</MudTd>
-                        <MudTd Class="text-center font-weight-bold text-brand">@_footerUrgentTotal</MudTd>
-                    </FooterContent>
-                </MudTable>
-
-                @if (_isLoadingCard1)
+    <!-- ======== 桌面端：上下堆叠（常用入口卡 + 两张查询卡），各约半屏宽并居中 ======== -->
+    <div class="d-flex flex-column home-stack">
+        <!-- 区块1：常用入口（高频直达磁贴，按角色过滤；非全量菜单复刻，见 Shared/AppShortcuts.cs） -->
+        <MudPaper Class="pa-3 home-stack-card" Elevation="1">
+            <div class="d-flex align-center mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.Apps" Class="mr-1" Color="Color.Primary" />
+                <MudText Typo="Typo.h6" Class="font-weight-bold">常用入口</MudText>
+            </div>
+            <div class="shortcut-grid">
+                @foreach (var shortcut in AppShortcuts.Items)
                 {
-                    <div class="d-flex justify-center mt-3">
-                        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
-                    </div>
+                    @* @key：确保每项独立实例，避免 AuthorizeView 按顺序复用导致角色判定串位 *@
+                    <AuthorizeView @key="shortcut.Href" Roles="@shortcut.Policy">
+                        <a href="@shortcut.Href" class="shortcut-tile">
+                            <MudIcon Icon="@shortcut.Icon" Size="Size.Small" Style="@($"color:{shortcut.Accent}")" />
+                            <span>@shortcut.Label</span>
+                        </a>
+                    </AuthorizeView>
                 }
-            </MudPaper>
+            </div>
+        </MudPaper>
 
-            <MudPaper Class="pa-4 d-flex flex-column flex-grow-1" Elevation="1" Style="height:50%">
-                <div class="d-flex justify-space-between align-center mb-3">
-                    <MudText Typo="Typo.h6" Class="font-weight-bold d-flex align-center">
-                        <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-1" Color="Color.Primary" />
-                        质量检验
-                    </MudText>
-                </div>
-
-                <div class="d-flex justify-space-between align-center mb-2">
-                    <MudText Typo="Typo.subtitle2" Class="font-weight-bold">成品检验</MudText>
-                    <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
-                               OnClick="@(() => Navigation.NavigateTo("/final-inspection-plan"))">
-                        成检计划 →
-                    </MudButton>
-                </div>
-                <MudGrid Spacing="2">
-                    <MudItem xs="4">
-                        <MudPaper Class="pa-3 text-center form-card" Elevation="0">
-                            <MudText Typo="Typo.caption" Class="font-weight-bold">@Card3StatText(_card3AwaitingMaterialCount, _card3AwaitingMaterialWeight)</MudText>
-                            <MudChip Size="Size.Small" Color="Color.Error">@Card3StatText(_card3AwaitingMaterialUrgentCount, _card3AwaitingMaterialUrgentWeight)</MudChip>
-                            <MudChip Size="Size.Small" Color="Color.Warning" Class="mt-1">待到料</MudChip>
-                        </MudPaper>
-                    </MudItem>
-                    <MudItem xs="4">
-                        <MudPaper Class="pa-3 text-center form-card" Elevation="0">
-                            <MudText Typo="Typo.caption" Class="font-weight-bold">@Card3StatText(_card3AwaitingInspectionCount, _card3AwaitingInspectionWeight)</MudText>
-                            <MudChip Size="Size.Small" Color="Color.Error">@Card3StatText(_card3AwaitingInspectionUrgentCount, _card3AwaitingInspectionUrgentWeight)</MudChip>
-                            <MudChip Size="Size.Small" Color="Color.Primary" Class="mt-1">待检验</MudChip>
-                        </MudPaper>
-                    </MudItem>
-                    <MudItem xs="4">
-                        <MudPaper Class="pa-3 text-center form-card" Elevation="0">
-                            <MudText Typo="Typo.caption" Class="font-weight-bold">@Card3StatText(_card3InInspectionCount, _card3InInspectionWeight)</MudText>
-                            <MudChip Size="Size.Small" Color="Color.Error">@Card3StatText(_card3InInspectionUrgentCount, _card3InInspectionUrgentWeight)</MudChip>
-                            <MudChip Size="Size.Small" Color="Color.Info" Class="mt-1">检验中</MudChip>
-                        </MudPaper>
-                    </MudItem>
-                </MudGrid>
-
-                <div class="d-flex justify-space-between align-center mb-2 mt-3">
-                    <MudText Typo="Typo.subtitle2" Class="font-weight-bold">不合格报告</MudText>
-                    <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
-                               OnClick="@(() => Navigation.NavigateTo("/quality/ncr"))">
-                        NCR列表 →
-                    </MudButton>
-                </div>
-                <MudGrid Spacing="2">
-                    <MudItem xs="6">
-                        <MudPaper Class="pa-3 text-center form-card" Elevation="0">
-                            <MudText Typo="Typo.h5" Class="font-weight-bold" Color="Color.Error">@_card3PendingCheckBatches</MudText>
-                            <MudText Typo="Typo.caption">待处理批次</MudText>
-                        </MudPaper>
-                    </MudItem>
-                    <MudItem xs="6">
-                        <MudPaper Class="pa-3 text-center form-card" Elevation="0">
-                            <MudText Typo="Typo.h5" Class="font-weight-bold" Color="Color.Warning">@_card3ProcessingNcrs</MudText>
-                            <MudText Typo="Typo.caption">处理中</MudText>
-                        </MudPaper>
-                    </MudItem>
-                </MudGrid>
-
-                @if (_isLoadingCard3)
-                {
-                    <div class="d-flex justify-center mt-3">
-                        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
-                    </div>
-                }
-            </MudPaper>
-        </MudItem>
-
-        <!-- ======== 右列：批次生产（占页面 1/2，段落流转分析列表） ======== -->
-        <MudItem xs="12" md="6">
-            <MudPaper Class="pa-4 d-flex flex-column" Elevation="1" Style="height:100%">
-                <div class="d-flex justify-space-between align-center mb-3">
-                    <MudText Typo="Typo.h6" Class="font-weight-bold d-flex align-center">
-                        <MudIcon Icon="@Icons.Material.Filled.Analytics" Class="mr-1" Color="Color.Primary" />
-                        批次生产
-                    </MudText>
-                    <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
-                               OnClick="@(() => Navigation.NavigateTo("/batch-plans"))">
-                        详情 →
-                    </MudButton>
-                </div>
-
-                <MudTable Items="@_paragraphFlowItems" Dense="true" Hover="true" Elevation="0" Class="auto-table"
-                          RowsPerPage="25" RowsPerPageLabel="每页行数:">
-                    <HeaderContent>
-                        <MudTh Class="font-weight-bold">
-                            <span @onclick='() => ToggleFlowSort("Category")' style="cursor:pointer">
-                                生产段落 @FlowSortIndicator("Category")
-                            </span>
-                        </MudTh>
-                        <MudTh Class="mud-table-cell--right font-weight-bold">
-                            <span @onclick='() => ToggleFlowSort("PendingTotal")' style="cursor:pointer">
-                                待在产重量(吨) @FlowSortIndicator("PendingTotal")
-                            </span>
-                        </MudTh>
-                        <MudTh Class="mud-table-cell--center font-weight-bold">
-                            <span @onclick='() => ToggleFlowSort("StatusJudgment")' style="cursor:pointer">
-                                总况判定 @FlowSortIndicator("StatusJudgment")
-                            </span>
-                        </MudTh>
-                        <MudTh Class="mud-table-cell--right font-weight-bold">
-                            <span @onclick='() => ToggleFlowSort("PlanFlowQuantity")' style="cursor:pointer">
-                                计划重点批流转量(吨) @FlowSortIndicator("PlanFlowQuantity")
-                            </span>
-                        </MudTh>
-                        <MudTh Class="mud-table-cell--center font-weight-bold">
-                            <span @onclick='() => ToggleFlowSort("PlanFlowJudgment")' style="cursor:pointer">
-                                计划流转判定 @FlowSortIndicator("PlanFlowJudgment")
-                            </span>
-                        </MudTh>
-                        <MudTh Class="mud-table-cell--right font-weight-bold">
-                            <span @onclick='() => ToggleFlowSort("PlanKeyWeight")' style="cursor:pointer">
-                                特急批重量(吨) @FlowSortIndicator("PlanKeyWeight")
-                            </span>
-                        </MudTh>
-                    </HeaderContent>
-                    <RowTemplate Context="item">
-                        <MudTd>
-                            <span class="font-weight-bold">@item.ParagraphName</span>
-                        </MudTd>
-                        <MudTd Class="text-center">
-                            @FlowRenderInt(item.PendingTotal)
-                        </MudTd>
-                        <MudTd Class="mud-table-cell--center">
-                            <MudChip Size="Size.Small" Color="@FlowGetStatusColor(item.StatusJudgment)">
-                                @(item.StatusJudgment ?? "-")
-                            </MudChip>
-                        </MudTd>
-                        <MudTd Class="text-center">
-                            @FlowRenderInt(item.PlanFlowQuantity)
-                        </MudTd>
-                        <MudTd Class="mud-table-cell--center">
-                            <MudChip Size="Size.Small" Color="@FlowGetPlanFlowJudgmentColor(item.PlanFlowJudgment)">
-                                @(item.PlanFlowJudgment ?? "-")
-                            </MudChip>
-                        </MudTd>
-                        <MudTd Class="text-center">
-                            @FlowRenderInt(item.PlanKeyWeight)
-                        </MudTd>
-                    </RowTemplate>
-                    <FooterContent>
-                        <MudTd Class="col-footer-cell">&nbsp;</MudTd>
-                        <MudTd Class="col-footer-cell col-footer-sum text-center">合计: @FlowRenderInt(_flowTotalPending)</MudTd>
-                        <MudTd Class="col-footer-cell">&nbsp;</MudTd>
-                        <MudTd Class="col-footer-cell col-footer-sum text-center">合计: @FlowRenderInt(_flowTotalPlanFlowQuantity)</MudTd>
-                        <MudTd Class="col-footer-cell">&nbsp;</MudTd>
-                        <MudTd Class="col-footer-cell col-footer-sum text-center">合计: @FlowRenderInt(_flowTotalPlanKeyWeight)</MudTd>
-                    </FooterContent>
-                </MudTable>
-
-                @if (_isLoadingCard2)
-                {
-                    <div class="d-flex justify-center mt-3">
-                        <MudProgressCircular Indeterminate="true" Size="Size.Small" />
-                    </div>
-                }
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+        <!-- 区块2/3：订单进度查询 / 生产批次进度查询（卡内查询框，结果就地渲染，非链接跳转；
+             数据源端点 2026-09-14 起仅需登录 → 首页人人可查。外壳 .home-stack-card，与常用入口卡等宽居中） -->
+        <OrderProgressQueryCard />
+        <BatchProgressQueryCard />
+    </div>
 }
 </MudContainer>

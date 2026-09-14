@@ -53,7 +53,7 @@
 
             <!-- 数据表格 -->
             <div id="cold-roll-machine-group-configs-list-table">
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="ColdRollMachineGroupConfigDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"

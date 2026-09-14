@@ -191,6 +191,26 @@ public class OrderService
         }
     }
 
+    /// <summary>获取投料产出总况（按订单完成月聚合；scope 为生产类型范围：All/Pure/单一生产类型）。日期区间两端皆空 = 默认最近 12 个月</summary>
+    public async Task<ApiResponse<OrderThroughputSummaryDto>> GetThroughputSummaryAsync(
+        string scope, DateTime? dateFrom = null, DateTime? dateTo = null)
+    {
+        try
+        {
+            var url = $"{ApiEndpoints.OrderThroughputSummary}?scope={Uri.EscapeDataString(scope)}";
+            if (dateFrom.HasValue)
+                url += $"&dateFrom={dateFrom.Value:yyyy-MM-dd}";
+            if (dateTo.HasValue)
+                url += $"&dateTo={dateTo.Value:yyyy-MM-dd}";
+            var response = await _http.GetFromJsonAsync<ApiResponse<OrderThroughputSummaryDto>>(url);
+            return response ?? ApiResponse<OrderThroughputSummaryDto>.Fail("获取投料产出总况失败");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<OrderThroughputSummaryDto>.Fail($"网络错误: {ex.Message}");
+        }
+    }
+
     public async Task<ApiResponse<List<OperationLogDto>>> GetOperationLogsAsync(int id)
     {
         try

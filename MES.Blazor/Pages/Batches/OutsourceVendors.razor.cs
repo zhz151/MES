@@ -54,6 +54,70 @@ public partial class OutsourceVendors
     // ========== 分页汇总 ==========
     private Dictionary<string, string> _pageSums = new();
 
+    // ========== 双日期区间（2026-09-14；与报表总览「委外单位往来数据」卡同口径、同规则） ==========
+
+    private string _sendDateFrom = "";     // 发出区间-开始（yyyy-MM-dd，空=不限）
+    private string _sendDateTo = "";       // 发出区间-结束（yyyy-MM-dd，闭区间含当天）
+    private string _recoveryDateFrom = ""; // 回收区间-开始（yyyy-MM-dd，空=不限）
+    private string _recoveryDateTo = "";   // 回收区间-结束（yyyy-MM-dd，闭区间含当天）
+
+    /// <summary>发出区间生效（任一端有值）：仅 `YearOrdering` 列按区间重算，其余列置「—」</summary>
+    private bool SendRangeMode => !string.IsNullOrWhiteSpace(_sendDateFrom) || !string.IsNullOrWhiteSpace(_sendDateTo);
+
+    /// <summary>回收区间生效（任一端有值）：仅 `YearRecovered`/`YearReturn` 列按区间重算，其余列置「—」</summary>
+    private bool RecoveryRangeMode => !string.IsNullOrWhiteSpace(_recoveryDateFrom) || !string.IsNullOrWhiteSpace(_recoveryDateTo);
+
+    /// <summary>任一时间区间生效（两区间互相独立、可叠加）：服务端只返回「激活列有数据」的委外单位行</summary>
+    private bool AnyRangeMode => SendRangeMode || RecoveryRangeMode;
+
+    /// <summary>
+    /// 当前区间模式下「有数据」的列集合；返回 null 表示未启用任何区间（5 列全部正常展示、不过滤行）。
+    /// ⚠️ 键名与后端 `OutsourceVendorProfileService.ActiveStatsColumns` 及报表总览同名约定一致。
+    /// </summary>
+    private HashSet<string>? ActiveTradeColumns()
+    {
+        if (!AnyRangeMode) return null;
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        if (SendRangeMode) set.Add("YearOrdering");
+        if (RecoveryRangeMode) { set.Add("YearRecovered"); set.Add("YearReturn"); }
+        return set;
+    }
+
+    /// <summary>该 ② 往来信息统计列在当前区间模式下是否有数据（未启用区间时恒 true）</summary>
+    private bool IsTradeColumnActive(string key) => ActiveTradeColumns()?.Contains(key) ?? true;
+
+    /// <summary>表头动态文本：仅在该维度区间生效时改名（口径已切换，防误导）</summary>
+    private string TradeColumnLabel(ColumnDef col) => col.Key switch
+    {
+        "YearOrdering" => SendRangeMode ? "区间委外" : "本年委外",
+        "YearRecovered" => RecoveryRangeMode ? "区间回收[扣除退回]" : "本年回收[扣除退回]",
+        "YearReturn" => RecoveryRangeMode ? "区间退回" : "本年退回",
+        _ => col.Label
+    };
+
+    /// <summary>区间生效时的口径提示条（三分支：仅发出 / 仅回收 / 双区间）</summary>
+    private string RangeHint()
+    {
+        if (SendRangeMode && RecoveryRangeMode)
+            return "发出 + 回收区间模式：「区间委外」「区间回收[扣除退回]」「区间退回」按各自所选日期区间统计；其余列置「—」；只显示所选区间内有数据的委外单位。";
+        if (SendRangeMode)
+            return "发出区间模式：仅「区间委外」按所选发出日期区间统计；其余列置「—」；只显示该区间内有发出数据的委外单位。";
+        return "回收区间模式：仅「区间回收[扣除退回]」「区间退回」按所选回收日期区间统计；其余列置「—」；只显示该区间内有回收数据的委外单位。";
+    }
+
+    private static DateTime? ParseRangeDate(string text)
+        => DateTime.TryParseExact(text.Trim(), "yyyy-MM-dd",
+               System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d)
+            ? d
+            : null;
+
+    /// <summary>应用/清除区间后回到第 1 页重载（区间模式下总条数会变化，须重置页码）</summary>
+    private async Task ApplyRangeAsync()
+    {
+        _resetToFirstPage = true;
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -132,6 +196,17 @@ public partial class OutsourceVendors
         return cls;
     }
 
+    /// <summary>
+    /// 表头分组强调色（2026-09-14，与报表总览「委外单位往来数据」卡同源——该卡为纯 HTML 表格走内联样式）：
+    /// 委外未回收 = 冷紫（同「客户往来数据」待在产范式）、本年回收无强调色。
+    /// ⚠️ 样式归口 app.css 的 `th.th-accent-*`（带 `!important`），且必须置于 `.col-g2` 之后才能覆盖分组底色。
+    /// </summary>
+    private static string GetTradeAccentCss(string key) => key switch
+    {
+        "Pending" => " th-accent-wip",
+        _ => ""
+    };
+
     private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
     {
         var cls = groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell", 4 => "col-g4-cell", _ => "" };
@@ -205,7 +280,12 @@ public partial class OutsourceVendors
                 PageSize = state.PageSize,
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortBy,
-                IsDescending = sortDescending
+                IsDescending = sortDescending,
+                // 双日期区间（2026-09-14）：传了则服务端对应列按区间重算
+                VendorSendDateFrom = ParseRangeDate(_sendDateFrom),
+                VendorSendDateTo = ParseRangeDate(_sendDateTo),
+                VendorRecoveryDateFrom = ParseRangeDate(_recoveryDateFrom),
+                VendorRecoveryDateTo = ParseRangeDate(_recoveryDateTo)
             };
             if (filtersJson != null)
             {
@@ -389,6 +469,9 @@ public partial class OutsourceVendors
         {
             if (col.GroupKey != 2) continue;
             if (!_statFieldMap.TryGetValue(col.Key, out var map)) continue;
+
+            // 区间模式下未激活列置「—」（该列口径为自然年/全时段/当前存量，与所选区间不同源）
+            if (!IsTradeColumnActive(col.Key)) { _pageSums[col.Key] = "—"; continue; }
 
             var weight = map.WeightField != null
                 ? _pageItems.Sum(item => (decimal)(props[map.WeightField].GetValue(item) ?? 0m))

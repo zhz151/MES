@@ -30,7 +30,7 @@
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold">
                     <MudIcon Icon="@Icons.Material.Filled.QrCodeScanner" Class="mr-2" Color="Color.Primary" />
-                    扫码报工
+                    报工扫码
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
@@ -1115,7 +1115,7 @@
                         </div>
 
                         <MudText Typo="Typo.body2" Color="Color.Error" Class="mt-2 mb-1 font-weight-bold">不合格</MudText>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px;">
                             <MudNumericField T="int?"
                                              @bind-Value="_inspectionReworkQty"
                                              Label="返整支数"
@@ -1124,13 +1124,19 @@
                                              Style="font-size: 0.875rem; height: 44px;" />
                             <MudNumericField T="int?"
                                              @bind-Value="_inspectionWarehouseQty"
-                                             Label="入库支数"
+                                             Label="入在制库支数"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
                                              Style="font-size: 0.875rem; height: 44px;" />
                             <MudNumericField T="int?"
                                              @bind-Value="_inspectionScrapQty"
-                                             Label="报废支数"
+                                             Label="入次品库支数"
+                                             Variant="Variant.Outlined"
+                                             HideSpinButtons="true"
+                                             Style="font-size: 0.875rem; height: 44px;" />
+                            <MudNumericField T="int?"
+                                             @bind-Value="_inspectionReturnQty"
+                                             Label="退货支数"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
                                              Style="font-size: 0.875rem; height: 44px;" />
@@ -1146,6 +1152,13 @@
                                       Variant="Variant.Outlined"
                                       Style="font-size: 0.875rem; height: 44px;"
                                       Class="mt-2" />
+
+                        <div class="mt-3">
+                            <ScanPhotoPicker Title="检验照片"
+                                             Photos="_inspectionPhotos"
+                                             MaxCount="QualityPhotoLimits.PerRecord"
+                                             Disabled="_isSubmitting" />
+                        </div>
 
                         @* 提交按钮 *@
                         <div class="d-flex mt-4" style="gap: 8px;">
@@ -1377,7 +1390,7 @@
                         </div>
 
                         <MudText Typo="Typo.body2" Color="Color.Error" Class="mt-2 mb-1 font-weight-bold">不合格</MudText>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 8px;">
                             <MudNumericField T="int?"
                                              @bind-Value="_finalInspectionReworkQty"
                                              Label="返整支数"
@@ -1385,14 +1398,26 @@
                                              HideSpinButtons="true"
                                              Style="font-size: 0.875rem; height: 44px;" />
                             <MudNumericField T="int?"
-                                             @bind-Value="_finalInspectionWarehouseQty"
-                                             Label="入库支数"
+                                             @bind-Value="_finalInspectionInProcessWarehouseQty"
+                                             Label="入在制库支数"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
                                              Style="font-size: 0.875rem; height: 44px;" />
                             <MudNumericField T="int?"
                                              @bind-Value="_finalInspectionScrapQty"
-                                             Label="报废支数"
+                                             Label="入次品库支数"
+                                             Variant="Variant.Outlined"
+                                             HideSpinButtons="true"
+                                             Style="font-size: 0.875rem; height: 44px;" />
+                            <MudNumericField T="int?"
+                                             @bind-Value="_finalInspectionReturnQty"
+                                             Label="退货支数"
+                                             Variant="Variant.Outlined"
+                                             HideSpinButtons="true"
+                                             Style="font-size: 0.875rem; height: 44px;" />
+                            <MudNumericField T="int?"
+                                             @bind-Value="_finalInspectionWarehouseQty"
+                                             Label="可入备库支数"
                                              Variant="Variant.Outlined"
                                              HideSpinButtons="true"
                                              Style="font-size: 0.875rem; height: 44px;" />
@@ -1474,6 +1499,13 @@
                                       Variant="Variant.Outlined"
                                       Style="font-size: 0.875rem; height: 44px;"
                                       Class="mt-2" />
+
+                        <div class="mt-3">
+                            <ScanPhotoPicker Title="检验照片"
+                                             Photos="_finalInspectionPhotos"
+                                             MaxCount="QualityPhotoLimits.PerRecord"
+                                             Disabled="_isSubmitting" />
+                        </div>
 
                         @* 提交按钮 *@
                         <div class="d-flex mt-4" style="gap: 8px;">
@@ -1603,8 +1635,10 @@
     private int? _inspectionReworkQty;
     private int? _inspectionWarehouseQty;
     private int? _inspectionScrapQty;
+    private int? _inspectionReturnQty;
     private string? _inspectionDefectDesc;
     private string? _inspectionRemark;
+    private List<ScanPhotoItem> _inspectionPhotos = new();
 
     // ========== 酸洗出缸专用状态 ==========
     private List<PicklingInRecordDto> _picklingInRecords = new();
@@ -1653,8 +1687,10 @@
     private int? _finalInspectionConcessionQty;
     private string? _finalInspectionConcessionRemark;
     private int? _finalInspectionReworkQty;
-    private int? _finalInspectionWarehouseQty;
+    private int? _finalInspectionInProcessWarehouseQty;
     private int? _finalInspectionScrapQty;
+    private int? _finalInspectionReturnQty;
+    private int? _finalInspectionWarehouseQty;
     private string? _finalInspectionDefectDesc;
     private string? _finalInspectionOuterDiameterRange;
     private string? _finalInspectionWallThicknessRange;
@@ -1667,6 +1703,7 @@
     private string? _finalInspectionInspectionStandard;
     private string? _finalInspectionInspectionGrade;
     private string? _finalInspectionInstrumentModel;
+    private List<ScanPhotoItem> _finalInspectionPhotos = new();
     private BatchLookupResultDto? _batchLookupResult;
 
     // ========== 成检到料专用状态 ==========
@@ -1690,6 +1727,8 @@
     public void Dispose()
     {
         _ = StopCamera();
+        try { _ = JS.InvokeVoidAsync("MES.revokeAllObjectUrls"); }
+        catch { }
         _dotNetRef?.Dispose();
     }
 
@@ -2173,8 +2212,10 @@
         _finalInspectionConcessionQty = null;
         _finalInspectionConcessionRemark = null;
         _finalInspectionReworkQty = null;
+        _finalInspectionInProcessWarehouseQty = null;
         _finalInspectionWarehouseQty = null;
         _finalInspectionScrapQty = null;
+        _finalInspectionReturnQty = null;
         _finalInspectionDefectDesc = null;
         _finalInspectionOuterDiameterRange = null;
         _finalInspectionWallThicknessRange = null;
@@ -2251,6 +2292,7 @@
         _inspectionReworkQty = null;
         _inspectionWarehouseQty = null;
         _inspectionScrapQty = null;
+        _inspectionReturnQty = null;
         _inspectionDefectDesc = null;
         _inspectionRemark = null;
 
@@ -2666,6 +2708,7 @@
                     DefectReworkQuantity = _inspectionReworkQty,
                     DefectWarehouseQuantity = _inspectionWarehouseQty,
                     DefectScrapQuantity = _inspectionScrapQty,
+                    DefectReturnQuantity = _inspectionReturnQty,
                     DefectDescription = _inspectionDefectDesc,
                     Remark = _inspectionRemark,
                     DataSource = "SCAN"
@@ -2676,6 +2719,8 @@
                 {
                     _submittedBatchNo = _resolveResult.BatchNo;
                     _submittedSection = _workstationContext!.SectionName;
+                    var recordId = response.Data?.FirstOrDefault()?.Id ?? 0;
+                    if (recordId > 0) await UploadInspectionPhotosAsync(_inspectionPhotos, isFinal: false, recordId);
                     Snackbar.Add("过程检验提交成功", Severity.Success);
                     submitted = true;
                 }
@@ -2761,8 +2806,10 @@
                     QualifiedConcessionQuantity = _finalInspectionConcessionQty,
                     ConcessionRemark = _finalInspectionConcessionRemark,
                     DefectReworkQuantity = _finalInspectionReworkQty,
+                    DefectInProcessWarehouseQuantity = _finalInspectionInProcessWarehouseQty,
                     DefectWarehouseQuantity = _finalInspectionWarehouseQty,
                     DefectScrapQuantity = _finalInspectionScrapQty,
+                    DefectReturnQuantity = _finalInspectionReturnQty,
                     DefectDescription = _finalInspectionDefectDesc,
                     OuterDiameterRange = _finalInspectionOuterDiameterRange,
                     WallThicknessRange = _finalInspectionWallThicknessRange,
@@ -2782,6 +2829,8 @@
                 {
                     _submittedBatchNo = _batchGroupResult.BatchNo;
                     _submittedSection = $"成品检验-{_finalInspectionItem}";
+                    if (response.Data != null)
+                        await UploadInspectionPhotosAsync(_finalInspectionPhotos, isFinal: true, response.Data.Id);
                     Snackbar.Add("成品检验提交成功", Severity.Success);
                     submitted = true;
                 }
@@ -2965,6 +3014,54 @@
         _recoveryRemark = null;
     }
 
+    /// <summary>
+    /// 检验记录创建成功后逐张上传待上传照片（逐张隔离：单张失败不阻断其它，仅汇总提示）。
+    /// 记录已落库，故照片只做即时补写；失败不影响本次提交结果。
+    /// </summary>
+    private async Task UploadInspectionPhotosAsync(List<ScanPhotoItem> photos, bool isFinal, int recordId)
+    {
+        var pending = photos.Where(p => p.AttachmentId == null).ToList();
+        if (pending.Count == 0) return;
+
+        var failed = 0;
+        string? lastError = null;
+
+        foreach (var photo in pending)
+        {
+            try
+            {
+                var bytes = Convert.FromBase64String(photo.Base64);
+                int? newId = null;
+
+                if (isFinal)
+                {
+                    var r = await FinalInspectionService.UploadAttachmentAsync(recordId, bytes, photo.FileName, photo.ContentType);
+                    if (r.Success && r.Data != null) newId = r.Data.Id;
+                    else lastError = r.Message;
+                }
+                else
+                {
+                    var r = await ProcessInspectionService.UploadAttachmentAsync(recordId, bytes, photo.FileName, photo.ContentType);
+                    if (r.Success && r.Data != null) newId = r.Data.Id;
+                    else lastError = r.Message;
+                }
+
+                if (newId.HasValue) photo.AttachmentId = newId.Value;
+                else failed++;
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                lastError = ex.Message;
+            }
+        }
+
+        if (failed > 0)
+            Snackbar.Add($"提交成功，但 {pending.Count} 张照片中有 {failed} 张上传失败：{lastError}", Severity.Warning);
+        else
+            Snackbar.Add($"已上传 {pending.Count} 张照片", Severity.Success);
+    }
+
     private void ResetProcessInspectionState()
     {
         _inspectionDate = DateTime.Today.ToString("yyyy-MM-dd");
@@ -2979,8 +3076,10 @@
         _inspectionReworkQty = null;
         _inspectionWarehouseQty = null;
         _inspectionScrapQty = null;
+        _inspectionReturnQty = null;
         _inspectionDefectDesc = null;
         _inspectionRemark = null;
+        _inspectionPhotos = new();
     }
 
     private void ResetFinalInspectionState()
@@ -2997,8 +3096,10 @@
         _finalInspectionConcessionQty = null;
         _finalInspectionConcessionRemark = null;
         _finalInspectionReworkQty = null;
+        _finalInspectionInProcessWarehouseQty = null;
         _finalInspectionWarehouseQty = null;
         _finalInspectionScrapQty = null;
+        _finalInspectionReturnQty = null;
         _finalInspectionDefectDesc = null;
         _finalInspectionOuterDiameterRange = null;
         _finalInspectionWallThicknessRange = null;
@@ -3010,6 +3111,7 @@
         _finalInspectionInspectionGrade = null;
         _finalInspectionInstrumentModel = null;
         _finalInspectionRemark = null;
+        _finalInspectionPhotos = new();
         _batchLookupResult = null;
     }
 

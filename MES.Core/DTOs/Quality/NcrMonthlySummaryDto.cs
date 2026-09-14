@@ -1,5 +1,3 @@
-using MES.Core.Enums;
-
 namespace MES.Core.DTOs.Quality;
 
 /// <summary>
@@ -30,8 +28,8 @@ public class NcrMonthlyRowDto
     /// <summary>责任部门（未填写→「未填写」）</summary>
     public string ResponsibleDept { get; set; } = "";
 
-    /// <summary>处置方式（未填写为 null）</summary>
-    public DisposalMethod? DisposalMethod { get; set; }
+    /// <summary>处置方式（字典 NcrDisposalKey 英文 Key；未填写为 null）</summary>
+    public string? DisposalMethod { get; set; }
 
     /// <summary>处置方式中文显示（未填写→「未填写」）</summary>
     public string DisposalMethodDisplay { get; set; } = "";

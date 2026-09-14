@@ -592,12 +592,14 @@ public static class DataExchangeRegistry
             new("合格中让步放行支", "QualifiedConcessionQuantity", typeof(int?), isRequired: false),
             new("让步说明", "ConcessionRemark", typeof(string), isRequired: false),
             new("不合格返整支数", "DefectReworkQuantity", typeof(int?), isRequired: false),
-            new("不合格入库支数", "DefectWarehouseQuantity", typeof(int?), isRequired: false),
-            new("不合格报废支数", "DefectScrapQuantity", typeof(int?), isRequired: false),
+            new("不合格入在制库支数", "DefectWarehouseQuantity", typeof(int?), isRequired: false),
+            new("不合格入次品库支数", "DefectScrapQuantity", typeof(int?), isRequired: false),
+            new("不合格退货支数", "DefectReturnQuantity", typeof(int?), isRequired: false),
             new("不合格描述", "DefectDescription", typeof(string), isRequired: false),
             new("理论返整重(kg)", "TheoreticalReworkWeight", typeof(int?), isRequired: false, isSystem: true),
-            new("理论入库重(kg)", "TheoreticalWarehouseWeight", typeof(int?), isRequired: false, isSystem: true),
-            new("理论报废重(kg)", "TheoreticalScrapWeight", typeof(int?), isRequired: false, isSystem: true),
+            new("理论入在制重(kg)", "TheoreticalWarehouseWeight", typeof(int?), isRequired: false, isSystem: true),
+            new("理论入次库重(kg)", "TheoreticalScrapWeight", typeof(int?), isRequired: false, isSystem: true),
+            new("理论退货重(kg)", "TheoreticalReturnWeight", typeof(int?), isRequired: false, isSystem: true),
             new("来料单位", "SourceUnit", typeof(string), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
@@ -622,11 +624,15 @@ public static class DataExchangeRegistry
             new("合格中让步放行支", "QualifiedConcessionQuantity", typeof(int?), isRequired: false),
             new("让步说明", "ConcessionRemark", typeof(string), isRequired: false),
             new("不合格返整支数", "DefectReworkQuantity", typeof(int?), isRequired: false),
-            new("不合格入库支数", "DefectWarehouseQuantity", typeof(int?), isRequired: false),
-            new("不合格报废支数", "DefectScrapQuantity", typeof(int?), isRequired: false),
+            new("不合格入在制库支数", "DefectInProcessWarehouseQuantity", typeof(int?), isRequired: false),
+            new("不合格入次品库支数", "DefectScrapQuantity", typeof(int?), isRequired: false),
+            new("不合格退货支数", "DefectReturnQuantity", typeof(int?), isRequired: false),
+            new("不合格可入备库支数", "DefectWarehouseQuantity", typeof(int?), isRequired: false),
             new("次品返整重量(kg)", "DefectReworkWeight", typeof(int?), isRequired: false),
-            new("次品入库重量(kg)", "DefectWarehouseWeight", typeof(int?), isRequired: false),
-            new("次品报废重量(kg)", "DefectScrapWeight", typeof(int?), isRequired: false),
+            new("次品入在制库重量(kg)", "DefectInProcessWarehouseWeight", typeof(int?), isRequired: false),
+            new("次品入次品库重量(kg)", "DefectScrapWeight", typeof(int?), isRequired: false),
+            new("次品退货重量(kg)", "DefectReturnWeight", typeof(int?), isRequired: false),
+            new("次品可入备库重量(kg)", "DefectWarehouseWeight", typeof(int?), isRequired: false),
             new("不合格情况描述", "DefectDescription", typeof(string), isRequired: false),
             new("外径范围", "OuterDiameterRange", typeof(string), isRequired: false),
             new("壁厚范围", "WallThicknessRange", typeof(string), isRequired: false),
@@ -656,7 +662,7 @@ public static class DataExchangeRegistry
         {
             new("检验日期", "InspectionDate", typeof(DateTime)),
             new("检验员", "Inspector"),
-            new("炉批号", "FurnaceNo"),
+            new("生产编号", "BatchNo"),
             new("牌号", "Grade"),
             new("规格", "Specification"),
             new("试样编号", "SampleNo", typeof(int?), isRequired: false),
@@ -671,7 +677,7 @@ public static class DataExchangeRegistry
         {
             new("检验日期", "InspectionDate", typeof(DateTime)),
             new("检验员", "Inspector"),
-            new("炉批号", "FurnaceNo"),
+            new("生产编号", "BatchNo"),
             new("牌号", "Grade"),
             new("规格", "Specification"),
             new("试样编号", "SampleNo", typeof(int?), isRequired: false),
@@ -687,7 +693,7 @@ public static class DataExchangeRegistry
         {
             new("检验日期", "InspectionDate", typeof(DateTime)),
             new("检验员", "Inspector"),
-            new("生产编号", "FurnaceNo"),
+            new("生产编号", "BatchNo"),
             new("牌号", "Grade"),
             new("规格", "Specification"),
             new("试样编号", "SampleNo", typeof(int?), isRequired: false),
@@ -708,7 +714,7 @@ public static class DataExchangeRegistry
         {
             new("检验日期", "InspectionDate", typeof(DateTime)),
             new("检验员", "Inspector"),
-            new("生产编号", "FurnaceNo"),
+            new("生产编号", "BatchNo"),
             new("牌号", "Grade"),
             new("规格", "Specification"),
             new("试样编号", "SampleNo", typeof(int?), isRequired: false),
@@ -728,7 +734,7 @@ public static class DataExchangeRegistry
         {
             new("检验日期", "InspectionDate", typeof(DateTime)),
             new("检验员", "Inspector"),
-            new("生产编号", "FurnaceNo"),
+            new("生产编号", "BatchNo"),
             new("牌号", "Grade"),
             new("规格", "Specification"),
             new("试样编号", "SampleNo", typeof(int?), isRequired: false),
@@ -747,7 +753,7 @@ public static class DataExchangeRegistry
         {
             new("检验日期", "InspectionDate", typeof(DateTime)),
             new("检验员", "Inspector"),
-            new("生产编号", "FurnaceNo"),
+            new("生产编号", "BatchNo"),
             new("牌号", "Grade"),
             new("规格", "Specification"),
             new("试样编号", "SampleNo", typeof(int?), isRequired: false),
@@ -765,7 +771,7 @@ public static class DataExchangeRegistry
         {
             new("检验日期", "InspectionDate", typeof(DateTime)),
             new("检验员", "Inspector"),
-            new("生产编号", "FurnaceNo"),
+            new("生产编号", "BatchNo"),
             new("牌号", "Grade"),
             new("规格", "Specification"),
             new("试样编号", "SampleNo", typeof(int?), isRequired: false),
@@ -780,7 +786,7 @@ public static class DataExchangeRegistry
         {
             new("检验日期", "InspectionDate", typeof(DateTime)),
             new("检验员", "Inspector"),
-            new("生产编号", "FurnaceNo"),
+            new("生产编号", "BatchNo"),
             new("牌号", "Grade"),
             new("规格", "Specification"),
             new("试样编号", "SampleNo", typeof(int?), isRequired: false),
@@ -1106,8 +1112,13 @@ public static class DataExchangeRegistry
             new("次品重量", "DefectiveWeight", typeof(int?), isRequired: false),
             new("问题描述", "ProblemDescription", typeof(string), isRequired: false),
             new("来源检验项目", "SourceInspectionItem", typeof(string), isRequired: false),
-            // G2: 不合格品处置
-            new("处置方式", "DisposalMethod", typeof(MES.Core.Enums.DisposalMethod?), isEnum: true, isRequired: false),
+            new("让步放行支数", "ConcessionQuantity", typeof(int?), isRequired: false),
+            new("让步放行重量", "ConcessionWeight", typeof(int?), isRequired: false),
+            new("让步说明", "ConcessionRemark", typeof(string), isRequired: false),
+            new("来源待处理组键", "SourceGroupKey", typeof(string), isRequired: false),
+            new("次品流向", "FlowDirection", typeof(MES.Core.Enums.FlowDirection?), isEnum: true, isRequired: false),
+            // G2: 不合格品处置（处置方式走字典 NcrDisposalKey，非枚举）
+            new("处置方式", "DisposalMethod", typeof(string), isRequired: false),
             new("处置备注", "DisposalRemark", typeof(string), isRequired: false),
             new("处置是否完结", "DisposalIsCompleted", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("处置完结日期", "DisposalCompleteDate", typeof(DateTime?), isRequired: false),
@@ -1743,17 +1754,92 @@ public static class DataExchangeRegistry
             new("是否启用", "IsEnabled", typeof(bool), isRequired: false, valueConverter: v => v == "是" || v == "true" || v == "True"),
             new("说明", "Remark", typeof(string), isRequired: false),
         }, compositeKeyColumns: new[] { "DictKey", "Value" }),
+
+        // === 2026-09-14 补注册：委外单位档案 + 不合格反馈 / 巡检 / 巡检明细 ===
+
+        // 批次上下文：行 = (委外单位名 × 委外工段)，仿供应商档案；编码唯一，覆盖导入按键 VendorCode 匹配
+        ["OutsourceVendorProfile"] = new EntityDef("批次-委外单位档案", "批次-委外单位档案", typeof(MES.Data.Entities.Batch.OutsourceVendorProfile), 1, "VendorCode", new List<ColumnDef>
+        {
+            new("委外单位编码", "VendorCode"),
+            new("委外单位名", "VendorName"),
+            new("委外工段", "SectionName"),
+            new("是否本厂车间", "IsWorkshop", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("联系人", "ContactPerson", typeof(string), isRequired: false),
+            new("联系电话", "ContactPhone", typeof(string), isRequired: false),
+            new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }),
+
+        // 质量上下文：不合格反馈单（无自然业务键，覆盖导入按 ID 匹配）
+        ["NonconformingFeedback"] = new EntityDef("质量-不合格反馈", "质量-不合格反馈", typeof(MES.Data.Entities.Quality.NonconformingFeedback), 9, null, new List<ColumnDef>
+        {
+            new("反馈日期", "ReportDate", typeof(DateTime)),
+            new("反馈人", "Reporter"),
+            new("来源类型", "SourceType", typeof(MES.Core.Enums.NonconformingFeedbackSourceType), isEnum: true),
+            new("批次号", "BatchNo") { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
+            new("工单号", "WorkOrderNo", typeof(string), isRequired: false),
+            new("组内序号", null!) { IsFkColumn = true, FkEntityKey = "ProcessGroup", FkLookupProperty = "SequenceNumber", FkTargetProperty = "ProcessGroupId", FkRequiresJoin = true },
+            new("工序名称", "ProcessName"),
+            new("制造规格", "ManufacturingSpec", typeof(string), isRequired: false),
+            new("工段名称", "SectionName", typeof(string), isRequired: false),
+            new("执行序号", "SequenceNumber", typeof(int?), isRequired: false),
+            new("检验项目", "InspectionItem", typeof(MES.Core.Enums.InspectionItem?), isEnum: true, isRequired: false),
+            new("产类", "ProductStatus", typeof(string), isRequired: false),
+            new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
+            new("来料支数", "IncomingQuantity", typeof(int?), isRequired: false),
+            new("来料重量(kg)", "IncomingWeight", typeof(decimal?), isRequired: false),
+            new("不合格支数", "DefectQuantity", typeof(int?), isRequired: false),
+            new("不合格重量(kg)", "DefectWeight", typeof(int?), isRequired: false),
+            new("问题描述", "ProblemDescription", typeof(string), isRequired: false),
+            new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
+        }),
+
+        // 质量上下文：巡检单（无自然业务键，覆盖导入按 ID 匹配）
+        ["InspectionPatrol"] = new EntityDef("质量-巡检", "质量-巡检", typeof(MES.Data.Entities.Quality.InspectionPatrol), 9, null, new List<ColumnDef>
+        {
+            new("巡检日期", "PatrolDate", typeof(DateTime)),
+            new("巡检人", "Inspector"),
+            new("批次号", "BatchNo") { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
+            new("工单号", "WorkOrderNo", typeof(string), isRequired: false),
+            new("组内序号", null!) { IsFkColumn = true, FkEntityKey = "ProcessGroup", FkLookupProperty = "SequenceNumber", FkTargetProperty = "ProcessGroupId", FkRequiresJoin = true },
+            new("工序名称", "ProcessName"),
+            new("制造规格", "ManufacturingSpec", typeof(string), isRequired: false),
+            new("工段名称", "SectionName"),
+            new("执行序号", "SequenceNumber", typeof(int), isRequired: false),
+            new("产类", "ProductStatus", typeof(string), isRequired: false),
+            new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
+            new("在产单位车间", "ProductionUnit", typeof(string), isRequired: false),
+            new("在产设备名", "EquipmentName", typeof(string), isRequired: false),
+            new("在产操作人", "ProductionOperator", typeof(string), isRequired: false),
+            new("涉及整改", "NeedRectification", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("整改内容", "RectificationDescription", typeof(string), isRequired: false),
+            new("验证结果", "VerificationResult", typeof(string), isRequired: false),
+            new("整改人", "RectificationOperator", typeof(string), isRequired: false),
+            new("是否闭环", "IsClosed", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
+        }),
+
+        // 质量上下文：巡检明细（按所属巡检单 ID 关联主表）
+        ["InspectionPatrolItem"] = new EntityDef("质量-巡检明细", "质量-巡检明细", typeof(MES.Data.Entities.Quality.InspectionPatrolItem), 9, null, new List<ColumnDef>
+        {
+            new("巡检单ID", null!) { IsFkColumn = true, FkEntityKey = "InspectionPatrol", FkLookupProperty = "Id", FkTargetProperty = "PatrolId" },
+            new("巡检项", "ItemName"),
+            new("巡检结果", "Result", typeof(string), isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
+            new("排序", "SortOrder", typeof(int), isRequired: false),
+        }),
     };
 
     public static readonly List<string> EntityOrder = new()
     {
         "Warehouse", "StandardGradeMapping", "CustomerProfile", "SupplierProfile",
         "FurnaceRegistration", "ChemicalComposition", "ChemicalValidationRule", "Ncr",
+        "NonconformingFeedback", "InspectionPatrol", "InspectionPatrolItem",
         "SalesOrder",
         "OrderItem", "ProductRequirement",
         "WorkOrder", "OrderDemandAdjustment",
         "PurchaseOrder", "SubcontractOrder", "SubcontractReturnItem", "ProductionBatch",
-        "ProcessGroup", "ProductionRecord", "SectionOutsource", "OutsourceRecovery", "MaterialReceiveCheck", "ProcessInspection", "FinalInspection", "ChemicalAnalysis", "HardnessTest", "GrainSizeTest", "PittingCorrosionTest", "IntergranularCorrosionTest", "TensileTest", "MetallographicTest", "FlatteningTest", "FlaringTest", "PicklingInRecord", "PicklingOutRecord", "OperationLog", "InventoryBatch", "OutboundRecord",
+        "ProcessGroup", "ProductionRecord", "SectionOutsource", "OutsourceRecovery", "OutsourceVendorProfile", "MaterialReceiveCheck", "ProcessInspection", "FinalInspection", "ChemicalAnalysis", "HardnessTest", "GrainSizeTest", "PittingCorrosionTest", "IntergranularCorrosionTest", "TensileTest", "MetallographicTest", "FlatteningTest", "FlaringTest", "PicklingInRecord", "PicklingOutRecord", "OperationLog", "InventoryBatch", "OutboundRecord",
         "Equipment", "RepairOrder", "MaintenanceOrder", "InspectionRecord",
         "InventoryPlan", "PurchaseSemiPlan", "PurchaseFinishedPlan", "RoundBarPiercingPlan", "InProcessReworkPlan",
         "SemiPlanProcessGroup", "InventoryPlanProcessGroup", "PiercingPlanProcessGroup", "InProcessReworkPlanProcessGroup",

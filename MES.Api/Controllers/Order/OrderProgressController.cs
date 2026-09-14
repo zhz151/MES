@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using MES.Core.DTOs.Order;
 using MES.Core.Interfaces.Order;
 using MES.Core.Models;
-using MES.Shared.Constants;
 
 namespace MES.Api.Controllers.Order;
 
@@ -23,10 +22,12 @@ public class OrderProgressController : ControllerBase
     }
 
     /// <summary>
-    /// 获取指定订单号的进度树（无该订单工单时返回空 data）
+    /// 获取指定订单号的进度树（无该订单工单时返回空 data）。
+    /// ⚠️ 仅需登录、**不带订单角色档**（2026-09-14）：首页「订单进度查询」卡对所有登录用户开放
+    /// （首页只有 [Authorize]，挂 OrderView 会让无订单权限的用户一查就 403）；菜单门控仍由「订单管理」分组承担。
     /// </summary>
     [HttpGet]
-    [Authorize(Roles = Roles.Policies.OrderView)]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<OrderProgressTreeDto?>>> GetProgress([FromQuery] string salesOrderNo)
     {
         if (string.IsNullOrWhiteSpace(salesOrderNo))

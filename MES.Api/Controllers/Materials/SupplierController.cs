@@ -29,7 +29,11 @@ public class SupplierController : ControllerBase
         [FromQuery] string? keyword = null,
         [FromQuery] string? sortBy = null,
         [FromQuery] bool isDescending = true,
-        [FromQuery] string? filters = null)
+        [FromQuery] string? filters = null,
+        [FromQuery] DateTime? orderDateFrom = null,
+        [FromQuery] DateTime? orderDateTo = null,
+        [FromQuery] DateTime? arrivalDateFrom = null,
+        [FromQuery] DateTime? arrivalDateTo = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         var query = new QueryParams
@@ -38,7 +42,11 @@ public class SupplierController : ControllerBase
             PageSize = pageSize,
             Keyword = keyword,
             SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
-            IsDescending = isDescending
+            IsDescending = isDescending,
+            SupplierOrderDateFrom = orderDateFrom,
+            SupplierOrderDateTo = orderDateTo,
+            SupplierArrivalDateFrom = arrivalDateFrom,
+            SupplierArrivalDateTo = arrivalDateTo
         };
         if (!string.IsNullOrEmpty(filters))
         {

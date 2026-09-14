@@ -50,7 +50,7 @@ public class ServiceEnumParseSafetyTests
         typeof(RepairOrderStatus),
         typeof(EquipmentTaskStatus),
         typeof(InspectionItem),
-        typeof(DisposalMethod),
+        typeof(FlowDirection),
         typeof(NcrStatus),
         typeof(PicklingStatus),
         typeof(SeverityLevel),
@@ -232,7 +232,7 @@ public class ServiceEnumParseSafetyTests
             typeof(SubcontractOrderStatus), typeof(SectionOutsourceStatus), typeof(RepairPriority),
             typeof(LifecycleStatus), typeof(UsageType), typeof(RunningStatus),
             typeof(RepairOrderStatus), typeof(EquipmentTaskStatus),
-            typeof(InspectionItem), typeof(DisposalMethod),
+            typeof(InspectionItem), typeof(FlowDirection),
             typeof(NcrStatus), typeof(PicklingStatus),
             typeof(SeverityLevel), typeof(VerifyResult), typeof(SectionStatus),
             typeof(InspectionRequirementStage)

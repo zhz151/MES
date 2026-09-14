@@ -55,7 +55,7 @@
                 </div>
 
                 <div id="purchase-order-detail-table" style="overflow-x: auto;">
-                    <MudTable Items="@_singleItemList" Dense="true" Hover="true" Elevation="0" Class="auto-table" ReadOnly="true">
+                    <MudTable Breakpoint="Breakpoint.None" Items="@_singleItemList" Dense="true" Hover="true" Elevation="0" Class="auto-table" ReadOnly="true">
                         <HeaderContent>
                             @foreach (var col in _visibleColumns)
                             {

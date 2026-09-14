@@ -36,9 +36,9 @@
         </MudCardHeader>
 
         <MudCardContent>
-            <!-- 搜索栏 -->
+            <!-- 搜索栏 + 双日期区间（区间顺序：业务员/最终用户 → 接单起止 → 发货起止，2026-09-14） -->
             <MudGrid>
-                <MudItem xs="12" md="6">
+                <MudItem xs="12" md="4">
                     <MudTextField T="string"
                                   Label="模糊搜索 - 客户编码/单位/业务员/最终客户/状态"
                                   Value="_searchKeyword" ValueExpression="@(() => _searchKeyword)"
@@ -48,7 +48,52 @@
                                   Adornment="Adornment.End"
                                   AdornmentIcon="@Icons.Material.Filled.Search" />
                 </MudItem>
+                <MudItem xs="12" md="8">
+                    @* 工具栏：外层 gap 16px 作为「组间隔离」，组内 gap 6px 紧凑（参照「投料产出总况」日期范围组合） *@
+                    <div class="d-flex align-center" style="gap:16px; flex-wrap:wrap;">
+                        @* 接单区间：任一端有值即生效，仅「区间接单」有数据；起/止/应用/清除 = 一个整体 *@
+                        <div class="d-flex align-center" style="gap:6px;">
+                            <MudTextField T="string" @bind-Value="_signDateFrom" Immediate="true" Variant="Variant.Outlined"
+                                          Dense="true" Margin="Margin.Dense" Style="width:140px" Label="接单日期起"
+                                          Placeholder="yyyy-MM-dd" />
+                            <MudTextField T="string" @bind-Value="_signDateTo" Immediate="true" Variant="Variant.Outlined"
+                                          Dense="true" Margin="Margin.Dense" Style="width:140px" Label="接单日期止"
+                                          Placeholder="yyyy-MM-dd" />
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                                       OnClick="ApplyRangeAsync">应用接单区间</MudButton>
+                            <MudButton Variant="Variant.Text" Size="Size.Small"
+                                       OnClick="@(() => { _signDateFrom = ""; _signDateTo = ""; return ApplyRangeAsync(); })"
+                                       Disabled="@(!SignRangeMode)">清除</MudButton>
+                        </div>
+                        <MudDivider Vertical="true" FlexItem="true" Style="height:28px;" />
+                        @* 发货区间：与接单区间互相独立、可叠加；起/止/应用/清除 = 一个整体 *@
+                        <div class="d-flex align-center" style="gap:6px;">
+                            <MudTextField T="string" @bind-Value="_shipDateFrom" Immediate="true" Variant="Variant.Outlined"
+                                          Dense="true" Margin="Margin.Dense" Style="width:140px" Label="发货日期起"
+                                          Placeholder="yyyy-MM-dd" />
+                            <MudTextField T="string" @bind-Value="_shipDateTo" Immediate="true" Variant="Variant.Outlined"
+                                          Dense="true" Margin="Margin.Dense" Style="width:140px" Label="发货日期止"
+                                          Placeholder="yyyy-MM-dd" />
+                            <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                                       OnClick="ApplyRangeAsync">应用发货区间</MudButton>
+                            <MudButton Variant="Variant.Text" Size="Size.Small"
+                                       OnClick="@(() => { _shipDateFrom = ""; _shipDateTo = ""; return ApplyRangeAsync(); })"
+                                       Disabled="@(!ShipRangeMode)">清除</MudButton>
+                        </div>
+                        @if (AnyRangeMode)
+                        {
+                            <MudButton Variant="Variant.Text" Size="Size.Small"
+                                       OnClick="@(() => { _signDateFrom = _signDateTo = _shipDateFrom = _shipDateTo = ""; return ApplyRangeAsync(); })">
+                                清空全部区间
+                            </MudButton>
+                        }
+                    </div>
+                </MudItem>
             </MudGrid>
+            @if (AnyRangeMode)
+            {
+                <MudText Typo="Typo.caption" Class="text-hint mb-2">@RangeHint()</MudText>
+            }
 
             <!-- 数据表格 -->
             <div id="customers-list-table">
@@ -91,7 +136,7 @@
                     }
                 </div>
             </div>
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="CustomerProfileDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"
@@ -111,14 +156,14 @@
                     {
                         var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
                         _prevGk = col.GroupKey;
-                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
+                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart) + GetTradeAccentCss(col.Key);
                         <MudTh Class="@_headerClass" Style="@($"width:{col.Width}px")">
                             <div style="display:inline-flex; align-items:center; gap:4px;">
-                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label@if (col.IsRequired) {<span class="required-star">*</span>} @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
+                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@TradeColumnLabel(col)@if (col.IsRequired) {<span class="required-star">*</span>} @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)
                                 {
                                     <ExcelFilter T="CustomerProfileDto"
-                                                 Label="@col.Label"
+                                                 Label="@TradeColumnLabel(col)"
                                                  FieldKey="@col.Key"
                                                  FilterOptions="@(_filterContextOptions.GetValueOrDefault(col.Key))"
                                                  ActiveFilterValues="@(_columnFilters.GetValueOrDefault(col.Key))"

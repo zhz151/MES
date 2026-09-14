@@ -58,15 +58,18 @@ public class NcrService : INcrService
     private readonly IConfigParameterService _configService;
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
     private readonly IMemoryCache _cache;
+    private readonly IAttachmentStorage _storage;
 
     public NcrService(AppDbContext context, ILogger<NcrService> logger,
         IConfigParameterService configService,
-        IMemoryCache cache)
+        IMemoryCache cache,
+        IAttachmentStorage storage)
     {
         _context = context;
         _logger = logger;
         _configService = configService;
         _cache = cache;
+        _storage = storage;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -81,11 +84,65 @@ public class NcrService : INcrService
 
     public async Task<NcrDto?> GetByIdAsync(int id)
     {
-        return await _context.Ncrs
+        var dto = await _context.Ncrs
             .AsNoTracking()
             .Where(r => r.Id == id)
             .Select(ToDto())
             .FirstOrDefaultAsync();
+
+        if (dto != null)
+            await FillProductionBatchIdsAsync(new[] { dto });
+
+        return dto;
+    }
+
+    /// <summary>
+    /// 按生产编号批量构造「批号 → 生产批次 Id」映射（大小写不敏感，未命中批号的键不在字典中）。
+    /// NCR 表仅存 BatchNo 字符串（无外键），故查询后按批号一次性反查 ProductionBatch 表；
+    /// 未命中（历史数据批次可能已清理）由调用方保持 0，前端据此降级为纯文本不渲染链接。
+    /// </summary>
+    private async Task<Dictionary<string, int>> GetBatchIdMapAsync(IEnumerable<string?> batchNos)
+    {
+        var keys = batchNos
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Select(n => n!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (keys.Count == 0) return new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        var rows = await _context.ProductionBatches
+            .AsNoTracking()
+            .Where(b => keys.Contains(b.BatchNo))
+            .Select(b => new { b.BatchNo, b.Id })
+            .ToListAsync();
+
+        // ⚠️ SQL Server 大小写不敏感、C# 内存默认 Ordinal 区分大小写 → 必须显式 OrdinalIgnoreCase
+        return rows
+            .GroupBy(r => r.BatchNo, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>回填 NCR 列表的生产批次 Id（未命中保持 0）</summary>
+    private async Task FillProductionBatchIdsAsync(IEnumerable<NcrDto> items)
+    {
+        var list = items.ToList();
+        var map = await GetBatchIdMapAsync(list.Select(i => i.BatchNo));
+        foreach (var item in list)
+        {
+            if (!string.IsNullOrWhiteSpace(item.BatchNo) && map.TryGetValue(item.BatchNo, out var batchId))
+                item.ProductionBatchId = batchId;
+        }
+    }
+
+    /// <summary>回填 NCR 待处理批次卡片的生产批次 Id（未命中保持 0）</summary>
+    private async Task FillProductionBatchIdsAsync(List<NcrPendingCheckDto> items)
+    {
+        var map = await GetBatchIdMapAsync(items.Select(i => i.BatchNo));
+        foreach (var item in items)
+        {
+            if (!string.IsNullOrWhiteSpace(item.BatchNo) && map.TryGetValue(item.BatchNo, out var batchId))
+                item.ProductionBatchId = batchId;
+        }
     }
 
     public async Task<PagedResult<NcrDto>> GetAllAsync(QueryParams query)
@@ -105,6 +162,7 @@ public class NcrService : INcrService
                 (r.ReportDepartment != null && r.ReportDepartment.Contains(kw)) ||
                 (r.Reporter != null && r.Reporter.Contains(kw)) ||
                 (r.ProblemDescription != null && r.ProblemDescription.Contains(kw)) ||
+                (r.ConcessionRemark != null && r.ConcessionRemark.Contains(kw)) ||
                 (r.DisposalRemark != null && r.DisposalRemark.Contains(kw)) ||
                 (r.RootCauseAnalysis != null && r.RootCauseAnalysis.Contains(kw)) ||
                 (r.AnalysisConfirmer != null && r.AnalysisConfirmer.Contains(kw)) ||
@@ -133,6 +191,8 @@ public class NcrService : INcrService
             .Select(ToDto())
             .ToListAsync();
 
+        await FillProductionBatchIdsAsync(items);
+
         return new PagedResult<NcrDto>
         {
             Items = items,
@@ -144,6 +204,9 @@ public class NcrService : INcrService
 
     public async Task<NcrDto> CreateAsync(CreateNcrRequest request)
     {
+        if (request.Status.HasValue && request.Status != NcrStatus.Ignored)
+            throw new BusinessException("登记状态仅支持「忽略」");
+
         // 尝试根据 BatchNo 填充冗余字段
         var batch = await _context.ProductionBatches
             .AsNoTracking()
@@ -170,10 +233,16 @@ public class NcrService : INcrService
             DefectiveQuantity = request.DefectiveQuantity,
             DefectiveWeight = request.DefectiveWeight,
             ProblemDescription = request.ProblemDescription,
+            ConcessionQuantity = request.ConcessionQuantity,
+            ConcessionWeight = request.ConcessionWeight,
+            ConcessionRemark = request.ConcessionRemark,
             SourceInspectionItem = request.SourceInspectionItem,
+            SourceGroupKey = request.SourceGroupKey,
+            FlowDirection = request.FlowDirection,
+            NonconformingFeedbackId = request.NonconformingFeedbackId,
 
             // G2
-            DisposalMethod = request.DisposalMethod,
+            DisposalMethod = NcrDisposalKeys.ToKey(request.DisposalMethod),
             DisposalRemark = request.DisposalRemark,
             DisposalIsCompleted = request.DisposalIsCompleted,
             DisposalCompleteDate = request.DisposalCompleteDate,
@@ -202,12 +271,13 @@ public class NcrService : INcrService
             ActionResult = request.ActionResult,
             VerifyResult = request.VerifyResult,
 
-            // 状态（登记即处理中）
-            Status = NcrStatus.Processing
+            // 状态（登记即处理中；「忽略」动作登记即忽略）
+            Status = request.Status == NcrStatus.Ignored ? NcrStatus.Ignored : NcrStatus.Processing
         };
 
-        // 自动关闭：三个条件全部满足直接设为已关闭
-        if (entity.DisposalIsCompleted
+        // 自动关闭：三个条件全部满足直接设为已关闭（忽略单不参与）
+        if (entity.Status != NcrStatus.Ignored
+            && entity.DisposalIsCompleted
             && entity.PersonIsCompleted
             && (entity.VerifyResult == VerifyResult.Passed || entity.VerifyResult == VerifyResult.NotApplicable))
         {
@@ -236,10 +306,14 @@ public class NcrService : INcrService
         entity.DefectiveQuantity = request.DefectiveQuantity ?? entity.DefectiveQuantity;
         entity.DefectiveWeight = request.DefectiveWeight ?? entity.DefectiveWeight;
         entity.ProblemDescription = request.ProblemDescription ?? entity.ProblemDescription;
+        entity.ConcessionQuantity = request.ConcessionQuantity ?? entity.ConcessionQuantity;
+        entity.ConcessionWeight = request.ConcessionWeight ?? entity.ConcessionWeight;
+        entity.ConcessionRemark = request.ConcessionRemark ?? entity.ConcessionRemark;
         entity.SourceInspectionItem = request.SourceInspectionItem ?? entity.SourceInspectionItem;
+        // 流向为只读字段（由检验记录带出），编辑时不可改
 
         // G2
-        entity.DisposalMethod = request.DisposalMethod ?? entity.DisposalMethod;
+        entity.DisposalMethod = NcrDisposalKeys.ToKey(request.DisposalMethod) ?? entity.DisposalMethod;
         entity.DisposalRemark = request.DisposalRemark ?? entity.DisposalRemark;
         entity.DisposalIsCompleted = request.DisposalIsCompleted;
         entity.DisposalCompleteDate = request.DisposalCompleteDate ?? entity.DisposalCompleteDate;
@@ -331,8 +405,8 @@ public class NcrService : INcrService
             .Where(pi => pi.ProductionBatchId == batch.Id)
             .Select(pi => new
             {
-                Qty = (pi.DefectReworkQuantity ?? 0) + (pi.DefectWarehouseQuantity ?? 0) + (pi.DefectScrapQuantity ?? 0),
-                Weight = (pi.TheoreticalReworkWeight ?? 0) + (pi.TheoreticalWarehouseWeight ?? 0) + (pi.TheoreticalScrapWeight ?? 0)
+                Qty = (pi.DefectReworkQuantity ?? 0) + (pi.DefectWarehouseQuantity ?? 0) + (pi.DefectScrapQuantity ?? 0) + (pi.DefectReturnQuantity ?? 0),
+                Weight = (pi.TheoreticalReworkWeight ?? 0) + (pi.TheoreticalWarehouseWeight ?? 0) + (pi.TheoreticalScrapWeight ?? 0) + (pi.TheoreticalReturnWeight ?? 0)
             })
             .ToListAsync();
         var finalDefects = await _context.FinalInspections
@@ -340,13 +414,14 @@ public class NcrService : INcrService
             .Where(fi => fi.ProductionBatchId == batch.Id)
             .Select(fi => new
             {
-                Qty = (fi.DefectReworkQuantity ?? 0) + (fi.DefectWarehouseQuantity ?? 0) + (fi.DefectScrapQuantity ?? 0),
-                Weight = (fi.DefectReworkWeight ?? 0) + (fi.DefectWarehouseWeight ?? 0) + (fi.DefectScrapWeight ?? 0)
+                Qty = (fi.DefectReworkQuantity ?? 0) + (fi.DefectInProcessWarehouseQuantity ?? 0) + (fi.DefectWarehouseQuantity ?? 0) + (fi.DefectScrapQuantity ?? 0) + (fi.DefectReturnQuantity ?? 0),
+                Weight = (fi.DefectReworkWeight ?? 0) + (fi.DefectInProcessWarehouseWeight ?? 0) + (fi.DefectWarehouseWeight ?? 0) + (fi.DefectScrapWeight ?? 0) + (fi.DefectReturnWeight ?? 0)
             })
             .ToListAsync();
 
         return new NcrLookupResultDto
         {
+            ProductionBatchId = batch.Id,
             WorkOrderNo = batch.WorkOrderNo,
             SalesOrderNo = batch.SalesOrderNo,
             TagNo = batch.TagNo,
@@ -357,6 +432,108 @@ public class NcrService : INcrService
         };
     }
 
+    /// <summary>
+    /// 取不合格报告「来源」关联的照片（建单/编辑页生产编号旁的照片入口，只读）。
+    /// <para>
+    /// 主动来源（不合格反馈）传 <paramref name="feedbackId"/>；被动来源传 <paramref name="groupKey"/>
+    /// （格式 <c>{来源类型}|{批次Id}|{工序}|{成检类型}|{检验项目}|{检验记录Id}</c>，与 <c>Ncr.SourceGroupKey</c> 同源）。
+    /// 被动来源按<b>检验记录 Id</b> 精确定位该条记录的照片；<b>该记录无照片时返回空列表</b>（前端据此不渲染入口）。
+    /// </para>
+    /// </summary>
+    public async Task<List<NcrSourcePhotoGroupDto>> GetSourcePhotosAsync(string? groupKey, int? feedbackId)
+    {
+        var groups = new List<NcrSourcePhotoGroupDto>();
+
+        // 主动来源：不合格反馈单（唯一记录）
+        if (feedbackId is > 0)
+        {
+            var feedback = await _context.NonconformingFeedbacks.AsNoTracking()
+                .Where(f => f.Id == feedbackId)
+                .Select(f => new { f.Id, f.ReportDate })
+                .FirstOrDefaultAsync();
+            if (feedback == null) return groups;
+
+            var feedbackPhotos = await _context.NonconformingFeedbackAttachments.AsNoTracking()
+                .Where(a => a.FeedbackId == feedback.Id)
+                .OrderBy(a => a.SortOrder).ThenBy(a => a.Id)
+                .Select(a => new NcrSourcePhotoDto { AttachmentId = a.Id, FileName = a.FileName, ContentType = a.ContentType })
+                .ToListAsync();
+
+            if (feedbackPhotos.Count > 0)
+            {
+                groups.Add(new NcrSourcePhotoGroupDto
+                {
+                    Kind = nameof(NcrPendingSourceType.NonconformingFeedback),
+                    RecordId = feedback.Id,
+                    RecordDate = feedback.ReportDate,
+                    Photos = feedbackPhotos
+                });
+            }
+            return groups;
+        }
+
+        if (string.IsNullOrWhiteSpace(groupKey)) return groups;
+
+        // 记录级定位键：{来源类型}|{批次Id}|{工序}|{成检类型}|{检验项目}|{检验记录Id}
+        var parts = groupKey.Split('|');
+        if (parts.Length < 6 || !int.TryParse(parts[5], out var recordId) || recordId <= 0) return groups;
+
+        if (parts[0] == nameof(NcrPendingSourceType.ProcessInspection))
+        {
+            var record = await _context.ProcessInspections.AsNoTracking()
+                .Where(pi => pi.Id == recordId)
+                .Select(pi => new { pi.InspectionDate, pi.Inspector })
+                .FirstOrDefaultAsync();
+            if (record == null) return groups;
+
+            var photos = await _context.ProcessInspectionAttachments.AsNoTracking()
+                .Where(a => a.ProcessInspectionId == recordId)
+                .OrderBy(a => a.SortOrder).ThenBy(a => a.Id)
+                .Select(a => new NcrSourcePhotoDto { AttachmentId = a.Id, FileName = a.FileName, ContentType = a.ContentType })
+                .ToListAsync();
+
+            if (photos.Count > 0)
+            {
+                groups.Add(new NcrSourcePhotoGroupDto
+                {
+                    Kind = nameof(NcrPendingSourceType.ProcessInspection),
+                    RecordId = recordId,
+                    RecordDate = record.InspectionDate,
+                    Inspector = record.Inspector,
+                    Photos = photos
+                });
+            }
+        }
+        else if (parts[0] == nameof(NcrPendingSourceType.FinalInspection))
+        {
+            var record = await _context.FinalInspections.AsNoTracking()
+                .Where(fi => fi.Id == recordId)
+                .Select(fi => new { fi.InspectionDate, Inspector = fi.Operator })
+                .FirstOrDefaultAsync();
+            if (record == null) return groups;
+
+            var photos = await _context.FinalInspectionAttachments.AsNoTracking()
+                .Where(a => a.FinalInspectionId == recordId)
+                .OrderBy(a => a.SortOrder).ThenBy(a => a.Id)
+                .Select(a => new NcrSourcePhotoDto { AttachmentId = a.Id, FileName = a.FileName, ContentType = a.ContentType })
+                .ToListAsync();
+
+            if (photos.Count > 0)
+            {
+                groups.Add(new NcrSourcePhotoGroupDto
+                {
+                    Kind = nameof(NcrPendingSourceType.FinalInspection),
+                    RecordId = recordId,
+                    RecordDate = record.InspectionDate,
+                    Inspector = record.Inspector,
+                    Photos = photos
+                });
+            }
+        }
+
+        return groups;
+    }
+
     public async Task<Dictionary<string, List<string>>> GetFilterContextsAsync()
     {
         return await _cache.GetOrCreateAsync(CacheKeys.NcrFilterContexts, async entry =>
@@ -365,7 +542,8 @@ public class NcrService : INcrService
 
             var queryable = _context.Ncrs.AsNoTracking();
 
-            // 注意：枚举列（PipeCategory/DisposalMethod/Severity/VerifyResult/Status 等）与字典列（ResponsibilityCategory 责任类别走 NcrResponsibilityKey）
+            // 注意：枚举列（PipeCategory/FlowDirection 流向/Severity/VerifyResult/Status 等）与字典列（ResponsibilityCategory 责任类别走 NcrResponsibilityKey、
+            // DisposalMethod 处置方式走 NcrDisposalKey）
             // 不在此处返回，由前端 EnumOptions/字典 options fallback 直接提供带中文 Display 的选项，避免映射丢失。
             var results = await queryable
                 .Select(r => new
@@ -425,241 +603,294 @@ public class NcrService : INcrService
     {
         var results = new List<NcrPendingCheckDto>();
 
-        var ncrReworkCount = await GetConfigAsync("NcrThreshold", "ReworkCount", 5m);
-        var ncrReworkPercent = await GetConfigAsync("NcrThreshold", "ReworkPercent", 0.05m);
-        var ncrWarehouseCount = await GetConfigAsync("NcrThreshold", "WarehouseCount", 5m);
-        var ncrWarehousePercent = await GetConfigAsync("NcrThreshold", "WarehousePercent", 0.05m);
-        var ncrScrapCount = await GetConfigAsync("NcrThreshold", "ScrapCount", 3m);
-        var ncrScrapPercent = await GetConfigAsync("NcrThreshold", "ScrapPercent", 0.05m);
+        // 阈值（2026-09-12 统一口径，不再按流向分设）：单条检验记录的不合格合计（让步放行 + 各流向）
+        // 需同时【严格大于】绝对支数阈值与占比阈值才列为待处理
+        var ncrThresholdCount = await GetConfigAsync("NcrThreshold", "Count", 5m);
+        var ncrThresholdPercent = await GetConfigAsync("NcrThreshold", "Percent", 0.10m);
 
-        // ======== 1. 过程检验分析 ========
-        var processAggs = await _context.ProcessInspections
+        // ======== 1. 过程检验分析（2026-09-13 起逐条记录判定，不再按「批次+工序」组合计）========
+        var processRows = await _context.ProcessInspections
             .AsNoTracking()
             .Where(pi => pi.Quantity > 0)
-            .GroupBy(pi => pi.ProductionBatchId)
-            .Select(g => new
+            .Select(pi => new
             {
-                ProductionBatchId = g.Key,
-                TotalRework = g.Sum(pi => (int?)pi.DefectReworkQuantity) ?? 0,
-                TotalWarehouse = g.Sum(pi => (int?)pi.DefectWarehouseQuantity) ?? 0,
-                TotalScrap = g.Sum(pi => (int?)pi.DefectScrapQuantity) ?? 0,
-                TotalReworkWeight = g.Sum(pi => (int?)pi.TheoreticalReworkWeight) ?? 0,
-                TotalWarehouseWeight = g.Sum(pi => (int?)pi.TheoreticalWarehouseWeight) ?? 0,
-                TotalScrapWeight = g.Sum(pi => (int?)pi.TheoreticalScrapWeight) ?? 0,
-                TotalQuantity = g.Sum(pi => (int?)pi.Quantity) ?? 0,
-                InspectionItem = g.Select(pi => pi.InspectionItem).FirstOrDefault(),
-                Inspector = g.Select(pi => pi.Inspector).FirstOrDefault(),
-                ProcessName = g.Select(pi => pi.ProcessName).FirstOrDefault(),
-                ManufacturingSpec = g.Select(pi => pi.ManufacturingSpec).FirstOrDefault(),
-                BatchNo = g.Select(pi => pi.BatchNo).FirstOrDefault(),
-                InspectionDate = g.Select(pi => pi.InspectionDate).FirstOrDefault(),
-                DefectDescription = g.Select(pi => pi.DefectDescription).FirstOrDefault(),
+                pi.Id,
+                pi.ProductionBatchId,
+                pi.ProcessName,
+                pi.InspectionItem,
+                pi.SectionName,
+                pi.ManufacturingSpec,
+                pi.BatchNo,
+                pi.InspectionDate,
+                pi.Inspector,
+                pi.DefectDescription,
+                pi.ConcessionRemark,
+                Rework = pi.DefectReworkQuantity ?? 0,
+                Warehouse = pi.DefectWarehouseQuantity ?? 0,
+                Scrap = pi.DefectScrapQuantity ?? 0,
+                Return = pi.DefectReturnQuantity ?? 0,
+                Concession = pi.QualifiedConcessionQuantity ?? 0,
+                ReworkWeight = pi.TheoreticalReworkWeight ?? 0,
+                WarehouseWeight = pi.TheoreticalWarehouseWeight ?? 0,
+                ScrapWeight = pi.TheoreticalScrapWeight ?? 0,
+                ReturnWeight = pi.TheoreticalReturnWeight ?? 0,
+                Quantity = pi.Quantity ?? 0,
             })
             .ToListAsync();
 
-        var procBatchIds = processAggs.Where(a => a.TotalQuantity > 0).Select(a => a.ProductionBatchId).Distinct().ToList();
+        var procBatchIds = processRows.Select(a => a.ProductionBatchId).Distinct().ToList();
         var procBatchLookup = await GetBatchLookupAsync(procBatchIds);
 
-        foreach (var a in processAggs)
+        foreach (var a in processRows)
         {
-            if (a.TotalQuantity <= 0) continue;
+            if (a.Quantity <= 0) continue;
+
+            // 该条记录的不合格合计 = 让步放行支 + 各档流向支（让步放行计入分子但不单独成行）
+            var defectQty = a.Rework + a.Warehouse + a.Scrap + a.Return;
+            var overageQty = defectQty + a.Concession;
+            if (overageQty <= (int)ncrThresholdCount) continue;
+            if ((decimal)overageQty / a.Quantity <= ncrThresholdPercent) continue;
 
             var batch = procBatchLookup.GetValueOrDefault(a.ProductionBatchId);
-            var totalQty = a.TotalQuantity;
-
-            if (a.TotalRework >= (int)ncrReworkCount && (decimal)a.TotalRework / totalQty >= ncrReworkPercent)
+            results.Add(new NcrPendingCheckDto
             {
-                results.Add(new NcrPendingCheckDto
-                {
-                    BatchNo = a.BatchNo ?? batch?.BatchNo ?? "",
-                    WorkOrderNo = batch?.WorkOrderNo,
-                    PlantGrade = batch?.PlantGrade,
-                    Specification = a.ManufacturingSpec,
-                    ReportDate = a.InspectionDate,
-                    SourceType = "ProcessInspection",
-                    InspectionItem = a.InspectionItem,
-                    ProcessName = a.ProcessName,
-                    Inspector = a.Inspector,
-                    DefectDescription = a.DefectDescription,
-                    DisposalMethod = DisposalMethod.Rework,
-                    DefectQuantity = a.TotalRework,
-                    DefectiveWeight = a.TotalReworkWeight,
-                    TotalQuantity = totalQty,
-                    Percentage = Math.Round((decimal)a.TotalRework / totalQty * 100, 1)
-                });
-            }
-
-            if (a.TotalWarehouse >= (int)ncrWarehouseCount && (decimal)a.TotalWarehouse / totalQty >= ncrWarehousePercent)
-            {
-                results.Add(new NcrPendingCheckDto
-                {
-                    BatchNo = a.BatchNo ?? batch?.BatchNo ?? "",
-                    WorkOrderNo = batch?.WorkOrderNo,
-                    PlantGrade = batch?.PlantGrade,
-                    Specification = a.ManufacturingSpec,
-                    ReportDate = a.InspectionDate,
-                    SourceType = "ProcessInspection",
-                    InspectionItem = a.InspectionItem,
-                    ProcessName = a.ProcessName,
-                    Inspector = a.Inspector,
-                    DefectDescription = a.DefectDescription,
-                    DisposalMethod = DisposalMethod.WarehouseEntry,
-                    DefectQuantity = a.TotalWarehouse,
-                    DefectiveWeight = a.TotalWarehouseWeight,
-                    TotalQuantity = totalQty,
-                    Percentage = Math.Round((decimal)a.TotalWarehouse / totalQty * 100, 1)
-                });
-            }
-
-            if (a.TotalScrap >= (int)ncrScrapCount && (decimal)a.TotalScrap / totalQty >= ncrScrapPercent)
-            {
-                results.Add(new NcrPendingCheckDto
-                {
-                    BatchNo = a.BatchNo ?? batch?.BatchNo ?? "",
-                    WorkOrderNo = batch?.WorkOrderNo,
-                    PlantGrade = batch?.PlantGrade,
-                    Specification = a.ManufacturingSpec,
-                    ReportDate = a.InspectionDate,
-                    SourceType = "ProcessInspection",
-                    InspectionItem = a.InspectionItem,
-                    ProcessName = a.ProcessName,
-                    Inspector = a.Inspector,
-                    DefectDescription = a.DefectDescription,
-                    DisposalMethod = DisposalMethod.Scrap,
-                    DefectQuantity = a.TotalScrap,
-                    DefectiveWeight = a.TotalScrapWeight,
-                    TotalQuantity = totalQty,
-                    Percentage = Math.Round((decimal)a.TotalScrap / totalQty * 100, 1)
-                });
-            }
+                BatchNo = a.BatchNo ?? batch?.BatchNo ?? "",
+                ProductionBatchId = a.ProductionBatchId,
+                WorkOrderNo = batch?.WorkOrderNo,
+                PlantGrade = batch?.PlantGrade,
+                Specification = a.ManufacturingSpec,
+                ReportDate = a.InspectionDate,
+                SourceType = nameof(NcrPendingSourceType.ProcessInspection),
+                Bucket = NcrPendingBucket.OverageMissing,
+                InspectionRecordId = a.Id,
+                InspectionItem = a.InspectionItem,
+                ProcessName = a.ProcessName,
+                SectionName = a.SectionName,
+                Inspector = a.Inspector,
+                DefectDescription = a.DefectDescription,
+                ConcessionRemark = a.ConcessionRemark,
+                ReworkQuantity = a.Rework,
+                InProcessWarehouseQuantity = a.Warehouse,
+                ScrapQuantity = a.Scrap,
+                ReturnQuantity = a.Return,
+                ConcessionQuantity = a.Concession,
+                FlowDirection = PickMajorFlowDirection(a.Rework, a.Warehouse, 0, a.Scrap, a.Return),
+                DefectQuantity = defectQty,
+                DefectiveWeight = a.ReworkWeight + a.WarehouseWeight + a.ScrapWeight + a.ReturnWeight,
+                TotalQuantity = a.Quantity,
+                Percentage = Math.Round((decimal)overageQty / a.Quantity * 100, 1)
+            });
+            results[^1].GroupKey = BuildGroupKey(results[^1]);
         }
 
-        // ======== 2. 成品检验分析 ========
-        var finalAggs = await _context.FinalInspections
+        // ======== 2. 成品检验分析（2026-09-13 起逐条记录判定，不再按「批次+成检类型+检验项目」组合计）========
+        var finalRows = await _context.FinalInspections
             .AsNoTracking()
             .Where(fi => fi.Quantity > 0)
-            .GroupBy(fi => new { fi.ProductionBatchId, fi.InspectionItem })
-            .Select(g => new
+            .Select(fi => new
             {
-                g.Key.ProductionBatchId,
-                InspectionItem = g.Key.InspectionItem,
-                TotalRework = g.Sum(fi => (int?)fi.DefectReworkQuantity) ?? 0,
-                TotalWarehouse = g.Sum(fi => (int?)fi.DefectWarehouseQuantity) ?? 0,
-                TotalScrap = g.Sum(fi => (int?)fi.DefectScrapQuantity) ?? 0,
-                TotalReworkWeight = g.Sum(fi => (int?)fi.DefectReworkWeight) ?? 0,
-                TotalWarehouseWeight = g.Sum(fi => (int?)fi.DefectWarehouseWeight) ?? 0,
-                TotalScrapWeight = g.Sum(fi => (int?)fi.DefectScrapWeight) ?? 0,
-                TotalQuantity = g.Sum(fi => (int?)fi.Quantity) ?? 0,
-                Inspector = g.Select(fi => fi.Operator).FirstOrDefault(),
-                ManufacturingItem = g.Select(fi => fi.ProductionBatch.ManufacturingItem).FirstOrDefault(),
-                Specification = g.Select(fi => fi.ProductionBatch.Specification).FirstOrDefault(),
-                BatchNo = g.Select(fi => fi.BatchNo).FirstOrDefault(),
-                WorkOrderNo = g.Select(fi => fi.ProductionBatch.WorkOrderNo).FirstOrDefault(),
-                PlantGrade = g.Select(fi => fi.ProductionBatch.PlantGrade).FirstOrDefault(),
-                InspectionDate = g.Select(fi => fi.InspectionDate).FirstOrDefault(),
-                DefectDescription = g.Select(fi => fi.DefectDescription).FirstOrDefault(),
+                fi.Id,
+                fi.ProductionBatchId,
+                fi.InspectionType,
+                fi.InspectionItem,
+                fi.BatchNo,
+                fi.InspectionDate,
+                fi.DefectDescription,
+                fi.ConcessionRemark,
+                Inspector = fi.Operator,
+                ManufacturingItem = fi.ProductionBatch.ManufacturingItem,
+                Specification = fi.ProductionBatch.Specification,
+                WorkOrderNo = fi.ProductionBatch.WorkOrderNo,
+                PlantGrade = fi.ProductionBatch.PlantGrade,
+                Rework = fi.DefectReworkQuantity ?? 0,
+                InProcessWarehouse = fi.DefectInProcessWarehouseQuantity ?? 0,
+                Warehouse = fi.DefectWarehouseQuantity ?? 0,
+                Scrap = fi.DefectScrapQuantity ?? 0,
+                Return = fi.DefectReturnQuantity ?? 0,
+                Concession = fi.QualifiedConcessionQuantity ?? 0,
+                ReworkWeight = fi.DefectReworkWeight ?? 0,
+                InProcessWarehouseWeight = fi.DefectInProcessWarehouseWeight ?? 0,
+                WarehouseWeight = fi.DefectWarehouseWeight ?? 0,
+                ScrapWeight = fi.DefectScrapWeight ?? 0,
+                ReturnWeight = fi.DefectReturnWeight ?? 0,
+                Quantity = fi.Quantity ?? 0,
             })
             .ToListAsync();
 
-        foreach (var a in finalAggs)
+        foreach (var a in finalRows)
         {
-            if (a.TotalQuantity <= 0) continue;
+            if (a.Quantity <= 0) continue;
 
-            var totalQty = a.TotalQuantity;
-            var inspectionItem = a.InspectionItem.ToString();
+            // 该条记录的不合格合计 = 让步放行支 + 各档流向支（让步放行计入分子但不单独成行）
+            var defectQty = a.Rework + a.InProcessWarehouse + a.Warehouse + a.Scrap + a.Return;
+            var overageQty = defectQty + a.Concession;
+            if (overageQty <= (int)ncrThresholdCount) continue;
+            if ((decimal)overageQty / a.Quantity <= ncrThresholdPercent) continue;
 
-            if (a.TotalRework >= (int)ncrReworkCount && (decimal)a.TotalRework / totalQty >= ncrReworkPercent)
+            results.Add(new NcrPendingCheckDto
             {
-                results.Add(new NcrPendingCheckDto
-                {
-                    BatchNo = a.BatchNo ?? "",
-                    WorkOrderNo = a.WorkOrderNo,
-                    PlantGrade = a.PlantGrade,
-                    Specification = a.Specification,
-                    ReportDate = a.InspectionDate,
-                    SourceType = "FinalInspection",
-                    InspectionItem = inspectionItem,
-                    MaterialName = a.ManufacturingItem,
-                    Inspector = a.Inspector,
-                    DefectDescription = a.DefectDescription,
-                    DisposalMethod = DisposalMethod.Rework,
-                    DefectQuantity = a.TotalRework,
-                    DefectiveWeight = a.TotalReworkWeight,
-                    TotalQuantity = totalQty,
-                    Percentage = Math.Round((decimal)a.TotalRework / totalQty * 100, 1)
-                });
-            }
-
-            if (a.TotalWarehouse >= (int)ncrWarehouseCount && (decimal)a.TotalWarehouse / totalQty >= ncrWarehousePercent)
-            {
-                results.Add(new NcrPendingCheckDto
-                {
-                    BatchNo = a.BatchNo ?? "",
-                    WorkOrderNo = a.WorkOrderNo,
-                    PlantGrade = a.PlantGrade,
-                    Specification = a.Specification,
-                    ReportDate = a.InspectionDate,
-                    SourceType = "FinalInspection",
-                    InspectionItem = inspectionItem,
-                    MaterialName = a.ManufacturingItem,
-                    Inspector = a.Inspector,
-                    DefectDescription = a.DefectDescription,
-                    DisposalMethod = DisposalMethod.WarehouseEntry,
-                    DefectQuantity = a.TotalWarehouse,
-                    DefectiveWeight = a.TotalWarehouseWeight,
-                    TotalQuantity = totalQty,
-                    Percentage = Math.Round((decimal)a.TotalWarehouse / totalQty * 100, 1)
-                });
-            }
-
-            if (a.TotalScrap >= (int)ncrScrapCount && (decimal)a.TotalScrap / totalQty >= ncrScrapPercent)
-            {
-                results.Add(new NcrPendingCheckDto
-                {
-                    BatchNo = a.BatchNo ?? "",
-                    WorkOrderNo = a.WorkOrderNo,
-                    PlantGrade = a.PlantGrade,
-                    Specification = a.Specification,
-                    ReportDate = a.InspectionDate,
-                    SourceType = "FinalInspection",
-                    InspectionItem = inspectionItem,
-                    MaterialName = a.ManufacturingItem,
-                    Inspector = a.Inspector,
-                    DefectDescription = a.DefectDescription,
-                    DisposalMethod = DisposalMethod.Scrap,
-                    DefectQuantity = a.TotalScrap,
-                    DefectiveWeight = a.TotalScrapWeight,
-                    TotalQuantity = totalQty,
-                    Percentage = Math.Round((decimal)a.TotalScrap / totalQty * 100, 1)
-                });
-            }
+                BatchNo = a.BatchNo ?? "",
+                ProductionBatchId = a.ProductionBatchId,
+                WorkOrderNo = a.WorkOrderNo,
+                PlantGrade = a.PlantGrade,
+                Specification = a.Specification,
+                ReportDate = a.InspectionDate,
+                SourceType = nameof(NcrPendingSourceType.FinalInspection),
+                Bucket = NcrPendingBucket.OverageMissing,
+                InspectionRecordId = a.Id,
+                InspectionItem = a.InspectionItem.ToString(),
+                InspectionType = a.InspectionType,
+                MaterialName = a.ManufacturingItem,
+                Inspector = a.Inspector,
+                DefectDescription = a.DefectDescription,
+                ConcessionRemark = a.ConcessionRemark,
+                ReworkQuantity = a.Rework,
+                InProcessWarehouseQuantity = a.InProcessWarehouse,
+                FinishedWarehouseQuantity = a.Warehouse,
+                ScrapQuantity = a.Scrap,
+                ReturnQuantity = a.Return,
+                ConcessionQuantity = a.Concession,
+                FlowDirection = PickMajorFlowDirection(a.Rework, a.InProcessWarehouse, a.Warehouse, a.Scrap, a.Return),
+                DefectQuantity = defectQty,
+                DefectiveWeight = a.ReworkWeight + a.InProcessWarehouseWeight + a.WarehouseWeight + a.ScrapWeight + a.ReturnWeight,
+                TotalQuantity = a.Quantity,
+                Percentage = Math.Round((decimal)overageQty / a.Quantity * 100, 1)
+            });
+            results[^1].GroupKey = BuildGroupKey(results[^1]);
         }
 
-        // 排除已有 NCR 记录的 (BatchNo, DisposalMethod, InspectionItem) 三字段组合
-        var existingCombos = await _context.Ncrs
-            .AsNoTracking()
-            .Where(n => n.BatchNo != null)
-            .Select(n => new { n.BatchNo, n.DisposalMethod, n.SourceInspectionItem })
-            .ToListAsync();
-        var existingComboKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var c in existingCombos)
+        // ======== 2.1 被动条去重：该记录已有 NCR 或该维度已有主动反馈的不再重复列出 ========
+        // NCR 侧按 Ncr.SourceGroupKey 比对（记录级 6 段键；存量 5 段旧键视为覆盖该维度全部记录）；
+        // 主动侧按「批次+工序」（过程检验口径）与「批次+检验项目」（成品检验口径）比对。
+        var existingNcrGroupKeys = new HashSet<string>(
+            await _context.Ncrs.AsNoTracking()
+                .Where(n => n.SourceGroupKey != null && n.SourceGroupKey != "")
+                .Select(n => n.SourceGroupKey!)
+                .ToListAsync(),
+            StringComparer.OrdinalIgnoreCase);
+
+        var feedbackKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var f in await _context.NonconformingFeedbacks.AsNoTracking()
+                     .Select(f => new { f.ProductionBatchId, f.ProcessName, f.InspectionItem })
+                     .ToListAsync())
         {
-            var dm = c.DisposalMethod?.ToString() ?? "";
-            var item = c.SourceInspectionItem ?? "";
-            existingComboKeys.Add($"{c.BatchNo}|{dm}|{item}");
+            if (!string.IsNullOrEmpty(f.ProcessName))
+                feedbackKeys.Add($"{f.ProductionBatchId}|{f.ProcessName}");
+            if (f.InspectionItem.HasValue)
+                feedbackKeys.Add($"{f.ProductionBatchId}|{f.InspectionItem.Value}");
         }
+
         results.RemoveAll(r =>
         {
-            var key = $"{r.BatchNo}|{r.DisposalMethod}|{r.InspectionItem ?? ""}";
-            return existingComboKeys.Contains(key);
+            if (r.Bucket != NcrPendingBucket.OverageMissing) return false;
+            if (existingNcrGroupKeys.Contains(BuildGroupKey(r))) return true;
+            // 存量兼容：记录级改造前登记的 NCR 只有 5 段旧键，视为该维度全部记录已处理
+            if (existingNcrGroupKeys.Contains(BuildLegacyGroupKey(r))) return true;
+            var dedupKey = r.SourceType == nameof(NcrPendingSourceType.ProcessInspection)
+                ? $"{r.ProductionBatchId}|{r.ProcessName}"
+                : $"{r.ProductionBatchId}|{r.InspectionItem}";
+            return feedbackKeys.Contains(dedupKey);
         });
+
+        // ======== 3. 不合格反馈（人工上报）========
+        // 不受 NcrThreshold 阈值约束：凡尚未生成 NCR 的反馈单一律列为待处理；
+        // 是否「已处理」以 Ncr.NonconformingFeedbackId 是否引用该反馈单为准。
+        var feedbacks = await _context.NonconformingFeedbacks
+            .AsNoTracking()
+            .Where(f => !_context.Ncrs.Any(n => n.NonconformingFeedbackId == f.Id))
+            .Select(f => new
+            {
+                f.Id,
+                f.ReportDate,
+                f.BatchNo,
+                f.WorkOrderNo,
+                f.PlantGrade,
+                f.ManufacturingSpec,
+                f.ProcessName,
+                f.SectionName,
+                f.ProductionBatchId,
+                f.Reporter,
+                f.IncomingQuantity,
+                f.DefectQuantity,
+                f.DefectWeight,
+                f.ProblemDescription
+            })
+            .ToListAsync();
+
+        foreach (var f in feedbacks)
+        {
+            var totalQty = f.IncomingQuantity ?? 0;
+            var defectQty = f.DefectQuantity ?? 0;
+            results.Add(new NcrPendingCheckDto
+            {
+                BatchNo = f.BatchNo,
+                ProductionBatchId = f.ProductionBatchId,
+                WorkOrderNo = f.WorkOrderNo,
+                PlantGrade = f.PlantGrade,
+                Specification = f.ManufacturingSpec,
+                ReportDate = f.ReportDate,
+                SourceType = nameof(NcrPendingSourceType.NonconformingFeedback),
+                Bucket = NcrPendingBucket.NormalSubmitted,
+                NonconformingFeedbackId = f.Id,
+                ProcessName = f.ProcessName,
+                SectionName = f.SectionName,
+                Inspector = f.Reporter,
+                DefectDescription = f.ProblemDescription,
+                // 流向留空：人工上报不预设流向（无检验记录可带出），处置方式由质量负责人在 NCR 中判定
+                FlowDirection = null,
+                DefectQuantity = defectQty,
+                DefectiveWeight = f.DefectWeight,
+                TotalQuantity = totalQty,
+                Percentage = totalQty > 0 ? Math.Round((decimal)defectQty / totalQty * 100, 1) : 0
+            });
+        }
+
+        await FillProductionBatchIdsAsync(results);
 
         return results;
     }
 
     /// <summary>
+    /// 被动「待处理记录」定位键：<c>{来源类型}|{生产批次Id}|{工序}|{成检类型}|{检验项目}|{检验记录Id}</c>，不适用段为空。
+    /// 与 <c>Ncr.SourceGroupKey</c> 一致（该条检验记录已有 NCR 时不再列出，含「忽略」状态）。
+    /// </summary>
+    private static string BuildGroupKey(NcrPendingCheckDto r)
+        => $"{BuildLegacyGroupKey(r)}|{r.InspectionRecordId}";
+
+    /// <summary>
+    /// 记录级改造前（2026-09-13 之前）的 5 段旧键：<c>{来源类型}|{生产批次Id}|{工序}|{成检类型}|{检验项目}</c>。
+    /// 仅用于存量 NCR 的排重兼容——旧键按「该维度全部检验记录已处理」处理。
+    /// </summary>
+    private static string BuildLegacyGroupKey(NcrPendingCheckDto r)
+        => $"{r.SourceType}|{r.ProductionBatchId}|{r.ProcessName ?? ""}|{r.InspectionType ?? ""}|{r.InspectionItem ?? ""}";
+
+    /// <summary>
+    /// 取组内支数最多的流向作次品主流向（并列按 返整 &gt; 入在制库 &gt; 可入备库 &gt; 入次品库 &gt; 退货 定序）；
+    /// 各档全为 0 时返回 null。
+    /// </summary>
+    private static FlowDirection? PickMajorFlowDirection(int rework, int inProcessWarehouse, int finishedWarehouse, int scrap, int ret)
+    {
+        var candidates = new (int Qty, FlowDirection Direction)[]
+        {
+            (rework, FlowDirection.Rework),
+            (inProcessWarehouse, FlowDirection.InProcessWarehouse),
+            (finishedWarehouse, FlowDirection.FinishedWarehouse),
+            (scrap, FlowDirection.Scrap),
+            (ret, FlowDirection.Return)
+        };
+
+        var best = candidates[0];
+        foreach (var c in candidates)
+        {
+            if (c.Qty > best.Qty) best = c;
+        }
+        return best.Qty > 0 ? best.Direction : null;
+    }
+
+    /// <summary>
     /// 获取不合格品月度汇总：按（责任类别→责任部门→处置方式）三级分组，12 个月次品支数/重量矩阵。
     /// 分月基准 = 反馈日期（ReportDate）；责任类别/责任部门/处置方式为空归「未填写」分组，全量守恒。
+    /// <b>状态为「忽略」的报告不纳入统计</b>（忽略 = 该组无需完整不合格报告，仅登记留痕）。
     /// 返回行已按 责任类别→责任部门→处置方式 排序、同组相邻，便于前端合并单元格。
     /// </summary>
     public async Task<NcrMonthlySummaryDto> GetMonthlySummaryAsync()
@@ -668,13 +899,14 @@ public class NcrService : INcrService
 
         var ncrRows = await _context.Ncrs
             .AsNoTracking()
-            .Where(n => n.ReportDate.Year == year)
+            .Where(n => n.ReportDate.Year == year && n.Status != NcrStatus.Ignored)
             .Select(n => new
             {
                 n.ReportDate,
                 Category = n.ResponsibilityCategory,
                 Dept = n.ResponsibleDept,
-                Method = n.DisposalMethod,
+                n.DisposalMethod,
+                n.FlowDirection,
                 Qty = n.DefectiveQuantity,
                 Weight = n.DefectiveWeight
             })
@@ -685,7 +917,11 @@ public class NcrService : INcrService
             {
                 Category = string.IsNullOrWhiteSpace(r.Category) ? "" : r.Category.Trim(),
                 Dept = string.IsNullOrWhiteSpace(r.Dept) ? "" : r.Dept.Trim(),
-                Method = r.Method
+                // 行维度 = 处置方式（8 档字典）；已判定处置的用处置方式，
+                // 未判定但有流向（检验带出）的按流向→处置默认映射归集，两者皆空归「未填写」
+                Method = !string.IsNullOrWhiteSpace(r.DisposalMethod)
+                    ? r.DisposalMethod!.Trim()
+                    : MapFlowDirectionToDisposal(r.FlowDirection)
             })
             .Select(g =>
             {
@@ -706,9 +942,9 @@ public class NcrService : INcrService
                         : (DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, g.Key.Category) ?? g.Key.Category),
                     ResponsibleDept = string.IsNullOrEmpty(g.Key.Dept) ? "未填写" : g.Key.Dept,
                     DisposalMethod = g.Key.Method,
-                    DisposalMethodDisplay = g.Key.Method.HasValue
-                        ? EnumHelper.GetDisplayName(g.Key.Method.Value)
-                        : "未填写",
+                    DisposalMethodDisplay = string.IsNullOrEmpty(g.Key.Method)
+                        ? "未填写"
+                        : (DictValueDisplayHelper.GetText(DictValueDefaults.NcrDisposalKey, g.Key.Method) ?? g.Key.Method),
                     Months = months,
                     TotalQuantity = g.Sum(x => x.Qty ?? 0),
                     TotalWeight = g.Sum(x => x.Weight ?? 0)
@@ -728,6 +964,22 @@ public class NcrService : INcrService
         };
     }
 
+    /// <summary>
+    /// 流向 → 处置方式默认映射（月度汇总兜底：NCR 尚未判定处置方式但有流向时按对应档位归集）。
+    /// 流向 5 档与处置方式对应档位 Key 同名（Rework/InProcessWarehouse/FinishedWarehouse/Scrap/Return），
+    /// 区别仅在显示名（流向「返整」↔ 处置「返整(新卡流转)」等）。
+    /// 「让步放行」「返工」是操作前预先判定、不产生流向，故映射结果必为这 5 档之一。
+    /// </summary>
+    private static string? MapFlowDirectionToDisposal(FlowDirection? flowDirection) => flowDirection switch
+    {
+        FlowDirection.Rework => NcrDisposalKeys.Rework,
+        FlowDirection.InProcessWarehouse => NcrDisposalKeys.InProcessWarehouse,
+        FlowDirection.FinishedWarehouse => NcrDisposalKeys.FinishedWarehouse,
+        FlowDirection.Scrap => NcrDisposalKeys.Scrap,
+        FlowDirection.Return => NcrDisposalKeys.Return,
+        _ => null
+    };
+
     // ========== 打印（PDF - QuestPDF） ==========
 
     public async Task<byte[]> PrintSelectedAsync(int[] ids, List<PrintColumnDef> columns)
@@ -741,7 +993,58 @@ public class NcrService : INcrService
         if (entities.Count == 0)
             throw new BusinessException("未找到选中的 NCR 报告数据");
 
-        return NcrPrintHelper.GeneratePdf(entities);
+        var imagesByNcr = await LoadFeedbackImagesAsync(entities);
+        return NcrPrintHelper.GeneratePdf(entities, imagesByNcr);
+    }
+
+    /// <summary>
+    /// 按 NCR 记录 Id 装载关联不合格反馈单的照片（用于单据式打印嵌入）。
+    /// 无关联反馈单或反馈单无附件时不含该键；单张读取失败跳过该张，不阻断打印。
+    /// </summary>
+    private async Task<Dictionary<int, IReadOnlyList<NcrPrintHelper.PrintImage>>> LoadFeedbackImagesAsync(List<Ncr> entities)
+    {
+        var result = new Dictionary<int, IReadOnlyList<NcrPrintHelper.PrintImage>>();
+        var feedbackIds = entities
+            .Where(n => n.NonconformingFeedbackId.HasValue)
+            .Select(n => n.NonconformingFeedbackId!.Value)
+            .Distinct()
+            .ToList();
+        if (feedbackIds.Count == 0) return result;
+
+        var attachments = await _context.NonconformingFeedbackAttachments
+            .AsNoTracking()
+            .Where(a => feedbackIds.Contains(a.FeedbackId))
+            .OrderBy(a => a.SortOrder).ThenBy(a => a.Id)
+            .ToListAsync();
+        if (attachments.Count == 0) return result;
+
+        var byFeedback = attachments.GroupBy(a => a.FeedbackId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var n in entities)
+        {
+            if (!n.NonconformingFeedbackId.HasValue) continue;
+            if (!byFeedback.TryGetValue(n.NonconformingFeedbackId.Value, out var atts)) continue;
+
+            var images = new List<NcrPrintHelper.PrintImage>();
+            foreach (var att in atts)
+            {
+                try
+                {
+                    var data = await _storage.ReadAsync(att.StoredName);
+                    if (data is { Length: > 0 })
+                        images.Add(new NcrPrintHelper.PrintImage { FileName = att.FileName, Data = data });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "NCR 打印读取照片失败：NcrId={NcrId} StoredName={StoredName}", n.Id, att.StoredName);
+                }
+            }
+            if (images.Count > 0)
+                result[n.Id] = images;
+        }
+
+        return result;
     }
 
     /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
@@ -801,7 +1104,13 @@ public class NcrService : INcrService
             DefectiveQuantity = r.DefectiveQuantity,
             DefectiveWeight = r.DefectiveWeight,
             ProblemDescription = r.ProblemDescription,
+            ConcessionQuantity = r.ConcessionQuantity,
+            ConcessionWeight = r.ConcessionWeight,
+            ConcessionRemark = r.ConcessionRemark,
             SourceInspectionItem = r.SourceInspectionItem,
+            SourceGroupKey = r.SourceGroupKey,
+            FlowDirection = r.FlowDirection,
+            NonconformingFeedbackId = r.NonconformingFeedbackId,
             DisposalMethod = r.DisposalMethod,
             DisposalRemark = r.DisposalRemark,
             DisposalIsCompleted = r.DisposalIsCompleted,
@@ -846,7 +1155,13 @@ public class NcrService : INcrService
             DefectiveQuantity = entity.DefectiveQuantity,
             DefectiveWeight = entity.DefectiveWeight,
             ProblemDescription = entity.ProblemDescription,
+            ConcessionQuantity = entity.ConcessionQuantity,
+            ConcessionWeight = entity.ConcessionWeight,
+            ConcessionRemark = entity.ConcessionRemark,
             SourceInspectionItem = entity.SourceInspectionItem,
+            SourceGroupKey = entity.SourceGroupKey,
+            FlowDirection = entity.FlowDirection,
+            NonconformingFeedbackId = entity.NonconformingFeedbackId,
             DisposalMethod = entity.DisposalMethod,
             DisposalRemark = entity.DisposalRemark,
             DisposalIsCompleted = entity.DisposalIsCompleted,

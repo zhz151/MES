@@ -1,4 +1,6 @@
-/* ===== 订单进度树（OrderProgress.razor scoped）纵向层级树 ===== */
+/* ===== 订单进度树（OrderProgressTree.razor scoped）纵向层级树 =====
+   2026-09-14 自 Pages/Orders/OrderProgress.razor.css 整文件迁移（组件抽出后 scoped CSS 不能跨组件复用）。
+   本文件为树本体专用，页面级打印样式仍在 Pages/Orders/OrderProgress.razor 的 <style> 块内。 */
 
 /* ===== 一级：订单号树根（两行头） ===== */
 .op-root {
@@ -162,6 +164,35 @@
     margin-left: 26px;
 }
 
+/* 行3：已完结主号「投料产出」汇总（置于「执行关注：已完结」下方，主号折叠时亦可见）
+   用 flex 承载分段，段间不产生换行空白；自动在段边界折行 */
+.op-main-line3 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    margin: 4px 0 0 26px;
+    color: #37474f;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* 订单级「总投料产出」行（订单号块第三行，主号全完结时才出现） */
+.op-root-line3 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    margin-top: 4px;
+    color: #37474f;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* 汇总中的两项比率（投料产出率 / 产出成品比）高亮 */
+.op-sum-hl {
+    color: #c62828;
+    font-weight: 700;
+}
+
 .op-l2-lbl {
     color: #3d4d5e;
     font-size: 15px;
@@ -261,6 +292,15 @@
 .op-stage-title.op-stage-FinalInspection { color: #303f9f; }
 .op-stage-dot.op-stage-Warehousing { background: #2e7d32; }          /* 成品入库 · 绿 */
 .op-stage-title.op-stage-Warehousing { color: #2e7d32; }
+/* 完结主号专属 4 分支（生产投料/在制品入库/次品入库/备料成品）+ 订单成品入库 */
+.op-stage-dot.op-stage-ProductionInput { background: #5d4037; }      /* 生产投料 · 棕 */
+.op-stage-title.op-stage-ProductionInput { color: #4e342e; }
+.op-stage-dot.op-stage-SurplusInbound { background: #00695c; }        /* 在制品入库 · 深青 */
+.op-stage-title.op-stage-SurplusInbound { color: #00695c; }
+.op-stage-dot.op-stage-DefectInbound { background: #c62828; }         /* 次品入库 · 红 */
+.op-stage-title.op-stage-DefectInbound { color: #b71c1c; }
+.op-stage-dot.op-stage-FinishedStockInbound { background: #1565c0; }  /* 备料成品 · 蓝 */
+.op-stage-title.op-stage-FinishedStockInbound { color: #0d47a1; }
 
 /* 阶段下叶子所在的一列（再缩进一级，竖线贯穿） */
 .op-stage-children {
@@ -296,6 +336,14 @@
 
 .op-leaf-kg {
     color: #4f6476;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* 同叶退货出库量（仅次品入库叶有值；与左侧入库量并列对照） */
+.op-leaf-return {
+    color: #b71c1c;
     font-size: 15px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;

@@ -56,6 +56,70 @@ public partial class Suppliers
     // B33: 分页汇总
     private Dictionary<string, string> _pageSums = new();
 
+    // ========== 双日期区间（2026-09-14；与报表总览「供应商往来数据」卡同口径、同规则） ==========
+
+    private string _orderDateFrom = "";   // 出单区间-开始（yyyy-MM-dd，空=不限）
+    private string _orderDateTo = "";     // 出单区间-结束（yyyy-MM-dd，闭区间含当天）
+    private string _arrivalDateFrom = ""; // 到货区间-开始（yyyy-MM-dd，空=不限）
+    private string _arrivalDateTo = "";   // 到货区间-结束（yyyy-MM-dd，闭区间含当天）
+
+    /// <summary>出单区间生效（任一端有值）：仅 `YearOrdering` 列按区间重算，其余列置「—」</summary>
+    private bool OrderRangeMode => !string.IsNullOrWhiteSpace(_orderDateFrom) || !string.IsNullOrWhiteSpace(_orderDateTo);
+
+    /// <summary>到货区间生效（任一端有值）：仅 `Arrived`/`YearReturn` 列按区间重算，其余列置「—」</summary>
+    private bool ArrivalRangeMode => !string.IsNullOrWhiteSpace(_arrivalDateFrom) || !string.IsNullOrWhiteSpace(_arrivalDateTo);
+
+    /// <summary>任一时间区间生效（两区间互相独立、可叠加）：服务端只返回「激活列有数据」的供应商行</summary>
+    private bool AnyRangeMode => OrderRangeMode || ArrivalRangeMode;
+
+    /// <summary>
+    /// 当前区间模式下「有数据」的列集合；返回 null 表示未启用任何区间（5 列全部正常展示、不过滤行）。
+    /// ⚠️ 键名与后端 `SupplierService.ActiveStatsColumns` 及报表总览同名约定一致。
+    /// </summary>
+    private HashSet<string>? ActiveTradeColumns()
+    {
+        if (!AnyRangeMode) return null;
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        if (OrderRangeMode) set.Add("YearOrdering");
+        if (ArrivalRangeMode) { set.Add("Arrived"); set.Add("YearReturn"); }
+        return set;
+    }
+
+    /// <summary>该 ② 往来信息统计列在当前区间模式下是否有数据（未启用区间时恒 true）</summary>
+    private bool IsTradeColumnActive(string key) => ActiveTradeColumns()?.Contains(key) ?? true;
+
+    /// <summary>表头动态文本：仅在该维度区间生效时改名（口径已切换，防误导）</summary>
+    private string TradeColumnLabel(ColumnDef col) => col.Key switch
+    {
+        "YearOrdering" => OrderRangeMode ? "区间出单" : "本年出单",
+        "Arrived" => ArrivalRangeMode ? "区间到货[扣除退货]" : "本年到货[扣除退货]",
+        "YearReturn" => ArrivalRangeMode ? "区间退货" : "本年退货",
+        _ => col.Label
+    };
+
+    /// <summary>区间生效时的口径提示条（三分支：仅出单 / 仅到货 / 双区间）</summary>
+    private string RangeHint()
+    {
+        if (OrderRangeMode && ArrivalRangeMode)
+            return "出单 + 到货区间模式：「区间出单」「区间到货[扣除退货]」「区间退货」按各自所选日期区间统计；其余列置「—」；只显示所选区间内有数据的供应商。";
+        if (OrderRangeMode)
+            return "出单区间模式：仅「区间出单」按所选出单日期区间统计；其余列置「—」；只显示该区间内有出单数据的供应商。";
+        return "到货区间模式：仅「区间到货[扣除退货]」「区间退货」按所选到货日期区间统计；其余列置「—」；只显示该区间内有到货数据的供应商。";
+    }
+
+    private static DateTime? ParseRangeDate(string text)
+        => DateTime.TryParseExact(text.Trim(), "yyyy-MM-dd",
+               System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d)
+            ? d
+            : null;
+
+    /// <summary>应用/清除区间后回到第 1 页重载（区间模式下总条数会变化，须重置页码）</summary>
+    private async Task ApplyRangeAsync()
+    {
+        _resetToFirstPage = true;
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ========== ExcelFilter 筛选 ==========
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -134,6 +198,17 @@ public partial class Suppliers
         return cls;
     }
 
+    /// <summary>
+    /// 表头分组强调色（2026-09-14，与报表总览「供应商往来数据」卡同源——该卡为纯 HTML 表格走内联样式）：
+    /// 待收货 = 暖橙（同「客户往来数据」待发货范式）、本年到货无强调色。
+    /// ⚠️ 样式归口 app.css 的 `th.th-accent-*`（带 `!important`），且必须置于 `.col-g2` 之后才能覆盖分组底色。
+    /// </summary>
+    private static string GetTradeAccentCss(string key) => key switch
+    {
+        "Pending" => " th-accent-stock",
+        _ => ""
+    };
+
     private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
     {
         var cls = groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell", 4 => "col-g4-cell", _ => "" };
@@ -202,7 +277,12 @@ public partial class Suppliers
                 PageSize = state.PageSize,
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SortBy = sortBy,
-                IsDescending = sortDescending
+                IsDescending = sortDescending,
+                // 双日期区间（2026-09-14）：传了则服务端对应列按区间重算
+                SupplierOrderDateFrom = ParseRangeDate(_orderDateFrom),
+                SupplierOrderDateTo = ParseRangeDate(_orderDateTo),
+                SupplierArrivalDateFrom = ParseRangeDate(_arrivalDateFrom),
+                SupplierArrivalDateTo = ParseRangeDate(_arrivalDateTo)
             };
             if (filtersJson != null)
             {
@@ -384,6 +464,9 @@ public partial class Suppliers
         {
             if (col.GroupKey != 2) continue;
             if (!_statFieldMap.TryGetValue(col.Key, out var map)) continue;
+
+            // 区间模式下未激活列置「—」（该列口径为自然年/全时段/当前存量，与所选区间不同源）
+            if (!IsTradeColumnActive(col.Key)) { _pageSums[col.Key] = "—"; continue; }
 
             var weight = map.WeightField != null
                 ? _pageItems.Sum(item => (decimal)(props[map.WeightField].GetValue(item) ?? 0m))

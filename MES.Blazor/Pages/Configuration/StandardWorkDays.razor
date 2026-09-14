@@ -51,7 +51,7 @@
 
             <!-- 数据表格 -->
             <div id="standard-work-days-list-table">
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="StandardWorkDayDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"

@@ -60,8 +60,9 @@ public class FinalInspectionService : IFinalInspectionService
     private readonly IFixedLengthWorkOrderService _fixedLengthWorkOrderService;
     private readonly IMemoryCache _cache;
     private readonly IOperatorNameValidator _operatorNameValidator;
+    private readonly IAttachmentStorage _storage;
 
-    public FinalInspectionService(AppDbContext context, ILogger<FinalInspectionService> logger, IWorkOrderExecutionService workOrderExecutionService, IQualityProcessTrackingService qualityProcessTracking, IFixedLengthWorkOrderService fixedLengthWorkOrderService, IMemoryCache cache, IOperatorNameValidator operatorNameValidator)
+    public FinalInspectionService(AppDbContext context, ILogger<FinalInspectionService> logger, IWorkOrderExecutionService workOrderExecutionService, IQualityProcessTrackingService qualityProcessTracking, IFixedLengthWorkOrderService fixedLengthWorkOrderService, IMemoryCache cache, IOperatorNameValidator operatorNameValidator, IAttachmentStorage storage)
     {
         _context = context;
         _logger = logger;
@@ -70,6 +71,7 @@ public class FinalInspectionService : IFinalInspectionService
         _fixedLengthWorkOrderService = fixedLengthWorkOrderService;
         _cache = cache;
         _operatorNameValidator = operatorNameValidator;
+        _storage = storage;
     }
 
     /// <summary>
@@ -284,13 +286,17 @@ public class FinalInspectionService : IFinalInspectionService
             QualifiedConcessionQuantity = entity.QualifiedConcessionQuantity,
             ConcessionRemark = entity.ConcessionRemark,
             DefectReworkQuantity = entity.DefectReworkQuantity,
+            DefectInProcessWarehouseQuantity = entity.DefectInProcessWarehouseQuantity,
             DefectWarehouseQuantity = entity.DefectWarehouseQuantity,
             DefectScrapQuantity = entity.DefectScrapQuantity,
+            DefectReturnQuantity = entity.DefectReturnQuantity,
             DefectDescription = entity.DefectDescription,
             InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(entity.InspectionType),
             DefectReworkWeight = entity.DefectReworkWeight,
+            DefectInProcessWarehouseWeight = entity.DefectInProcessWarehouseWeight,
             DefectWarehouseWeight = entity.DefectWarehouseWeight,
             DefectScrapWeight = entity.DefectScrapWeight,
+            DefectReturnWeight = entity.DefectReturnWeight,
             OuterDiameterRange = entity.OuterDiameterRange,
             WallThicknessRange = entity.WallThicknessRange,
             LengthAllowanceRange = entity.LengthAllowanceRange,
@@ -446,7 +452,8 @@ public class FinalInspectionService : IFinalInspectionService
 
         // 先查询实体（含 ProductionBatch），再在内存中映射 DTO
         // 原因: ManufacturingItem 需 ParseMaterialType 处理历史特殊值
-        queryable = queryable.Include(r => r.ProductionBatch);
+        // 附件为集合 Include，与分页同查询会放大行数 → 拆分查询
+        queryable = queryable.Include(r => r.ProductionBatch).Include(r => r.Attachments).AsSplitQuery();
 
         var entities = await queryable
             .Skip(query.Skip)
@@ -496,12 +503,16 @@ public class FinalInspectionService : IFinalInspectionService
                 QualifiedConcessionQuantity = r.QualifiedConcessionQuantity,
                 ConcessionRemark = r.ConcessionRemark,
                 DefectReworkQuantity = r.DefectReworkQuantity,
+                DefectInProcessWarehouseQuantity = r.DefectInProcessWarehouseQuantity,
                 DefectWarehouseQuantity = r.DefectWarehouseQuantity,
                 DefectScrapQuantity = r.DefectScrapQuantity,
+                DefectReturnQuantity = r.DefectReturnQuantity,
                 DefectDescription = r.DefectDescription,
                 DefectReworkWeight = r.DefectReworkWeight,
+                DefectInProcessWarehouseWeight = r.DefectInProcessWarehouseWeight,
                 DefectWarehouseWeight = r.DefectWarehouseWeight,
                 DefectScrapWeight = r.DefectScrapWeight,
+                DefectReturnWeight = r.DefectReturnWeight,
                 OuterDiameterRange = r.OuterDiameterRange,
                 WallThicknessRange = r.WallThicknessRange,
                 LengthAllowanceRange = r.LengthAllowanceRange,
@@ -523,6 +534,7 @@ public class FinalInspectionService : IFinalInspectionService
                 DetectionSpeed = r.DetectionSpeed,
                 Remark = r.Remark,
                 DataSource = r.DataSource,
+                AttachmentCount = r.Attachments.Count,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime
             };
@@ -667,13 +679,14 @@ public class FinalInspectionService : IFinalInspectionService
             inspectionType, prodBatch?.LengthStatus, request.FixedLength,
             prodBatch?.WorkOrderNo, prodBatch?.SalesOrderNo, prodBatch?.ProductionMainNo);
 
-        // 支数平衡：检验支数 = 合格支数 + 返整支数 + 入库支数 + 报废支数（与批量创建/更新口径一致）
+        // 支数平衡：检验支数 = 合格支数 + 返整支数 + 入在制库支数 + 可入备库支数 + 入次品库支数 + 退货支数（与批量创建/更新口径一致）
         if (request.Quantity.HasValue)
         {
             var sum = (request.QualifiedQuantity ?? 0) + (request.DefectReworkQuantity ?? 0)
-                + (request.DefectWarehouseQuantity ?? 0) + (request.DefectScrapQuantity ?? 0);
+                + (request.DefectInProcessWarehouseQuantity ?? 0) + (request.DefectWarehouseQuantity ?? 0)
+                + (request.DefectScrapQuantity ?? 0) + (request.DefectReturnQuantity ?? 0);
             if (request.Quantity.Value != sum)
-                throw new BusinessException($"检验支数({request.Quantity}) ≠ 合格支数({request.QualifiedQuantity ?? 0}) + 返整({request.DefectReworkQuantity ?? 0}) + 入库({request.DefectWarehouseQuantity ?? 0}) + 报废({request.DefectScrapQuantity ?? 0}) = {sum}");
+                throw new BusinessException($"检验支数({request.Quantity}) ≠ 合格支数({request.QualifiedQuantity ?? 0}) + 返整({request.DefectReworkQuantity ?? 0}) + 入在制库({request.DefectInProcessWarehouseQuantity ?? 0}) + 可入备库({request.DefectWarehouseQuantity ?? 0}) + 入次品库({request.DefectScrapQuantity ?? 0}) + 退货({request.DefectReturnQuantity ?? 0}) = {sum}");
         }
 
         // 让步放行支数 ≤ 合格支数
@@ -715,11 +728,15 @@ public class FinalInspectionService : IFinalInspectionService
             QualifiedConcessionQuantity = request.QualifiedConcessionQuantity ?? 0,
             ConcessionRemark = request.ConcessionRemark,
             DefectReworkQuantity = request.DefectReworkQuantity ?? 0,
+            DefectInProcessWarehouseQuantity = request.DefectInProcessWarehouseQuantity ?? 0,
             DefectWarehouseQuantity = request.DefectWarehouseQuantity ?? 0,
             DefectScrapQuantity = request.DefectScrapQuantity ?? 0,
+            DefectReturnQuantity = request.DefectReturnQuantity ?? 0,
             DefectReworkWeight = request.DefectReworkWeight ?? (unitWeight.HasValue && request.DefectReworkQuantity.HasValue ? (int?)(unitWeight.Value * request.DefectReworkQuantity.Value) : 0),
+            DefectInProcessWarehouseWeight = request.DefectInProcessWarehouseWeight ?? (unitWeight.HasValue && request.DefectInProcessWarehouseQuantity.HasValue ? (int?)(unitWeight.Value * request.DefectInProcessWarehouseQuantity.Value) : 0),
             DefectWarehouseWeight = request.DefectWarehouseWeight ?? (unitWeight.HasValue && request.DefectWarehouseQuantity.HasValue ? (int?)(unitWeight.Value * request.DefectWarehouseQuantity.Value) : 0),
             DefectScrapWeight = request.DefectScrapWeight ?? (unitWeight.HasValue && request.DefectScrapQuantity.HasValue ? (int?)(unitWeight.Value * request.DefectScrapQuantity.Value) : 0),
+            DefectReturnWeight = request.DefectReturnWeight ?? (unitWeight.HasValue && request.DefectReturnQuantity.HasValue ? (int?)(unitWeight.Value * request.DefectReturnQuantity.Value) : 0),
             DefectDescription = request.DefectDescription,
             OuterDiameterRange = request.OuterDiameterRange,
             WallThicknessRange = request.WallThicknessRange,
@@ -791,13 +808,17 @@ public class FinalInspectionService : IFinalInspectionService
             QualifiedConcessionQuantity = entity.QualifiedConcessionQuantity,
             ConcessionRemark = entity.ConcessionRemark,
             DefectReworkQuantity = entity.DefectReworkQuantity,
+            DefectInProcessWarehouseQuantity = entity.DefectInProcessWarehouseQuantity,
             DefectWarehouseQuantity = entity.DefectWarehouseQuantity,
             DefectScrapQuantity = entity.DefectScrapQuantity,
+            DefectReturnQuantity = entity.DefectReturnQuantity,
             DefectDescription = entity.DefectDescription,
             InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(entity.InspectionType),
             DefectReworkWeight = entity.DefectReworkWeight,
+            DefectInProcessWarehouseWeight = entity.DefectInProcessWarehouseWeight,
             DefectWarehouseWeight = entity.DefectWarehouseWeight,
             DefectScrapWeight = entity.DefectScrapWeight,
+            DefectReturnWeight = entity.DefectReturnWeight,
             OuterDiameterRange = entity.OuterDiameterRange,
             WallThicknessRange = entity.WallThicknessRange,
             LengthAllowanceRange = entity.LengthAllowanceRange,
@@ -833,16 +854,19 @@ public class FinalInspectionService : IFinalInspectionService
         var qty = request.Quantity ?? entity.Quantity;
         var qualifiedQty = request.QualifiedQuantity ?? entity.QualifiedQuantity;
         var reworkQty = request.DefectReworkQuantity ?? entity.DefectReworkQuantity;
+        var inProcessWarehouseQty = request.DefectInProcessWarehouseQuantity ?? entity.DefectInProcessWarehouseQuantity;
         var warehouseQty = request.DefectWarehouseQuantity ?? entity.DefectWarehouseQuantity;
         var scrapQty = request.DefectScrapQuantity ?? entity.DefectScrapQuantity;
+        var returnQty = request.DefectReturnQuantity ?? entity.DefectReturnQuantity;
         var concessionQty = request.QualifiedConcessionQuantity ?? entity.QualifiedConcessionQuantity;
 
         // ① 支数平衡
         if (qty.HasValue)
         {
-            var sum = (qualifiedQty ?? 0) + (reworkQty ?? 0) + (warehouseQty ?? 0) + (scrapQty ?? 0);
+            var sum = (qualifiedQty ?? 0) + (reworkQty ?? 0) + (inProcessWarehouseQty ?? 0)
+                + (warehouseQty ?? 0) + (scrapQty ?? 0) + (returnQty ?? 0);
             if (qty.Value != sum)
-                throw new BusinessException($"检验支数({qty}) ≠ 合格支数({qualifiedQty ?? 0}) + 返整({reworkQty ?? 0}) + 入库({warehouseQty ?? 0}) + 报废({scrapQty ?? 0}) = {sum}");
+                throw new BusinessException($"检验支数({qty}) ≠ 合格支数({qualifiedQty ?? 0}) + 返整({reworkQty ?? 0}) + 入在制库({inProcessWarehouseQty ?? 0}) + 可入备库({warehouseQty ?? 0}) + 入次品库({scrapQty ?? 0}) + 退货({returnQty ?? 0}) = {sum}");
         }
 
         // ② 让步放行 ≤ 合格支数
@@ -909,11 +933,15 @@ public class FinalInspectionService : IFinalInspectionService
         entity.QualifiedConcessionQuantity = request.QualifiedConcessionQuantity ?? entity.QualifiedConcessionQuantity;
         entity.ConcessionRemark = request.ConcessionRemark ?? entity.ConcessionRemark;
         entity.DefectReworkQuantity = request.DefectReworkQuantity ?? entity.DefectReworkQuantity;
+        entity.DefectInProcessWarehouseQuantity = request.DefectInProcessWarehouseQuantity ?? entity.DefectInProcessWarehouseQuantity;
         entity.DefectWarehouseQuantity = request.DefectWarehouseQuantity ?? entity.DefectWarehouseQuantity;
         entity.DefectScrapQuantity = request.DefectScrapQuantity ?? entity.DefectScrapQuantity;
+        entity.DefectReturnQuantity = request.DefectReturnQuantity ?? entity.DefectReturnQuantity;
         entity.DefectReworkWeight = request.DefectReworkWeight ?? entity.DefectReworkWeight;
+        entity.DefectInProcessWarehouseWeight = request.DefectInProcessWarehouseWeight ?? entity.DefectInProcessWarehouseWeight;
         entity.DefectWarehouseWeight = request.DefectWarehouseWeight ?? entity.DefectWarehouseWeight;
         entity.DefectScrapWeight = request.DefectScrapWeight ?? entity.DefectScrapWeight;
+        entity.DefectReturnWeight = request.DefectReturnWeight ?? entity.DefectReturnWeight;
         entity.DefectDescription = request.DefectDescription ?? entity.DefectDescription;
         entity.OuterDiameterRange = request.OuterDiameterRange ?? entity.OuterDiameterRange;
         entity.WallThicknessRange = request.WallThicknessRange ?? entity.WallThicknessRange;
@@ -982,13 +1010,17 @@ public class FinalInspectionService : IFinalInspectionService
             QualifiedConcessionQuantity = entity.QualifiedConcessionQuantity,
             ConcessionRemark = entity.ConcessionRemark,
             DefectReworkQuantity = entity.DefectReworkQuantity,
+            DefectInProcessWarehouseQuantity = entity.DefectInProcessWarehouseQuantity,
             DefectWarehouseQuantity = entity.DefectWarehouseQuantity,
             DefectScrapQuantity = entity.DefectScrapQuantity,
+            DefectReturnQuantity = entity.DefectReturnQuantity,
             DefectDescription = entity.DefectDescription,
             InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(entity.InspectionType),
             DefectReworkWeight = entity.DefectReworkWeight,
+            DefectInProcessWarehouseWeight = entity.DefectInProcessWarehouseWeight,
             DefectWarehouseWeight = entity.DefectWarehouseWeight,
             DefectScrapWeight = entity.DefectScrapWeight,
+            DefectReturnWeight = entity.DefectReturnWeight,
             OuterDiameterRange = entity.OuterDiameterRange,
             WallThicknessRange = entity.WallThicknessRange,
             LengthAllowanceRange = entity.LengthAllowanceRange,
@@ -1017,8 +1049,14 @@ public class FinalInspectionService : IFinalInspectionService
 
     public async Task DeleteAsync(int id)
     {
-        var entity = await _context.FinalInspections.FindAsync(id)
+        var entity = await _context.FinalInspections
+            .Include(r => r.Attachments)
+            .FirstOrDefaultAsync(r => r.Id == id)
             ?? throw new BusinessException("成品检验记录不存在");
+
+        // 先删磁盘文件（文件不存在则忽略），再删主记录（附件行级联删除）
+        foreach (var att in entity.Attachments)
+            await _storage.DeleteAsync(att.StoredName);
 
         await _context.Entry(entity).Reference(e => e.ProductionBatch).LoadAsync();
         var workOrderNo = entity.ProductionBatch?.WorkOrderNo;
@@ -1125,15 +1163,17 @@ public class FinalInspectionService : IFinalInspectionService
             if (!seenKeys.Add(key))
                 errors.Add($"第{i + 1}行：与本次提交中其他行的日期/批次/检验项目/操作人重复");
 
-            // 2) 检验支数 = 合格支数 + 返整支数 + 入库支数 + 报废支数
+            // 2) 检验支数 = 合格支数 + 返整支数 + 入在制库支数 + 可入备库支数 + 入次品库支数 + 退货支数
             if (request.Quantity.HasValue)
             {
                 var sum = (request.QualifiedQuantity ?? 0)
                     + (request.DefectReworkQuantity ?? 0)
+                    + (request.DefectInProcessWarehouseQuantity ?? 0)
                     + (request.DefectWarehouseQuantity ?? 0)
-                    + (request.DefectScrapQuantity ?? 0);
+                    + (request.DefectScrapQuantity ?? 0)
+                    + (request.DefectReturnQuantity ?? 0);
                 if (request.Quantity.Value != sum)
-                    errors.Add($"第{i + 1}行：检验支数({request.Quantity}) ≠ 合格支数({request.QualifiedQuantity ?? 0}) + 返整({request.DefectReworkQuantity ?? 0}) + 入库({request.DefectWarehouseQuantity ?? 0}) + 报废({request.DefectScrapQuantity ?? 0}) = {sum}");
+                    errors.Add($"第{i + 1}行：检验支数({request.Quantity}) ≠ 合格支数({request.QualifiedQuantity ?? 0}) + 返整({request.DefectReworkQuantity ?? 0}) + 入在制库({request.DefectInProcessWarehouseQuantity ?? 0}) + 可入备库({request.DefectWarehouseQuantity ?? 0}) + 入次品库({request.DefectScrapQuantity ?? 0}) + 退货({request.DefectReturnQuantity ?? 0}) = {sum}");
             }
 
             // 3) 让步放行支数 ≤ 合格支数
@@ -1226,12 +1266,16 @@ public class FinalInspectionService : IFinalInspectionService
                 QualifiedConcessionQuantity = r.QualifiedConcessionQuantity ?? 0,
                 ConcessionRemark = r.ConcessionRemark,
                 DefectReworkQuantity = r.DefectReworkQuantity ?? 0,
+                DefectInProcessWarehouseQuantity = r.DefectInProcessWarehouseQuantity ?? 0,
                 DefectWarehouseQuantity = r.DefectWarehouseQuantity ?? 0,
                 DefectScrapQuantity = r.DefectScrapQuantity ?? 0,
+                DefectReturnQuantity = r.DefectReturnQuantity ?? 0,
                 DefectDescription = r.DefectDescription,
                 DefectReworkWeight = r.DefectReworkWeight ?? (unitWeight.HasValue && r.DefectReworkQuantity.HasValue ? (int?)(unitWeight.Value * r.DefectReworkQuantity.Value) : 0),
+                DefectInProcessWarehouseWeight = r.DefectInProcessWarehouseWeight ?? (unitWeight.HasValue && r.DefectInProcessWarehouseQuantity.HasValue ? (int?)(unitWeight.Value * r.DefectInProcessWarehouseQuantity.Value) : 0),
                 DefectWarehouseWeight = r.DefectWarehouseWeight ?? (unitWeight.HasValue && r.DefectWarehouseQuantity.HasValue ? (int?)(unitWeight.Value * r.DefectWarehouseQuantity.Value) : 0),
                 DefectScrapWeight = r.DefectScrapWeight ?? (unitWeight.HasValue && r.DefectScrapQuantity.HasValue ? (int?)(unitWeight.Value * r.DefectScrapQuantity.Value) : 0),
+                DefectReturnWeight = r.DefectReturnWeight ?? (unitWeight.HasValue && r.DefectReturnQuantity.HasValue ? (int?)(unitWeight.Value * r.DefectReturnQuantity.Value) : 0),
                 OuterDiameterRange = r.OuterDiameterRange,
                 WallThicknessRange = r.WallThicknessRange,
                 LengthAllowanceRange = r.LengthAllowanceRange,
@@ -1317,13 +1361,17 @@ public class FinalInspectionService : IFinalInspectionService
             QualifiedConcessionQuantity = e.QualifiedConcessionQuantity,
             ConcessionRemark = e.ConcessionRemark,
             DefectReworkQuantity = e.DefectReworkQuantity,
+            DefectInProcessWarehouseQuantity = e.DefectInProcessWarehouseQuantity,
             DefectWarehouseQuantity = e.DefectWarehouseQuantity,
             DefectScrapQuantity = e.DefectScrapQuantity,
+            DefectReturnQuantity = e.DefectReturnQuantity,
             DefectDescription = e.DefectDescription,
             InspectionType = EnumHelper.TryParse<MES.Core.Enums.InspectionType>(e.InspectionType),
             DefectReworkWeight = e.DefectReworkWeight,
+            DefectInProcessWarehouseWeight = e.DefectInProcessWarehouseWeight,
             DefectWarehouseWeight = e.DefectWarehouseWeight,
             DefectScrapWeight = e.DefectScrapWeight,
+            DefectReturnWeight = e.DefectReturnWeight,
             OuterDiameterRange = e.OuterDiameterRange,
             WallThicknessRange = e.WallThicknessRange,
             LengthAllowanceRange = e.LengthAllowanceRange,
@@ -1691,10 +1739,148 @@ public class FinalInspectionService : IFinalInspectionService
         return FinalInspectionPrintHelper.GenerateBatchPdf(selected, columns);
     }
 
+    public async Task<byte[]> PrintSelectedDocAsync(int[] ids)
+    {
+        if (ids.Length == 0) throw new BusinessException("请至少选择一条记录");
+
+        var loaded = await _context.FinalInspections
+            .AsNoTracking()
+            .Include(r => r.Attachments)
+            .Where(r => ids.Contains(r.Id))
+            .ToListAsync();
+
+        if (loaded.Count == 0) throw new BusinessException("选中的记录不存在");
+
+        // 按前端选中顺序输出（SQL IN 不保序）
+        var orderMap = ids.Select((id, index) => (id, index)).ToDictionary(x => x.id, x => x.index);
+        var records = loaded
+            .OrderBy(r => orderMap.TryGetValue(r.Id, out var idx) ? idx : int.MaxValue)
+            .ToList();
+
+        var imagesByRecord = new Dictionary<int, IReadOnlyList<FinalInspectionPrintHelper.PrintImage>>();
+        foreach (var record in records)
+        {
+            var images = new List<FinalInspectionPrintHelper.PrintImage>();
+            foreach (var att in record.Attachments.OrderBy(a => a.SortOrder).ThenBy(a => a.Id))
+            {
+                var bytes = await _storage.ReadAsync(att.StoredName);
+                if (bytes is not { Length: > 0 }) continue;
+                images.Add(new FinalInspectionPrintHelper.PrintImage { FileName = att.FileName, Data = bytes });
+            }
+            if (images.Count > 0) imagesByRecord[record.Id] = images;
+        }
+
+        return FinalInspectionPrintHelper.GeneratePagePdf(records, imagesByRecord);
+    }
+
+    // ========== 照片附件 ==========
+
+    public int MaxAttachmentCount => QualityPhotoLimits.PerRecord;
+
+    public long MaxAttachmentSizeBytes => _storage.MaxFileSizeBytes;
+
+    public async Task<List<FinalInspectionAttachmentDto>> GetAttachmentsAsync(int id)
+    {
+        return await _context.FinalInspectionAttachments
+            .AsNoTracking()
+            .Where(a => a.FinalInspectionId == id)
+            .OrderBy(a => a.SortOrder).ThenBy(a => a.Id)
+            .Select(a => new FinalInspectionAttachmentDto
+            {
+                Id = a.Id,
+                FileName = a.FileName,
+                ContentType = a.ContentType,
+                SizeBytes = a.SizeBytes,
+                SortOrder = a.SortOrder,
+                CreatedTime = a.CreatedTime
+            })
+            .ToListAsync();
+    }
+
+    public async Task<FinalInspectionAttachmentDto> AddAttachmentAsync(
+        int id, Stream content, string fileName, string contentType)
+    {
+        var exists = await _context.FinalInspections.AnyAsync(r => r.Id == id);
+        if (!exists) throw new BusinessException($"成品检验记录不存在(Id={id})");
+
+        var count = await _context.FinalInspectionAttachments.CountAsync(a => a.FinalInspectionId == id);
+        if (count >= QualityPhotoLimits.PerRecord)
+            throw new BusinessException($"照片数量已达上限（{QualityPhotoLimits.PerRecord} 张）");
+
+        // IFormFile 流可寻址，直接取长度；不可寻址时由后端兜底为 0（仅展示用途）
+        var sizeBytes = content.CanSeek ? content.Length : 0L;
+        var storedName = await _storage.SaveAsync(content, fileName);
+
+        var entity = new FinalInspectionAttachment
+        {
+            FinalInspectionId = id,
+            FileName = Path.GetFileName(fileName),
+            StoredName = storedName,
+            ContentType = string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType,
+            SizeBytes = sizeBytes,
+            SortOrder = count
+        };
+
+        try
+        {
+            _context.FinalInspectionAttachments.Add(entity);
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            // 文件已落盘但落库失败 → 回收磁盘文件并脱离变更跟踪，避免孤儿文件与下次 SaveChanges 重试
+            _context.Entry(entity).State = EntityState.Detached;
+            await _storage.DeleteAsync(storedName);
+            throw;
+        }
+
+        return new FinalInspectionAttachmentDto
+        {
+            Id = entity.Id,
+            FileName = entity.FileName,
+            ContentType = entity.ContentType,
+            SizeBytes = entity.SizeBytes,
+            SortOrder = entity.SortOrder,
+            CreatedTime = entity.CreatedTime
+        };
+    }
+
+    public async Task<AttachmentContent?> GetAttachmentContentAsync(int id, int attachmentId)
+    {
+        var att = await _context.FinalInspectionAttachments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == attachmentId && a.FinalInspectionId == id);
+        if (att == null) return null;
+
+        var bytes = await _storage.ReadAsync(att.StoredName);
+        if (bytes == null) return null;
+
+        return new AttachmentContent
+        {
+            Content = bytes,
+            ContentType = att.ContentType,
+            FileName = att.FileName
+        };
+    }
+
+    public async Task DeleteAttachmentAsync(int id, int attachmentId)
+    {
+        var att = await _context.FinalInspectionAttachments
+            .FirstOrDefaultAsync(a => a.Id == attachmentId && a.FinalInspectionId == id)
+            ?? throw new BusinessException("照片不存在");
+
+        _context.FinalInspectionAttachments.Remove(att);
+        await _context.SaveChangesAsync();
+        await _storage.DeleteAsync(att.StoredName);
+    }
+
     private static IQueryable<FinalInspection> ApplySorting(IQueryable<FinalInspection> queryable, string sortBy, bool isDescending)
     {
         return (sortBy?.ToLower(), isDescending) switch
         {
+            // 附件计数为派生列（实体无此属性），通用 ApplySort 反射不到 → 特判
+            ("attachmentcount", false) => queryable.OrderBy(r => r.Attachments.Count),
+            ("attachmentcount", true) => queryable.OrderByDescending(r => r.Attachments.Count),
             ("batchno", false) => queryable.OrderBy(r => r.BatchNo ?? ""),
             ("batchno", true) => queryable.OrderByDescending(r => r.BatchNo ?? ""),
             ("inspectiondate", false) => queryable.OrderBy(r => r.InspectionDate),
@@ -1773,18 +1959,26 @@ public class FinalInspectionService : IFinalInspectionService
             ("concessionremark", true) => queryable.OrderByDescending(r => r.ConcessionRemark ?? ""),
             ("defectreworkquantity", false) => queryable.OrderBy(r => r.DefectReworkQuantity),
             ("defectreworkquantity", true) => queryable.OrderByDescending(r => r.DefectReworkQuantity),
+            ("defectinprocesswarehousequantity", false) => queryable.OrderBy(r => r.DefectInProcessWarehouseQuantity),
+            ("defectinprocesswarehousequantity", true) => queryable.OrderByDescending(r => r.DefectInProcessWarehouseQuantity),
             ("defectwarehousequantity", false) => queryable.OrderBy(r => r.DefectWarehouseQuantity),
             ("defectwarehousequantity", true) => queryable.OrderByDescending(r => r.DefectWarehouseQuantity),
             ("defectscrapquantity", false) => queryable.OrderBy(r => r.DefectScrapQuantity),
             ("defectscrapquantity", true) => queryable.OrderByDescending(r => r.DefectScrapQuantity),
+            ("defectreturnquantity", false) => queryable.OrderBy(r => r.DefectReturnQuantity),
+            ("defectreturnquantity", true) => queryable.OrderByDescending(r => r.DefectReturnQuantity),
             ("defectdescription", false) => queryable.OrderBy(r => r.DefectDescription ?? ""),
             ("defectdescription", true) => queryable.OrderByDescending(r => r.DefectDescription ?? ""),
             ("defectreworkweight", false) => queryable.OrderBy(r => r.DefectReworkWeight),
             ("defectreworkweight", true) => queryable.OrderByDescending(r => r.DefectReworkWeight),
+            ("defectinprocesswarehouseweight", false) => queryable.OrderBy(r => r.DefectInProcessWarehouseWeight),
+            ("defectinprocesswarehouseweight", true) => queryable.OrderByDescending(r => r.DefectInProcessWarehouseWeight),
             ("defectwarehouseweight", false) => queryable.OrderBy(r => r.DefectWarehouseWeight),
             ("defectwarehouseweight", true) => queryable.OrderByDescending(r => r.DefectWarehouseWeight),
             ("defectscrapweight", false) => queryable.OrderBy(r => r.DefectScrapWeight),
             ("defectscrapweight", true) => queryable.OrderByDescending(r => r.DefectScrapWeight),
+            ("defectreturnweight", false) => queryable.OrderBy(r => r.DefectReturnWeight),
+            ("defectreturnweight", true) => queryable.OrderByDescending(r => r.DefectReturnWeight),
             ("outerdiameterrange", false) => queryable.OrderBy(r => r.OuterDiameterRange ?? ""),
             ("outerdiameterrange", true) => queryable.OrderByDescending(r => r.OuterDiameterRange ?? ""),
             ("wallthicknessrange", false) => queryable.OrderBy(r => r.WallThicknessRange ?? ""),

@@ -98,8 +98,13 @@ public class BatchController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// 按生产编号取批次（⚠️ 仅需登录、不带批次角色档，2026-09-14）：首页「生产批次进度查询」卡
+    /// 需先由生产编号换出批次 Id，再调 {id}/tracking；首页只有 [Authorize]，挂 BatchView 会让无批次权限的用户 403。
+    /// 注：按 Id 取详情 <see cref="GetById"/> 仍保持 BatchView 档，本端点仅因首页查号入口而放开。
+    /// </summary>
     [HttpGet("by-batch-no/{batchNo}")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<ProductionBatchDetailDto>>> GetByBatchNo(string batchNo)
     {
         try
@@ -243,8 +248,12 @@ public class BatchController : ControllerBase
 
     // ========== 批次跟踪可视化 ==========
 
+    /// <summary>
+    /// 批次执行进度（⚠️ 仅需登录、不带批次角色档，2026-09-14）：首页「生产批次进度查询」卡对所有登录用户开放。
+    /// 页面侧入口仍受菜单门控（批次管理分组）约束。
+    /// </summary>
     [HttpGet("{id}/tracking")]
-    [Authorize(Roles = Roles.Policies.BatchView)]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<BatchTrackingVisualDto>>> GetTrackingVisual(int id)
     {
         try

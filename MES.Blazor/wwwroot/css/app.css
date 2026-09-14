@@ -717,6 +717,14 @@ input[type="number"]::-webkit-outer-spin-button {
 .col-g2 .col-group-badge { color: #1565C0; background: #BBDEFB; }
 .col-g2-cell { background: #F5F9FF !important; }
 
+/* ② 往来信息表头分组强调色（2026-09-14）：
+   待发货(整单/非整单)、待收货 = 暖橙；待在产(整单未入库/扣除部分入库)、委外未回收 = 冷紫。
+   四处入口：报表总览「客户往来数据」/「供应商往来数据」/「委外单位往来数据」三卡（纯 HTML 表格走内联样式）
+   + 源列表页 /customers、/suppliers、/outsource-vendors（MudTable 走 th-accent-* 类，见各页 GetTradeAccentCss）。
+   必须置于上方 .col-g2 之后（同特异度，靠源码顺序覆盖其 !important 底色） */
+th.th-accent-stock { background: #FFF3E0 !important; color: #E65100 !important; border-bottom: 2px solid #FFB74D !important; font-weight: 700; }
+th.th-accent-wip { background: #F3E5F5 !important; color: #6A1B9A !important; border-bottom: 2px solid #CE93D8 !important; font-weight: 700; }
+
 /* G3: 投料数据 - 绿色系 */
 .col-g3 { background: #F4FAF5 !important; }
 .col-g3 .col-group-badge { color: #2E7D32; background: #C8E6C9; }
@@ -1042,6 +1050,187 @@ input[type="number"]::-webkit-outer-spin-button {
         font-size: 0.75rem !important;
         padding: 2px 4px !important;
     }
+}
+
+/* ============================================================
+   全站手机壳（mh-shell）— 手机竖屏下所有非首页页面的统一收敛
+   ------------------------------------------------------------
+   背景：全仓 160+ 页面在手机上渲染的都是同一套桌面布局（只有首页有 IsMobile 手机分支），
+   竖屏表现为「页头按钮挤成一团 / 筛选工具栏控件平铺溢出 / 宽表只能左右拖 / 内容贴边」。
+   2026-09-14 用户拍板「竖屏也要可用」（放宽 2026-09-06「除首页+扫码流外一律横屏查看」），
+   故用一层全局 CSS 统一收敛，**不动 160+ 个页面结构**。
+   （例外：同日为关掉 MudTable 的手机端竖排「列名—值」布局，各列表页 `<MudTable>` 逐个加了
+     `Breakpoint="Breakpoint.None"` 参数 —— 见下面第 4 组注释；那只是加参数、不改页面结构。）
+
+   ⚠️ 钩子是 MobileLayout 里真实渲染出的 `<div class="mh-shell">`，不是「祖先容器 + 后代
+      选择器」的推断链 —— 2026-09-14 真机样式失效的根因正是钩子挂 `.mh-container` 未命中
+      （F12 模拟命中、真机不命中，整批规则静默回落桌面值）。
+   ⚠️ 只有 MobileLayout 渲染的页面带这个类，桌面版（MainLayout）零影响。
+   ⚠️ 本文件由 nginx `location /css/` 下发 max-age=1 年 immutable —— 改完必须同提交抬
+      index.html 的 `css/app.css?v=` 串，否则真机一年内不重取（见 index.html 顶部注释）。
+   ============================================================ */
+
+/* ---- 1. 页头按钮组：标题占一行、按钮组独占下一行并换行左对齐 ---- */
+.mh-shell .mud-card-header {
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    row-gap: 8px;
+}
+
+.mh-shell .mud-card-header .mud-card-header-actions {
+    width: 100%;
+    margin: 0;
+    align-self: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.mh-shell .mud-card-header-actions .mud-button-root {
+    flex: 0 0 auto;
+}
+
+/* ---- 2. 筛选工具栏 / 表单：MudGrid 子项逐行全宽堆叠 ---- */
+/* MudGrid 是 flex 容器（不是 CSS grid），列宽由 `.mud-grid-item-{断点}-{n}` 类的
+   flex-basis / max-width 百分比决定 → 窄屏一律覆盖为 100%，即逐行堆叠。 */
+.mh-shell .mud-grid > .mud-grid-item {
+    flex-basis: 100% !important;
+    max-width: 100% !important;
+}
+
+/* 横屏放宽（2026-09-14）：删除 ResponsiveLayout 的「横屏例外」后，手机横屏（innerWidth 700~932）
+   也走手机壳，而横屏的可用高度通常不足 400px —— 筛选网格若仍逐行全宽，光筛选区就能占满整屏。
+   故横屏时把**含输入控件**的网格项放宽为每行 2 列（800px 屏 → 每项约 400px，够放一个输入框）。
+   ⚠️ 只匹配 `:has(.mud-input-control)`：全仓 454 个 MudItem 中 426 个是 `xs="12"` 的内容块
+      （表格 / 卡片 / 进度树），一律改 50% 会把它们也压成半宽 → 故仅让表单字段配对，内容块保持整宽。
+   ⚠️ 特异性 (0,4,0)（`:has()` 计入内部选择器）压过上面第 2 组的 (0,3,0)，与书写顺序无关。
+   ⚠️ 不支持 `:has()` 的旧 WebView 会整条丢弃本规则 → 静默回落「逐行全宽」（即第 2 组行为），不报错。 */
+@media (orientation: landscape) {
+    .mh-shell .mud-grid > .mud-grid-item:has(.mud-input-control) {
+        flex-basis: 50% !important;
+        max-width: 50% !important;
+    }
+}
+
+/* 行内工具栏（d-flex + 多个控件 / MudSpacer）允许换行，避免按钮被挤出屏幕 */
+.mh-shell .d-flex {
+    flex-wrap: wrap;
+    row-gap: 6px;
+}
+
+/* ---- 3. 留白与密度：恢复卡片观感、收紧内边距 ---- */
+.mh-shell .mud-container {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    padding-top: 8px !important;
+}
+
+.mh-shell .mud-card-content {
+    padding: 10px 12px;
+}
+
+.mh-shell .mud-card-actions {
+    padding: 6px 12px;
+}
+
+/* ---- 4. 宽表：粘性表头（不冻结任何列） ---- */
+/* 背景（2026-09-14 用户拍板）：行主体是宽表时「只要能够看」，接受大量左右移动，因此不隐藏任何列。
+   ⚠️ 2026-09-14 V138 再拍板：**不冻结任何列**（原「粘性首列 + 勾选框场景粘第 2 列」已删除，
+      手机端横向拖动时列随内容一起走）——只保留**粘性表头**（解决纵向滚动时不知看的是哪一列）。
+   ⚠️⚠️ 前置条件（2026-09-14 二次拍板补，是本组规则能否生效的前提）：
+      MudTable 的 `Breakpoint` **默认 = Breakpoint.Xs**（MudBlazor 6.19 `MudTableBase.cs`），
+      窄于 Xs 断点（即手机竖屏）时外层 div 会带 `mud-xs-table` 类，而 MudBlazor.min.css 的
+      `@media(max-width:600px)` 下：
+        .mud-xs-table .mud-table-root .mud-table-head { display:none }        ← 表头整条隐藏
+        .mud-xs-table .mud-table-cell { display:flex; justify-content:space-between; … }
+        .mud-xs-table .mud-table-cell:before { content:attr(data-label); … }  ← 每格前面补列名
+      → 手机竖屏下每**一条记录**会被拆成「列名 — 值」的 N 行竖排（仓库 20 列 = 20 行），
+        表头消失，本组 sticky 规则全部落空（无 thead 可粘）。
+      **修法 = 各列表页 `<MudTable>` 显式加 `Breakpoint="Breakpoint.None"`**（>600px 本就不堆叠，
+      故对桌面/横屏零影响）；全仓已按此批改列表型页面（2026-09-14，共 127 处，
+      含 ServerData/分页的主列表页与只读展示表；**编辑型表（`edit-table`）与出库操作表有意保留堆叠**，
+      手机端「列名—值」竖排反而利于录入）。
+   ⚠️ 横向滚动本身是既定机制、无需新增：`.mud-table-container{overflow-x:auto!important}`（§6.29）
+      + `table-layout:auto`（MudBlazor 6.19 全文未声明 table-layout；app.css 第 137 行那条
+      `.mud-table{table-layout:fixed}` 作用在 MudBlazor 的**外层 div**（该 div 有 background-color/
+      border-radius）上，对 <table> 无效，是死规则）→ 列不会被压缩、文字不会被省略号吃掉。 */
+@media screen {
+    /* 表头 sticky 需要一个「有界高度 + 纵向可滚」的容器，否则页面滚动会把表头带走
+       （overflow-x:auto 已使 overflow-y 计算为 auto，但不限高就没有纵向滚动量）。
+       高度取「视口 - 顶栏 64px - 页头/筛选余量 76px」，下限 260px 防小屏被压没；
+       第二行为 dvh 版本（移动端动态工具栏下 100vh 会大于可见高度），不支持的浏览器自动沿用上一行。 */
+    .mh-shell .mud-table-container {
+        overflow-x: auto !important;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain; /* 横滑到边界不带动页面/浏览器返回手势 */
+        max-height: max(260px, calc(100vh - 140px));
+        max-height: max(260px, calc(100dvh - 140px));
+    }
+
+    /* 全仓无任何规则给 .mud-table-root 设 border-collapse，浏览器默认即 separate
+       （MudBlazor 只声明了 border-spacing:0），此处显式声明以防被未来样式改成 collapse：
+       collapse 下粘性单元格自己的底边框不随固定元素一起绘制（表头底线会消失）。 */
+    .mh-shell .mud-table-root {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    /* 只让表头「最后一行」sticky：两行分组表头（col-g1/col-g2）时保留带列名的那一行，
+       且避免两行都钉在 top:0 互相重叠。普通单行表头 last == 唯一行，行为一致。 */
+    .mh-shell .mud-table-head tr:last-child th {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background-color: var(--mud-palette-surface, #fff);
+    }
+
+    /* ⚠️ 不冻结任何列（2026-09-14 V138 用户拍板）——原「首列 sticky（left:0）」与
+       「首列是批量勾选框时把第 2 列也粘住（left:40px）」两条规则**已删除**。
+       用户原话：「移动时没必要冻住字段。例如：仓库的列表中，现在是仓库的批次号冻住的。
+       其它的所有列表，在手机端也是如此，没必要冻住任何一列或几列。」
+       故手机端横向拖动时**列随内容一起走**，只有表头（纵向）保持 sticky。
+       ⚠️ 若将来要恢复列冻结，记得同步恢复 `border-collapse: separate`（上方已保留，
+          它是为表头 sticky 而设，与列冻结无关）。 */
+}
+
+/* ---- 5. 列表页工具栏（.list-toolbar，56 页共用）：窄屏允许换行 ---- */
+/* 结构为「左：列显隐 + 重置 / 右：打印 + 计数」，右侧靠 margin-left:auto 顶到行尾；
+   窄屏若不许换行会把控件挤扁或溢出，故允许换行（换行后右组仍靠右）。 */
+.mh-shell .list-toolbar {
+    flex-wrap: wrap;
+    row-gap: 6px;
+}
+
+/* ---- 6. 工资结算密集网格（考勤 / 津贴处罚 / 月工资 / 月工资津贴汇总，4 页）：手机端同样不冻结任何列 ---- */
+/* 2026-09-14 V139 用户拍板「一并去掉」。这 4 页的 `.sticky-left`（工号/姓名/岗位类别/岗位）
+   与 `.sticky-right`（出勤天数 / 总小时 / 本月合计）是**页面级显式冻结**（定义在下方「考勤网格」段），
+   不属第 4 组的通用表格规则，故此处单独覆盖。
+   ⚠️ 覆盖的是 `position:sticky` 与 `left/right`：`.attendance-grid .sticky-left`(0,2,0) 与
+      `.attendance-grid .sticky-right`(0,2,0) 被本组 (0,3,0) 压过；`thead th.sticky-left/right`(0,3,1)
+      只声明 z-index，static 后 z-index 不适用、无需覆盖。表头 `thead th{position:sticky;top:0}` 不受影响
+      （那是**纵向**冻结，仍保留）。
+   ⚠️ **仅限手机壳内**：桌面 1920px 下「岗位 4 列 + 31 天 + 合计 2 列」约 1900px 仍会横向滚动，
+      冻结仍有价值 → 桌面 `MainLayout` 不带 `.mh-shell`，故桌面行为不变。 */
+.mh-shell .attendance-grid .sticky-left,
+.mh-shell .attendance-grid .sticky-right {
+    position: static;
+    left: auto;
+    right: auto;
+    z-index: auto;
+}
+
+/* 同上第 6 组：**「月工资津贴汇总」（MonthlySummary）手机端放开横向滚动**。
+   该页额外带 `.monthly-summary-grid`，把基类的 `min-width:max-content` 覆盖成
+   `width:100%; min-width:0; table-layout:fixed`（设计目标＝桌面 18 列 ≈1478px 在 1900px 容器内
+   正好放得下、整表免横滚）。但手机 360px 下 fixed + 100% 会把 18 列**等比压到屏宽**（每列约 20px），
+   既看不清也不会横滚 → 手机壳内改回「列按内容撑开 + 横向滚动」，与其它 3 页口径一致。
+   ⚠️ 特异性 (0,3,0) 压过原 `.attendance-grid.monthly-summary-grid` (0,2,0)。
+   ⚠️ 仅限手机壳内；桌面无 `.mh-shell` → 维持「免横滚」原状。 */
+.mh-shell .attendance-grid.monthly-summary-grid {
+    width: auto;
+    min-width: max-content;
+    table-layout: auto;
 }
 
 /* 移动端导航分组样式 */
@@ -1421,6 +1610,106 @@ td.col-edit-actions { background: #E8EAF6 !important; }
 }
 
 /* ============================================================
+   首页看板（Index.razor 桌面/手机两分支共用）
+   常用入口磁贴 + 订单负荷阶段药丸
+   ============================================================ */
+
+/* 桌面端两卡：上下堆叠，各占约半屏宽并水平居中（2026-09-14 由左右等宽 md=6 改为上下） */
+.home-stack {
+    gap: 16px;
+}
+
+.home-stack-card {
+    width: 50%;
+    margin: 0 auto;
+}
+
+/* ⚠️ 窄屏兜底（2026-09-14）：`.home-stack-card` 的 50% 是桌面版布局值，一旦**真机被判成桌面布局**
+   （横屏 innerWidth≥700 回落电脑版、或国产浏览器「电脑模式」剥掉 UA/触屏特征），卡片就只剩半屏宽、
+   磁贴被压成 2 列 —— 用户实测「手机端比 F12 模拟挤」的主因之一。此处按与 ResponsiveLayout
+   判定阈值一致的 960px 收口：窄屏一律整宽，与手机分支观感对齐。 */
+@media (max-width: 959px) {
+    .home-stack-card {
+        width: 100%;
+    }
+}
+
+/* ---- 首页「订单进度查询 / 生产批次进度查询」卡（2026-09-14）----
+   查询条（输入框 + 查询按钮）+ 卡内结果区。结果区限高纵向滚动：两卡内容（四层进度树 / 工段流程图）
+   高度不可控，不限高会把首页撑得很长；手机端卡本就随页面纵向滚动，故不放限高。
+   ⚠️ 本文件由 nginx `location /css/` 下发 max-age=1 年 immutable —— 改完必须同提交抬
+      index.html 的 `css/app.css?v=` 串，否则老浏览器一年内不重取（见 index.html 顶部注释）。 */
+.home-query-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+/* 输入框吃满剩余宽度（min-width:0 防 flex 子项被内容撑破）；手机端改纵向排列后无剩余空间，不会误拉伸高度 */
+.home-query-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* 「查询 / 清除」成组，手机端纵向排列时两按钮仍并排，不被逐个撑满整行 */
+.home-query-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.home-query-result {
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* 手机端查询卡：钩子同样用卡自身的 `.mh-card`（不依赖 `.mh-container` 祖先，理由见下方手机看板段） */
+.mh-card .home-query-bar {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.mh-card .home-query-actions {
+    justify-content: flex-end;
+}
+
+.mh-card .home-query-result {
+    max-height: none;
+    padding-right: 0;
+}
+
+/* 常用入口：等宽磁贴自动换行（图标 + 名称），比原文字按钮横排更整齐、更易点 */
+.shortcut-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.shortcut-tile {
+    flex: 1 1 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 10px;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #37474F;
+    font-size: 16px;   /* 2026-09-14：桌面端放大 1 号（14 → 16），手机端另在下方收小 */
+    font-weight: 500;
+    transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+}
+
+.shortcut-tile:hover {
+    border-color: #1976D2;
+    background-color: #F5F9FF;
+    color: #0D47A1;
+}
+
+/* ============================================================
    首页手机看板（mh-*，仅 Index.razor 的 IsMobile 手机分支使用；
    桌面端首页不引用这些类，颜色归口本文件、不内联硬编码）
    ============================================================ */
@@ -1443,26 +1732,28 @@ td.col-edit-actions { background: #E8EAF6 !important; }
     margin-bottom: 0;
 }
 
-/* ---- 工单执行：仿质量检验白底小卡并排，整卡可点跳转 ---- */
-.mh-stage-tap {
-    display: flex;
-    flex: 1;
-    text-decoration: none;
-}
-.mh-stage-tap .mud-paper {
-    flex: 1;
+/* ---- 常用入口：手机窄屏下收成三列紧凑磁贴，桌面磁贴样式不变 ----
+   ⚠️ 钩子用 `.mh-card`（组件自身 Class）而**不是** `.mh-container` 祖先：2026-09-14 用户实测，
+   真机上 `.mh-container .shortcut-tile` 未命中 → 落到桌面回退值 `flex: 1 1 160px` → 窄屏只挤 2 列
+   （F12 模拟恰好命中，故「看模拟是三列、真机不是」）。挂到卡自身的类上，链路不再依赖容器祖先。 */
+.mh-card .shortcut-grid {
+    gap: 6px;
 }
 
-/* ---- 批次生产：段落横向信息卡流 ---- */
-.mh-paragraph-list {
-    display: flex;
+/* 手机磁贴改「图标在上、文字在下」：每格宽度只有 ~80-95px，图标与文字同行会让
+   「不合格反馈扫码」这类 6 字长名被迫换行；上下结构下文字独占整格宽度，一行放得下。 */
+.mh-card .shortcut-tile {
+    flex: 1 1 28%;
     flex-direction: column;
+    gap: 2px;
+    padding: 8px 2px;
+    font-size: 12px;
+    line-height: 1.2;
 }
-.mh-paragraph-row {
-    margin-bottom: 8px;
-}
-.mh-paragraph-row:last-child {
-    margin-bottom: 0;
+
+.mh-card .shortcut-tile span {
+    text-align: center;
+    word-break: keep-all;   /* 中文长名不逐字断行，整词换行 */
 }
 
 /* ============================================================
@@ -1476,4 +1767,203 @@ td.col-edit-actions { background: #E8EAF6 !important; }
     font-size: 13px;
     line-height: 1.5;
     color: #0D47A1;
+}
+
+/* ============================================================
+   批次执行进度卡片（Shared/BatchProgressCard.razor 共用）
+   原为 Pages/Batches/BatchDetail.razor.css 的 scoped 样式，因 Blazor scoped CSS
+   无法跨组件复用（会带 [b-xxxx] 属性选择器），上提为全局。
+   复用方：① 批次详情页区块三 ② 批次计划/成检计划「生产编号」弹窗(BatchProgressDialog)
+   ============================================================ */
+
+/* 空状态/提示文字 */
+.detail-empty {
+    color: #999 !important;
+}
+
+/* 跟踪可视化进度条容器 */
+.detail-progress-track {
+    width: 200px;
+    height: 8px;
+    border-radius: 4px;
+    background: #e0e0e0;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+/* 跟踪可视化进度条填充 */
+.detail-progress-fill {
+    height: 100%;
+    background: var(--mud-palette-success);
+    border-radius: 4px;
+    transition: width 0.3s;
+}
+
+/* 跟踪可视化摘要条 */
+.detail-summary-bar {
+    gap: 4px 20px;
+    padding: 6px 10px;
+    background: #f5f5f5;
+    border-radius: 6px;
+}
+
+/* 跟踪可视化当前工段文字 */
+.detail-current-section {
+    font-weight: 600;
+}
+
+/* 跟踪可视化当前工段名称 */
+.detail-current-name {
+    color: #1976d2;
+}
+
+/* 跟踪可视化委外状态 */
+.detail-outsource-status {
+    color: #e65100;
+}
+
+/* 跟踪可视化下一工段 */
+.detail-next-section {
+    color: #7b1fa2;
+}
+
+/* 工段卡片容器——水平滚动 */
+.detail-section-scroll {
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 4px 0;
+}
+
+/* 工段卡片——工序组容器 */
+.detail-group-card {
+    display: inline-flex;
+    flex-direction: column;
+    min-width: 150px;
+    margin-right: 14px;
+    vertical-align: top;
+}
+
+/* 工段卡片——组标题 */
+.detail-group-header {
+    text-align: center;
+    padding: 4px 8px;
+    background: #e3f2fd;
+    border-radius: 6px 6px 0 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border: 1px solid #bbdefb;
+    border-bottom: none;
+}
+
+/* 工段卡片——组计数 */
+.detail-group-count {
+    font-weight: 400;
+    color: #666;
+}
+
+/* 工段卡片——工段列表 */
+.detail-section-list {
+    border: 1px solid #e0e0e0;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    padding: 3px;
+}
+
+/* 工段卡片——单个工段 */
+.detail-section-item {
+    border-radius: 4px;
+    margin: 2px 0;
+    padding: 4px 6px;
+    gap: 6px;
+}
+
+/* 工段卡片——工段图标 */
+.detail-section-icon {
+    font-size: 0.75rem;
+    min-width: 18px;
+    text-align: center;
+}
+
+/* 工段卡片——工段名称 */
+.detail-section-name {
+    font-size: 0.8125rem;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 工段卡片——名称+meta 信息竖排区 */
+.detail-section-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    white-space: normal;
+}
+
+/* 工段卡片——meta 明细行（小字） */
+.detail-meta-line {
+    font-size: 0.65rem;
+    line-height: 1.4;
+    color: #666;
+    white-space: normal;
+    word-break: break-all;
+}
+
+/* 成品检验组标题——浅绿底与生产组区分 */
+.detail-final-header {
+    background: #e8f5e9;
+    border-color: #c8e6c9;
+}
+
+/* 工段卡片——委外套签 */
+.detail-outsource-chip {
+    font-size: 0.6875rem;
+}
+
+/* ============================================================
+   可点击单元格链接（列表页把某列文本渲染成"可点开弹窗"的样式）
+   用法：@RenderCell 内 <span class="cell-link" title="...">文本</span>
+   ============================================================ */
+.cell-link {
+    cursor: pointer;
+    color: #1976d2;
+    text-decoration: none;
+}
+
+.cell-link:hover {
+    text-decoration: underline;
+}
+
+/* ============================================================
+   问题照片缩略图（不合格反馈 录入/编辑页 与 查看弹窗 共用）
+   ============================================================ */
+.attachment-thumb {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fafafa;
+}
+
+.attachment-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.attachment-remove {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.85);
+}
+
+/* 查看弹窗内缩略图：点击放大 */
+.view-thumb {
+    cursor: zoom-in;
 }

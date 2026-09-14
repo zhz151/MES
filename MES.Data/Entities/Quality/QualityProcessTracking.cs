@@ -62,11 +62,16 @@ public class QualityProcessTracking : BaseEntity
     public int ProductionCutQuantity { get; set; }
     /// <summary>检验支数（按「批次+成检类型+检验项目」汇总 Quantity，跨项目取最大）</summary>
     public int TotalQuantity { get; set; }
-    /// <summary>理论合格支（检验支数 - 返整/入库/报废三次品汇总；负值归零）</summary>
+    /// <summary>理论合格支（检验支数 - 返整/入在制库/可入备库/入次品库/退货五次品汇总；负值归零）</summary>
     public int QualifiedQuantity { get; set; }
     public int DefectReworkQuantity { get; set; }
+    /// <summary>不合格入在制库支数（2026-09-11 新增第 5 档，与成品检验口径对齐）</summary>
+    public int DefectInProcessWarehouseQuantity { get; set; }
+    /// <summary>不合格可入备库支数（原标注「入在制库」，2026-09-11 更正）</summary>
     public int DefectWarehouseQuantity { get; set; }
     public int DefectScrapQuantity { get; set; }
+    /// <summary>不合格退货支数（2026-09-11 新增第 4 档）</summary>
+    public int DefectReturnQuantity { get; set; }
     public DateTime? MaxInspectionDate { get; set; }
 
     // ========== G4: 成品入库 ==========

@@ -106,14 +106,19 @@ public class ProcessInspection : BaseEntity
     public int? DefectReworkQuantity { get; set; }
 
     /// <summary>
-    /// 不合格入库支数
+    /// 不合格入在制库支数（原「入库」，2026-09-11 更名）
     /// </summary>
     public int? DefectWarehouseQuantity { get; set; }
 
     /// <summary>
-    /// 不合格报废支数
+    /// 不合格入次品库支数（原「报废」，2026-09-11 更名）
     /// </summary>
     public int? DefectScrapQuantity { get; set; }
+
+    /// <summary>
+    /// 不合格退货支数（2026-09-11 新增第 4 档）
+    /// </summary>
+    public int? DefectReturnQuantity { get; set; }
 
     // ========== 理论重量（自动计算） ==========
 
@@ -123,14 +128,19 @@ public class ProcessInspection : BaseEntity
     public int? TheoreticalReworkWeight { get; set; }
 
     /// <summary>
-    /// 理论入库重(kg) = 检验重量/检验支数 × 入库支数，四舍五入取整
+    /// 理论入在制重(kg) = 检验重量/检验支数 × 入在制库支数，四舍五入取整
     /// </summary>
     public int? TheoreticalWarehouseWeight { get; set; }
 
     /// <summary>
-    /// 理论报废重(kg) = 检验重量/检验支数 × 报废支数，四舍五入取整
+    /// 理论入次库重(kg) = 检验重量/检验支数 × 入次品库支数，四舍五入取整
     /// </summary>
     public int? TheoreticalScrapWeight { get; set; }
+
+    /// <summary>
+    /// 理论退货重(kg) = 检验重量/检验支数 × 退货支数，四舍五入取整
+    /// </summary>
+    public int? TheoreticalReturnWeight { get; set; }
 
     /// <summary>
     /// 不合格情况描述
@@ -185,4 +195,9 @@ public class ProcessInspection : BaseEntity
     /// 所属工序组
     /// </summary>
     public ProcessGroup ProcessGroup { get; set; } = null!;
+
+    /// <summary>
+    /// 检验照片附件（每记录限 QualityPhotoLimits.PerRecord 张）
+    /// </summary>
+    public ICollection<ProcessInspectionAttachment> Attachments { get; set; } = new List<ProcessInspectionAttachment>();
 }

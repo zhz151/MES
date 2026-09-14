@@ -160,7 +160,7 @@ public partial class WorkOrderLoadOverview : ComponentBase
         if (!row.IsSummary) return baseClass;
         var summaryClass = row.Category switch
         {
-            "原料" => "summary-raw",
+            "原料锁定" => "summary-raw",
             "投料-在产" => "summary-prod",
             "投料-成检" => "summary-fi",
             _ => "summary-cell"

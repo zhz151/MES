@@ -115,6 +115,12 @@ public partial class Ncrs
     // ========== 不合格品实时待处理折叠表（表1） ==========
     private bool _showPendingOverview = false;
 
+    /// <summary>正常提交（来源=不合格反馈，人工上报）</summary>
+    private List<NcrPendingCheckDto> _pendingNormal => _pendingItems.Where(i => i.Bucket == NcrPendingBucket.NormalSubmitted).ToList();
+
+    /// <summary>超阈值遗漏（已有 NCR 的组含「忽略」单，服务端去重后不会列出）</summary>
+    private List<NcrPendingCheckDto> _pendingOverage => _pendingItems.Where(i => i.Bucket == NcrPendingBucket.OverageMissing).ToList();
+
     // ========== 不合格品月度汇总折叠表（表2） ==========
     private bool _showMonthlySummary = false;
     private bool _isLoadingMonthly = false;
@@ -122,8 +128,6 @@ public partial class Ncrs
     private List<NcrMonthlyRowDto> _monthlyRows = new();
     private List<int> _monthlyCategoryRowspans = new();
     private List<int> _monthlyDeptRowspans = new();
-    private List<(int Qty, int? Weight)> _monthlyDeptTotals = new();
-    private List<(int Qty, int? Weight)> _monthlyCategoryTotals = new();
 
     // 筛选
     private Dictionary<string, HashSet<string>> _columnFilters = new();
@@ -155,23 +159,25 @@ public partial class Ncrs
     private List<ColumnDef> _visibleColumns =>
         _allColumns.Where(c => c.IsApplicable && c.Visible).ToList();
 
-    // ========== 数值列（次品支数/次品重量，数据格居中） ==========
+    // ========== 数值列（次品支数/次品重量/让步支数/让步重量，数据格居中） ==========
     private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
-    { "DefectiveQuantity", "DefectiveWeight" };
+    { "DefectiveQuantity", "DefectiveWeight", "ConcessionQuantity", "ConcessionWeight" };
     private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
 
     // B33: 分页汇总
     private Dictionary<string, string> _pageSums = new();
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
-        "DefectiveQuantity", "DefectiveWeight"
+        "DefectiveQuantity", "DefectiveWeight", "ConcessionQuantity", "ConcessionWeight"
     };
 
     // 扩展常量
     private const string PageType = "ncrs";
 
     // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_ncrs_v1）
-    private const string ColumnPrefsVersion = "v1";
+    // v2（2026-09-12）：G1 新增让步支数/让步重量/让步说明三列，「流向」更名「次品流向」，
+    // 旧持久化会把新列追加到末尾、拆散 G1 分组 → 版本号 +1 重置为默认列序
+    private const string ColumnPrefsVersion = "v2";
 
     private static List<ColumnDef> GetAllColumnDefs() => new()
     {
@@ -203,11 +209,19 @@ public partial class Ncrs
                GroupKey = 1, GroupName = "G1 问题反馈" },
         new() { Key = "ProblemDescription",   Label = "问题描述",    SortKey = "problemdescription",FilterType = "string", Width = "150",
                GroupKey = 1, GroupName = "G1 问题反馈" },
+        new() { Key = "FlowDirection",        Label = "次品流向",    SortKey = "flowdirection",      FilterType = "enum",   Width = "90",
+               GroupKey = 1, GroupName = "G1 问题反馈",
+               EnumOptions = DisplayHelper.GetEnumFilterOptions<FlowDirection>() },
+        new() { Key = "ConcessionQuantity",   Label = "让步支数",  SortKey = "concessionquantity",                       Width = "80",
+               GroupKey = 1, GroupName = "G1 问题反馈" },
+        new() { Key = "ConcessionWeight",     Label = "让步重量",  SortKey = "concessionweight",                         Width = "80",
+               GroupKey = 1, GroupName = "G1 问题反馈" },
+        new() { Key = "ConcessionRemark",     Label = "让步说明",    SortKey = "concessionremark",   FilterType = "string", Width = "150",
+               GroupKey = 1, GroupName = "G1 问题反馈" },
 
         // G2: 不合格品处置
-        new() { Key = "DisposalMethod",       Label = "处置方式",    SortKey = "disposalmethod",     FilterType = "enum",  Width = "100",
-               GroupKey = 2, GroupName = "G2 不合格品处置",
-               EnumOptions = DisplayHelper.GetEnumFilterOptions<DisposalMethod>() },
+        new() { Key = "DisposalMethod",       Label = "处置方式",    SortKey = "disposalmethod",     FilterType = "string", Width = "120",
+               GroupKey = 2, GroupName = "G2 不合格品处置" },
         new() { Key = "DisposalIsCompleted",  Label = "处置完结",    SortKey = "disposaliscompleted", FilterType = "boolean", Width = "70",
                GroupKey = 2, GroupName = "G2 不合格品处置",
                BoolTrueLabel = "是", BoolFalseLabel = "否" },
@@ -275,6 +289,14 @@ public partial class Ncrs
 
     protected override async Task OnInitializedAsync()
     {
+        // 「生产编号」是否可点跳批次详情页：本页无页级策略（任意登录用户可达），
+        // 而批次详情页策略为 BatchView → 按角色降级，无批次查看权者渲染纯文本，避免 403。
+        // ⚠️ Policies.BatchView 是逗号分隔多角色串，ClaimsPrincipal.IsInRole 只认单个角色名 → 必须逐个展开。
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        _canViewBatch = Roles.Policies.BatchView
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(authState.User.IsInRole);
+
         // 初始化列定义
         _allColumns = GetAllColumnDefs();
 
@@ -333,12 +355,17 @@ public partial class Ncrs
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && table != null)
+            await table.ReloadServerData();
+
+        // 分组标题栏：测量实际列宽并同步。⚠️ 必须每次渲染后调用（与全仓其它分组表一致）——
+        // 若仅在 firstRender 调用，会在 ReloadServerData 触发的数据渲染落地前测量空表列宽，
+        // 数据填充后列宽重排导致组标题与列错位（表现为「打开默认不对齐，点重置才对齐」）。
+        try
         {
-            if (table != null)
-                await table.ReloadServerData();
             await JS.InvokeVoidAsync("initGroupHeaders", "#ncrs-list-table");
         }
+        catch { }
     }
 
     // ========== 数据加载 ==========
@@ -565,14 +592,19 @@ public partial class Ncrs
 
     // ========== 操作 ==========
 
-    private void CreateNew()
-    {
-        Navigation.NavigateTo("/quality/ncr/create");
-    }
-
     private void EditItem(int id)
     {
         Navigation.NavigateTo($"/quality/ncr/{id}");
+    }
+
+    /// <summary>当前用户是否有权查看批次详情（决定「生产编号」是否渲染为可点链接）</summary>
+    private bool _canViewBatch;
+
+    /// <summary>点「生产编号」跳生产批次详情页</summary>
+    private void OpenBatchDetail(int productionBatchId)
+    {
+        if (productionBatchId <= 0 || !_canViewBatch) return;
+        Navigation.NavigateTo($"/batches/{productionBatchId}");
     }
 
     private async Task DeleteItem(int id)
@@ -738,25 +770,48 @@ public partial class Ncrs
 
     private void TogglePendingOverview() => _showPendingOverview = !_showPendingOverview;
 
-    /// <summary>反馈部门 = 来源 + 检验项目（中文化，与 NcrForm 自动填充口径一致）</summary>
+    /// <summary>
+    /// 反馈部门（= 位置，与 NcrForm 自动填充口径一致）：
+    /// 过程检验 / 不合格反馈 → 工段；成品检验 → 成检项目。
+    /// </summary>
     private static string GetPendingReportDepartment(NcrPendingCheckDto item)
     {
-        var sourceText = GetSourceTypeText(item.SourceType);
-        var itemText = GetInspectionItemDisplay(item.InspectionItem, item.SourceType);
-        return string.IsNullOrEmpty(itemText) ? sourceText : $"{sourceText}-{itemText}";
+        if (item.SourceType == nameof(NcrPendingSourceType.FinalInspection))
+            return GetInspectionItemDisplay(item.InspectionItem, item.SourceType);
+        return SectionDisplayHelper.GetSectionNameText(item.SectionName);
     }
+
+    /// <summary>
+    /// 组内流向明细（仅被动「超阈值遗漏」组有值）：如「返整2/入在制库3/让步6」。
+    /// 主动（不合格反馈）无流向概念，返回空串。
+    /// </summary>
+    private static string GetFlowDetailText(NcrPendingCheckDto item)
+    {
+        if (item.Bucket != NcrPendingBucket.OverageMissing) return "";
+        var parts = new List<string>();
+        if (item.ReworkQuantity > 0) parts.Add($"{DisplayHelper.GetFlowDirectionText(FlowDirection.Rework)}{item.ReworkQuantity}");
+        if (item.InProcessWarehouseQuantity > 0) parts.Add($"{DisplayHelper.GetFlowDirectionText(FlowDirection.InProcessWarehouse)}{item.InProcessWarehouseQuantity}");
+        if (item.FinishedWarehouseQuantity > 0) parts.Add($"{DisplayHelper.GetFlowDirectionText(FlowDirection.FinishedWarehouse)}{item.FinishedWarehouseQuantity}");
+        if (item.ScrapQuantity > 0) parts.Add($"{DisplayHelper.GetFlowDirectionText(FlowDirection.Scrap)}{item.ScrapQuantity}");
+        if (item.ReturnQuantity > 0) parts.Add($"{DisplayHelper.GetFlowDirectionText(FlowDirection.Return)}{item.ReturnQuantity}");
+        if (item.ConcessionQuantity > 0) parts.Add($"让步{item.ConcessionQuantity}");
+        return string.Join("/", parts);
+    }
+
 
     /// <summary>物料类型（过程检验按工序名判荒管/在制；成品检验按物料名解析，与 NcrForm 口径一致）</summary>
     private static string GetPendingPipeCategoryText(NcrPendingCheckDto item)
     {
-        if (item.SourceType == "ProcessInspection")
+        if (item.SourceType == nameof(NcrPendingSourceType.ProcessInspection)
+            || item.SourceType == nameof(NcrPendingSourceType.NonconformingFeedback))
         {
+            // 不合格反馈按过程检验口径：圆棒穿孔→荒管，否则在制
             var category = string.Equals(item.ProcessName, ProcessKeys.RoughTubeProcessing, StringComparison.OrdinalIgnoreCase)
                 ? MaterialType.RoughTube
                 : MaterialType.WorkInProgress;
             return DisplayHelper.GetMaterialTypeText(category);
         }
-        if (item.SourceType == "FinalInspection")
+        if (item.SourceType == nameof(NcrPendingSourceType.FinalInspection))
         {
             var category = string.IsNullOrEmpty(item.MaterialName)
                 ? MaterialType.WorkInProgress
@@ -766,18 +821,17 @@ public partial class Ncrs
         return "";
     }
 
-    private async Task PrintPendingOverviewTable()
+    private Task PrintPendingNormalTable() => PrintPendingTable("#ncrs-pending-normal-table", "不合格品实时待处理(正常提交)");
+
+    private Task PrintPendingOverageTable() => PrintPendingTable("#ncrs-pending-overage-table", "不合格品实时待处理(超阈值遗漏)");
+
+    private async Task PrintPendingTable(string selector, string title)
     {
-        if (_pendingItems.Count == 0)
-        {
-            Snackbar.Add("暂无数据可打印", Severity.Warning);
-            return;
-        }
         try
         {
-            var html = await JS.InvokeAsync<string>("getTableHtml", "#ncrs-pending-overview-table");
+            var html = await JS.InvokeAsync<string>("getTableHtml", selector);
             if (!string.IsNullOrEmpty(html))
-                await JS.InvokeVoidAsync("printRawHtml", html, "不合格品实时待处理");
+                await JS.InvokeVoidAsync("printRawHtml", html, title);
             else
                 Snackbar.Add("未找到可打印的汇总表格", Severity.Warning);
         }
@@ -830,15 +884,13 @@ public partial class Ncrs
     }
 
     /// <summary>
-    /// 计算月度汇总三级合并 rowspan（后端已按 责任类别→责任部门→处置方式 排序，同组相邻）。
-    /// 责任类别 rowspan 合并 + 责任部门 rowspan 合并 + 部门/类别全年合计（首行非 0）。
+    /// 计算月度汇总二级合并 rowspan（后端已按 责任类别→责任部门→处置方式 排序，同组相邻）。
+    /// 责任类别 rowspan 合并 + 责任部门 rowspan 合并（首行非 0）。
     /// </summary>
     private void ComputeMonthlyRowspans()
     {
         _monthlyCategoryRowspans = new List<int>(new int[_monthlyRows.Count]);
         _monthlyDeptRowspans = new List<int>(new int[_monthlyRows.Count]);
-        _monthlyDeptTotals = new List<(int, int?)>(new (int, int?)[_monthlyRows.Count]);
-        _monthlyCategoryTotals = new List<(int, int?)>(new (int, int?)[_monthlyRows.Count]);
 
         var i = 0;
         while (i < _monthlyRows.Count)
@@ -849,9 +901,6 @@ public partial class Ncrs
                    && string.Equals(_monthlyRows[i + catCount].ResponsibilityCategory, category, StringComparison.Ordinal))
                 catCount++;
             _monthlyCategoryRowspans[i] = catCount;
-            _monthlyCategoryTotals[i] = (
-                _monthlyRows.Skip(i).Take(catCount).Sum(r => r.TotalQuantity),
-                _monthlyRows.Skip(i).Take(catCount).Sum(r => r.TotalWeight ?? 0));
 
             var j = i;
             var catEnd = i + catCount;
@@ -863,9 +912,6 @@ public partial class Ncrs
                        && string.Equals(_monthlyRows[j + deptCount].ResponsibleDept, dept, StringComparison.Ordinal))
                     deptCount++;
                 _monthlyDeptRowspans[j] = deptCount;
-                _monthlyDeptTotals[j] = (
-                    _monthlyRows.Skip(j).Take(deptCount).Sum(r => r.TotalQuantity),
-                    _monthlyRows.Skip(j).Take(deptCount).Sum(r => r.TotalWeight ?? 0));
                 j += deptCount;
             }
 
@@ -914,8 +960,8 @@ public partial class Ncrs
 
     private void CreateFromPending(NcrPendingCheckDto item)
     {
-        Navigation.NavigateTo($"/quality/ncr/create?batchNo={Uri.EscapeDataString(item.BatchNo)}" +
-            $"&disposalMethod={item.DisposalMethod}" +
+        var url = $"/quality/ncr/create?batchNo={Uri.EscapeDataString(item.BatchNo)}" +
+            (item.FlowDirection.HasValue ? $"&flowDirection={item.FlowDirection.Value}" : "") +
             $"&sourceType={item.SourceType}" +
             $"&defectQty={item.DefectQuantity}" +
             $"&defectWeight={item.DefectiveWeight}" +
@@ -924,10 +970,18 @@ public partial class Ncrs
             $"&processName={Uri.EscapeDataString(item.ProcessName ?? "")}" +
             $"&materialName={Uri.EscapeDataString(item.MaterialName ?? "")}" +
             $"&reportDate={item.ReportDate:yyyy-MM-dd}" +
-            $"&defectDescription={Uri.EscapeDataString(item.DefectDescription ?? "")}");
+            $"&defectDescription={Uri.EscapeDataString(item.DefectDescription ?? "")}" +
+            $"&sectionName={Uri.EscapeDataString(item.SectionName ?? "")}" +
+            $"&concessionQty={item.ConcessionQuantity}" +
+            $"&concessionRemark={Uri.EscapeDataString(item.ConcessionRemark ?? "")}" +
+            $"&groupKey={Uri.EscapeDataString(item.GroupKey ?? "")}";
+        // 来源不合格反馈单：回传 Id，保存 NCR 时写入 NonconformingFeedbackId 完成闭环
+        if (item.NonconformingFeedbackId.HasValue)
+            url += $"&feedbackId={item.NonconformingFeedbackId.Value}";
+        Navigation.NavigateTo(url);
     }
 
-    private static string GetSourceTypeText(string sourceType) => EnumHelper.GetDisplayName<ReportTemplateType>(sourceType);
+    private static string GetSourceTypeText(string sourceType) => EnumHelper.GetDisplayName<NcrPendingSourceType>(sourceType);
 
     private static string GetInspectionItemDisplay(string? item, string? sourceType)
     {
@@ -938,18 +992,35 @@ public partial class Ncrs
         return item;
     }
 
-    private static string GetDisposalMethodText(DisposalMethod method) => DisplayHelper.GetDisposalMethodText(method);
-
     private static Color GetWarningColor() => Color.Warning;
 
     private static Color GetSourceTypeColor(string sourceType)
-        => sourceType == "ProcessInspection" ? Color.Info : Color.Primary;
+        => sourceType == nameof(NcrPendingSourceType.ProcessInspection) ? Color.Info
+         : sourceType == nameof(NcrPendingSourceType.NonconformingFeedback) ? Color.Warning
+         : Color.Primary;
 
-    private static Color GetDisposalChipColor(DisposalMethod method) => method switch
+    /// <summary>流向 chip 配色（枚举 5 档）</summary>
+    private static Color GetFlowDirectionChipColor(FlowDirection? direction) => direction switch
     {
-        DisposalMethod.Rework => Color.Warning,
-        DisposalMethod.WarehouseEntry => Color.Info,
-        DisposalMethod.Scrap => Color.Error,
+        FlowDirection.Rework => Color.Warning,
+        FlowDirection.InProcessWarehouse => Color.Info,
+        FlowDirection.FinishedWarehouse => Color.Primary,
+        FlowDirection.Scrap => Color.Error,
+        FlowDirection.Return => Color.Secondary,
+        _ => Color.Default
+    };
+
+    /// <summary>处置方式 chip 配色（字典 8 档内置键；自定义档回退 Default）</summary>
+    private static Color GetDisposalChipColor(string? disposal) => disposal switch
+    {
+        NcrDisposalKeys.Concession => Color.Success,
+        NcrDisposalKeys.Reprocess => Color.Warning,
+        NcrDisposalKeys.Rework => Color.Warning,
+        NcrDisposalKeys.InProcessWarehouse => Color.Info,
+        NcrDisposalKeys.FinishedWarehouse => Color.Primary,
+        NcrDisposalKeys.ScrapCorrection => Color.Error,
+        NcrDisposalKeys.Scrap => Color.Error,
+        NcrDisposalKeys.Return => Color.Secondary,
         _ => Color.Default
     };
 
@@ -1069,6 +1140,21 @@ public partial class Ncrs
     {
         switch (col.Key)
         {
+            case "BatchNo":
+                // 有匹配的生产批次 + 有批次查看权才渲染链接；否则降级为纯文本
+                if (_canViewBatch && item.ProductionBatchId > 0)
+                {
+                    builder.OpenComponent<MudLink>(0);
+                    builder.AddAttribute(1, "Typo", Typo.body2);
+                    builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create<Microsoft.AspNetCore.Components.Web.MouseEventArgs?>(this, () => OpenBatchDetail(item.ProductionBatchId)));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, item.BatchNo)));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.BatchNo);
+                }
+                break;
             case "Status":
                 builder.OpenComponent<MudChip>(0);
                 builder.AddAttribute(1, "Color", GetStatusColor(item.Status));
@@ -1082,8 +1168,25 @@ public partial class Ncrs
             case "Reporter":
                 builder.AddContent(0, DisplayHelper.FormatPersonName(item.Reporter));
                 break;
+            case "FlowDirection":
+                if (item.FlowDirection.HasValue)
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Color", GetFlowDirectionChipColor(item.FlowDirection));
+                    builder.AddAttribute(2, "Size", Size.Small);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, GetFlowDirectionText(item.FlowDirection))));
+                    builder.CloseComponent();
+                }
+                break;
             case "DisposalMethod":
-                builder.AddContent(0, GetDisposalMethodText(item.DisposalMethod));
+                if (!string.IsNullOrEmpty(item.DisposalMethod))
+                {
+                    builder.OpenComponent<MudChip>(0);
+                    builder.AddAttribute(1, "Color", GetDisposalChipColor(item.DisposalMethod));
+                    builder.AddAttribute(2, "Size", Size.Small);
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, GetDisposalText(item.DisposalMethod))));
+                    builder.CloseComponent();
+                }
                 break;
             case "Severity":
                 if (item.Severity != null)
@@ -1153,7 +1256,8 @@ public partial class Ncrs
         "Status" => GetStatusText(item.Status),
         "PipeCategory" => GetPipeCategoryText(item.PipeCategory),
         "Reporter" => DisplayHelper.FormatPersonName(item.Reporter),
-        "DisposalMethod" => GetDisposalMethodText(item.DisposalMethod),
+        "FlowDirection" => GetFlowDirectionText(item.FlowDirection),
+        "DisposalMethod" => GetDisposalText(item.DisposalMethod),
         "Severity" => GetSeverityText(item.Severity),
         "ResponsibilityCategory" => DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, item.ResponsibilityCategory) ?? "",
         "VerifyResult" => GetVerifyResultText(item.VerifyResult),
@@ -1175,6 +1279,7 @@ public partial class Ncrs
         NcrStatus.Pending => Color.Info,
         NcrStatus.Processing => Color.Warning,
         NcrStatus.Closed => Color.Success,
+        NcrStatus.Ignored => Color.Dark,
         _ => Color.Default
     };
 
@@ -1182,7 +1287,12 @@ public partial class Ncrs
 
     private string GetPipeCategoryText(MaterialType category) => DisplayHelper.GetMaterialTypeText(category);
 
-    private string GetDisposalMethodText(DisposalMethod? method) => method.HasValue ? DisplayHelper.GetDisposalMethodText(method.Value) : "";
+    /// <summary>流向中文（枚举 5 档）</summary>
+    private string GetFlowDirectionText(FlowDirection? direction)
+        => direction.HasValue ? DisplayHelper.GetFlowDirectionText(direction.Value) : "";
+
+    /// <summary>处置方式中文（字典 NcrDisposalKey，含用户自定义档）</summary>
+    private string GetDisposalText(string? disposal) => DisplayHelper.GetDisposalText(disposal);
 
     private string GetSeverityText(SeverityLevel? severity) => severity.HasValue ? DisplayHelper.GetSeverityLevelText(severity.Value) : "";
 

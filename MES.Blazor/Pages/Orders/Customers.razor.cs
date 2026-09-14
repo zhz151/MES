@@ -51,6 +51,71 @@ public partial class Customers
     private string sortColumn = "CustomerCode";
     private bool sortDescending = true;
 
+    // ========== 双日期区间（2026-09-14；与报表总览「客户往来数据」卡同口径、同规则） ==========
+
+    private string _signDateFrom = "";   // 接单区间-开始（yyyy-MM-dd，空=不限）
+    private string _signDateTo = "";     // 接单区间-结束（yyyy-MM-dd，闭区间含当天）
+    private string _shipDateFrom = "";   // 发货区间-开始（yyyy-MM-dd，空=不限）
+    private string _shipDateTo = "";     // 发货区间-结束（yyyy-MM-dd，闭区间含当天）
+
+    /// <summary>接单区间生效（任一端有值）：仅 `YearOrdering` 列按区间重算，其余列置「—」</summary>
+    private bool SignRangeMode => !string.IsNullOrWhiteSpace(_signDateFrom) || !string.IsNullOrWhiteSpace(_signDateTo);
+
+    /// <summary>发货区间生效（任一端有值）：仅 `ShippedDone`/`ShippedOther` 列按区间重算，其余列置「—」</summary>
+    private bool ShipRangeMode => !string.IsNullOrWhiteSpace(_shipDateFrom) || !string.IsNullOrWhiteSpace(_shipDateTo);
+
+    /// <summary>任一时间区间生效（两区间互相独立、可叠加）：服务端只返回「激活列有数据」的客户行</summary>
+    private bool AnyRangeMode => SignRangeMode || ShipRangeMode;
+
+    /// <summary>
+    /// 当前区间模式下「有数据」的列集合；返回 null 表示未启用任何区间（8 列全部正常展示、不过滤行）。
+    /// 未激活列渲染为「—」防视觉污染——该列口径为自然年/全时段/当前存量，与所选区间不同源。
+    /// ⚠️ 键名与后端 `CustomerService.ActiveStatsColumns` 及本页 `YearOrdering`（带 -ing）约定一致。
+    /// </summary>
+    private HashSet<string>? ActiveTradeColumns()
+    {
+        if (!AnyRangeMode) return null;
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        if (SignRangeMode) set.Add("YearOrdering");
+        if (ShipRangeMode) { set.Add("ShippedDone"); set.Add("ShippedOther"); }
+        return set;
+    }
+
+    /// <summary>该 ② 往来信息统计列在当前区间模式下是否有数据（未启用区间时恒 true）</summary>
+    private bool IsTradeColumnActive(string key) => ActiveTradeColumns()?.Contains(key) ?? true;
+
+    /// <summary>表头动态文本：仅在该维度区间生效时改名（口径已切换，防误导）</summary>
+    private string TradeColumnLabel(ColumnDef col) => col.Key switch
+    {
+        "YearOrdering" => SignRangeMode ? "区间接单" : "本年接单",
+        "ShippedDone" => ShipRangeMode ? "区间已发货(整单)" : "本年已发货(整单)",
+        "ShippedOther" => ShipRangeMode ? "区间已发货(非整单)" : "本年已发货(非整单)",
+        _ => col.Label
+    };
+
+    /// <summary>区间生效时的口径提示条（三分支：仅接单 / 仅发货 / 双区间）</summary>
+    private string RangeHint()
+    {
+        if (SignRangeMode && ShipRangeMode)
+            return "接单 + 发货区间模式：「区间接单」「区间已发货(整单/非整单)」按各自所选日期区间统计；其余列置「—」；只显示所选区间内有数据的客户。";
+        if (SignRangeMode)
+            return "接单区间模式：仅「区间接单」按所选接单日期区间统计；其余列置「—」；只显示该区间内有接单数据的客户。";
+        return "发货区间模式：仅「区间已发货(整单/非整单)」按所选发货日期区间统计；其余列置「—」；只显示该区间内有发货数据的客户。";
+    }
+
+    private static DateTime? ParseRangeDate(string text)
+        => DateTime.TryParseExact(text.Trim(), "yyyy-MM-dd",
+               System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d)
+            ? d
+            : null;
+
+    /// <summary>应用/清除区间后回到第 1 页重载（区间模式下总条数会变化，须重置页码）</summary>
+    private async Task ApplyRangeAsync()
+    {
+        _resetToFirstPage = true;
+        if (table != null) await table.ReloadServerData();
+    }
+
     // ExcelFilter 状态
     private Dictionary<string, HashSet<string>> _columnFilters = new();
     private Dictionary<string, List<ExcelFilterOption>> _filterContextOptions = new();
@@ -151,6 +216,17 @@ public partial class Customers
         return cls;
     }
 
+    /// <summary>
+    /// ② 往来信息表头分组强调色（2026-09-14）：待发货（整单/非整单）= 暖橙、待在产（整单未入库/扣除部分入库）= 冷紫，
+    /// 用于在同一「往来信息」分组内再区分两组语义（待出货 vs 在制在产）。与报表总览「客户往来数据」卡同源配色。
+    /// </summary>
+    private static string GetTradeAccentCss(string key) => key switch
+    {
+        "StockDone" or "StockOther" => " th-accent-stock",
+        "WipNone" or "WipPartial" => " th-accent-wip",
+        _ => ""
+    };
+
     private static string GetCellGroupCss(int? groupKey, bool isGroupStart)
     {
         var cls = groupKey switch { 1 => "col-g1-cell", 2 => "col-g2-cell", 3 => "col-g3-cell", 4 => "col-g4-cell", _ => "" };
@@ -210,6 +286,8 @@ public partial class Customers
         {
             if (col.GroupKey != 2) continue;
             if (!_statFieldMap.TryGetValue(col.Key, out var map)) continue; // 非数值列不合计
+            // 区间模式下未激活列置「—」（口径与所选区间不同源，显旧值误导）
+            if (!IsTradeColumnActive(col.Key)) { _pageSums[col.Key] = "—"; continue; }
 
             var weightProp = props[map.WeightField];
             var amountProp = props[map.AmountField];
@@ -294,7 +372,12 @@ public partial class Customers
                 PageSize = state.PageSize,
                 Keyword = string.IsNullOrWhiteSpace(_searchKeyword) ? null : _searchKeyword,
                 SortBy = string.IsNullOrEmpty(sortBy) ? "customercode" : sortBy,
-                IsDescending = sortDescending
+                IsDescending = sortDescending,
+                // 双日期区间（互相独立、可叠加）：传了则服务端按区间重算统计并只返回区间内有数据的客户
+                SignDateFrom = ParseRangeDate(_signDateFrom),
+                SignDateTo = ParseRangeDate(_signDateTo),
+                ShipDateFrom = ParseRangeDate(_shipDateFrom),
+                ShipDateTo = ParseRangeDate(_shipDateTo)
             };
             if (filtersJson != null)
                 query.Filters = JsonSerializer.Deserialize<List<FilterDescriptor>>(filtersJson);
@@ -652,6 +735,16 @@ public partial class Customers
         var isEditing = _editingIds.Contains(item.Id);
         var cache = isEditing && _editCache.TryGetValue(item.Id, out var c) ? c : null;
 
+        // 区间模式下未激活的统计列置「—」（口径与所选区间不同源，显旧值误导）
+        if (col.GroupKey == 2 && _statFieldMap.ContainsKey(col.Key) && !IsTradeColumnActive(col.Key))
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "style", "color:#9e9e9e");
+            builder.AddContent(2, "—");
+            builder.CloseElement();
+            return;
+        }
+
         // 客户业务统计 8 列：只读三色单元格（z单/x吨/y万，蓝单/绿吨/万橙），悬停显示完整纯文本值
         var statMarkup = RenderStatMarkup(item, col.Key);
         if (statMarkup.HasValue)
@@ -915,15 +1008,19 @@ public partial class Customers
         }
     }
 
-    /// <summary>当前可见列 → 打印列定义（Key/Label 对应当前列显隐与顺序）</summary>
+    /// <summary>当前可见列 → 打印列定义（Key/Label 对应当前列显隐与顺序；区间模式下的动态表头同步带上）</summary>
     private List<PrintColumnDef> GetPrintColumnDefs() =>
-        _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = c.Label }).ToList();
+        _visibleColumns.Select(c => new PrintColumnDef { Key = c.Key, Label = TradeColumnLabel(c) }).ToList();
 
-    /// <summary>按列取打印显示文本：① 基本信息原样，② 往来信息走统计渲染（吨/万/单），与页面单元格口径一致</summary>
-    private static string? GetCellDisplayText(CustomerProfileDto item, ColumnDef col)
+    /// <summary>按列取打印显示文本：① 基本信息原样，② 往来信息走统计渲染（吨/万/单），与页面单元格口径一致（含区间模式「—」）</summary>
+    private string? GetCellDisplayText(CustomerProfileDto item, ColumnDef col)
     {
         if (col.GroupKey == 2)
+        {
+            if (_statFieldMap.ContainsKey(col.Key) && !IsTradeColumnActive(col.Key))
+                return "—";
             return RenderStatText(item, col.Key) ?? "-";
+        }
 
         return col.Key switch
         {

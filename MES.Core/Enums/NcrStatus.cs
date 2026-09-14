@@ -10,5 +10,7 @@ public enum NcrStatus
     /// <summary>处理中</summary>
     Processing,
     /// <summary>已关闭</summary>
-    Closed
+    Closed,
+    /// <summary>忽略（该待处理组无需完整不合格报告，登记即忽略）</summary>
+    Ignored
 }

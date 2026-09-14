@@ -51,7 +51,7 @@
 
             <!-- 数据表格 -->
             <div id="config-parameters-list-table">
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="ConfigParameterDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"

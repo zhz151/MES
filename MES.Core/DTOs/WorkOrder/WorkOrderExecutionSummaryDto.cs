@@ -152,11 +152,22 @@ public class WorkOrderExecutionSummaryDto
     public int? ProcessInspectionReworkWeight { get; set; }
     public int? ProcessInspectionWarehouseWeight { get; set; }
     public int? ProcessInspectionScrapWeight { get; set; }
+
+    /// <summary>过程检退货重(kg)（2026-09-11 新增第 4 档）</summary>
+    public int? ProcessInspectionReturnWeight { get; set; }
+
     public int? FinalInspectionDefectQty { get; set; }
     public int? FinalInspectionDefectWeight { get; set; }
     public int? FinalInspectionReworkWeight { get; set; }
+
+    /// <summary>成检入在制重(kg)（2026-09-11 新增第 5 档）</summary>
+    public int? FinalInspectionInProcessWarehouseWeight { get; set; }
+
     public int? FinalInspectionWarehouseWeight { get; set; }
     public int? FinalInspectionScrapWeight { get; set; }
+
+    /// <summary>成检退货重(kg)（2026-09-11 新增第 4 档）</summary>
+    public int? FinalInspectionReturnWeight { get; set; }
 
     // ========== Group 12: 实际生产总流转（G13~G15 的汇整） ==========
     public decimal FlowOutputRatio { get; set; }

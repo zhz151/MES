@@ -197,8 +197,10 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
                     FixedLength = f.FixedLength,
                     Quantity = f.Quantity,
                     DefectReworkQuantity = f.DefectReworkQuantity,
+                    DefectInProcessWarehouseQuantity = f.DefectInProcessWarehouseQuantity,
                     DefectWarehouseQuantity = f.DefectWarehouseQuantity,
                     DefectScrapQuantity = f.DefectScrapQuantity,
+                    DefectReturnQuantity = f.DefectReturnQuantity,
                     InspectionDate = f.InspectionDate
                 })
                 .ToListAsync());
@@ -234,7 +236,7 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
 
             if (!mainNoAggByKey.TryGetValue(key, out var agg))
                 mainNoAggByKey[key] = agg = new MainNoAgg();
-            agg.Defect += (rec.DefectReworkQuantity ?? 0) + (rec.DefectWarehouseQuantity ?? 0) + (rec.DefectScrapQuantity ?? 0);
+            agg.Defect += (rec.DefectReworkQuantity ?? 0) + (rec.DefectInProcessWarehouseQuantity ?? 0) + (rec.DefectWarehouseQuantity ?? 0) + (rec.DefectScrapQuantity ?? 0) + (rec.DefectReturnQuantity ?? 0);
 
             var len = ParseLength(rec.FixedLength) ?? 0;
             if (!inspAggByMainKey.TryGetValue(key, out var dict))
@@ -246,7 +248,7 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
                 inspAgg.CutArrivedQuantity += rec.Quantity ?? 0;
             else
                 inspAgg.NonCutArrivedQuantity += rec.Quantity ?? 0;
-            inspAgg.DefectQuantity += (rec.DefectReworkQuantity ?? 0) + (rec.DefectWarehouseQuantity ?? 0) + (rec.DefectScrapQuantity ?? 0);
+            inspAgg.DefectQuantity += (rec.DefectReworkQuantity ?? 0) + (rec.DefectInProcessWarehouseQuantity ?? 0) + (rec.DefectWarehouseQuantity ?? 0) + (rec.DefectScrapQuantity ?? 0) + (rec.DefectReturnQuantity ?? 0);
             if (rec.InspectionDate != default && (inspAgg.InspectionDeadline == null || rec.InspectionDate > inspAgg.InspectionDeadline))
                 inspAgg.InspectionDeadline = rec.InspectionDate;
         }
@@ -502,8 +504,10 @@ public class FixedLengthWorkOrderService : IFixedLengthWorkOrderService
         public string? FixedLength { get; set; }
         public int? Quantity { get; set; }
         public int? DefectReworkQuantity { get; set; }
+        public int? DefectInProcessWarehouseQuantity { get; set; }
         public int? DefectWarehouseQuantity { get; set; }
         public int? DefectScrapQuantity { get; set; }
+        public int? DefectReturnQuantity { get; set; }
         public DateTime InspectionDate { get; set; }
     }
 }

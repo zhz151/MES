@@ -22,6 +22,12 @@ public class OutsourceVendorService
             var url = $"{BaseUrl}/list?pageIndex={query.PageIndex}&pageSize={query.PageSize}&sortBy={encodedSortBy}&isDescending={isDescending}";
             if (!string.IsNullOrEmpty(query.Keyword)) url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
+            // 发出日期区间（yyyy-MM-dd）：传了则服务端委外类列按区间重算
+            if (query.VendorSendDateFrom.HasValue) url += $"&sendDateFrom={query.VendorSendDateFrom.Value:yyyy-MM-dd}";
+            if (query.VendorSendDateTo.HasValue) url += $"&sendDateTo={query.VendorSendDateTo.Value:yyyy-MM-dd}";
+            // 回收日期区间（yyyy-MM-dd）：传了则服务端回收/退回类列按区间重算（与发出区间互独立）
+            if (query.VendorRecoveryDateFrom.HasValue) url += $"&recoveryDateFrom={query.VendorRecoveryDateFrom.Value:yyyy-MM-dd}";
+            if (query.VendorRecoveryDateTo.HasValue) url += $"&recoveryDateTo={query.VendorRecoveryDateTo.Value:yyyy-MM-dd}";
             return await _http.GetFromJsonAsync<ApiResponse<PagedResult<OutsourceVendorProfileDto>>>(url)
                    ?? ApiResponse<PagedResult<OutsourceVendorProfileDto>>.Fail("获取数据失败");
         }

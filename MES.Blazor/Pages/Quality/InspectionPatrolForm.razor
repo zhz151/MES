@@ -1,0 +1,311 @@
+@page "/quality/inspection-patrol/create"
+@page "/quality/inspection-patrol/{Id:int}/edit"
+@using MES.Blazor.Helpers
+@using MES.Blazor.Services
+@using Microsoft.AspNetCore.Authorization
+@using MES.Core.DTOs.Configuration
+@using MES.Core.DTOs.Quality
+@inject InspectionPatrolService PatrolService
+@inject EmployeeService EmployeeService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject IDialogService DialogService
+@attribute [Authorize(Roles = Roles.Policies.QualityEdit)]
+
+<MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+    <MudCard>
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">
+                    <MudIcon Icon="@Icons.Material.Filled.FactCheck" Class="mr-2" Color="Color.Primary" />
+                    @(_isEditMode ? "编辑巡检单" : "新增巡检单")
+                </MudText>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="GoBack">返回</MudButton>
+            </CardHeaderActions>
+        </MudCardHeader>
+
+        <MudCardContent>
+            <MudGrid>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudTextField T="string" Label="巡检日期 *" Value="_patrolDate"
+                                  ValueExpression="@(() => _patrolDate)"
+                                  ValueChanged="@(v => _patrolDate = v)"
+                                  Placeholder="yyyy-MM-dd" Variant="Variant.Outlined" Dense="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    @* 巡检人：员工档案下拉（按姓名/工号模糊搜，单选）+ Text/TextChanged 双通道承接档案外手输 *@
+                    <MudAutocomplete T="EmployeeDto" Label="巡检人 *"
+                                     Value="_inspectorEmp"
+                                     ValueChanged="@OnInspectorSelected"
+                                     Text="@_form.Inspector"
+                                     TextChanged="@OnInspectorTextChanged"
+                                     SearchFunc="@FilterInspectorAsync"
+                                     ToStringFunc="@EmployeeDisplay"
+                                     Variant="Variant.Outlined" Dense="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <div class="d-flex align-center">
+                        <MudTextField T="string" Label="生产编号 *" Value="_batchNo"
+                                      ValueExpression="@(() => _batchNo)"
+                                      ValueChanged="@OnBatchNoChanged"
+                                      Immediate="true" DebounceInterval="500"
+                                      Variant="Variant.Outlined" Dense="true" Class="flex-grow-1" />
+                        <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Search" OnClick="LookupBatchAsync" Class="ml-2">
+                            带出
+                        </MudButton>
+                    </div>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudTextField T="string" Label="工单号" Value="@_form.WorkOrderNo" ReadOnly="true"
+                                  Variant="Variant.Outlined" Dense="true" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+                    <MudSelect T="string" Label="工序名称 *" Value="_processName"
+                               ValueExpression="@(() => _processName)"
+                               ValueChanged="@OnProcessNameChanged"
+                               ToStringFunc="@((string v) => ProcessDisplayHelper.GetProcessNameText(v))"
+                               Variant="Variant.Outlined" Dense="true">
+                        @foreach (var pg in _processGroupOptions)
+                        {
+                            <MudSelectItem T="string" Value="@pg.ProcessName">@ProcessDisplayHelper.GetProcessNameText(pg.ProcessName)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudSelect T="string" Label="工段名称 *" Value="_sectionName"
+                               ValueExpression="@(() => _sectionName)"
+                               ValueChanged="@(v => _sectionName = v ?? "")"
+                               ToStringFunc="@((string v) => SectionDisplayHelper.GetSectionNameText(v))"
+                               Variant="Variant.Outlined" Dense="true">
+                        @foreach (var sec in _sectionOptions)
+                        {
+                            <MudSelectItem T="string" Value="@sec">@SectionDisplayHelper.GetSectionNameText(sec)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudTextField T="string" Label="工厂牌号" Value="@_form.PlantGrade" ReadOnly="true"
+                                  Variant="Variant.Outlined" Dense="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudSelect T="string" Label="制造规格" Value="_manufacturingSpec"
+                               ValueExpression="@(() => _manufacturingSpec)"
+                               ValueChanged="@OnManufacturingSpecChanged"
+                               Variant="Variant.Outlined" Dense="true">
+                        <MudSelectItem T="string" Value="@((string?)null)">（未指定）</MudSelectItem>
+                        @foreach (var spec in _specOptions)
+                        {
+                            <MudSelectItem T="string" Value="@spec">@spec</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6" md="3">
+                    <div class="d-flex align-center">
+                        <MudText Typo="Typo.body2" Class="mr-2">产类：</MudText>
+                        @if (!string.IsNullOrEmpty(_form.ProductStatus))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="@DisplayHelper.GetProductStatusColor(_form.ProductStatus)">
+                                @DisplayHelper.GetProductStatusText(_form.ProductStatus)
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Class="text-secondary">保存后系统自动计算</MudText>
+                        }
+                    </div>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    @* 在产单位/车间：委外单位档案候选，允许手填；命中委外单位档案即判定为委外 *@
+                    <MudAutocomplete T="string" Label="在产单位/车间" Value="_form.ProductionUnit"
+                                     ValueChanged="OnProductionUnitChanged"
+                                     SearchFunc="@(kw => SearchOptionAsync(_positionOptions?.ProductionUnits, kw))"
+                                     CoerceValue="true" Clearable="false" MinCharacters="0"
+                                     Variant="Variant.Outlined" Dense="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    @* 在产设备名：纯手动输入、允许留空（不提供设备台账下拉）；委外时置灰 *@
+                    <MudTextField T="string" Label="在产设备名" @bind-Value="_form.EquipmentName"
+                                  Disabled="_isOutsourced"
+                                  Variant="Variant.Outlined" Dense="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    @* 在产操作人：员工档案下拉（单选，按姓名/工号模糊搜）+ Text/TextChanged 双通道承接档案外手输；委外时置灰 *@
+                    <MudAutocomplete T="EmployeeDto" Label="在产操作人"
+                                     Value="_operatorEmp"
+                                     ValueChanged="@OnOperatorSelected"
+                                     Text="@_form.ProductionOperator"
+                                     TextChanged="@OnOperatorTextChanged"
+                                     SearchFunc="@FilterOperatorAsync"
+                                     ToStringFunc="@EmployeeDisplay"
+                                     Disabled="_isOutsourced"
+                                     Variant="Variant.Outlined" Dense="true" />
+                </MudItem>
+            </MudGrid>
+
+            @if (_isOutsourced)
+            {
+                <MudText Typo="Typo.caption" Class="text-secondary mt-2">
+                    在产单位为委外单位，无需填写「在产设备名」与「在产操作人」。
+                </MudText>
+            }
+
+            @* ========== G3 巡检明细 ========== *@
+            <MudText Typo="Typo.subtitle2" Class="mt-6 mb-2">
+                巡检明细
+                <MudText Typo="Typo.caption" Class="ml-2 text-secondary">（至少填写一条；巡检结果与备注为文本，可留空）</MudText>
+            </MudText>
+            <MudTable Items="_items" Dense="true" Hover="true" Elevation="0" Class="auto-table compact-table">
+                <HeaderContent>
+                    <MudTh Style="width: 60px;">序号</MudTh>
+                    <MudTh Style="width: 30%;">巡检项 *</MudTh>
+                    <MudTh Style="width: 30%;">巡检结果</MudTh>
+                    <MudTh>备注</MudTh>
+                    <MudTh Style="width: 60px;">操作</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="row">
+                    <MudTd>@(_items.IndexOf(row) + 1)</MudTd>
+                    <MudTd>
+                        <MudTextField T="string" Value="@row.ItemName"
+                                      ValueExpression="@(() => row.ItemName)"
+                                      ValueChanged="@(v => row.ItemName = v)"
+                                      Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                    </MudTd>
+                    <MudTd>
+                        <MudTextField T="string" Value="@row.Result"
+                                      ValueExpression="@(() => row.Result)"
+                                      ValueChanged="@(v => row.Result = v)"
+                                      Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                    </MudTd>
+                    <MudTd>
+                        <MudTextField T="string" Value="@row.Remark"
+                                      ValueExpression="@(() => row.Remark)"
+                                      ValueChanged="@(v => row.Remark = v)"
+                                      Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense" />
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                       Title="删除该行" OnClick="() => RemoveItemRow(row)" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+            <div class="mt-2">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Add" OnClick="AddItemRow">
+                    添加巡检项
+                </MudButton>
+            </div>
+
+            @* ========== G4 整改闭环 ========== *@
+            <MudText Typo="Typo.subtitle2" Class="mt-6 mb-2">整改闭环</MudText>
+            <MudCheckBox T="bool" Value="_form.NeedRectification"
+                         ValueExpression="@(() => _form.NeedRectification)"
+                         ValueChanged="@OnNeedRectificationChanged"
+                         Label="涉及整改" Dense="true" />
+            @if (_form.NeedRectification)
+            {
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="整改内容描述" @bind-Value="_form.RectificationDescription"
+                                      Lines="3" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" Label="验证结果" @bind-Value="_form.VerificationResult"
+                                      Lines="2" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudCheckBox T="bool" @bind-Value="_form.IsClosed" Label="是否闭环" Dense="true" />
+                    </MudItem>
+                </MudGrid>
+            }
+
+            @* ========== 照片 ========== *@
+            <MudText Typo="Typo.subtitle2" Class="mt-6 mb-2">
+                巡检照片
+                <MudText Typo="Typo.caption" Class="ml-2 text-secondary">
+                    （最多 @MaxAttachments 张，支持 jpg/png/webp/gif/bmp，上传前自动压缩）
+                </MudText>
+            </MudText>
+            <div class="d-flex flex-wrap align-center" style="gap:12px;">
+                @foreach (var photo in _patrolPhotos)
+                {
+                    <div class="attachment-thumb">
+                        <img src="@photo.PreviewUrl" alt="@photo.FileName" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                       Color="Color.Error" Class="attachment-remove"
+                                       Title="删除照片"
+                                       OnClick="() => RemovePhotoAsync(photo, _patrolPhotos)" />
+                    </div>
+                }
+                @if (_patrolPhotos.Count < MaxAttachments)
+                {
+                    <div>
+                        <input type="file" accept="image/*" multiple @ref="_patrolFileInput"
+                               style="display:none" @onchange="OnPatrolFilesSelected" />
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.AddAPhoto"
+                                   OnClick="() => OpenFilePicker(_patrolFileInput)" Disabled="@_isUploading">
+                            添加照片
+                        </MudButton>
+                    </div>
+                }
+            </div>
+
+            @if (_form.NeedRectification)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-6 mb-2">
+                    整改验证照片
+                    <MudText Typo="Typo.caption" Class="ml-2 text-secondary">（最多 @MaxAttachments 张）</MudText>
+                </MudText>
+                <div class="d-flex flex-wrap align-center" style="gap:12px;">
+                    @foreach (var photo in _rectPhotos)
+                    {
+                        <div class="attachment-thumb">
+                            <img src="@photo.PreviewUrl" alt="@photo.FileName" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                           Color="Color.Error" Class="attachment-remove"
+                                           Title="删除照片"
+                                           OnClick="() => RemovePhotoAsync(photo, _rectPhotos)" />
+                        </div>
+                    }
+                    @if (_rectPhotos.Count < MaxAttachments)
+                    {
+                        <div>
+                            <input type="file" accept="image/*" multiple @ref="_rectFileInput"
+                                   style="display:none" @onchange="OnRectFilesSelected" />
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.AddAPhoto"
+                                       OnClick="() => OpenFilePicker(_rectFileInput)" Disabled="@_isUploading">
+                                添加照片
+                            </MudButton>
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <MudText Typo="Typo.body2" Color="Color.Error" Class="mt-4">@_errorMessage</MudText>
+            }
+            @if (!string.IsNullOrEmpty(_warningMessage))
+            {
+                <MudText Typo="Typo.body2" Color="Color.Warning" Class="mt-2">@_warningMessage</MudText>
+            }
+
+            <MudGrid Class="mt-4">
+                <MudItem xs="12" Class="d-flex justify-end">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Save"
+                               OnClick="Save" Loading="@_isSaving" Size="Size.Large">
+                        保存
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>

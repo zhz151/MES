@@ -55,7 +55,7 @@
                             <MudDivider Vertical="true" />
                             <MudText Typo="Typo.body2" Class="text-warning-orange" Style="min-width: 120px;">
                                 <MudIcon Icon="@Icons.Material.Filled.HourglassEmpty" Size="Size.Small" Color="Color.Warning" Class="mr-1" />
-                                待投料: @(_pendingWeight > 0 ? $"{(_pendingWeight / 1000m).ToString("F1")}t" : "0t")
+                                待投原料: @(_pendingWeight > 0 ? $"{(_pendingWeight / 1000m).ToString("F1")}t" : "0t")
                                 @if (_purchaseCount > 0)
                                 {
                                     <text> + {成购：@((_purchaseWeight / 1000m).ToString("F1"))t}</text>
@@ -65,9 +65,9 @@
                     </MudItem>
                     <MudItem xs="12" Class="mt-2">
                         <div style="display:flex; gap:16px; flex-wrap:wrap;">
-                            @* 待投料矩阵：行=原料锁定备注，列=主号计划性 *@
+                            @* 待投原料矩阵：行=原料锁定备注，列=主号计划性 *@
                             <div id="rmlp-summary-pending" style="flex:1; min-width:340px;">
-                                <div style="font-weight:600; color:#E65100; margin-bottom:4px;">待投料</div>
+                                <div style="font-weight:600; color:#E65100; margin-bottom:4px;">待投原料</div>
                                 <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
                                     <thead>
                                         <tr>
@@ -119,7 +119,8 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @foreach (var r in RawMaterialLockRemarkKeys.All)
+                                            @* 成购仅为「执行用料计划」档的一个分支：只渲染该行（其余 3 档恒为 -，2026-09-10 用户决策） *@
+                                            @foreach (var r in new[] { RawMaterialLockRemarkKeys.ExecutePlan })
                                             {
                                                 <tr>
                                                     <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">@RawMaterialLockRemarkKeys.KeyToChinese[r]</td>
@@ -130,14 +131,6 @@
                                                     <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#f0f7f0; font-weight:600;">@FormatPurchaseCell(GetMatrixRowTotal(r))</td>
                                                 </tr>
                                             }
-                                            <tr>
-                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600; background:#eef3fa;">合计</td>
-                                                @foreach (var u in _urgencyColumns)
-                                                {
-                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#eef3fa; font-weight:600;">@FormatPurchaseCell(GetMatrixColumnTotal(u))</td>
-                                                }
-                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#e8f0e8; font-weight:700;">@FormatPurchaseCell(GetMatrixGrandTotal())</td>
-                                            </tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -153,7 +146,7 @@
                                 <thead>
                                     <tr>
                                         <th style="text-align:left; padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0;">原锁类别</th>
-                                        <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">待投料总量</th>
+                                        <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">全期合计</th>
                                         @foreach (var b in _cutoffBuckets)
                                         {
                                             <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center; white-space:nowrap;">@b.Label</th>
@@ -245,7 +238,7 @@
                     }
                 </div>
             </div>
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="RawMaterialLockPlanAndExecutionDto"
                       Items="@_filteredItems"
                       Dense="true"

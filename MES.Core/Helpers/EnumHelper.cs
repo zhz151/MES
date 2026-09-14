@@ -35,6 +35,9 @@ public static class EnumHelper
         ["BatchInputType"] = "批次投料类型",
         ["InspectionRequirementStage"] = "技术要求检验项阶段（终=仅终检；预=仅预检；预+终=预检与终检均需；-=不要求）",
         ["ReportTemplateType"] = "报工模板类型（决定报工写入哪张表及使用哪个表单模板）",
+        ["NcrPendingSourceType"] = "不合格报告待处理批次来源类型（过程检验/成品检验/不合格反馈）",
+        ["NonconformingFeedbackSourceType"] = "不合格反馈单来源类型（生产工段/过程检验/成品检验）",
+        ["NcrPendingBucket"] = "不合格报告待处理批次分组（正常提交/超阈值遗漏）",
         ["ShiftType"] = "班次",
         ["EquipmentTaskStatus"] = "设备点检/保养状况（物化存储到设备表）",
         ["NotificationType"] = "通知类型",
@@ -42,7 +45,7 @@ public static class EnumHelper
         ["LifecycleStatus"] = "设备生命周期状态",
         ["PurchaseOrderStatus"] = "采购订单状态",
         ["OutboundType"] = "出库类型",
-        ["DisposalMethod"] = "不合格品处置方式",
+        ["FlowDirection"] = "不合格流向（物料实际去向，由检验记录带出；与处置方式是两个概念）",
         ["RepairOrderStatus"] = "维修工单状态（由字段完整度自动推导）",
         ["ProductionType"] = "生产类型",
         ["MaterialPlanStatus"] = "用料计划状态（4档，已取消理论满足并入满足）",
@@ -224,13 +227,16 @@ public static class EnumHelper
                                               ("PreOnly", "预"),
                                               ("PreAndFinal", "预+终"));
 
-        Register<DisposalMethod>(("Rework", "返整"),
-                                  ("WarehouseEntry", "入库"),
-                                  ("Scrap", "报废"));
+        Register<FlowDirection>(("Rework", "返整"),
+                                 ("InProcessWarehouse", "入在制库"),
+                                 ("FinishedWarehouse", "可入备库"),
+                                 ("Scrap", "入次品库"),
+                                 ("Return", "退货"));
 
         Register<NcrStatus>(("Pending", "待处理"),
                              ("Processing", "处理中"),
-                             ("Closed", "已关闭"));
+                             ("Closed", "已关闭"),
+                             ("Ignored", "忽略"));
 
         Register<PicklingStatus>(("Soaking", "浸泡中"),
                                   ("Completed", "已完工"));
@@ -277,6 +283,17 @@ public static class EnumHelper
                                       ("ProcessInspection", "过程检验"),
                                       ("FinalInspection", "成品检验"),
                                       ("MaterialReceiveCheck", "成检到料"));
+
+        Register<NcrPendingSourceType>(("ProcessInspection", "过程检验"),
+                                       ("FinalInspection", "成品检验"),
+                                       ("NonconformingFeedback", "不合格反馈"));
+
+        Register<NonconformingFeedbackSourceType>(("ProductionSection", "生产工段"),
+                                                  ("ProcessInspection", "过程检验"),
+                                                  ("FinalInspection", "成品检验"));
+
+        Register<NcrPendingBucket>(("NormalSubmitted", "正常提交"),
+                                   ("OverageMissing", "超阈值遗漏"));
 
         Register<BatchInputType>(("Warehouse", "仓库投料"),
                                  ("SplitFromNumber", "编号拆分"),

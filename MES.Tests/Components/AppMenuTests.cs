@@ -51,6 +51,28 @@ public class AppMenuTests
 
         // 炉号/化学 子组仍在
         quality.Children.Should().ContainSingle(n => n.Label == "炉号/化学" && !n.IsLeaf);
+
+        // 不合格处置（2026-09-13 收为三级子组）：反馈上报 → 报告判定 是同一条闭环的两端
+        var nonconforming = quality.Children.Single(n => n.Label == "不合格处置");
+        nonconforming.IsLeaf.Should().BeFalse();
+        // 子组自身不设 Policy → 有效策略仍回退到「质量管理」的 QualityMenu，权限零变更
+        nonconforming.Policy.Should().BeNull();
+        nonconforming.Children.Select(n => (n.Label, n.Href)).Should().Equal(
+            ("不合格反馈", "/quality/nonconforming-feedback"),
+            ("不合格报告", "/quality/ncr"));
+        AppMenu.AllLeaves().Count(n => n.Href == "/quality/nonconforming-feedback").Should().Be(1);
+
+        // 位置：排在「成检追踪」之后（检验动作在前，异常处置在后）
+        var trackingIndex = quality.Children.Select((n, i) => (n, i)).First(x => x.n.Label == "成检追踪").i;
+        var nonconformingIndex = quality.Children.Select((n, i) => (n, i)).First(x => x.n.Label == "不合格处置").i;
+        nonconformingIndex.Should().BeGreaterThan(trackingIndex);
+
+        // 巡检（2026-09-11 新增）：质量管理首项，位于「过程检验」之前
+        quality.Children.Should().ContainSingle(n => n.Label == "巡检" && n.Href == "/quality/inspection-patrol");
+        var patrolIndex = quality.Children.Select((n, i) => (n, i)).First(x => x.n.Label == "巡检").i;
+        var processIndex = quality.Children.Select((n, i) => (n, i)).First(x => x.n.Label == "过程检验").i;
+        patrolIndex.Should().BeLessThan(processIndex);
+        AppMenu.AllLeaves().Count(n => n.Href == "/quality/inspection-patrol").Should().Be(1);
     }
 
     [Fact]
@@ -131,8 +153,13 @@ public class AppMenuTests
     {
         var scan = Node("扫码管理");
         scan.Policy.Should().BeNull(); // 整组仅需登录
-        scan.Children.Should().Contain(n => n.Label == "扫码报工" && n.Href == "/mobile-report" && n.Policy == null);
+        scan.Children.Should().Contain(n => n.Label == "报工扫码" && n.Href == "/mobile-report" && n.Policy == null);
         scan.Children.Should().Contain(n => n.Label == "设备扫码" && n.Href == "/equipment-scan" && n.Policy == null);
+
+        // 巡检 / 不合格反馈扫码（2026-09-11 新增）：生产现场反馈，仅需登录不带质量角色档
+        scan.Children.Should().Contain(n => n.Label == "巡检扫码" && n.Href == "/mobile-quality/patrol" && n.Policy == null);
+        scan.Children.Should().Contain(n => n.Label == "不合格反馈扫码" && n.Href == "/mobile-quality/feedback" && n.Policy == null);
+
         scan.Children.Should().Contain(n => n.Label == "工位管理" && n.Href == "/workstations" && n.Policy == Roles.Policies.ScanView);
         scan.Children.Should().Contain(n => n.Label == "员工管理" && n.Href == "/employees" && n.Policy == Roles.Policies.ScanView);
     }

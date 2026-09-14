@@ -119,6 +119,7 @@ public partial class AppDbContext
             entity.Property(e => e.DefectReworkQuantity);
             entity.Property(e => e.DefectWarehouseQuantity);
             entity.Property(e => e.DefectScrapQuantity);
+            entity.Property(e => e.DefectReturnQuantity);
             entity.Property(e => e.DefectDescription).HasMaxLength(500);
             entity.Property(e => e.SourceUnit).HasMaxLength(200);
             entity.Property(e => e.TagNo).HasMaxLength(50);
@@ -168,8 +169,10 @@ public partial class AppDbContext
             entity.Property(e => e.QualifiedQuantity);
             entity.Property(e => e.QualifiedWeight).HasColumnType("decimal(18,3)");
             entity.Property(e => e.DefectReworkQuantity);
+            entity.Property(e => e.DefectInProcessWarehouseQuantity);
             entity.Property(e => e.DefectWarehouseQuantity);
             entity.Property(e => e.DefectScrapQuantity);
+            entity.Property(e => e.DefectReturnQuantity);
             entity.Property(e => e.DefectDescription).HasMaxLength(500);
 
             // 尺寸检验专用
@@ -259,7 +262,7 @@ public partial class AppDbContext
 
             entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
             entity.Property(e => e.SampleNo);
@@ -270,7 +273,7 @@ public partial class AppDbContext
             entity.Property(e => e.Judgment).HasMaxLength(50);
 
             // 索引
-            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_HardnessTest_FurnaceNo");
+            entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_HardnessTest_BatchNo");
             entity.HasIndex(e => e.Grade).HasDatabaseName("IX_HardnessTest_Grade");
             entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_HardnessTest_InspectionDate");
         });
@@ -284,7 +287,7 @@ public partial class AppDbContext
 
             entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
             entity.Property(e => e.SampleNo);
@@ -296,7 +299,7 @@ public partial class AppDbContext
             entity.Property(e => e.Judgment).HasMaxLength(50);
 
             // 索引
-            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_GrainSizeTest_FurnaceNo");
+            entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_GrainSizeTest_BatchNo");
             entity.HasIndex(e => e.Grade).HasDatabaseName("IX_GrainSizeTest_Grade");
             entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_GrainSizeTest_InspectionDate");
         });
@@ -310,7 +313,7 @@ public partial class AppDbContext
 
             entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
             entity.Property(e => e.SampleNo);
@@ -326,7 +329,7 @@ public partial class AppDbContext
             entity.Property(e => e.MaxPitDepth).HasColumnType("decimal(18,6)");
             entity.Property(e => e.Judgment).HasMaxLength(50);
 
-            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_PittingCorrosionTest_FurnaceNo");
+            entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_PittingCorrosionTest_BatchNo");
             entity.HasIndex(e => e.Grade).HasDatabaseName("IX_PittingCorrosionTest_Grade");
             entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_PittingCorrosionTest_InspectionDate");
         });
@@ -340,7 +343,7 @@ public partial class AppDbContext
 
             entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
             entity.Property(e => e.SampleNo);
@@ -355,7 +358,7 @@ public partial class AppDbContext
             entity.Property(e => e.ObservationResult).HasMaxLength(200);
             entity.Property(e => e.Judgment).HasMaxLength(50);
 
-            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_IntergranularCorrosionTest_FurnaceNo");
+            entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_IntergranularCorrosionTest_BatchNo");
             entity.HasIndex(e => e.Grade).HasDatabaseName("IX_IntergranularCorrosionTest_Grade");
             entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_IntergranularCorrosionTest_InspectionDate");
         });
@@ -369,7 +372,7 @@ public partial class AppDbContext
 
             entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
             entity.Property(e => e.SampleNo);
@@ -383,7 +386,7 @@ public partial class AppDbContext
             entity.Property(e => e.Elongation).HasColumnType("decimal(18,6)");
             entity.Property(e => e.Judgment).HasMaxLength(50);
 
-            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_TensileTest_FurnaceNo");
+            entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_TensileTest_BatchNo");
             entity.HasIndex(e => e.Grade).HasDatabaseName("IX_TensileTest_Grade");
             entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_TensileTest_InspectionDate");
         });
@@ -397,7 +400,7 @@ public partial class AppDbContext
 
             entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
             entity.Property(e => e.SampleNo);
@@ -410,7 +413,7 @@ public partial class AppDbContext
             entity.Property(e => e.FerriteContent).HasColumnType("decimal(18,6)");
             entity.Property(e => e.Judgment).HasMaxLength(50);
 
-            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_MetallographicTest_FurnaceNo");
+            entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_MetallographicTest_BatchNo");
             entity.HasIndex(e => e.Grade).HasDatabaseName("IX_MetallographicTest_Grade");
             entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_MetallographicTest_InspectionDate");
         });
@@ -424,7 +427,7 @@ public partial class AppDbContext
 
             entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
             entity.Property(e => e.SampleNo);
@@ -434,7 +437,7 @@ public partial class AppDbContext
             entity.Property(e => e.Observation).HasMaxLength(200);
             entity.Property(e => e.Judgment).HasMaxLength(50);
 
-            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_FlatteningTest_FurnaceNo");
+            entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_FlatteningTest_BatchNo");
             entity.HasIndex(e => e.Grade).HasDatabaseName("IX_FlatteningTest_Grade");
             entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_FlatteningTest_InspectionDate");
         });
@@ -448,7 +451,7 @@ public partial class AppDbContext
 
             entity.Property(e => e.InspectionDate).IsRequired().HasColumnType("datetime2");
             entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.FurnaceNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Grade).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Specification).IsRequired().HasMaxLength(100);
             entity.Property(e => e.SampleNo);
@@ -460,7 +463,7 @@ public partial class AppDbContext
             entity.Property(e => e.Observation).HasMaxLength(200);
             entity.Property(e => e.Judgment).HasMaxLength(50);
 
-            entity.HasIndex(e => e.FurnaceNo).HasDatabaseName("IX_FlaringTest_FurnaceNo");
+            entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_FlaringTest_BatchNo");
             entity.HasIndex(e => e.Grade).HasDatabaseName("IX_FlaringTest_Grade");
             entity.HasIndex(e => e.InspectionDate).HasDatabaseName("IX_FlaringTest_InspectionDate");
         });
@@ -484,10 +487,29 @@ public partial class AppDbContext
             entity.Property(e => e.DefectiveQuantity);
             entity.Property(e => e.DefectiveWeight);
             entity.Property(e => e.ProblemDescription).HasMaxLength(500);
-            entity.Property(e => e.SourceInspectionItem).HasMaxLength(100);
 
-            // G2: 不合格品处置
-            entity.Property(e => e.DisposalMethod).HasConversion<string>().HasMaxLength(20);
+            // 让步放行维度（与次品维度并列，仅被动来源有值）：支数/重量/说明
+            entity.Property(e => e.ConcessionQuantity);
+            entity.Property(e => e.ConcessionWeight);
+            entity.Property(e => e.ConcessionRemark).HasMaxLength(500);
+
+            entity.Property(e => e.SourceInspectionItem).HasMaxLength(100);
+            // 被动组定位键（过程检验/成品检验超阈值建单时写入），用于待处理批次去重
+            entity.Property(e => e.SourceGroupKey).HasMaxLength(120);
+
+            // 流向（枚举 5 档，由检验记录带出；不合格反馈来源为空），与 G2 处置方式（字典）区分
+            entity.Property(e => e.FlowDirection).HasConversion<string>().HasMaxLength(30);
+
+            // 来源不合格反馈单（可空）：空 = 人工/检验阈值创建；有值 = 由该反馈单生成，反馈单随之视为「已处理」
+            entity.Property(e => e.NonconformingFeedbackId);
+
+            entity.HasOne<NonconformingFeedback>()
+                .WithMany()
+                .HasForeignKey(e => e.NonconformingFeedbackId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // G2: 不合格品处置（处置方式走字典 NcrDisposalKey，存英文 Key）
+            entity.Property(e => e.DisposalMethod).HasMaxLength(30);
             entity.Property(e => e.DisposalRemark).HasMaxLength(500);
             entity.Property(e => e.DisposalIsCompleted);
             entity.Property(e => e.DisposalCompleteDate).HasColumnType("datetime2");
@@ -525,8 +547,234 @@ public partial class AppDbContext
             entity.HasIndex(e => e.ReportDate).HasDatabaseName("IX_Ncr_ReportDate");
             entity.HasIndex(e => e.Severity).HasDatabaseName("IX_Ncr_Severity");
             entity.HasIndex(e => e.DisposalMethod).HasDatabaseName("IX_Ncr_DisposalMethod");
+            entity.HasIndex(e => e.FlowDirection).HasDatabaseName("IX_Ncr_FlowDirection");
+            entity.HasIndex(e => e.NonconformingFeedbackId).HasDatabaseName("IX_Ncr_NonconformingFeedbackId");
         });
     }
+
+    private static void ConfigureNonconformingFeedback(ModelBuilder builder)
+    {
+        builder.Entity<NonconformingFeedback>(entity =>
+        {
+            entity.ToTable("NonconformingFeedback");
+            entity.HasKey(e => e.Id);
+
+            // G1: 反馈信息
+            entity.Property(e => e.ReportDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.Reporter).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DataSource).HasMaxLength(10);
+            entity.Property(e => e.SourceType).IsRequired().HasMaxLength(30);
+
+            // G2: 位置信息
+            entity.Property(e => e.ProductionBatchId).IsRequired();
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.WorkOrderNo).HasMaxLength(100);
+            entity.Property(e => e.ProcessGroupId).IsRequired();
+            entity.Property(e => e.ProcessName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ManufacturingSpec).HasMaxLength(100);
+            // 工段与执行序号：生产工段/过程检验必填，成品检验来源为空（无工段概念）
+            entity.Property(e => e.SectionName).HasMaxLength(50);
+            entity.Property(e => e.SequenceNumber);
+            entity.Property(e => e.InspectionItem).HasConversion<string>().HasMaxLength(30);
+            entity.Property(e => e.ProductStatus).HasMaxLength(20);
+            entity.Property(e => e.PlantGrade).HasMaxLength(50);
+
+            // G3: 数量信息
+            entity.Property(e => e.IncomingQuantity);
+            entity.Property(e => e.IncomingWeight).HasColumnType("decimal(18,3)");
+            entity.Property(e => e.DefectQuantity);
+            entity.Property(e => e.DefectWeight);
+
+            // G4: 问题信息
+            entity.Property(e => e.ProblemDescription).HasMaxLength(500);
+
+            // 导航关系
+            entity.HasOne(e => e.ProductionBatch)
+                .WithMany()
+                .HasForeignKey(e => e.ProductionBatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ProcessGroup)
+                .WithMany()
+                .HasForeignKey(e => e.ProcessGroupId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasMany(e => e.Attachments)
+                .WithOne(a => a.Feedback)
+                .HasForeignKey(a => a.FeedbackId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // 索引
+            entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_NonconformingFeedback_BatchNo");
+            entity.HasIndex(e => e.ReportDate).HasDatabaseName("IX_NonconformingFeedback_ReportDate");
+            entity.HasIndex(e => e.ProductionBatchId).HasDatabaseName("IX_NonconformingFeedback_BatchId");
+        });
+    }
+
+    private static void ConfigureNonconformingFeedbackAttachment(ModelBuilder builder)
+    {
+        builder.Entity<NonconformingFeedbackAttachment>(entity =>
+        {
+            entity.ToTable("NonconformingFeedbackAttachment");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.FeedbackId).IsRequired();
+            entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.StoredName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SizeBytes).IsRequired();
+            entity.Property(e => e.SortOrder).IsRequired().HasDefaultValue(0);
+
+            entity.HasIndex(e => e.FeedbackId).HasDatabaseName("IX_NCFAttachment_FeedbackId");
+        });
+    }
+
+    private static void ConfigureProcessInspectionAttachment(ModelBuilder builder)
+    {
+        builder.Entity<ProcessInspectionAttachment>(entity =>
+        {
+            entity.ToTable("ProcessInspectionAttachment");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.ProcessInspectionId).IsRequired();
+            entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.StoredName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SizeBytes).IsRequired();
+            entity.Property(e => e.SortOrder).IsRequired().HasDefaultValue(0);
+
+            entity.HasOne(e => e.ProcessInspection)
+                .WithMany(p => p.Attachments)
+                .HasForeignKey(e => e.ProcessInspectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ProcessInspectionId).HasDatabaseName("IX_ProcessInspectionAttachment_InspectionId");
+        });
+    }
+
+    private static void ConfigureFinalInspectionAttachment(ModelBuilder builder)
+    {
+        builder.Entity<FinalInspectionAttachment>(entity =>
+        {
+            entity.ToTable("FinalInspectionAttachment");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.FinalInspectionId).IsRequired();
+            entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.StoredName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SizeBytes).IsRequired();
+            entity.Property(e => e.SortOrder).IsRequired().HasDefaultValue(0);
+
+            entity.HasOne(e => e.FinalInspection)
+                .WithMany(p => p.Attachments)
+                .HasForeignKey(e => e.FinalInspectionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.FinalInspectionId).HasDatabaseName("IX_FinalInspectionAttachment_InspectionId");
+        });
+    }
+
+    private static void ConfigureInspectionPatrol(ModelBuilder builder)
+    {
+        builder.Entity<InspectionPatrol>(entity =>
+        {
+            entity.ToTable("InspectionPatrol");
+            entity.HasKey(e => e.Id);
+
+            // G1: 巡检信息
+            entity.Property(e => e.PatrolDate).IsRequired().HasColumnType("datetime2");
+            entity.Property(e => e.Inspector).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.DataSource).HasMaxLength(10);
+
+            // G2: 位置信息
+            entity.Property(e => e.ProductionBatchId).IsRequired();
+            entity.Property(e => e.BatchNo).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.WorkOrderNo).HasMaxLength(100);
+            entity.Property(e => e.ProcessGroupId).IsRequired();
+            entity.Property(e => e.ProcessName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ManufacturingSpec).HasMaxLength(100);
+            entity.Property(e => e.SectionName).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.SequenceNumber).IsRequired();
+            entity.Property(e => e.ProductStatus).HasMaxLength(20);
+            entity.Property(e => e.PlantGrade).HasMaxLength(50);
+            entity.Property(e => e.ProductionUnit).HasMaxLength(100);
+            entity.Property(e => e.EquipmentName).HasMaxLength(100);
+            entity.Property(e => e.ProductionOperator).HasMaxLength(200);
+
+            // G4: 整改闭环
+            entity.Property(e => e.NeedRectification).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.RectificationDescription).HasMaxLength(500);
+            entity.Property(e => e.VerificationResult).HasMaxLength(500);
+            entity.Property(e => e.RectificationOperator).HasMaxLength(200);
+            entity.Property(e => e.IsClosed).IsRequired().HasDefaultValue(false);
+
+            // 导航关系
+            entity.HasOne(e => e.ProductionBatch)
+                .WithMany()
+                .HasForeignKey(e => e.ProductionBatchId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ProcessGroup)
+                .WithMany()
+                .HasForeignKey(e => e.ProcessGroupId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasMany(e => e.Items)
+                .WithOne(i => i.Patrol)
+                .HasForeignKey(i => i.PatrolId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.Attachments)
+                .WithOne(a => a.Patrol)
+                .HasForeignKey(a => a.PatrolId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // 索引
+            entity.HasIndex(e => e.BatchNo).HasDatabaseName("IX_InspectionPatrol_BatchNo");
+            entity.HasIndex(e => e.PatrolDate).HasDatabaseName("IX_InspectionPatrol_PatrolDate");
+            entity.HasIndex(e => e.ProductionBatchId).HasDatabaseName("IX_InspectionPatrol_BatchId");
+            entity.HasIndex(e => e.NeedRectification).HasDatabaseName("IX_InspectionPatrol_NeedRectification");
+            entity.HasIndex(e => e.IsClosed).HasDatabaseName("IX_InspectionPatrol_IsClosed");
+        });
+    }
+
+    private static void ConfigureInspectionPatrolItem(ModelBuilder builder)
+    {
+        builder.Entity<InspectionPatrolItem>(entity =>
+        {
+            entity.ToTable("InspectionPatrolItem");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.PatrolId).IsRequired();
+            entity.Property(e => e.ItemName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Result).HasMaxLength(500);
+            entity.Property(e => e.Remark).HasMaxLength(500);
+            entity.Property(e => e.SortOrder).IsRequired().HasDefaultValue(0);
+
+            entity.HasIndex(e => e.PatrolId).HasDatabaseName("IX_InspectionPatrolItem_PatrolId");
+        });
+    }
+
+    private static void ConfigureInspectionPatrolAttachment(ModelBuilder builder)
+    {
+        builder.Entity<InspectionPatrolAttachment>(entity =>
+        {
+            entity.ToTable("InspectionPatrolAttachment");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.PatrolId).IsRequired();
+            entity.Property(e => e.PhotoType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.StoredName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SizeBytes).IsRequired();
+            entity.Property(e => e.SortOrder).IsRequired().HasDefaultValue(0);
+
+            entity.HasIndex(e => e.PatrolId).HasDatabaseName("IX_InspectionPatrolAttachment_PatrolId");
+        });
+    }
+
     private static void ConfigureQualityProcessTracking(ModelBuilder builder)
     {
         builder.Entity<QualityProcessTracking>(entity =>
@@ -579,8 +827,10 @@ public partial class AppDbContext
             entity.Property(e => e.TotalQuantity).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.QualifiedQuantity).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.DefectReworkQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.DefectInProcessWarehouseQuantity).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.DefectWarehouseQuantity).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.DefectScrapQuantity).IsRequired().HasDefaultValue(0);
+            entity.Property(e => e.DefectReturnQuantity).IsRequired().HasDefaultValue(0);
             entity.Property(e => e.MaxInspectionDate).HasColumnType("date");
 
             // G4: 成品入库

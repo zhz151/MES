@@ -1,0 +1,34 @@
+@* 批次执行进度弹窗：批次计划 / 成检计划 点「生产编号」打开。
+   注意：只弹卡片，**不跳转「批次详情」页**（用户明确要求）；卡片本体复用 BatchProgressCard。 *@
+@namespace MES.Blazor.Shared
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center flex-wrap" Style="gap:6px;">
+            <MudIcon Icon="@Icons.Material.Filled.Timeline" Size="Size.Small" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">批次执行进度</MudText>
+            @if (!string.IsNullOrWhiteSpace(BatchNo))
+            {
+                <MudText Typo="Typo.body2" Color="Color.Primary" Class="font-weight-bold">@BatchNo</MudText>
+            }
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <BatchProgressCard BatchId="BatchId" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Close">关闭</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>批次主键（批次计划传 BatchId；成检计划传 ProductionBatchId）。</summary>
+    [Parameter] public int BatchId { get; set; }
+
+    /// <summary>生产编号（仅标题展示用，避免弹窗内再取一次批次头）。</summary>
+    [Parameter] public string? BatchNo { get; set; }
+
+    private void Close() => MudDialog.Close();
+}

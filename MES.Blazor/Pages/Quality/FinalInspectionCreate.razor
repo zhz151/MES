@@ -299,14 +299,18 @@
         new() { Key = "QualifiedConcessionQuantity", Label = "含让步放行支",             GroupKey = 3, GroupName = "G3 检验结果" },
         new() { Key = "ConcessionRemark",         Label = "让步说明",                    GroupKey = 3, GroupName = "G3 检验结果" },
 
-        // ========== G4：次品处理 ==========
-        new() { Key = "DefectReworkQuantity",     Label = "次品返整支",                  GroupKey = 4, GroupName = "G4 次品处理" },
-        new() { Key = "DefectWarehouseQuantity",  Label = "次品入库支",                  GroupKey = 4, GroupName = "G4 次品处理" },
-        new() { Key = "DefectScrapQuantity",      Label = "次品报废支",                  GroupKey = 4, GroupName = "G4 次品处理" },
-        new() { Key = "DefectReworkWeight",       Label = "次品返整重",                  GroupKey = 4, GroupName = "G4 次品处理" },
-        new() { Key = "DefectWarehouseWeight",    Label = "次品入库重",                  GroupKey = 4, GroupName = "G4 次品处理" },
-        new() { Key = "DefectScrapWeight",        Label = "次品报废重",                  GroupKey = 4, GroupName = "G4 次品处理" },
-        new() { Key = "DefectDescription",        Label = "次品情况描述",                GroupKey = 4, GroupName = "G4 次品处理" },
+        // ========== G4：不合格品去向（5 档：返整/入在制库/入次品库/退货/可入备库） ==========
+        new() { Key = "DefectReworkQuantity",            Label = "返整支",         GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectInProcessWarehouseQuantity", Label = "入在制库支",    GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectScrapQuantity",             Label = "入次品库支",     GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectReturnQuantity",            Label = "退货支",         GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectWarehouseQuantity",         Label = "可入备库支",     GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectReworkWeight",              Label = "理论返整重",     GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectInProcessWarehouseWeight",  Label = "理论入在制重",   GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectScrapWeight",               Label = "理论入次库重",   GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectReturnWeight",              Label = "理论退货重",     GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectWarehouseWeight",           Label = "理论可入备库重", GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectDescription",               Label = "次品情况描述",   GroupKey = 4, GroupName = "G4 不合格品去向" },
 
         // ========== G5：尺寸值 ==========
         new() { Key = "OuterDiameterRange",       Label = "外径范围",                    GroupKey = 5, GroupName = "G5 尺寸值" },
@@ -398,11 +402,15 @@
         public int? QualifiedConcessionQuantity { get; set; }
         public string? ConcessionRemark { get; set; }
         public int? DefectReworkQuantity { get; set; }
+        public int? DefectInProcessWarehouseQuantity { get; set; }
         public int? DefectWarehouseQuantity { get; set; }
         public int? DefectScrapQuantity { get; set; }
+        public int? DefectReturnQuantity { get; set; }
         public int? DefectReworkWeight { get; set; }
+        public int? DefectInProcessWarehouseWeight { get; set; }
         public int? DefectWarehouseWeight { get; set; }
         public int? DefectScrapWeight { get; set; }
+        public int? DefectReturnWeight { get; set; }
         public string? DefectDescription { get; set; }
         public string? OuterDiameterRange { get; set; }
         public string? WallThicknessRange { get; set; }
@@ -507,11 +515,15 @@
         "QualifiedConcessionQuantity" => 80,
         "ConcessionRemark" => 100,
         "DefectReworkQuantity" => 80,
+        "DefectInProcessWarehouseQuantity" => 80,
         "DefectWarehouseQuantity" => 80,
         "DefectScrapQuantity" => 80,
+        "DefectReturnQuantity" => 80,
         "DefectReworkWeight" => 80,
+        "DefectInProcessWarehouseWeight" => 80,
         "DefectWarehouseWeight" => 80,
         "DefectScrapWeight" => 80,
+        "DefectReturnWeight" => 80,
         "DefectDescription" => 100,
         "OuterDiameterRange" => 80,
         "WallThicknessRange" => 80,
@@ -709,15 +721,17 @@
             if (r.LengthStatus.HasValue && r.LengthStatus.Value != LengthStatus.Fixed && !string.IsNullOrWhiteSpace(r.FixedLength))
                 errors.Add($"第{i + 1}行：批次长度状态非'定尺'，定尺长度必须为空");
 
-            // 检验支数 = 合格支数 + 返整支数 + 入库支数 + 报废支数
+            // 检验支数 = 合格支数 + 返整支数 + 入在制库支数 + 可入备库支数 + 入次品库支数 + 退货支数
             if (r.Quantity.HasValue)
             {
                 var sum = (r.QualifiedQuantity ?? 0)
                         + (r.DefectReworkQuantity ?? 0)
+                        + (r.DefectInProcessWarehouseQuantity ?? 0)
                         + (r.DefectWarehouseQuantity ?? 0)
-                        + (r.DefectScrapQuantity ?? 0);
+                        + (r.DefectScrapQuantity ?? 0)
+                        + (r.DefectReturnQuantity ?? 0);
                 if (sum != r.Quantity.Value)
-                    errors.Add($"第{i + 1}行：检验支数({r.Quantity})须等于合格支数+返整支数+入库支数+报废支数(={sum})");
+                    errors.Add($"第{i + 1}行：检验支数({r.Quantity})须等于合格支数+返整支数+入在制库支数+可入备库支数+入次品库支数+退货支数(={sum})");
             }
         }
 
@@ -764,11 +778,15 @@
                     QualifiedConcessionQuantity = r.QualifiedConcessionQuantity,
                     ConcessionRemark = r.ConcessionRemark,
                     DefectReworkQuantity = r.DefectReworkQuantity,
+                    DefectInProcessWarehouseQuantity = r.DefectInProcessWarehouseQuantity,
                     DefectWarehouseQuantity = r.DefectWarehouseQuantity,
                     DefectScrapQuantity = r.DefectScrapQuantity,
+                    DefectReturnQuantity = r.DefectReturnQuantity,
                     DefectReworkWeight = r.DefectReworkWeight,
+                    DefectInProcessWarehouseWeight = r.DefectInProcessWarehouseWeight,
                     DefectWarehouseWeight = r.DefectWarehouseWeight,
                     DefectScrapWeight = r.DefectScrapWeight,
+                    DefectReturnWeight = r.DefectReturnWeight,
                     DefectDescription = r.DefectDescription,
                     OuterDiameterRange = r.OuterDiameterRange,
                     WallThicknessRange = r.WallThicknessRange,
@@ -1004,11 +1022,15 @@
             case "QualifiedQuantity":
             case "QualifiedConcessionQuantity":
             case "DefectReworkQuantity":
+            case "DefectInProcessWarehouseQuantity":
             case "DefectWarehouseQuantity":
             case "DefectScrapQuantity":
+            case "DefectReturnQuantity":
             case "DefectReworkWeight":
+            case "DefectInProcessWarehouseWeight":
             case "DefectWarehouseWeight":
             case "DefectScrapWeight":
+            case "DefectReturnWeight":
             case "HoldTime":
                 {
                     int? val = col.Key switch
@@ -1017,11 +1039,15 @@
                         "QualifiedQuantity" => r.QualifiedQuantity,
                         "QualifiedConcessionQuantity" => r.QualifiedConcessionQuantity,
                         "DefectReworkQuantity" => r.DefectReworkQuantity,
+                        "DefectInProcessWarehouseQuantity" => r.DefectInProcessWarehouseQuantity,
                         "DefectWarehouseQuantity" => r.DefectWarehouseQuantity,
                         "DefectScrapQuantity" => r.DefectScrapQuantity,
+                        "DefectReturnQuantity" => r.DefectReturnQuantity,
                         "DefectReworkWeight" => r.DefectReworkWeight,
+                        "DefectInProcessWarehouseWeight" => r.DefectInProcessWarehouseWeight,
                         "DefectWarehouseWeight" => r.DefectWarehouseWeight,
                         "DefectScrapWeight" => r.DefectScrapWeight,
+                        "DefectReturnWeight" => r.DefectReturnWeight,
                         "HoldTime" => r.HoldTime,
                         _ => null
                     };
@@ -1048,6 +1074,10 @@
                                 r.DefectReworkQuantity = v;
                                 AutoFillWeight(r, "DefectReworkWeight", "DefectReworkQuantity");
                                 break;
+                            case "DefectInProcessWarehouseQuantity":
+                                r.DefectInProcessWarehouseQuantity = v;
+                                AutoFillWeight(r, "DefectInProcessWarehouseWeight", "DefectInProcessWarehouseQuantity");
+                                break;
                             case "DefectWarehouseQuantity":
                                 r.DefectWarehouseQuantity = v;
                                 AutoFillWeight(r, "DefectWarehouseWeight", "DefectWarehouseQuantity");
@@ -1056,9 +1086,15 @@
                                 r.DefectScrapQuantity = v;
                                 AutoFillWeight(r, "DefectScrapWeight", "DefectScrapQuantity");
                                 break;
+                            case "DefectReturnQuantity":
+                                r.DefectReturnQuantity = v;
+                                AutoFillWeight(r, "DefectReturnWeight", "DefectReturnQuantity");
+                                break;
                             case "DefectReworkWeight": r.DefectReworkWeight = v; break;
+                            case "DefectInProcessWarehouseWeight": r.DefectInProcessWarehouseWeight = v; break;
                             case "DefectWarehouseWeight": r.DefectWarehouseWeight = v; break;
                             case "DefectScrapWeight": r.DefectScrapWeight = v; break;
+                            case "DefectReturnWeight": r.DefectReturnWeight = v; break;
                             case "HoldTime": r.HoldTime = v; break;
                         }
                     }));
@@ -1161,8 +1197,10 @@
             "Quantity" => r.Quantity,
             "QualifiedQuantity" => r.QualifiedQuantity,
             "DefectReworkQuantity" => r.DefectReworkQuantity,
+            "DefectInProcessWarehouseQuantity" => r.DefectInProcessWarehouseQuantity,
             "DefectWarehouseQuantity" => r.DefectWarehouseQuantity,
             "DefectScrapQuantity" => r.DefectScrapQuantity,
+            "DefectReturnQuantity" => r.DefectReturnQuantity,
             _ => null
         };
         if (!qty.HasValue || qty.Value <= 0) return;
@@ -1172,8 +1210,10 @@
             "Weight" => r.Weight,
             "QualifiedWeight" => r.QualifiedWeight,
             "DefectReworkWeight" => r.DefectReworkWeight,
+            "DefectInProcessWarehouseWeight" => r.DefectInProcessWarehouseWeight,
             "DefectWarehouseWeight" => r.DefectWarehouseWeight,
             "DefectScrapWeight" => r.DefectScrapWeight,
+            "DefectReturnWeight" => r.DefectReturnWeight,
             _ => null
         };
         if (weight.HasValue) return; // 已有值不覆盖
@@ -1184,8 +1224,10 @@
             case "Weight": r.Weight = newWeight; break;
             case "QualifiedWeight": r.QualifiedWeight = newWeight; break;
             case "DefectReworkWeight": r.DefectReworkWeight = newWeight; break;
+            case "DefectInProcessWarehouseWeight": r.DefectInProcessWarehouseWeight = newWeight; break;
             case "DefectWarehouseWeight": r.DefectWarehouseWeight = newWeight; break;
             case "DefectScrapWeight": r.DefectScrapWeight = newWeight; break;
+            case "DefectReturnWeight": r.DefectReturnWeight = newWeight; break;
         }
         StateHasChanged();
     }

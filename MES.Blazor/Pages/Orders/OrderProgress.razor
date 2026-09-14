@@ -1,14 +1,12 @@
-@using Microsoft.AspNetCore.Components
 @using MudBlazor
-@using MES.Core.Constants
-@using MES.Core.DTOs.Order
-@using MES.Core.Helpers
-@using MES.Blazor.Services
 @using MES.Shared.Constants
 
 @page "/orders/progress"
 @attribute [Authorize(Roles = Roles.Policies.OrderView)]
+@inject IJSRuntime JS
 
+@* 树本体已抽为 Shared/OrderProgressTree.razor（与首页「订单进度查询」卡共用）：
+   本页只负责取数、页头（打印/返回）与打印样式；Compact=false → 保留原「非完结主号默认展开、完结主号默认折叠」行为。 *@
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
         <MudCardHeader>
@@ -19,11 +17,21 @@
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
+                @* 打印当前所见（保留折叠/展开状态，2026-09-14） *@
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Print"
+                           OnClick="OnPrintAsync"
+                           Class="op-print-hide ml-2">
+                    打印
+                </MudButton>
                 <MudButton Variant="Variant.Outlined"
                            Color="Color.Primary"
                            Size="Size.Small"
                            StartIcon="@Icons.Material.Filled.ArrowBack"
-                           OnClick="Back">
+                           OnClick="Back"
+                           Class="op-print-hide ml-2">
                     返回订单列表
                 </MudButton>
             </CardHeaderActions>
@@ -40,131 +48,62 @@
             }
             else
             {
-                @* ===== 一级：订单号（树根，两行头：订单号 / 签订·业务员·客户·交期·罚款·总重·项次） ===== *@
-                <div class="op-root">
-                    <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Large" Class="op-root-icon" />
-                    <div class="op-root-meta">
-                        <MudText Typo="Typo.h6" Class="font-weight-bold op-root-no">订单号：@_tree.SalesOrderNo</MudText>
-                        <MudText Typo="Typo.body2" Class="op-root-line2">
-                            @if (_tree.SignDate.HasValue)
-                            {
-                                <span class="op-kv"><span class="op-kv-l">签订日期</span><span class="op-kv-v">@FmtDate(_tree.SignDate)</span></span>
-                            }
-                            @if (!string.IsNullOrEmpty(_tree.Salesman))
-                            {
-                                <span class="op-kv"><span class="op-kv-l">业务员</span><span class="op-kv-v">@_tree.Salesman</span></span>
-                            }
-                            @if (!string.IsNullOrEmpty(_tree.CustomerName))
-                            {
-                                <span class="op-kv"><span class="op-kv-l">客户名称</span><span class="op-kv-v">@_tree.CustomerName</span></span>
-                            }
-                            @if (_tree.DeliveryDate.HasValue)
-                            {
-                                <span class="op-kv"><span class="op-kv-l">交期截止</span><span class="op-kv-v">@FmtDate(_tree.DeliveryDate)</span></span>
-                            }
-                            <span class="op-kv"><span class="op-kv-l">延期罚款</span><span class="op-kv-v">@PenaltyText(_tree.DelayPenalty)</span></span>
-                            <span class="op-kv"><span class="op-kv-l">订单总重量</span><span class="op-kv-v">@FmtKg(_tree.OrderTotalWeightKg) kg</span></span>
-                            <span class="op-kv"><span class="op-kv-l">含项次数</span><span class="op-kv-v">@_tree.ItemCount</span></span>
-                        </MudText>
-                    </div>
-                </div>
-
-                <div class="op-tree">
-                    @foreach (var main in _tree.MainNos)
-                    {
-                        @* ===== 二级：订单号+主号（可折叠节点，两行头：规格要素 / 执行关注·紧急·预计） ===== *@
-                        <div class="op-main-node @(main.IsCompleted ? "op-main-completed" : "")">
-                            <div class="op-main-head" @onclick="() => ToggleMain(main.ProductionMainNo)">
-                                <div class="op-main-line1">
-                                    <MudIcon Icon="@(IsCollapsed(main.ProductionMainNo) ? Icons.Material.Filled.ChevronRight : Icons.Material.Filled.ExpandMore)"
-                                             Size="Size.Small"
-                                             Class="op-toggle-icon" />
-                                    <MudIcon Icon="@(main.IsCompleted ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Layers)"
-                                             Size="Size.Small"
-                                             Class="op-main-icon" />
-                                    <span class="op-main-no">@main.ProductionMainNo</span>
-                                    @if (!string.IsNullOrEmpty(main.StandardGrade))
-                                    {
-                                        <span class="op-spec-token op-grade">@main.StandardGrade</span>
-                                    }
-                                    @if (!string.IsNullOrEmpty(main.Specification))
-                                    {
-                                        <span class="op-spec-token">@main.Specification</span>
-                                    }
-                                    @if (!string.IsNullOrEmpty(main.LengthStatus))
-                                    {
-                                        <span class="op-spec-token">@LengthText(main.LengthStatus)</span>
-                                    }
-                                    @if (main.QuantitySum > 0)
-                                    {
-                                        <span class="op-spec-token">@main.QuantitySum 支</span>
-                                    }
-                                    @if (main.TotalWeightKg > 0m)
-                                    {
-                                        <span class="op-spec-token op-wt">@FmtKg(main.TotalWeightKg) kg</span>
-                                    }
-                                    @if (!string.IsNullOrEmpty(main.DeliveryState))
-                                    {
-                                        <span class="op-spec-token">@DeliveryStateText(main.DeliveryState)</span>
-                                    }
-                                    @if (!string.IsNullOrEmpty(main.ProductStandard))
-                                    {
-                                        <span class="op-spec-token op-standard">@main.ProductStandard</span>
-                                    }
-                                </div>
-
-                                <div class="op-main-line2">
-                                    @if (main.IsCompleted)
-                                    {
-                                        <span class="op-l2-lbl">执行关注：</span>
-                                        <span class="op-l2-val">已完结</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="op-l2-lbl">执行关注：</span>
-                                        <span class="op-l2-val @StageTextClass(main.ScheduleStage)">@StageText(main.ScheduleStage)</span>
-                                        @if (!string.IsNullOrEmpty(main.UrgencyLevel))
-                                        {
-                                            <span class="op-l2-lbl">紧急性：</span>
-                                            <span class="op-l2-val @UrgencyClass(main.UrgencyLevel)">@UrgencyText(main.UrgencyLevel)</span>
-                                        }
-                                        @if (main.EstimatedCompletionDate.HasValue)
-                                        {
-                                            <span class="op-l2-lbl">预计完成：</span>
-                                            <span class="op-l2-date">@FmtDate(main.EstimatedCompletionDate)</span>
-                                        }
-                                    }
-                                </div>
-                            </div>
-
-                            @if (!IsCollapsed(main.ProductionMainNo))
-                            {
-                                @foreach (var branch in BranchesOf(main))
-                                {
-                                    @* ===== 三级：阶段分支 ===== *@
-                                    <div class="op-stage">
-                                        <span class="op-stage-dot op-stage-@branch.Key"></span>
-                                        <span class="op-stage-title op-stage-@branch.Key">@branch.Title</span>
-                                    </div>
-                                    <div class="op-stage-children">
-                                        @foreach (var leaf in branch.Leaves)
-                                        {
-                                            @* ===== 四级：叶子（重量，整数显示） ===== *@
-                                            <div class="op-leaf-row">
-                                                <span class="op-leaf-text">@leaf.Text</span>
-                                                @if (leaf.WeightKg > 0m)
-                                                {
-                                                    <span class="op-leaf-kg">@FmtKg(leaf.WeightKg) kg</span>
-                                                }
-                                            </div>
-                                        }
-                                    </div>
-                                }
-                            }
-                        </div>
-                    }
-                </div>
+                <OrderProgressTree Tree="_tree" />
             }
+
+            @* 打印页脚（屏幕隐藏、仅打印可见；与项目其它打印同款「打印日期：yyyy-MM-dd」） *@
+            <div class="op-print-footer">打印日期：@_printDate.ToString("yyyy-MM-dd")</div>
         </MudCardContent>
     </MudCard>
 </MudContainer>
+
+@* ===== 打印样式（就地打印 window.print，所见即所得：折叠状态的展开区本就不在 DOM 中） =====
+   全局选择器（.mud-appbar/.mud-drawer/.mud-main-content）必须写在此处而非 scoped css —— 那些元素不属于本组件，
+   Blazor scoped CSS 加 [b-xxx] 属性后匹配不到。
+   ⚠️ .op-main-node / .op-print-footer 是普通类选择器（不带 scoped 属性），树本体虽已移入 OrderProgressTree 组件，
+      本块仍能命中（类名保留、scope 属性只是附加）。 *@
+<style>
+    /* 打印页脚：屏幕隐藏，仅打印输出 */
+    .op-print-footer { display: none; }
+
+    @@media print {
+        @@page { size: landscape; margin: 8mm; }
+
+        .op-print-footer {
+            display: block !important;
+            margin-top: 10px;
+            padding-top: 6px;
+            border-top: 1px solid #999;
+            font-size: 14px;
+            color: #333;
+        }
+
+        /* 保留屏幕上的底色/字色（主号灰底、比率红字） */
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+        /* 隐藏全局布局（顶栏 / 左侧菜单）与操作按钮 */
+        .mud-appbar,
+        .mud-drawer { display: none !important; }
+        .op-print-hide { display: none !important; }
+
+        /* 内容区脱离 MudLayout 的 flex/滚动容器与 appbar 占位，否则多页内容只打印首屏 */
+        .mud-layout {
+            display: block !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+        }
+        .mud-main-content {
+            margin-left: 0 !important;
+            padding-top: 0 !important;
+            overflow: visible !important;
+            height: auto !important;
+        }
+
+        .mud-container { padding: 0 !important; }
+        .mud-card { box-shadow: none !important; border: none !important; }
+
+        /* 一个主号尽量不跨页撕开（内容超一页时浏览器自动忽略此约束） */
+        .op-main-node { break-inside: avoid; }
+    }
+</style>

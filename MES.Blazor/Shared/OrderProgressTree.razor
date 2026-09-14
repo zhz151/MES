@@ -1,0 +1,172 @@
+@* 订单进度树（自 Pages/Orders/OrderProgress.razor 抽出，供两处复用，2026-09-14）
+   ① 订单进度页 /orders/progress：整页展示（Compact=false → 非完结主号默认展开、完结主号默认折叠）；
+   ② 首页「订单进度查询」卡：卡内展示（Compact=true → **全部主号默认折叠**，只出订单头 + 主号汇总行，点开看分支）。
+   ⚠️ Blazor scoped CSS 不能跨组件：本组件的 64 条 .op-* 规则在同名 OrderProgressTree.razor.css
+      （自 Pages/Orders/OrderProgress.razor.css 整文件迁移），别再往页面的 .razor.css 里加。 *@
+@namespace MES.Blazor.Shared
+
+@if (Tree is { } tree)
+{
+    @* ===== 一级：订单号（树根，两行头：订单号 / 签订·业务员·客户·交期·罚款·总重·项次） ===== *@
+    <div class="op-root">
+        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Large" Class="op-root-icon" />
+        <div class="op-root-meta">
+            <MudText Typo="Typo.h6" Class="font-weight-bold op-root-no">订单号：@tree.SalesOrderNo</MudText>
+            <MudText Typo="Typo.body2" Class="op-root-line2">
+                @if (tree.SignDate.HasValue)
+                {
+                    <span class="op-kv"><span class="op-kv-l">签订日期</span><span class="op-kv-v">@FmtDate(tree.SignDate)</span></span>
+                }
+                @if (!string.IsNullOrEmpty(tree.Salesman))
+                {
+                    <span class="op-kv"><span class="op-kv-l">业务员</span><span class="op-kv-v">@tree.Salesman</span></span>
+                }
+                @if (!string.IsNullOrEmpty(tree.CustomerName))
+                {
+                    <span class="op-kv"><span class="op-kv-l">客户名称</span><span class="op-kv-v">@tree.CustomerName</span></span>
+                }
+                @if (tree.DeliveryDate.HasValue)
+                {
+                    <span class="op-kv"><span class="op-kv-l">交期截止</span><span class="op-kv-v">@FmtDate(tree.DeliveryDate)</span></span>
+                }
+                <span class="op-kv"><span class="op-kv-l">延期罚款</span><span class="op-kv-v">@PenaltyText(tree.DelayPenalty)</span></span>
+                <span class="op-kv"><span class="op-kv-l">订单总重量</span><span class="op-kv-v">@FmtKg(tree.OrderTotalWeightKg) kg</span></span>
+                <span class="op-kv"><span class="op-kv-l">含项次数</span><span class="op-kv-v">@tree.ItemCount</span></span>
+            </MudText>
+
+            @* ===== 订单级「总投料产出」（仅该订单下主号全部已完结时渲染，各主号聚合） ===== *@
+            @if (OrderCompletion() is { } orderSegments)
+            {
+                <div class="op-root-line3">
+                    <span>总投料产出：</span>
+                    @for (var i = 0; i < orderSegments.Count; i++)
+                    {
+                        <span class="@(orderSegments[i].Highlight ? "op-sum-hl" : null)">@orderSegments[i].Text</span>
+                        @if (i < orderSegments.Count - 1)
+                        {
+                            <span>；</span>
+                        }
+                    }
+                    <span>。</span>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="op-tree">
+        @foreach (var main in tree.MainNos)
+        {
+            @* ===== 二级：订单号+主号（可折叠节点，两行头：规格要素 / 执行关注·紧急·预计） ===== *@
+            <div class="op-main-node @(main.IsCompleted ? "op-main-completed" : "")">
+                <div class="op-main-head" @onclick="() => ToggleMain(main.ProductionMainNo)">
+                    <div class="op-main-line1">
+                        <MudIcon Icon="@(IsCollapsed(main.ProductionMainNo) ? Icons.Material.Filled.ChevronRight : Icons.Material.Filled.ExpandMore)"
+                                 Size="Size.Small"
+                                 Class="op-toggle-icon" />
+                        <MudIcon Icon="@(main.IsCompleted ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Layers)"
+                                 Size="Size.Small"
+                                 Class="op-main-icon" />
+                        <span class="op-main-no">@main.ProductionMainNo</span>
+                        @if (!string.IsNullOrEmpty(main.StandardGrade))
+                        {
+                            <span class="op-spec-token op-grade">@main.StandardGrade</span>
+                        }
+                        @if (!string.IsNullOrEmpty(main.Specification))
+                        {
+                            <span class="op-spec-token">@main.Specification</span>
+                        }
+                        @if (!string.IsNullOrEmpty(main.LengthStatus))
+                        {
+                            <span class="op-spec-token">@LengthText(main.LengthStatus)</span>
+                        }
+                        @if (main.QuantitySum > 0)
+                        {
+                            <span class="op-spec-token">@main.QuantitySum 支</span>
+                        }
+                        @if (main.TotalWeightKg > 0m)
+                        {
+                            <span class="op-spec-token op-wt">@FmtKg(main.TotalWeightKg) kg</span>
+                        }
+                        @if (!string.IsNullOrEmpty(main.DeliveryState))
+                        {
+                            <span class="op-spec-token">@DeliveryStateText(main.DeliveryState)</span>
+                        }
+                        @if (!string.IsNullOrEmpty(main.ProductStandard))
+                        {
+                            <span class="op-spec-token op-standard">@main.ProductStandard</span>
+                        }
+                    </div>
+
+                    <div class="op-main-line2">
+                        @if (main.IsCompleted)
+                        {
+                            <span class="op-l2-lbl">执行关注：</span>
+                            <span class="op-l2-val">已完结</span>
+                        }
+                        else
+                        {
+                            <span class="op-l2-lbl">执行关注：</span>
+                            <span class="op-l2-val @StageTextClass(main.ScheduleStage)">@StageText(main.ScheduleStage)</span>
+                            @if (!string.IsNullOrEmpty(main.UrgencyLevel))
+                            {
+                                <span class="op-l2-lbl">紧急性：</span>
+                                <span class="op-l2-val @UrgencyClass(main.UrgencyLevel)">@UrgencyText(main.UrgencyLevel)</span>
+                            }
+                            @if (main.EstimatedCompletionDate.HasValue)
+                            {
+                                <span class="op-l2-lbl">预计完成：</span>
+                                <span class="op-l2-date">@FmtDate(main.EstimatedCompletionDate)</span>
+                            }
+                        }
+                    </div>
+
+                    @* ===== 已完结主号「投料产出」汇总行（投料/订单成品入库/余次备产出入库 + 两比率，比率高亮） ===== *@
+                    @if (main.IsCompleted && MainCompletion(main) is { } mainSegments)
+                    {
+                        <div class="op-main-line3">
+                            <span>投料产出：</span>
+                            @for (var i = 0; i < mainSegments.Count; i++)
+                            {
+                                <span class="@(mainSegments[i].Highlight ? "op-sum-hl" : null)">@mainSegments[i].Text</span>
+                                @if (i < mainSegments.Count - 1)
+                                {
+                                    <span>；</span>
+                                }
+                            }
+                            <span>。</span>
+                        </div>
+                    }
+                </div>
+
+                @if (!IsCollapsed(main.ProductionMainNo))
+                {
+                    @foreach (var branch in BranchesOf(main))
+                    {
+                        @* ===== 三级：阶段分支 ===== *@
+                        <div class="op-stage">
+                            <span class="op-stage-dot op-stage-@branch.Key"></span>
+                            <span class="op-stage-title op-stage-@branch.Key">@branch.Title</span>
+                        </div>
+                        <div class="op-stage-children">
+                            @foreach (var leaf in branch.Leaves)
+                            {
+                                @* ===== 四级：叶子（左=入库重量，右=同叶退货出库重量，整数显示） ===== *@
+                                <div class="op-leaf-row">
+                                    <span class="op-leaf-text">@leaf.Text</span>
+                                    @if (leaf.WeightKg > 0m)
+                                    {
+                                        <span class="op-leaf-kg">@FmtKg(leaf.WeightKg) kg</span>
+                                    }
+                                    @if (leaf.ReturnWeightKg > 0m)
+                                    {
+                                        <span class="op-leaf-return">退货 @FmtKg(leaf.ReturnWeightKg) kg</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+        }
+    </div>
+}

@@ -79,10 +79,37 @@ public class TestAppDbContext : AppDbContext
 }
 
 /// <summary>
+/// 可模拟落库失败的测试上下文：<see cref="FailOnSave"/> 置 true 后 <c>SaveChangesAsync</c> 抛异常。
+/// 用于验证「先写盘、后落库」链路的失败补偿（如附件孤儿文件回收）。
+/// </summary>
+public class FailingSaveDbContext : TestAppDbContext
+{
+    public FailingSaveDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+    /// <summary>是否让后续 SaveChangesAsync 抛异常</summary>
+    public bool FailOnSave { get; set; }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        => FailOnSave
+            ? throw new InvalidOperationException("模拟落库失败")
+            : base.SaveChangesAsync(cancellationToken);
+}
+
+/// <summary>
 /// 测试基类：提供 InMemory DbContext 工厂方法、种子数据初始化
 /// </summary>
 public abstract class TestBase
 {
+    /// <summary>创建「可模拟落库失败」的上下文（默认不失败，由用例置 <c>FailOnSave</c>）</summary>
+    protected FailingSaveDbContext CreateFailingDbContext()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase($"MES_Test_{Guid.NewGuid()}")
+            .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+            .Options;
+        return new FailingSaveDbContext(options);
+    }
+
     protected AppDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()

@@ -33,6 +33,12 @@ public class CustomerService
                 url += $"&keyword={Uri.EscapeDataString(query.Keyword)}";
             }
             if (query.Filters is { Count: > 0 }) url += $"&filters={Uri.EscapeDataString(JsonSerializer.Serialize(query.Filters))}";
+            // 接单日期区间（yyyy-MM-dd）：传了则服务端接单类列按区间重算
+            if (query.SignDateFrom.HasValue) url += $"&signDateFrom={query.SignDateFrom.Value:yyyy-MM-dd}";
+            if (query.SignDateTo.HasValue) url += $"&signDateTo={query.SignDateTo.Value:yyyy-MM-dd}";
+            // 发货日期区间（yyyy-MM-dd）：传了则服务端已发货类列按区间重算（与接单区间互独立）
+            if (query.ShipDateFrom.HasValue) url += $"&shipDateFrom={query.ShipDateFrom.Value:yyyy-MM-dd}";
+            if (query.ShipDateTo.HasValue) url += $"&shipDateTo={query.ShipDateTo.Value:yyyy-MM-dd}";
 
             var response = await _http.GetFromJsonAsync<ApiResponse<PagedResult<CustomerProfileDto>>>(url);
             return response ?? ApiResponse<PagedResult<CustomerProfileDto>>.Fail("获取数据失败");

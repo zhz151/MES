@@ -236,11 +236,14 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 ProcessInspectionReworkWeight = e.ProcessInspectionReworkWeight,
                 ProcessInspectionWarehouseWeight = e.ProcessInspectionWarehouseWeight,
                 ProcessInspectionScrapWeight = e.ProcessInspectionScrapWeight,
+                ProcessInspectionReturnWeight = e.ProcessInspectionReturnWeight,
                 FinalInspectionDefectQty = e.FinalInspectionDefectQty,
                 FinalInspectionDefectWeight = e.FinalInspectionDefectWeight,
                 FinalInspectionReworkWeight = e.FinalInspectionReworkWeight,
+                FinalInspectionInProcessWarehouseWeight = e.FinalInspectionInProcessWarehouseWeight,
                 FinalInspectionWarehouseWeight = e.FinalInspectionWarehouseWeight,
                 FinalInspectionScrapWeight = e.FinalInspectionScrapWeight,
+                FinalInspectionReturnWeight = e.FinalInspectionReturnWeight,
 
                 // Group 12
                 FlowOutputRatio = e.FlowOutputRatio,
@@ -550,15 +553,18 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var processInspectionReworkWeight = woPiList?.Sum(pi => pi.TheoreticalReworkWeight ?? 0) ?? 0;
             var processInspectionWarehouseWeight = woPiList?.Sum(pi => pi.TheoreticalWarehouseWeight ?? 0) ?? 0;
             var processInspectionScrapWeight = woPiList?.Sum(pi => pi.TheoreticalScrapWeight ?? 0) ?? 0;
-            var processInspectionDefectWeight = processInspectionReworkWeight + processInspectionWarehouseWeight + processInspectionScrapWeight;
+            var processInspectionReturnWeight = woPiList?.Sum(pi => pi.TheoreticalReturnWeight ?? 0) ?? 0;
+            var processInspectionDefectWeight = processInspectionReworkWeight + processInspectionWarehouseWeight + processInspectionScrapWeight + processInspectionReturnWeight;
             var finalInspectionReworkWeight = woFiList?.Sum(fi => fi.DefectReworkWeight ?? 0) ?? 0;
+            var finalInspectionInProcessWarehouseWeight = woFiList?.Sum(fi => fi.DefectInProcessWarehouseWeight ?? 0) ?? 0;
             var finalInspectionWarehouseWeight = woFiList?.Sum(fi => fi.DefectWarehouseWeight ?? 0) ?? 0;
             var finalInspectionScrapWeight = woFiList?.Sum(fi => fi.DefectScrapWeight ?? 0) ?? 0;
-            var finalInspectionDefectQty = woFiList?.Sum(fi => (fi.DefectReworkQuantity ?? 0) + (fi.DefectWarehouseQuantity ?? 0) + (fi.DefectScrapQuantity ?? 0)) ?? 0;
-            var finalInspectionDefectWeight = finalInspectionReworkWeight + finalInspectionWarehouseWeight + finalInspectionScrapWeight;
+            var finalInspectionReturnWeight = woFiList?.Sum(fi => fi.DefectReturnWeight ?? 0) ?? 0;
+            var finalInspectionDefectQty = woFiList?.Sum(fi => (fi.DefectReworkQuantity ?? 0) + (fi.DefectInProcessWarehouseQuantity ?? 0) + (fi.DefectWarehouseQuantity ?? 0) + (fi.DefectScrapQuantity ?? 0) + (fi.DefectReturnQuantity ?? 0)) ?? 0;
+            var finalInspectionDefectWeight = finalInspectionReworkWeight + finalInspectionInProcessWarehouseWeight + finalInspectionWarehouseWeight + finalInspectionScrapWeight + finalInspectionReturnWeight;
             var reworkSourceEntries = BuildReworkSourceEntries(woPiList, woFiList);
 
-            var summary = ComputeSummary(wo, customerNameByWo.TryGetValue(wo.Id, out var cn) ? cn : "", customerSalesmanByWo.TryGetValue(wo.Id, out var sm) ? sm : "", endCustomerByWo.TryGetValue(wo.Id, out var ec) ? ec : null, woBatches, completeRatio, completeDeviation, completeOverRatio, groupDiscountRate, supplySatisfiedRate, fixedSatisfied, nonFixedSatisfied, qualifiedRate, processInspectionReworkWeight, processInspectionWarehouseWeight, processInspectionScrapWeight, processInspectionDefectWeight, finalInspectionReworkWeight, finalInspectionWarehouseWeight, finalInspectionScrapWeight, finalInspectionDefectQty, finalInspectionDefectWeight, reworkSourceEntries, reworkProcInspectionCoeff, reworkFinalInspectionCoeff);
+            var summary = ComputeSummary(wo, customerNameByWo.TryGetValue(wo.Id, out var cn) ? cn : "", customerSalesmanByWo.TryGetValue(wo.Id, out var sm) ? sm : "", endCustomerByWo.TryGetValue(wo.Id, out var ec) ? ec : null, woBatches, completeRatio, completeDeviation, completeOverRatio, groupDiscountRate, supplySatisfiedRate, fixedSatisfied, nonFixedSatisfied, qualifiedRate, processInspectionReworkWeight, processInspectionWarehouseWeight, processInspectionScrapWeight, processInspectionReturnWeight, processInspectionDefectWeight, finalInspectionReworkWeight, finalInspectionInProcessWarehouseWeight, finalInspectionWarehouseWeight, finalInspectionScrapWeight, finalInspectionReturnWeight, finalInspectionDefectQty, finalInspectionDefectWeight, reworkSourceEntries, reworkProcInspectionCoeff, reworkFinalInspectionCoeff);
 
             // G3: 从用料计划总览读预计算值（避免重算 4 张原始计划表）
             if (execSummaryByWoId.TryGetValue(wo.Id, out var listSummary))
@@ -1270,12 +1276,15 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             var processInspectionReworkWeight = woPiList?.Sum(pi => pi.TheoreticalReworkWeight ?? 0) ?? 0;
             var processInspectionWarehouseWeight = woPiList?.Sum(pi => pi.TheoreticalWarehouseWeight ?? 0) ?? 0;
             var processInspectionScrapWeight = woPiList?.Sum(pi => pi.TheoreticalScrapWeight ?? 0) ?? 0;
-            var processInspectionDefectWeight = processInspectionReworkWeight + processInspectionWarehouseWeight + processInspectionScrapWeight;
+            var processInspectionReturnWeight = woPiList?.Sum(pi => pi.TheoreticalReturnWeight ?? 0) ?? 0;
+            var processInspectionDefectWeight = processInspectionReworkWeight + processInspectionWarehouseWeight + processInspectionScrapWeight + processInspectionReturnWeight;
             var finalInspectionReworkWeight = woFiList?.Sum(fi => fi.DefectReworkWeight ?? 0) ?? 0;
+            var finalInspectionInProcessWarehouseWeight = woFiList?.Sum(fi => fi.DefectInProcessWarehouseWeight ?? 0) ?? 0;
             var finalInspectionWarehouseWeight = woFiList?.Sum(fi => fi.DefectWarehouseWeight ?? 0) ?? 0;
             var finalInspectionScrapWeight = woFiList?.Sum(fi => fi.DefectScrapWeight ?? 0) ?? 0;
-            var finalInspectionDefectQty = woFiList?.Sum(fi => (fi.DefectReworkQuantity ?? 0) + (fi.DefectWarehouseQuantity ?? 0) + (fi.DefectScrapQuantity ?? 0)) ?? 0;
-            var finalInspectionDefectWeight = finalInspectionReworkWeight + finalInspectionWarehouseWeight + finalInspectionScrapWeight;
+            var finalInspectionReturnWeight = woFiList?.Sum(fi => fi.DefectReturnWeight ?? 0) ?? 0;
+            var finalInspectionDefectQty = woFiList?.Sum(fi => (fi.DefectReworkQuantity ?? 0) + (fi.DefectInProcessWarehouseQuantity ?? 0) + (fi.DefectWarehouseQuantity ?? 0) + (fi.DefectScrapQuantity ?? 0) + (fi.DefectReturnQuantity ?? 0)) ?? 0;
+            var finalInspectionDefectWeight = finalInspectionReworkWeight + finalInspectionInProcessWarehouseWeight + finalInspectionWarehouseWeight + finalInspectionScrapWeight + finalInspectionReturnWeight;
             var reworkSourceEntries = BuildReworkSourceEntries(woPiList, woFiList);
 
             var summary = ComputeSummary(wo,
@@ -1284,8 +1293,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 endCustomerByWo.TryGetValue(wo.Id, out var ec) ? ec : null,
                 woBatches,
                 completeRatio, completeDeviation, completeOverRatio, groupDiscountRate, supplySatisfiedRate, fixedSatisfied, nonFixedSatisfied, qualifiedRate,
-                processInspectionReworkWeight, processInspectionWarehouseWeight, processInspectionScrapWeight, processInspectionDefectWeight,
-                finalInspectionReworkWeight, finalInspectionWarehouseWeight, finalInspectionScrapWeight, finalInspectionDefectQty, finalInspectionDefectWeight,
+                processInspectionReworkWeight, processInspectionWarehouseWeight, processInspectionScrapWeight, processInspectionReturnWeight, processInspectionDefectWeight,
+                finalInspectionReworkWeight, finalInspectionInProcessWarehouseWeight, finalInspectionWarehouseWeight, finalInspectionScrapWeight, finalInspectionReturnWeight, finalInspectionDefectQty, finalInspectionDefectWeight,
                 reworkSourceEntries,
                 reworkProcInspectionCoeff, reworkFinalInspectionCoeff);
 
@@ -1692,10 +1701,13 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         int processInspectionReworkWeight = 0,
         int processInspectionWarehouseWeight = 0,
         int processInspectionScrapWeight = 0,
+        int processInspectionReturnWeight = 0,
         int processInspectionDefectWeight = 0,
         int finalInspectionReworkWeight = 0,
+        int finalInspectionInProcessWarehouseWeight = 0,
         int finalInspectionWarehouseWeight = 0,
         int finalInspectionScrapWeight = 0,
+        int finalInspectionReturnWeight = 0,
         int finalInspectionDefectQty = 0,
         int finalInspectionDefectWeight = 0,
         List<(decimal Weight, decimal UnitWeight)>? reworkSourceEntries = null,
@@ -1842,11 +1854,14 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         summary.ProcessInspectionReworkWeight = processInspectionReworkWeight > 0 ? processInspectionReworkWeight : null;
         summary.ProcessInspectionWarehouseWeight = processInspectionWarehouseWeight > 0 ? processInspectionWarehouseWeight : null;
         summary.ProcessInspectionScrapWeight = processInspectionScrapWeight > 0 ? processInspectionScrapWeight : null;
+        summary.ProcessInspectionReturnWeight = processInspectionReturnWeight > 0 ? processInspectionReturnWeight : null;
         summary.FinalInspectionDefectQty = finalInspectionDefectQty > 0 ? finalInspectionDefectQty : null;
         summary.FinalInspectionDefectWeight = finalInspectionDefectWeight > 0 ? finalInspectionDefectWeight : null;
         summary.FinalInspectionReworkWeight = finalInspectionReworkWeight > 0 ? finalInspectionReworkWeight : null;
+        summary.FinalInspectionInProcessWarehouseWeight = finalInspectionInProcessWarehouseWeight > 0 ? finalInspectionInProcessWarehouseWeight : null;
         summary.FinalInspectionWarehouseWeight = finalInspectionWarehouseWeight > 0 ? finalInspectionWarehouseWeight : null;
         summary.FinalInspectionScrapWeight = finalInspectionScrapWeight > 0 ? finalInspectionScrapWeight : null;
+        summary.FinalInspectionReturnWeight = finalInspectionReturnWeight > 0 ? finalInspectionReturnWeight : null;
         var reworkDefectQty = (decimal)(processInspectionReworkWeight + finalInspectionReworkWeight);
 
         // 理论返整可产成支 = Σ(每条返整记录重量 ÷ 该记录原批次单支重)
@@ -2648,11 +2663,14 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         target.ProcessInspectionReworkWeight = source.ProcessInspectionReworkWeight;
         target.ProcessInspectionWarehouseWeight = source.ProcessInspectionWarehouseWeight;
         target.ProcessInspectionScrapWeight = source.ProcessInspectionScrapWeight;
+        target.ProcessInspectionReturnWeight = source.ProcessInspectionReturnWeight;
         target.FinalInspectionDefectQty = source.FinalInspectionDefectQty;
         target.FinalInspectionDefectWeight = source.FinalInspectionDefectWeight;
         target.FinalInspectionReworkWeight = source.FinalInspectionReworkWeight;
+        target.FinalInspectionInProcessWarehouseWeight = source.FinalInspectionInProcessWarehouseWeight;
         target.FinalInspectionWarehouseWeight = source.FinalInspectionWarehouseWeight;
         target.FinalInspectionScrapWeight = source.FinalInspectionScrapWeight;
+        target.FinalInspectionReturnWeight = source.FinalInspectionReturnWeight;
 
         // Group 12
         target.FlowOutputRatio = source.FlowOutputRatio;
@@ -2720,24 +2738,19 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             .Where(x => x.ScheduleStage == 2 && x.UrgencyLevel != null)
             .Select(x => new
             {
-                UrgencyLevel = x.UrgencyLevel ?? "",
+                x.SalesOrderNo,
+                x.UrgencyLevel,
                 PendingWeight = (x.TotalWeight - (x.FinishPlanWeight > x.FinishInWeight ? x.FinishPlanWeight - x.FinishInWeight : 0m)) * rawMaterialRatio - x.InputWeight
             })
             .ToListAsync();
 
-        var stage1Grouped = stage1Data
-            .GroupBy(x => x.UrgencyLevel)
-            .Select(g => new WorkOrderExecutionDashboardItem
-            {
-                ScheduleStage = 1,
-                UrgencyLevel = g.Key,
-                OrderCount = g.Count(),
-                TotalWeight = g.Sum(x => Math.Max(0, x.PendingWeight))
-            });
-        result.AddRange(stage1Grouped);
+        result.Add(AggregateByOrder(1, stage1Data.Select(x => new StageOrderRow(
+            x.SalesOrderNo,
+            UrgencyLevelKeys.IsUrgent(x.UrgencyLevel),
+            Math.Max(0, x.PendingWeight)))));
 
         // ========== Stage 2: 生产在产 ==========
-        // 批次级重量 CurrentValidWeight 按紧急程度分组
+        // 批次级重量 CurrentValidWeight 按订单聚合
         // COALESCE: WorkOrderPlan.UrgencyLevel 优先，回退 WorkOrderExecutionSummary.UrgencyLevel
         var stage2Data = await (from b in _context.ProductionBatches.AsNoTracking()
                                 where b.Status == BatchStatus.None || b.Status == BatchStatus.InProgress
@@ -2749,61 +2762,55 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                                 from plan in planj.DefaultIfEmpty()
                                 select new
                                 {
-                                    b.WorkOrderNo,
+                                    b.SalesOrderNo,
                                     Weight = b.CurrentValidWeight ?? 0m,
                                     PlanUrgency = plan != null ? plan.UrgencyLevel : null,
                                     SummaryUrgency = s != null ? s.UrgencyLevel : null
                                 }).ToListAsync();
 
-        var stage2Grouped = stage2Data
-            .Select(x => new
-            {
-                x.WorkOrderNo,
-                x.Weight,
-                UrgencyLevel = x.PlanUrgency ?? x.SummaryUrgency
-            })
+        result.Add(AggregateByOrder(2, stage2Data
+            .Select(x => new { x.SalesOrderNo, x.Weight, UrgencyLevel = x.PlanUrgency ?? x.SummaryUrgency })
             .Where(x => x.UrgencyLevel != null)
-            .GroupBy(x => x.UrgencyLevel!)
-            .Select(g => new WorkOrderExecutionDashboardItem
-            {
-                ScheduleStage = 2,
-                UrgencyLevel = g.Key,
-                OrderCount = g.Select(x => x.WorkOrderNo).Distinct().Count(),
-                TotalWeight = g.Sum(x => x.Weight)
-            });
-        result.AddRange(stage2Grouped);
+            .Select(x => new StageOrderRow(x.SalesOrderNo, UrgencyLevelKeys.IsUrgent(x.UrgencyLevel), x.Weight))));
 
         // ========== Stage 3: 成品检验 ==========
         // 对齐成检计划看板前 3 档（待到料/待检验/检验中）：复用 GetKanbanAsync 判定（候选=InFinalInspection 批次，
         // 行=批次+成检类型，强制完成跳过、已入库脱离、筛除「完成检验待入库」），按批次去重聚合。
         // 重量口径=ProductionWeight（生产重量），与成检计划看板完全同源。
         var kanbanItems = await _finalInspectionService.GetKanbanAsync();
-        var stage3Batches = kanbanItems
+        result.Add(AggregateByOrder(3, kanbanItems
             .Where(x => x.KanbanStage == KanbanStageKeys.WaitingMaterial
                 || x.KanbanStage == KanbanStageKeys.WaitingInspection
                 || x.KanbanStage == KanbanStageKeys.Inspecting)
             .GroupBy(x => x.ProductionBatchId)
-            .Select(g => new
-            {
-                WorkOrderNo = g.First().WorkOrderNo,
-                UrgencyLevel = g.First().UrgencyLevel,
-                Weight = g.First().ProductionWeight ?? 0m
-            })
-            .ToList();
-
-        var stage3Grouped = stage3Batches
+            .Select(g => new { OrderNo = g.First().SalesOrderNo ?? "", UrgencyLevel = g.First().UrgencyLevel, Weight = g.First().ProductionWeight ?? 0m })
             .Where(x => x.UrgencyLevel != null)
-            .GroupBy(x => x.UrgencyLevel!)
-            .Select(g => new WorkOrderExecutionDashboardItem
-            {
-                ScheduleStage = 3,
-                UrgencyLevel = g.Key,
-                OrderCount = g.Select(x => x.WorkOrderNo).Distinct().Count(),
-                TotalWeight = g.Sum(x => x.Weight)
-            });
-        result.AddRange(stage3Grouped);
+            .Select(x => new StageOrderRow(x.OrderNo, UrgencyLevelKeys.IsUrgent(x.UrgencyLevel), x.Weight))));
 
         return result;
+    }
+
+    /// <summary>看板聚合中间行：订单号 + 是否急单 + 重量。</summary>
+    private readonly record struct StageOrderRow(string OrderNo, bool IsUrgent, decimal Weight);
+
+    /// <summary>
+    /// 单阶段聚合：订单数/吨位 + 急单订单数/急单吨位。
+    /// ⚠️ 单数按**订单号**去重（同一订单下多张工单/多个批次只算 1 单），比较用 OrdinalIgnoreCase
+    /// （SQL Server 库不区分大小写，C# 内存默认区分，不指定会同一订单被算成多单）。
+    /// </summary>
+    private static WorkOrderExecutionDashboardItem AggregateByOrder(int stage, IEnumerable<StageOrderRow> rows)
+    {
+        var list = rows.ToList();
+        var urgentRows = list.Where(x => x.IsUrgent).ToList();
+
+        return new WorkOrderExecutionDashboardItem
+        {
+            ScheduleStage = stage,
+            OrderCount = list.Select(x => x.OrderNo).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+            TotalWeight = list.Sum(x => x.Weight),
+            UrgentOrderCount = urgentRows.Select(x => x.OrderNo).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+            UrgentWeight = urgentRows.Sum(x => x.Weight)
+        };
     }
 
     /// <summary>
@@ -2988,11 +2995,14 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                     s.ProcessInspectionReworkWeight,
                     s.ProcessInspectionWarehouseWeight,
                     s.ProcessInspectionScrapWeight,
+                    s.ProcessInspectionReturnWeight,
                     s.FinalInspectionDefectQty,
                     s.FinalInspectionDefectWeight,
                     s.FinalInspectionReworkWeight,
+                    s.FinalInspectionInProcessWarehouseWeight,
                     s.FinalInspectionWarehouseWeight,
                     s.FinalInspectionScrapWeight,
+                    s.FinalInspectionReturnWeight,
                     // 小数（含可空）
                     s.MinLength,
                     s.MaxLength,
@@ -3131,8 +3141,10 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
                 ["FinalInspectionDefectQty"] = DistinctNullableInts(all.Select(x => x.FinalInspectionDefectQty)),
                 ["FinalInspectionDefectWeight"] = DistinctNullableInts(all.Select(x => x.FinalInspectionDefectWeight)),
                 ["FinalInspectionReworkWeight"] = DistinctNullableInts(all.Select(x => x.FinalInspectionReworkWeight)),
+                ["FinalInspectionInProcessWarehouseWeight"] = DistinctNullableInts(all.Select(x => x.FinalInspectionInProcessWarehouseWeight)),
                 ["FinalInspectionWarehouseWeight"] = DistinctNullableInts(all.Select(x => x.FinalInspectionWarehouseWeight)),
                 ["FinalInspectionScrapWeight"] = DistinctNullableInts(all.Select(x => x.FinalInspectionScrapWeight)),
+                ["FinalInspectionReturnWeight"] = DistinctNullableInts(all.Select(x => x.FinalInspectionReturnWeight)),
 
                 // ===== 小数 =====
                 ["MinLength"] = DistinctNullableDecimals(all.Select(x => x.MinLength)),
@@ -3531,6 +3543,8 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             ("finalinspectiondefectweight", true) => query.OrderByDescending(x => x.FinalInspectionDefectWeight),
             ("finalinspectionreworkweight", false) => query.OrderBy(x => x.FinalInspectionReworkWeight),
             ("finalinspectionreworkweight", true) => query.OrderByDescending(x => x.FinalInspectionReworkWeight),
+            ("finalinspectioninprocesswarehouseweight", false) => query.OrderBy(x => x.FinalInspectionInProcessWarehouseWeight),
+            ("finalinspectioninprocesswarehouseweight", true) => query.OrderByDescending(x => x.FinalInspectionInProcessWarehouseWeight),
             ("finalinspectionwarehouseweight", false) => query.OrderBy(x => x.FinalInspectionWarehouseWeight),
             ("finalinspectionwarehouseweight", true) => query.OrderByDescending(x => x.FinalInspectionWarehouseWeight),
             ("finalinspectionscrapweight", false) => query.OrderBy(x => x.FinalInspectionScrapWeight),

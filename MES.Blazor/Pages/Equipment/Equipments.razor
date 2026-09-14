@@ -54,7 +54,7 @@
 
             <!-- 数据表格 -->
             <div id="equipment-list-table">
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="EquipmentListDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"

@@ -123,7 +123,7 @@
             </div>
             <!-- 表格 -->
             <div id="outbound-history-list-table">
-            <MudTable @ref="_table" T="OutboundRecordDto" ServerData="@LoadDataFromServer"
+            <MudTable Breakpoint="Breakpoint.None" @ref="_table" T="OutboundRecordDto" ServerData="@LoadDataFromServer"
                       Dense="true" Hover="true"
                       Elevation="0" Striped="true" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:"
                       Class="mt-0 auto-table outbound-edit-table compact-table">

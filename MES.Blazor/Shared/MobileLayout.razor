@@ -68,13 +68,23 @@
     </AuthorizeView>
 
     <MudMainContent Style="padding-top: 64px; min-height: 100vh;">
-        @* 竖屏进入宽表页时提示横屏（首页/扫码流等窄页由 LandscapeHintRule 排除，不打扰）。 *@
-        <LandscapeHintBanner />
-        @* 向页面下传 IsMobile=true：页面可在移动壳内分支渲染（如首页手机看板）。
-           桌面 MainLayout 不提供该级联 → 页面默认 IsMobile=false 走桌面布局。 *@
-        <CascadingValue Value="true" Name="IsMobile">
-            @ChildContent
-        </CascadingValue>
+        @* 手机端一律走本壳（含横屏）：2026-09-14 用户拍板删除 ResponsiveLayout 的
+           「横屏 ≥700 切桌面版」例外 + 「请横屏」提示条机制 —— 提示条组件 LandscapeHintBanner
+           与判定规则 LandscapeHintRule 已连同其单测一并删除，不再保留。
+           竖屏可用性由 `.mh-shell`（见下）与「横屏筛选网格每行 2 列」规则保证。 *@
+
+        @* 全站手机壳钩子 `.mh-shell`：除首页（自带 mh-* 体系）以外，其余页面在手机竖屏下的
+           统一收敛样式全部挂在这个类上（见 wwwroot/css/app.css「全站手机壳」段）——
+           全仓 160+ 页面本体零改动，避免大范围编辑。
+           ⚠️ 用真实渲染出的 div 做钩子，不依赖「祖先容器 + 后代选择器」的推断链：
+              2026-09-14 真机样式失效的根因正是钩子挂 `.mh-container` 在真机未命中。 *@
+        <div class="mh-shell">
+            @* 向页面下传 IsMobile=true：页面可在移动壳内分支渲染（如首页手机看板）。
+               桌面 MainLayout 不提供该级联 → 页面默认 IsMobile=false 走桌面布局。 *@
+            <CascadingValue Value="true" Name="IsMobile">
+                @ChildContent
+            </CascadingValue>
+        </div>
     </MudMainContent>
 </MudLayout>
 

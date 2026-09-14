@@ -49,9 +49,9 @@ public class DataExchangeServiceTests : TestBase
     // ========== Registry 验证 ==========
 
     [Fact]
-    public void Registry_包含所有80个实体()
+    public void Registry_包含所有84个实体()
     {
-        DataExchangeRegistry.Registry.Should().HaveCount(80);
+        DataExchangeRegistry.Registry.Should().HaveCount(84);
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public class DataExchangeServiceTests : TestBase
     public void GetEntities_按上下文顺序排序()
     {
         var entities = DataExchangeRegistry.GetEntities();
-        entities.Should().HaveCount(80);
+        entities.Should().HaveCount(84);
 
         // 上下文分组出现顺序须与 ContextOrder 完全一致（组内按名称升序）
         var actual = entities.Select(e => e.Context).ToList();

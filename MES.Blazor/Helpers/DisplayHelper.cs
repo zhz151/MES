@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Helpers;
@@ -99,28 +100,25 @@ public static class DisplayHelper
     /// </summary>
     public static string FormatNullableDate(DateTime? value) => value?.ToString("yyyy-MM-dd") ?? "";
 
+    /// <summary>括号片段匹配（不含嵌套括号），供 FormatPersonName 逐段剥离工号用</summary>
+    private static readonly Regex PersonParenRegex = new(@"\(([^()]*)\)", RegexOptions.Compiled);
+
     /// <summary>
     /// 实名串「姓名(编号)」→ 纯姓名（NCR 反馈人/检验员等展示简化，去掉括号工号）。
-    /// 工号判定：括号内容全部为 ASCII 字母/数字/_/- 且含数字或大写字母（如 YG044）；不满足则原样返回。
+    /// 支持多段串（多人以「、/，/,」分隔），逐段剥离：「张燕平(YG045)、赵路陈」→「张燕平、赵路陈」。
+    /// 工号判定：括号内容全部为 ASCII 字母/数字/_/- 且含数字或大写字母（如 YG044）；不满足则原样保留（如「张三(夜班)」）。
     /// </summary>
     public static string FormatPersonName(string? display)
     {
         if (string.IsNullOrWhiteSpace(display)) return "";
-        var s = display.Trim();
-        if (s.Length > 2 && s[^1] == ')')
-        {
-            var idx = s.LastIndexOf('(');
-            if (idx > 0)
-            {
-                var inner = s[(idx + 1)..^1];
-                var looksLikeCode = inner.Length >= 2
-                    && inner.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '-')
-                    && (inner.Any(char.IsDigit) || inner.Any(c => c is >= 'A' and <= 'Z'));
-                if (looksLikeCode) return s[..idx];
-            }
-        }
-        return s;
+        return PersonParenRegex.Replace(display.Trim(), m => IsEmployeeCode(m.Groups[1].Value) ? "" : m.Value).Trim();
     }
+
+    /// <summary>括号内容是否为工号形态：≥2 位、仅 ASCII 字母/数字/_/- 且含数字或大写字母</summary>
+    private static bool IsEmployeeCode(string inner)
+        => inner.Length >= 2
+           && inner.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '-')
+           && (inner.Any(char.IsDigit) || inner.Any(c => c is >= 'A' and <= 'Z'));
 
     // ========== 枚举文本（统一委托给 EnumHelper） ==========
 
@@ -286,8 +284,19 @@ public static class DisplayHelper
     /// <summary>获取成品类型中文文本</summary>
     public static string GetFinishedProductTypeText(FinishedProductType type) => EnumHelper.GetDisplayName(type);
 
-    /// <summary>获取处理方式中文文本</summary>
-    public static string GetDisposalMethodText(DisposalMethod method) => EnumHelper.GetDisplayName(method);
+    /// <summary>获取不合格流向中文文本（物料实际去向，检验记录带出）</summary>
+    public static string GetFlowDirectionText(FlowDirection direction) => EnumHelper.GetDisplayName(direction);
+
+    /// <summary>获取不合格反馈单来源类型中文文本（生产工段/过程检验/成品检验）</summary>
+    public static string GetNonconformingFeedbackSourceTypeText(NonconformingFeedbackSourceType sourceType)
+        => EnumHelper.GetDisplayName(sourceType);
+
+    /// <summary>获取不合格反馈单来源类型中文文本（字符串重载，兼容 DTO 存枚举名/中文）</summary>
+    public static string GetNonconformingFeedbackSourceTypeText(string? sourceType)
+        => EnumHelper.GetDisplayName<NonconformingFeedbackSourceType>(sourceType);
+
+    /// <summary>获取处置方式中文文本（字典 NcrDisposalKey，可扩展档位；配置表优先，静态兜底）</summary>
+    public static string GetDisposalText(string? disposal) => DictValueDisplayHelper.GetText(DictValueDefaults.NcrDisposalKey, disposal) ?? "";
 
     /// <summary>获取NCR状态中文文本</summary>
     public static string GetNcrStatusText(NcrStatus status) => EnumHelper.GetDisplayName(status);

@@ -10,7 +10,6 @@
 @using System.Text.Json
 @using MES.Shared.Constants
 @inject BatchService BatchService
-@inject ProductionRecordService ProdRecordService
 @inject WorkOrderService WorkOrderService
 @inject OrderService OrderService
 @inject NavigationManager Navigation
@@ -218,157 +217,7 @@
                 批次执行进度
             </MudText>
 
-            @if (_isTrackingLoading)
-            {
-                <MudProgressCircular Indeterminate Size="Size.Small" Class="mb-3" />
-            }
-            else if (_trackingVisual == null)
-            {
-                <MudText Typo="Typo.body2" Class="detail-empty">暂无执行记录</MudText>
-            }
-            else
-            {
-                <!-- 顶部统计条 -->
-                <div class="d-flex flex-wrap align-center mb-3" Style="gap: 8px 24px;">
-                    <MudChip Size="Size.Small" Color="Color.Tertiary">
-                        已执行 @_trackingVisual.CompletedSectionCount / @_trackingVisual.TotalSectionCount 工段
-                    </MudChip>
-                    @if (_trackingVisual.TotalSectionCount > 0)
-                    {
-                        <div class="detail-progress-track">
-                            <div class="detail-progress-fill" Style="width:@(_trackingVisual.ProgressPercent)%"></div>
-                        </div>
-                        <MudText Typo="Typo.body2">@_trackingVisual.ProgressPercent%</MudText>
-                    }
-                    @if (_trackingVisual.InputQuantity.HasValue)
-                    {
-                        <MudText Typo="Typo.body2" Color="Color.Primary">
-                            现有效原料投料量：@_trackingVisual.InputQuantity 支 / @(_trackingVisual.InputWeight) kg
-                        </MudText>
-                    }
-                    @if (_trackingVisual.TargetQuantity.HasValue)
-                    {
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            目标量：@_trackingVisual.TargetQuantity 支 / @(_trackingVisual.TargetWeight) kg
-                        </MudText>
-                    }
-                </div>
-
-                <!-- 当前/下一工段摘要 -->
-                <div class="detail-summary-bar d-flex flex-wrap mb-3">
-                    @if (!string.IsNullOrEmpty(_trackingVisual.CurrentSectionName))
-                    {
-                        <MudText Typo="Typo.body2" Class="detail-current-section">
-                            📍 当前：<span class="detail-current-name">@ProcessDisplayHelper.GetProcessNameText(_trackingVisual.CurrentGroupName)</span> &gt;
-                            <span class="detail-current-name">@SectionDisplayHelper.GetSectionNameText(_trackingVisual.CurrentSectionName)</span>
-                        </MudText>
-                    }
-                    @if (_trackingVisual.CurrentWarehouseDetails != null && _trackingVisual.CurrentWarehouseDetails.Count > 0)
-                    {
-                        var whTexts = _trackingVisual.CurrentWarehouseDetails.Select(wh =>
-                        {
-                            var parts = new List<string> { wh.WarehouseName };
-                            if (wh.Quantity.HasValue) parts.Add($"{wh.Quantity}支");
-                            if (wh.Weight.HasValue) parts.Add($"{wh.Weight:G29}Kg");
-                            if (wh.InboundDate.HasValue) parts.Add(wh.InboundDate.Value.ToString("yyyy-MM-dd"));
-                            return string.Join("，", parts);
-                        });
-                        <MudText Typo="Typo.body2">🏭 库房：@string.Join("；", whTexts)</MudText>
-                    }
-                    @if (!string.IsNullOrEmpty(_trackingVisual.CurrentOutsource))
-                    {
-                        <MudText Typo="Typo.body2" Class="detail-outsource-status">🚚 委外中：@_trackingVisual.CurrentOutsource</MudText>
-                    }
-                    @if (!string.IsNullOrEmpty(_trackingVisual.NextSectionName))
-                    {
-                        <MudText Typo="Typo.body2" Class="detail-next-section">⏭ 下一工段：@SectionDisplayHelper.GetSectionNameText(_trackingVisual.NextSectionName)</MudText>
-                    }
-                    @if (!string.IsNullOrEmpty(_trackingVisual.NextProcess))
-                    {
-                        <MudText Typo="Typo.body2" Class="detail-next-section">下一工序：@ProcessDisplayHelper.GetProcessNameText(_trackingVisual.NextProcess)</MudText>
-                    }
-                </div>
-
-                <!-- 流程图：工序组水平排列 -->
-                <div class="detail-section-scroll">
-                    @foreach (var group in _trackingVisual.ProcessGroups)
-                    {
-                        <div class="detail-group-card">
-                            <!-- 组标题 -->
-                            <div class="detail-group-header">
-                                @ProcessDisplayHelper.GetProcessNameText(group.ProcessName)
-                                <span class="detail-group-count">(@group.CompletedSections/@group.TotalSections)</span>
-                            </div>
-                            <!-- 工段卡片列表 -->
-                            <div class="detail-section-list">
-                                @foreach (var section in group.Sections)
-                                {
-                                    <div class="detail-section-item d-flex align-start"
-                                         Style="border-radius:4px; margin:2px 0; padding:4px 6px; gap:6px; @GetSectionStyle(section.Status)"
-                                         title="@GetSectionTooltip(section)">
-                                        <span class="detail-section-icon">@GetSectionIcon(section.Status)</span>
-                                        <div class="detail-section-main">
-                                            <div class="d-flex align-center" Style="gap:4px; flex-wrap:wrap;">
-                                                <span class="detail-section-name">@SectionDisplayHelper.GetSectionNameText(section.SectionName)</span>
-                                                @if (section.IsReceiveOnly)
-                                                {
-                                                    <MudChip Size="Size.Small" Color="Color.Tertiary" Class="detail-outsource-chip ma-0">成检到料</MudChip>
-                                                }
-                                                else if (section.OutsourceVendor != null)
-                                                {
-                                                    <MudChip Size="Size.Small" Color="Color.Warning" Class="detail-outsource-chip ma-0">委外</MudChip>
-                                                }
-                                            </div>
-                                            @foreach (var meta in GetSectionMetaLines(section))
-                                            {
-                                                <span class="detail-meta-line">@meta</span>
-                                            }
-                                        </div>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    }
-
-                    @if (_trackingVisual.FinalInspectionItems.Count > 0)
-                    {
-                        <!-- 成品检验 9 项（横向最右端追加） -->
-                        <div class="detail-group-card">
-                            <div class="detail-group-header detail-final-header">
-                                成品检验
-                                <span class="detail-group-count">(@( _trackingVisual.FinalInspectionItems.Count(i => i.InspectionDate.HasValue) )/@(_trackingVisual.FinalInspectionItems.Count))</span>
-                            </div>
-                            <div class="detail-section-list">
-                                @foreach (var item in _trackingVisual.FinalInspectionItems)
-                                {
-                                    <div class="detail-section-item d-flex align-start"
-                                         Style="border-radius:4px; margin:2px 0; padding:4px 6px; gap:6px; @GetFinalItemStyle(item)"
-                                         title="@GetFinalItemTooltip(item)">
-                                        <span class="detail-section-icon">@GetFinalItemIcon(item)</span>
-                                        <div class="detail-section-main">
-                                            <div class="d-flex align-center" Style="gap:4px; flex-wrap:wrap;">
-                                                <span class="detail-section-name">@DisplayHelper.GetInspectionItemText(item.InspectionItem)</span>
-                                                @if (item.IsRequired)
-                                                {
-                                                    <MudChip Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error" Class="detail-outsource-chip ma-0">必检</MudChip>
-                                                }
-                                                @if (item.HasPre)
-                                                {
-                                                    <MudChip Size="Size.Small" Color="@(item.PreOnly ? Color.Secondary : Color.Primary)" Class="detail-outsource-chip ma-0">@(item.PreOnly ? "预阶段" : "预")</MudChip>
-                                                }
-                                            </div>
-                                            @foreach (var meta in GetFinalItemMetaLines(item))
-                                            {
-                                                <span class="detail-meta-line">@meta</span>
-                                            }
-                                        </div>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
-            }
+            <BatchProgressCard BatchId="@batch.Id" />
         </MudPaper>
 
         <!-- ===== 区块四：质量要求 ===== -->
@@ -434,7 +283,7 @@
                         <MudIcon Icon="@Icons.Material.Filled.ListAlt" Class="mr-1" Size="Size.Small" />合并投料明细
                     </MudText>
                     <div class="detail-table-scroll">
-                        <MudTable T="SourceBatchItemDto" Items="batch.SourceItems" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
+                        <MudTable Breakpoint="Breakpoint.None" T="SourceBatchItemDto" Items="batch.SourceItems" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
                             <HeaderContent>
                                 <MudTh>批次号</MudTh>
                                 <MudTh>原料类型</MudTh>
@@ -550,7 +399,7 @@
             @if (_showProcessGroups && batch.ProcessGroups.Count > 0)
             {
                 <div class="detail-table-scroll">
-                    <MudTable T="ProcessGroupDto" Items="batch.ProcessGroups" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
+                    <MudTable Breakpoint="Breakpoint.None" T="ProcessGroupDto" Items="batch.ProcessGroups" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
                         <HeaderContent>
                             <MudTh>序号</MudTh>
                             <MudTh>工序名称</MudTh>
@@ -610,7 +459,7 @@
                 }
                 else
                 {
-                    <MudTable Items="_operationLogs" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
+                    <MudTable Breakpoint="Breakpoint.None" Items="_operationLogs" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
                         <HeaderContent>
                             <MudTh>操作类型</MudTh>
                             <MudTh>详情</MudTh>
@@ -640,9 +489,6 @@
 
     private ProductionBatchDetailDto? batch;
     private bool isLoading = true;
-
-    private BatchTrackingVisualDto? _trackingVisual;
-    private bool _isTrackingLoading;
 
     // 操作日志
     private List<OperationLogDto> _operationLogs = new();
@@ -771,9 +617,6 @@
             isLoading = false;
             StateHasChanged();
         }
-
-        // 并行加载跟踪可视化数据
-        await LoadTrackingVisual();
 
         // 加载相邻批次导航
         await LoadAdjacentBatch();
@@ -1018,276 +861,6 @@
     {
         if (_nextId.HasValue)
             Navigation.NavigateTo($"/batches/{_nextId}");
-    }
-
-    // ========== 跟踪可视化 ==========
-
-    private async Task LoadTrackingVisual()
-    {
-        if (Id <= 0) return;
-
-        _isTrackingLoading = true;
-        StateHasChanged();
-
-        try
-        {
-            var result = await ProdRecordService.GetTrackingVisualAsync(Id);
-            if (result.Success && result.Data != null)
-            {
-                _trackingVisual = result.Data;
-            }
-            else
-            {
-                _trackingVisual = null;
-            }
-        }
-        catch
-        {
-            _trackingVisual = null;
-        }
-        finally
-        {
-            _isTrackingLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private static string GetSectionStyle(SectionStatus status) => status switch
-    {
-        SectionStatus.Completed => "background:#e8f5e9; opacity:0.85;",
-        SectionStatus.InProgress => "background:#e3f2fd; border-left:3px solid #1976d2;",
-        SectionStatus.Outsource => "background:#fff3e0; border-left:3px solid #f57c00;",
-        SectionStatus.Next => "background:#f3e5f5; border:1px dashed #9c27b0;",
-        _ => "background:#fafafa; opacity:0.6;"
-    };
-
-    private static string GetSectionIcon(SectionStatus status) => status switch
-    {
-        SectionStatus.Completed => "✅",
-        SectionStatus.InProgress => "🔄",
-        SectionStatus.Outsource => "🚚",
-        SectionStatus.Next => "⏭",
-        _ => "⭕"
-    };
-
-    private static string GetSectionTooltip(SectionVisualDto section)
-    {
-        var parts = new List<string> { SectionDisplayHelper.GetSectionNameText(section.SectionName) };
-
-        // 成检到料工段：仅到料日
-        if (section.IsReceiveOnly)
-        {
-            if (section.ExecDate.HasValue)
-                parts.Add($"检验到料: {section.ExecDate:yyyy-MM-dd}");
-            return string.Join(" | ", parts);
-        }
-
-        // 首/次节点日期
-        if (section.ExecDateStart.HasValue)
-            parts.Add($"区间: {section.ExecDateStart:yyyy-MM-dd} ~ {section.ExecDate:yyyy-MM-dd}");
-        else if (section.ExecDate.HasValue)
-            parts.Add($"{section.DateLabel ?? "执行"}: {section.ExecDate:yyyy-MM-dd}");
-        if (section.ExecDate2.HasValue)
-            parts.Add($"{section.DateLabel2 ?? "回收"}: {section.ExecDate2:yyyy-MM-dd}");
-
-        var isWarehouse = section.SectionName == "入库";
-        if (section.WarehouseDetails != null && section.WarehouseDetails.Count > 0)
-        {
-            foreach (var wh in section.WarehouseDetails)
-            {
-                var whParts = new List<string> { $"库房: {wh.WarehouseName}" };
-                if (wh.Quantity.HasValue) whParts.Add($"{wh.Quantity}支");
-                if (wh.Weight.HasValue) whParts.Add($"{wh.Weight:G29}kg");
-                if (wh.InboundDate.HasValue) whParts.Add($"{wh.InboundDate:yyyy-MM-dd}");
-                parts.Add(string.Join(" ", whParts));
-            }
-        }
-        else if (section.EquipmentName != null && !isWarehouse)
-        {
-            parts.Add($"设备: {section.EquipmentName}");
-        }
-
-        if (section.Operator != null)
-            parts.Add($"操作人: {OperatorNameHelper.ToNamesOnly(section.Operator)}");
-        if (section.Operator2 != null)
-            parts.Add($"{section.DateLabel2 ?? "出缸"}人: {OperatorNameHelper.ToNamesOnly(section.Operator2)}");
-
-        // 委外
-        if (section.OutsourceVendor != null)
-        {
-            parts.Add($"委外: {section.OutsourceVendor}");
-            if (section.OutsourceProgress.HasValue)
-                parts.Add($"回收进度: {section.OutsourceProgress}%");
-        }
-
-        // 普通生产/入缸/发出量
-        if (section.Quantity.HasValue && !isWarehouse)
-            parts.Add($"数量: {section.Quantity}支");
-        if (section.Weight.HasValue && !isWarehouse)
-            parts.Add($"重量: {section.Weight:G29}kg");
-
-        // 委外正常回收量
-        if (section.RecoveryQuantity.HasValue)
-            parts.Add($"正常回收: {section.RecoveryQuantity}支");
-        if (section.RecoveryWeight.HasValue)
-            parts.Add($"正常回收重: {section.RecoveryWeight:G29}kg");
-
-        // 过程检验 4 值
-        if (section.QualifiedQuantity.HasValue || section.QualifiedWeight.HasValue)
-            parts.Add($"合格: {section.QualifiedQuantity ?? 0}支/{FormatWt(section.QualifiedWeight)}kg");
-        if (section.DefectQuantity.HasValue || section.DefectWeight.HasValue)
-            parts.Add($"次品: {section.DefectQuantity ?? 0}支/{FormatWt(section.DefectWeight)}kg");
-
-        return string.Join(" | ", parts);
-    }
-
-    // ========== 跟踪可视化工段卡 meta 行 ==========
-
-    private static string FormatWt(decimal? v) => v.HasValue ? v.Value.ToString("G29") : "0";
-
-    private static void AddQtyWtSegs(List<string> segs, SectionVisualDto s)
-    {
-        // 支数仅 4 类（断切/检验/冷轧拔/油管断）+ 委外 显示，去油酸洗及其它工段不显支数，只显重量
-        if (IsPieceCountKind(s) && s.Quantity.HasValue) segs.Add($"{s.Quantity}支");
-        if (s.Weight.HasValue) segs.Add($"{s.Weight:G29}kg");
-    }
-
-    /// <summary>卡片数量是否带"支数"：断切/检验/冷轧拔/油管断 4 类，或委外（发出量）。</summary>
-    private static bool IsPieceCountKind(SectionVisualDto s)
-    {
-        if (s.OutsourceVendor != null) return true; // 委外发出/回收带支数
-        return SectionKeys.ToKey(s.SectionName) is SectionKeys.Cut
-            or SectionKeys.ColdRollDraw or SectionKeys.OilPipeCut or SectionKeys.Inspection;
-    }
-
-    /// <summary>工段卡 meta 行：仅"日期+数量"，不显示人员（人员只留悬浮 title，姓名去工号）</summary>
-    private static List<string> GetSectionMetaLines(SectionVisualDto s)
-    {
-        var lines = new List<string>();
-
-        // 成检到料：仅"检验到料 日期"
-        if (s.IsReceiveOnly)
-        {
-            if (s.ExecDate.HasValue) lines.Add($"检验到料 {s.ExecDate:yyyy-MM-dd}");
-            return lines;
-        }
-
-        // 入库工段维持现状：仅日期
-        if (s.SectionName == "入库")
-        {
-            if (s.ExecDate.HasValue)
-                lines.Add(s.ExecDateStart.HasValue
-                    ? $"{s.ExecDateStart:MM-dd}~{s.ExecDate:MM-dd}"
-                    : $"{s.ExecDate:MM-dd}");
-            return lines;
-        }
-
-        // ① 双节点（入缸-出缸 / 发出-回收）
-        if (s.DateLabel != null && s.DateLabel2 != null && s.ExecDate2.HasValue)
-        {
-            var first = new List<string> { $"{s.DateLabel} {s.ExecDate:MM-dd}" };
-            AddQtyWtSegs(first, s);
-            lines.Add(string.Join(" · ", first));
-
-            var second = new List<string> { $"{s.DateLabel2} {s.ExecDate2:MM-dd}" };
-            if (s.RecoveryQuantity.HasValue) second.Add($"正常回收{s.RecoveryQuantity}支");
-            if (s.RecoveryWeight.HasValue) second.Add($"{s.RecoveryWeight:G29}kg");
-            lines.Add(string.Join(" · ", second));
-            return lines;
-        }
-
-        // ③ 委外仍在途：发出日期+发出量（正常回收值并入此行展示）
-        if (s.DateLabel != null)
-        {
-            var segs = new List<string> { $"{s.DateLabel} {s.ExecDate:MM-dd}" };
-            AddQtyWtSegs(segs, s);
-            if (s.RecoveryQuantity.HasValue)
-                segs.Add($"正常回收{s.RecoveryQuantity}支/{(s.RecoveryWeight ?? 0):G29}kg");
-            lines.Add(string.Join(" · ", segs));
-            return lines;
-        }
-
-        // ④ 过程检验：日期 + 合格/次品 支重（不显检验员）
-        if (s.QualifiedQuantity.HasValue || s.QualifiedWeight.HasValue
-            || s.DefectQuantity.HasValue || s.DefectWeight.HasValue)
-        {
-            var segs = new List<string>();
-            if (s.ExecDateStart.HasValue) segs.Add($"{s.ExecDateStart:MM-dd}~{s.ExecDate:MM-dd}");
-            else if (s.ExecDate.HasValue) segs.Add($"{s.ExecDate:MM-dd}");
-            if (s.QualifiedQuantity.HasValue) segs.Add($"合{s.QualifiedQuantity}支/{(s.QualifiedWeight ?? 0):G29}kg");
-            if (s.DefectQuantity.HasValue) segs.Add($"次{s.DefectQuantity}支/{(s.DefectWeight ?? 0):G29}kg");
-            if (segs.Count > 0) lines.Add(string.Join(" · ", segs));
-            return lines;
-        }
-
-        // ② 普通生产：日期（多人多日聚合区间）+ 数量合计
-        if (s.ExecDate.HasValue)
-        {
-            var segs = new List<string>
-            {
-                s.ExecDateStart.HasValue
-                    ? $"{s.ExecDateStart:MM-dd}~{s.ExecDate:MM-dd}"
-                    : $"{s.ExecDate:MM-dd}"
-            };
-            AddQtyWtSegs(segs, s);
-            lines.Add(string.Join(" · ", segs));
-        }
-        return lines;
-    }
-
-    // ========== 成品检验 9 项 meta ==========
-
-    private static string GetFinalItemStyle(FinalInspectionItemVisualDto item)
-    {
-        if (item.InspectionDate.HasValue)
-            return "background:#e8f5e9; opacity:0.9;";
-        if (item.IsRequired)
-            return "background:#fff3e0; border-left:3px solid #ef6c00;";
-        return "background:#fafafa; opacity:0.6;";
-    }
-
-    private static string GetFinalItemIcon(FinalInspectionItemVisualDto item)
-    {
-        if (item.InspectionDate.HasValue) return "✅";
-        if (item.IsRequired) return "⏭";
-        return "⭕";
-    }
-
-    private static List<string> GetFinalItemMetaLines(FinalInspectionItemVisualDto item)
-    {
-        var lines = new List<string>();
-        if (!item.InspectionDate.HasValue)
-        {
-            // 未检：必检待检提示
-            if (item.IsRequired) lines.Add("待检");
-            return lines;
-        }
-
-        var vals = new List<string> { $"{item.InspectionDate:MM-dd}" };
-        // 卡片仅日期+数量，检验员只放悬浮 title（姓名去工号）
-        if (item.QualifiedQuantity.HasValue) vals.Add($"合{item.QualifiedQuantity}支/{(item.QualifiedWeight ?? 0)}kg");
-        if (item.DefectQuantity.HasValue) vals.Add($"次{item.DefectQuantity}支/{(item.DefectWeight ?? 0)}kg");
-        if (vals.Count > 0) lines.Add(string.Join(" · ", vals));
-        return lines;
-    }
-
-    private static string GetFinalItemTooltip(FinalInspectionItemVisualDto item)
-    {
-        var parts = new List<string> { DisplayHelper.GetInspectionItemText(item.InspectionItem) };
-        parts.Add(item.IsRequired ? "必检" : "非必检");
-        if (item.HasPre) parts.Add(item.PreOnly ? "仅预检(无正式)" : "存在预检");
-        if (item.InspectionDate.HasValue)
-        {
-            parts.Add($"检验日: {item.InspectionDate:yyyy-MM-dd}");
-            if (item.Inspector != null) parts.Add($"检验员: {OperatorNameHelper.ToNamesOnly(item.Inspector)}");
-            if (item.QualifiedQuantity.HasValue) parts.Add($"合格: {item.QualifiedQuantity}支/{(item.QualifiedWeight ?? 0)}kg");
-            if (item.DefectQuantity.HasValue) parts.Add($"次品: {item.DefectQuantity}支/{(item.DefectWeight ?? 0)}kg");
-        }
-        else if (item.IsRequired)
-        {
-            parts.Add("待检");
-        }
-        return string.Join(" | ", parts);
     }
 
 }

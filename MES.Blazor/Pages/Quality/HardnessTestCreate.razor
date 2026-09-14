@@ -89,7 +89,7 @@
                             <RowTemplate Context="r">
                                 <MudTd>@RenderDateField(r)</MudTd>
                                 <MudTd>@RenderInputField(r.Inspector, v => r.Inspector = v!)</MudTd>
-                                <MudTd>@RenderInputField(r.FurnaceNo, v => r.FurnaceNo = v!)</MudTd>
+                                <MudTd>@RenderInputField(r.BatchNo, v => r.BatchNo = v!)</MudTd>
                                 <MudTd>@RenderInputField(r.Grade, v => r.Grade = v!)</MudTd>
                                 <MudTd>@RenderInputField(r.Specification, v => r.Specification = v!)</MudTd>
                                 <MudTd>@RenderNumericField(r.SampleNo, v => r.SampleNo = v!)</MudTd>
@@ -150,7 +150,7 @@
     {
         public string InspectionDate { get; set; } = DateTime.Now.ToString("yyyy-MM-dd");
         public string Inspector { get; set; } = string.Empty;
-        public string FurnaceNo { get; set; } = string.Empty;
+        public string BatchNo { get; set; } = string.Empty;
         public string Grade { get; set; } = string.Empty;
         public string Specification { get; set; } = string.Empty;
         public int? SampleNo { get; set; }
@@ -202,7 +202,7 @@
             var r = _rows[i];
             if (string.IsNullOrWhiteSpace(r.Inspector))
                 errors.Add($"第{i + 1}行：检验员不能为空");
-            if (string.IsNullOrWhiteSpace(r.FurnaceNo))
+            if (string.IsNullOrWhiteSpace(r.BatchNo))
                 errors.Add($"第{i + 1}行：生产编号不能为空");
             if (string.IsNullOrWhiteSpace(r.Grade))
                 errors.Add($"第{i + 1}行：牌号不能为空");
@@ -230,7 +230,7 @@
                 {
                     InspectionDate = date == default ? DateTime.Now : date,
                     Inspector = r.Inspector.Trim(),
-                    FurnaceNo = r.FurnaceNo.Trim(),
+                    BatchNo = r.BatchNo.Trim(),
                     Grade = r.Grade.Trim(),
                     Specification = r.Specification,
                     SampleNo = r.SampleNo,

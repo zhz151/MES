@@ -25,6 +25,8 @@ public partial class FinalInspections
     private int _totalCount;
     private HashSet<int> selectedIds = new();
     private bool _isArrowNavSetup;
+    /// <summary>当前用户是否具备批次查看权限（本页策略 QualityView ⊄ BatchView，需按角色降级）</summary>
+    private bool _canViewBatch;
     private bool allSelected
     {
         get => _pageItems.Any() && _pageItems.All(i => selectedIds.Contains(i.Id));
@@ -133,15 +135,16 @@ public partial class FinalInspections
     private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
     { "ProductionCutQuantity", "ProductionWeight", "Quantity", "Weight", "QualifiedQuantity",
       "QualifiedWeight", "QualifiedConcessionQuantity", "DefectReworkQuantity",
-      "DefectWarehouseQuantity", "DefectScrapQuantity", "DefectReworkWeight",
-      "DefectWarehouseWeight", "DefectScrapWeight", "Pressure", "HoldTime" };
+      "DefectInProcessWarehouseQuantity", "DefectWarehouseQuantity", "DefectScrapQuantity", "DefectReturnQuantity",
+      "DefectReworkWeight", "DefectInProcessWarehouseWeight", "DefectWarehouseWeight", "DefectScrapWeight",
+      "DefectReturnWeight", "Pressure", "HoldTime" };
     private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
 
     private int _totalTableWidth =>
         _visibleColumns.Sum(c => int.TryParse(c.Width, out var w) ? w : 100) + 40 + 90;
 
-    // 列偏好版本号：默认列显隐收敛后 +1，强制旧持久化失效（key=col_prefs_final-inspection_v2）
-    private const string ColumnPrefsVersion = "v2";
+    // 列偏好版本号：新增「照片」列（G1 内）后 +1，强制旧持久化失效（key=col_prefs_final-inspection_v5）
+    private const string ColumnPrefsVersion = "v5";
 
     // ========== 实时健康校验通知条 ==========
     private FinalInspectionHealthSummaryDto? _healthSummary;
@@ -161,8 +164,9 @@ public partial class FinalInspections
     {
         "Quantity", "Weight", "QualifiedQuantity", "QualifiedWeight",
         "QualifiedConcessionQuantity", "DefectReworkQuantity",
-        "DefectWarehouseQuantity", "DefectScrapQuantity",
-        "DefectReworkWeight", "DefectWarehouseWeight", "DefectScrapWeight",
+        "DefectInProcessWarehouseQuantity", "DefectWarehouseQuantity", "DefectScrapQuantity", "DefectReturnQuantity",
+        "DefectReworkWeight", "DefectInProcessWarehouseWeight", "DefectWarehouseWeight", "DefectScrapWeight",
+        "DefectReturnWeight",
         "ProductionCutQuantity", "ProductionWeight"
     };
 
@@ -190,6 +194,8 @@ public partial class FinalInspections
         new() { Key = "QualificationLevel",    Label = "资格等级",   SortKey = "qualificationlevel", FilterType = "string", Width = "100", Visible = false,
             GroupKey = 1, GroupName = "G1 检验执行" },
         new() { Key = "BatchNo",                Label = "生产编号",   SortKey = "batchno", FilterType = "string", Width = "120",
+            GroupKey = 1, GroupName = "G1 检验执行" },
+        new() { Key = "AttachmentCount",        Label = "照片",       SortKey = "attachmentcount", Width = "90",
             GroupKey = 1, GroupName = "G1 检验执行" },
 
         // G2: 生产批次（均来自 ProductionBatch 导航属性的 DTO 字段）
@@ -254,21 +260,29 @@ public partial class FinalInspections
         new() { Key = "ConcessionRemark",       Label = "让步说明",     SortKey = "concessionremark", FilterType = "string", Width = "120",
             GroupKey = 3, GroupName = "G3 检验结果" },
 
-        // G4: 不合格处理
-        new() { Key = "DefectReworkQuantity",   Label = "次品返整支",   SortKey = "defectreworkquantity", Width = "80",
-            GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "DefectWarehouseQuantity",Label = "次品入库支",   SortKey = "defectwarehousequantity", Width = "80",
-            GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "DefectScrapQuantity",    Label = "次品报废支",   SortKey = "defectscrapquantity", Width = "80",
-            GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "DefectReworkWeight",     Label = "次品返整重",   SortKey = "defectreworkweight", Width = "80",
-            GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "DefectWarehouseWeight",  Label = "次品入库重",   SortKey = "defectwarehouseweight", Width = "80",
-            GroupKey = 4, GroupName = "G4 不合格处理" },
-        new() { Key = "DefectScrapWeight",      Label = "次品报废重",   SortKey = "defectscrapweight", Width = "80",
-            GroupKey = 4, GroupName = "G4 不合格处理" },
+        // G4: 不合格品去向（5 档：返整/入在制库/入次品库/退货/可入备库）
+        new() { Key = "DefectReworkQuantity",   Label = "返整支",     SortKey = "defectreworkquantity", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectInProcessWarehouseQuantity", Label = "入在制库支", SortKey = "defectinprocesswarehousequantity", Width = "90",
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectScrapQuantity",    Label = "入次品库支",   SortKey = "defectscrapquantity", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectReturnQuantity",   Label = "退货支",     SortKey = "defectreturnquantity", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectWarehouseQuantity",Label = "可入备库支",   SortKey = "defectwarehousequantity", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectReworkWeight",     Label = "理论返整重",   SortKey = "defectreworkweight", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectInProcessWarehouseWeight", Label = "理论入在制重", SortKey = "defectinprocesswarehouseweight", Width = "100",
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectScrapWeight",      Label = "理论入次库重",   SortKey = "defectscrapweight", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectReturnWeight",     Label = "理论退货重",   SortKey = "defectreturnweight", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
+        new() { Key = "DefectWarehouseWeight",  Label = "理论可入备库重", SortKey = "defectwarehouseweight", Width = "80",
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
         new() { Key = "DefectDescription",      Label = "次品情况描述", SortKey = "defectdescription", FilterType = "string", Width = "120",
-            GroupKey = 4, GroupName = "G4 不合格处理" },
+            GroupKey = 4, GroupName = "G4 不合格品去向" },
 
         // G5: 尺寸值
         new() { Key = "OuterDiameterRange",     Label = "外径范围",   SortKey = "outerdiameterrange", FilterType = "string", Width = "120",
@@ -513,6 +527,24 @@ public partial class FinalInspections
         if (table != null) await table.ReloadServerData();
     }
 
+    // ========== 照片 ==========
+
+    /// <summary>打开检验照片弹窗（查看 / 补拍 / 删除）</summary>
+    private async Task OpenPhotoDialogAsync(FinalInspectionDto item)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Kind"] = InspectionPhotoKind.Final,
+            ["RecordId"] = item.Id,
+            ["BatchNo"] = item.BatchNo
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<InspectionPhotoDialog>("检验照片", parameters, options);
+        await dialog.Result;
+        // 数量可能变化 → 刷新列表（附件计数列）
+        if (table != null) await table.ReloadServerData();
+    }
+
     private async Task OnSearchChanged(string value)
     {
         _searchKeyword = value ?? string.Empty;
@@ -666,6 +698,12 @@ public partial class FinalInspections
 
     protected override async Task OnInitializedAsync()
     {
+        // 本页页级策略 QualityView 不含批次角色 → 需按角色降级，无权限时不渲染链接
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        _canViewBatch = Roles.Policies.BatchView
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(authState.User.IsInRole);
+
         await LoadOperatorsAsync();
         _allColumns = GetAllColumnDefs();
         var saved = await ColumnPrefs.LoadAsync("final-inspection", ColumnPrefsVersion);
@@ -763,11 +801,15 @@ public partial class FinalInspections
         public int? QualifiedConcessionQuantity { get; set; }
         public string? ConcessionRemark { get; set; }
         public int? DefectReworkQuantity { get; set; }
-        public int? DefectWarehouseQuantity { get; set; }
+        public int? DefectInProcessWarehouseQuantity { get; set; }
         public int? DefectScrapQuantity { get; set; }
+        public int? DefectReturnQuantity { get; set; }
+        public int? DefectWarehouseQuantity { get; set; }
         public int? DefectReworkWeight { get; set; }
-        public int? DefectWarehouseWeight { get; set; }
+        public int? DefectInProcessWarehouseWeight { get; set; }
         public int? DefectScrapWeight { get; set; }
+        public int? DefectReturnWeight { get; set; }
+        public int? DefectWarehouseWeight { get; set; }
         public string? DefectDescription { get; set; }
         public string? OuterDiameterRange { get; set; }
         public string? WallThicknessRange { get; set; }
@@ -810,11 +852,15 @@ public partial class FinalInspections
             QualifiedConcessionQuantity = item.QualifiedConcessionQuantity,
             ConcessionRemark = item.ConcessionRemark,
             DefectReworkQuantity = item.DefectReworkQuantity,
+            DefectInProcessWarehouseQuantity = item.DefectInProcessWarehouseQuantity,
             DefectWarehouseQuantity = item.DefectWarehouseQuantity,
             DefectScrapQuantity = item.DefectScrapQuantity,
+            DefectReturnQuantity = item.DefectReturnQuantity,
             DefectReworkWeight = item.DefectReworkWeight,
+            DefectInProcessWarehouseWeight = item.DefectInProcessWarehouseWeight,
             DefectWarehouseWeight = item.DefectWarehouseWeight,
             DefectScrapWeight = item.DefectScrapWeight,
+            DefectReturnWeight = item.DefectReturnWeight,
             DefectDescription = item.DefectDescription,
             OuterDiameterRange = item.OuterDiameterRange,
             WallThicknessRange = item.WallThicknessRange,
@@ -876,11 +922,15 @@ public partial class FinalInspections
                 QualifiedConcessionQuantity = cache.QualifiedConcessionQuantity,
                 ConcessionRemark = cache.ConcessionRemark,
                 DefectReworkQuantity = cache.DefectReworkQuantity,
+                DefectInProcessWarehouseQuantity = cache.DefectInProcessWarehouseQuantity,
                 DefectWarehouseQuantity = cache.DefectWarehouseQuantity,
                 DefectScrapQuantity = cache.DefectScrapQuantity,
+                DefectReturnQuantity = cache.DefectReturnQuantity,
                 DefectReworkWeight = cache.DefectReworkWeight,
+                DefectInProcessWarehouseWeight = cache.DefectInProcessWarehouseWeight,
                 DefectWarehouseWeight = cache.DefectWarehouseWeight,
                 DefectScrapWeight = cache.DefectScrapWeight,
+                DefectReturnWeight = cache.DefectReturnWeight,
                 DefectDescription = cache.DefectDescription,
                 OuterDiameterRange = cache.OuterDiameterRange,
                 WallThicknessRange = cache.WallThicknessRange,
@@ -922,11 +972,15 @@ public partial class FinalInspections
                 item.QualifiedConcessionQuantity = result.Data.QualifiedConcessionQuantity;
                 item.ConcessionRemark = result.Data.ConcessionRemark;
                 item.DefectReworkQuantity = result.Data.DefectReworkQuantity;
+                item.DefectInProcessWarehouseQuantity = result.Data.DefectInProcessWarehouseQuantity;
                 item.DefectWarehouseQuantity = result.Data.DefectWarehouseQuantity;
                 item.DefectScrapQuantity = result.Data.DefectScrapQuantity;
+                item.DefectReturnQuantity = result.Data.DefectReturnQuantity;
                 item.DefectReworkWeight = result.Data.DefectReworkWeight;
+                item.DefectInProcessWarehouseWeight = result.Data.DefectInProcessWarehouseWeight;
                 item.DefectWarehouseWeight = result.Data.DefectWarehouseWeight;
                 item.DefectScrapWeight = result.Data.DefectScrapWeight;
+                item.DefectReturnWeight = result.Data.DefectReturnWeight;
                 item.DefectDescription = result.Data.DefectDescription;
                 item.OuterDiameterRange = result.Data.OuterDiameterRange;
                 item.WallThicknessRange = result.Data.WallThicknessRange;
@@ -1007,11 +1061,15 @@ public partial class FinalInspections
         "QualifiedConcessionQuantity" => item.QualifiedConcessionQuantity?.ToString(),
         "ConcessionRemark" => item.ConcessionRemark,
         "DefectReworkQuantity" => item.DefectReworkQuantity?.ToString(),
+        "DefectInProcessWarehouseQuantity" => item.DefectInProcessWarehouseQuantity?.ToString(),
         "DefectWarehouseQuantity" => item.DefectWarehouseQuantity?.ToString(),
         "DefectScrapQuantity" => item.DefectScrapQuantity?.ToString(),
+        "DefectReturnQuantity" => item.DefectReturnQuantity?.ToString(),
         "DefectReworkWeight" => DisplayHelper.FormatNullableInt(item.DefectReworkWeight),
+        "DefectInProcessWarehouseWeight" => DisplayHelper.FormatNullableInt(item.DefectInProcessWarehouseWeight),
         "DefectWarehouseWeight" => DisplayHelper.FormatNullableInt(item.DefectWarehouseWeight),
         "DefectScrapWeight" => DisplayHelper.FormatNullableInt(item.DefectScrapWeight),
+        "DefectReturnWeight" => DisplayHelper.FormatNullableInt(item.DefectReturnWeight),
         "DefectDescription" => item.DefectDescription,
         "OuterDiameterRange" => item.OuterDiameterRange,
         "WallThicknessRange" => item.WallThicknessRange,
@@ -1243,6 +1301,13 @@ public partial class FinalInspections
 
     private void NavigateToCreate() => Navigation.NavigateTo("/quality/final-inspection/create");
 
+    /// <summary>点「生产编号」跳生产批次详情页（需批次查看权限，无权限时不渲染链接）</summary>
+    private void OpenBatchDetail(int productionBatchId)
+    {
+        if (productionBatchId <= 0 || !_canViewBatch) return;
+        Navigation.NavigateTo($"/batches/{productionBatchId}");
+    }
+
     private async Task DeleteItem(FinalInspectionDto item)
     {
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
@@ -1306,6 +1371,28 @@ public partial class FinalInspections
         await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, json);
     }
 
+    /// <summary>单据式打印单次条数上限（每条一页，含照片，避免一次生成过厚 PDF）</summary>
+    private const int MaxDocPrintCount = 20;
+
+    /// <summary>打印选中单据（A4 竖版每条一页，含检验照片）</summary>
+    private async Task PrintSelectedDoc()
+    {
+        if (!selectedIds.Any())
+        {
+            Snackbar.Add("请先选择要打印的记录", Severity.Warning);
+            return;
+        }
+        if (selectedIds.Count > MaxDocPrintCount)
+        {
+            Snackbar.Add($"单据式打印单次最多 {MaxDocPrintCount} 条，请减少选择后重试", Severity.Warning);
+            return;
+        }
+
+        var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.FinalInspection}/print-selected-doc-file";
+        var request = new FinalInspectionPrintBatchRequest { Ids = selectedIds.ToArray() };
+        await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, JsonSerializer.Serialize(request));
+    }
+
     // ========== 单元格渲染 ==========
 
     private RenderFragment RenderCell(FinalInspectionDto item, ColumnDef col) => builder =>
@@ -1315,6 +1402,16 @@ public partial class FinalInspections
 
         switch (col.Key)
         {
+            case "AttachmentCount":
+                builder.OpenComponent<MudButton>(0);
+                builder.AddAttribute(1, "Variant", Variant.Text);
+                builder.AddAttribute(2, "Size", Size.Small);
+                builder.AddAttribute(3, "Color", item.AttachmentCount > 0 ? Color.Primary : Color.Default);
+                builder.AddAttribute(4, "StartIcon", Icons.Material.Filled.PhotoCamera);
+                builder.AddAttribute(5, "OnClick", EventCallback.Factory.Create<Microsoft.AspNetCore.Components.Web.MouseEventArgs?>(this, () => OpenPhotoDialogAsync(item)));
+                builder.AddAttribute(6, "ChildContent", (RenderFragment)(b2 => b2.AddContent(0, $"照片({item.AttachmentCount})")));
+                builder.CloseComponent();
+                break;
             case "InspectionItem":
                 builder.AddContent(0, DisplayHelper.GetInspectionItemText(item.InspectionItem));
                 break;
@@ -1334,7 +1431,19 @@ public partial class FinalInspections
                 }
                 break;
             case "BatchNo":
-                builder.AddContent(0, item.BatchNo);
+                // 本页策略 QualityView ⊄ BatchView → 按角色降级；无匹配批次时降级为纯文本
+                if (_canViewBatch && item.ProductionBatchId > 0)
+                {
+                    builder.OpenComponent<MudLink>(0);
+                    builder.AddAttribute(1, "Typo", Typo.body2);
+                    builder.AddAttribute(2, "OnClick", EventCallback.Factory.Create<Microsoft.AspNetCore.Components.Web.MouseEventArgs?>(this, () => OpenBatchDetail(item.ProductionBatchId)));
+                    builder.AddAttribute(3, "ChildContent", (RenderFragment)(b => b.AddContent(0, item.BatchNo)));
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, item.BatchNo);
+                }
                 break;
             case "ManufacturingItem":
                 builder.AddContent(0, DisplayHelper.GetMaterialTypeText(item.ManufacturingItem));
@@ -1643,6 +1752,21 @@ public partial class FinalInspections
                     builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectReworkQuantity));
                 }
                 break;
+            case "DefectInProcessWarehouseQuantity":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudNumericField<int?>>(0);
+                    builder.AddAttribute(1, "Value", cache.DefectInProcessWarehouseQuantity);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => cache.DefectInProcessWarehouseQuantity = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectInProcessWarehouseQuantity));
+                }
+                break;
             case "DefectWarehouseQuantity":
                 if (isEditing && cache != null)
                 {
@@ -1673,6 +1797,21 @@ public partial class FinalInspections
                     builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectScrapQuantity));
                 }
                 break;
+            case "DefectReturnQuantity":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudNumericField<int?>>(0);
+                    builder.AddAttribute(1, "Value", cache.DefectReturnQuantity);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => cache.DefectReturnQuantity = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectReturnQuantity));
+                }
+                break;
             case "DefectReworkWeight":
                 if (isEditing && cache != null)
                 {
@@ -1686,6 +1825,21 @@ public partial class FinalInspections
                 else
                 {
                     builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectReworkWeight));
+                }
+                break;
+            case "DefectInProcessWarehouseWeight":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudNumericField<int?>>(0);
+                    builder.AddAttribute(1, "Value", cache.DefectInProcessWarehouseWeight);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => cache.DefectInProcessWarehouseWeight = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectInProcessWarehouseWeight));
                 }
                 break;
             case "DefectWarehouseWeight":
@@ -1716,6 +1870,21 @@ public partial class FinalInspections
                 else
                 {
                     builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectScrapWeight));
+                }
+                break;
+            case "DefectReturnWeight":
+                if (isEditing && cache != null)
+                {
+                    builder.OpenComponent<MudNumericField<int?>>(0);
+                    builder.AddAttribute(1, "Value", cache.DefectReturnWeight);
+                    builder.AddAttribute(2, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => cache.DefectReturnWeight = v));
+                    builder.AddAttribute(3, "Class", "compact-input");
+                    builder.AddAttribute(4, "HideSpinButtons", true);
+                    builder.CloseComponent();
+                }
+                else
+                {
+                    builder.AddContent(0, DisplayHelper.FormatNullableIntZeroAsEmpty(item.DefectReturnWeight));
                 }
                 break;
             case "DefectDescription":

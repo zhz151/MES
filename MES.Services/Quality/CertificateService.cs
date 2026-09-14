@@ -597,18 +597,18 @@ public class CertificateService : ICertificateService
                 .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
         }
 
-        // 3. 查拉伸检验（按生产编号+试样号取最新，TensileTest.FurnaceNo 实际存储生产编号）
+        // 3. 查拉伸检验（按生产编号+试样号取最新）
         Dictionary<string, List<TensileTest>>? tensileMap = null;
         if (batchNos.Count > 0)
         {
             var tensileTests = await _context.Set<TensileTest>()
                 .AsNoTracking()
-                .Where(tt => batchNos.Contains(tt.FurnaceNo))
-                .GroupBy(tt => new { tt.FurnaceNo, tt.SampleNo })
+                .Where(tt => batchNos.Contains(tt.BatchNo))
+                .GroupBy(tt => new { tt.BatchNo, tt.SampleNo })
                 .Select(g => g.OrderByDescending(tt => tt.InspectionDate).First())
                 .ToListAsync();
             tensileMap = tensileTests
-                .GroupBy(t => t.FurnaceNo)
+                .GroupBy(t => t.BatchNo)
                 .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
         }
 
@@ -618,12 +618,12 @@ public class CertificateService : ICertificateService
         {
             var hardnessTests = await _context.Set<HardnessTest>()
                 .AsNoTracking()
-                .Where(ht => batchNos.Contains(ht.FurnaceNo))
-                .GroupBy(ht => new { ht.FurnaceNo, ht.SampleNo })
+                .Where(ht => batchNos.Contains(ht.BatchNo))
+                .GroupBy(ht => new { ht.BatchNo, ht.SampleNo })
                 .Select(g => g.OrderByDescending(ht => ht.InspectionDate).First())
                 .ToListAsync();
             hardnessMap = hardnessTests
-                .GroupBy(t => t.FurnaceNo)
+                .GroupBy(t => t.BatchNo)
                 .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
         }
 
@@ -633,12 +633,12 @@ public class CertificateService : ICertificateService
         {
             var grainSizeTests = await _context.Set<GrainSizeTest>()
                 .AsNoTracking()
-                .Where(gt => batchNos.Contains(gt.FurnaceNo))
-                .GroupBy(gt => new { gt.FurnaceNo, gt.SampleNo })
+                .Where(gt => batchNos.Contains(gt.BatchNo))
+                .GroupBy(gt => new { gt.BatchNo, gt.SampleNo })
                 .Select(g => g.OrderByDescending(gt => gt.InspectionDate).First())
                 .ToListAsync();
             grainSizeMap = grainSizeTests
-                .GroupBy(t => t.FurnaceNo)
+                .GroupBy(t => t.BatchNo)
                 .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
         }
 
@@ -648,11 +648,11 @@ public class CertificateService : ICertificateService
         {
             var flaringTests = await _context.Set<FlaringTest>()
                 .AsNoTracking()
-                .Where(ft => batchNos.Contains(ft.FurnaceNo))
-                .GroupBy(ft => ft.FurnaceNo)
+                .Where(ft => batchNos.Contains(ft.BatchNo))
+                .GroupBy(ft => ft.BatchNo)
                 .Select(g => g.OrderByDescending(ft => ft.InspectionDate).First())
                 .ToListAsync();
-            flaringMap = flaringTests.ToDictionary(t => t.FurnaceNo, t => t, StringComparer.OrdinalIgnoreCase);
+            flaringMap = flaringTests.ToDictionary(t => t.BatchNo, t => t, StringComparer.OrdinalIgnoreCase);
         }
 
         // 3e. 查压扁试验（按生产编号取最新）
@@ -661,11 +661,11 @@ public class CertificateService : ICertificateService
         {
             var flatteningTests = await _context.Set<FlatteningTest>()
                 .AsNoTracking()
-                .Where(ft => batchNos.Contains(ft.FurnaceNo))
-                .GroupBy(ft => ft.FurnaceNo)
+                .Where(ft => batchNos.Contains(ft.BatchNo))
+                .GroupBy(ft => ft.BatchNo)
                 .Select(g => g.OrderByDescending(ft => ft.InspectionDate).First())
                 .ToListAsync();
-            flatteningMap = flatteningTests.ToDictionary(t => t.FurnaceNo, t => t, StringComparer.OrdinalIgnoreCase);
+            flatteningMap = flatteningTests.ToDictionary(t => t.BatchNo, t => t, StringComparer.OrdinalIgnoreCase);
         }
 
         // 3f. 查晶间腐蚀试验（按生产编号取最新）
@@ -674,11 +674,11 @@ public class CertificateService : ICertificateService
         {
             var intergranularTests = await _context.Set<IntergranularCorrosionTest>()
                 .AsNoTracking()
-                .Where(it => batchNos.Contains(it.FurnaceNo))
-                .GroupBy(it => it.FurnaceNo)
+                .Where(it => batchNos.Contains(it.BatchNo))
+                .GroupBy(it => it.BatchNo)
                 .Select(g => g.OrderByDescending(it => it.InspectionDate).First())
                 .ToListAsync();
-            intergranularMap = intergranularTests.ToDictionary(t => t.FurnaceNo, t => t, StringComparer.OrdinalIgnoreCase);
+            intergranularMap = intergranularTests.ToDictionary(t => t.BatchNo, t => t, StringComparer.OrdinalIgnoreCase);
         }
 
         // 3g. 查金相检验（按生产编号+试样号取最新）
@@ -687,12 +687,12 @@ public class CertificateService : ICertificateService
         {
             var metallographicTests = await _context.Set<MetallographicTest>()
                 .AsNoTracking()
-                .Where(mt => batchNos.Contains(mt.FurnaceNo))
-                .GroupBy(mt => new { mt.FurnaceNo, mt.SampleNo })
+                .Where(mt => batchNos.Contains(mt.BatchNo))
+                .GroupBy(mt => new { mt.BatchNo, mt.SampleNo })
                 .Select(g => g.OrderByDescending(mt => mt.InspectionDate).First())
                 .ToListAsync();
             metallographicMap = metallographicTests
-                .GroupBy(t => t.FurnaceNo)
+                .GroupBy(t => t.BatchNo)
                 .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
         }
 
@@ -702,11 +702,11 @@ public class CertificateService : ICertificateService
         {
             var pittingTests = await _context.Set<PittingCorrosionTest>()
                 .AsNoTracking()
-                .Where(pt => batchNos.Contains(pt.FurnaceNo))
-                .GroupBy(pt => pt.FurnaceNo)
+                .Where(pt => batchNos.Contains(pt.BatchNo))
+                .GroupBy(pt => pt.BatchNo)
                 .Select(g => g.OrderByDescending(pt => pt.InspectionDate).First())
                 .ToListAsync();
-            pittingMap = pittingTests.ToDictionary(t => t.FurnaceNo, t => t, StringComparer.OrdinalIgnoreCase);
+            pittingMap = pittingTests.ToDictionary(t => t.BatchNo, t => t, StringComparer.OrdinalIgnoreCase);
         }
 
         // 4. 组装结果

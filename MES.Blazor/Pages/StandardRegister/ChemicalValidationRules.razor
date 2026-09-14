@@ -55,7 +55,7 @@
 
             <!-- 数据表格 -->
             <div id="chemical-validate-list-table">
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="ChemicalValidationRuleDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"

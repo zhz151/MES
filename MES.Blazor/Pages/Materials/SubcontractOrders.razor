@@ -71,7 +71,7 @@
                     @if (showProcurementStatus)
                     {
                         <div style="overflow-x: auto; overflow-y: auto; margin-top: 8px; max-height: 25vh;">
-                            <MudTable T="ProcurementStatusDto" Items="@procurementItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
+                            <MudTable Breakpoint="Breakpoint.None" T="ProcurementStatusDto" Items="@procurementItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
                                 <HeaderContent>
                                     <MudTh Style="width: 120px;">工单号</MudTh>
                                     <MudTh Style="width: 90px;">物料分类</MudTh>
@@ -131,7 +131,7 @@
                 </div>
             </div>
 
-            <div id="subcontract-orders-list-table"><MudTable @ref="table" T="SubcontractOrderDto" ServerData="@LoadDataFromServer" Dense="true" Hover="true" Class="mt-0 auto-table compact-table" Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
+            <div id="subcontract-orders-list-table"><MudTable Breakpoint="Breakpoint.None" @ref="table" T="SubcontractOrderDto" ServerData="@LoadDataFromServer" Dense="true" Hover="true" Class="mt-0 auto-table compact-table" Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
                 <HeaderContent>
                     <MudTh Class="col-selection-th" Style="width:40px;padding:0 4px;">
                         <MudCheckBox T="bool" @bind-Value="allSelected" Dense="true" />

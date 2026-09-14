@@ -2,6 +2,7 @@
 @using MES.Blazor.Helpers
 @using MES.Blazor.Pages.Scheduling
 @attribute [Authorize(Roles = Roles.Policies.ReportView)]
+@inject NavigationManager Navigation
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <div class="d-flex align-center mb-4">
@@ -35,108 +36,26 @@
                 }
                 else
                 {
-                    @* 客户往来数据（同源客户管理列表：默认折叠；展开显 10 行可切换；身份列点击排序 + 搜索；合计按显示行） *@
+
                     <MudCard Class="mb-2 summary-card" Elevation="0">
                         <MudCardContent>
-                            <div class="d-flex align-center mb-2">
-                                <MudIconButton Icon="@(IsCardCollapsed("report:customer-trade") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
-                                               Size="Size.Small" Color="@(IsCardCollapsed("report:customer-trade") ? Color.Default : Color.Primary)"
-                                               OnClick="@(() => ToggleCardAsync("report:customer-trade"))" Title="展开/折叠" />
-                                <MudText Typo="Typo.subtitle2" Class="ml-1"><span class="report-tt report-tt-1">客户往来数据</span></MudText>
-                                <MudText Typo="Typo.caption" Class="text-hint ml-2">同源「客户管理」列表｜单数(蓝)/吨(绿)/万元(橙) 取整，0 省略</MudText>
-                                <div class="ml-auto">
-                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
-                                               StartIcon="@Icons.Material.Filled.Print"
-                                               OnClick="@(() => PrintTableAsync("#report-customer-trade", "业务总况-客户往来数据", "report:customer-trade"))"
-                                               Disabled="@(!_customerTradeRows.Any())">打印</MudButton>
-                                </div>
+                        <div class="d-flex align-center mb-2">
+                            <MudIconButton Icon="@(IsCardCollapsed("report:inout-summary") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                           Size="Size.Small" Color="@(IsCardCollapsed("report:inout-summary") ? Color.Default : Color.Primary)"
+                                           OnClick="@(() => ToggleCardAsync("report:inout-summary"))" Title="展开/折叠" />
+                            <MudText Typo="Typo.subtitle2" Class="ml-1"><span class="report-tt report-tt-2">订单接单·出库及现负荷汇总</span></MudText>
+                            <MudText Typo="Typo.caption" Class="text-hint ml-2">重量：吨(t)（源 kg）；金额：万元（按订单项次计价、结算分治口径折算，取整）｜汇总列=本年 12 个月合计；成品库存与订单负荷量为当前时点存量，见表下「当前负荷快照」</MudText>
+                            <div class="ml-auto">
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print"
+                                           OnClick="@(() => PrintTableAsync("#report-inout-summary-table", "业务总况-订单接单出库及现负荷汇总", "report:inout-summary"))"
+                                           Disabled="@(_inOutSummary == null)">
+                                    打印
+                                </MudButton>
                             </div>
-                            @if (!IsCardCollapsed("report:customer-trade"))
-                            {
-                                <div class="d-flex align-center mb-2" style="gap:8px;">
-                                    <MudTextField T="string" @bind-Value="_customerTradeKeyword" Immediate="true" Variant="Variant.Outlined"
-                                                  Dense="true" Margin="Margin.Dense" Style="width:220px" Label="搜索业务员/最终用户" />
-                                    <MudSelect T="int" @bind-Value="_customerTradeTake" Dense="true" Variant="Variant.Outlined"
-                                               Margin="Margin.Dense" Style="width:110px" Label="显示行数">
-                                        <MudSelectItem T="int" Value="10">10 行</MudSelectItem>
-                                        <MudSelectItem T="int" Value="20">20 行</MudSelectItem>
-                                        <MudSelectItem T="int" Value="50">50 行</MudSelectItem>
-                                        <MudSelectItem T="int" Value="0">全部</MudSelectItem>
-                                    </MudSelect>
-                                    @{
-                                        var customerRows = CustomerTradeShown();
-                                    }
-                                    <MudText Typo="Typo.caption" Class="text-hint">显示 @customerRows.Count / 共 @CustomerTradeVisible().Count 条｜合计按显示行计</MudText>
-                                </div>
-                                @if (customerRows.Count == 0)
-                                {
-                                    <MudText Typo="Typo.body2" Class="text-hint">暂无客户往来数据</MudText>
-                                }
-                                else
-                                {
-                                    <div id="report-customer-trade" style="overflow-x:auto; max-height:50vh; overflow-y:auto;">
-                                        <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
-                                            <thead>
-                                                <tr>
-                                                    <th class="report-th-sort@(CustomerTradeSortedClass("salesman"))" @onclick="@(() => SortCustomerTrade("salesman"))" title="点击排序">业务员</th>
-                                                    <th class="report-th-sort@(CustomerTradeSortedClass("endcustomer"))" @onclick="@(() => SortCustomerTrade("endcustomer"))" title="点击排序">最终用户</th>
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">本年接单</th>
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">本年已发货(整单)</th>
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">本年已发货(非整单)</th>
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">待发货(整单)</th>
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">待发货(非整单)</th>
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">待在产(整单未入库)</th>
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">待在产(扣除部分入库)</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach (var r in customerRows)
-                                                {
-                                                    <tr>
-                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0;">@r.Salesman</td>
-                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0;">@r.EndCustomer</td>
-                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeCell(r, "YearOrder")</td>
-                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeCell(r, "ShippedDone")</td>
-                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeCell(r, "ShippedOther")</td>
-                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeCell(r, "StockDone")</td>
-                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeCell(r, "StockOther")</td>
-                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeCell(r, "WipNone")</td>
-                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeCell(r, "WipPartial")</td>
-                                                    </tr>
-                                                }
-                                            </tbody>
-                                            <tfoot>
-                                                <tr>
-                                                    <td colspan="2" style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:700; background:#fffde7;">合计</td>
-                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; background:#fffde7;">@CustomerTradeSummary(customerRows, "YearOrder")</td>
-                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; background:#fffde7;">@CustomerTradeSummary(customerRows, "ShippedDone")</td>
-                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; background:#fffde7;">@CustomerTradeSummary(customerRows, "ShippedOther")</td>
-                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; background:#fffde7;">@CustomerTradeSummary(customerRows, "StockDone")</td>
-                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; background:#fffde7;">@CustomerTradeSummary(customerRows, "StockOther")</td>
-                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; background:#fffde7;">@CustomerTradeSummary(customerRows, "WipNone")</td>
-                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; background:#fffde7;">@CustomerTradeSummary(customerRows, "WipPartial")</td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                    </div>
-                                }
-                            }
-                        </MudCardContent>
-                    </MudCard>
-
-                    <MudPaper Class="pa-3" Elevation="0">
-                        <div class="d-flex justify-space-between align-center mb-2">
-                            <div class="d-flex align-center" style="gap: 8px;">
-                                <MudText Typo="Typo.subtitle2"><b>订单接单·出库及现负荷汇总</b></MudText>
-                                <MudText Typo="Typo.caption" Class="text-hint">重量：吨(t)（源 kg）；金额：万元（按订单项次计价、结算分治口径折算，取整）｜成品库存(完工/未完工)与订单负荷量(实时)为当前存量，仅显示本月</MudText>
-                            </div>
-                            <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
-                                       StartIcon="@Icons.Material.Filled.Print"
-                                       OnClick="@(() => PrintTableAsync("#report-inout-summary-table", "业务总况-订单接单出库及现负荷汇总"))"
-                                       Disabled="@(_inOutSummary == null)">
-                                打印
-                            </MudButton>
                         </div>
+                        @if (!IsCardCollapsed("report:inout-summary"))
+                        {
                         @if (_inOutSummary == null)
                         {
                             <MudText Typo="Typo.body2" Class="text-hint">正在加载...</MudText>
@@ -144,54 +63,67 @@
                         else
                         {
                             <div id="report-inout-summary-table">
+                            @* 流量矩阵：接单量 / 出库量（按签订月 / 出库月分月），末列为本年 12 个月合计 *@
                             <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
                                 <thead>
                                     <tr>
-                                        <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">指标</th>
+                                        <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">指标</th>
                                         @for (var m = 0; m < 12; m++)
                                         {
                                             <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@_inOutSummary.MonthLabels[m]</th>
                                         }
+                                        <th style="padding:4px 10px; background:#e8f0fe; border:1px solid #e0e0e0; text-align:center;">汇总</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">接单量</td>
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">接单量</td>
                                         @for (var m = 0; m < 12; m++)
                                         {
                                             <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@OrderOverviewFormatter.RenderInOutCell(_inOutSummary.OrderWeightByMonth[m], _inOutSummary.OrderAmountByMonth[m])</td>
                                         }
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#fafcff;">@RenderYearTotalCell(_inOutSummary.OrderWeightByMonth, _inOutSummary.OrderAmountByMonth)</td>
                                     </tr>
                                     <tr>
-                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">出库量</td>
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">出库量</td>
                                         @for (var m = 0; m < 12; m++)
                                         {
                                             <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@OrderOverviewFormatter.RenderInOutCell(_inOutSummary.OutboundWeightByMonth[m], _inOutSummary.OutboundAmountByMonth[m])</td>
                                         }
-                                    </tr>
-                                    <tr>
-                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">成品库存(完工)</td>
-                                        @for (var m = 0; m < 12; m++)
-                                        {
-                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@RenderCurrentOnly(_inOutSummary.FinishedStockCompleted, _inOutSummary.FinishedStockCompletedAmount, m)</td>
-                                        }
-                                    </tr>
-                                    <tr>
-                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">成品库存(未完工)</td>
-                                        @for (var m = 0; m < 12; m++)
-                                        {
-                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@RenderCurrentOnly(_inOutSummary.FinishedStockUncompleted, _inOutSummary.FinishedStockUncompletedAmount, m)</td>
-                                        }
-                                    </tr>
-                                    <tr>
-                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">订单负荷量(实时)</td>
-                                        @for (var m = 0; m < 12; m++)
-                                        {
-                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@RenderCurrentOnly(_inOutSummary.TurnoverTotal, _inOutSummary.TurnoverAmount, m)</td>
-                                        }
+                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#fafcff;">@RenderYearTotalCell(_inOutSummary.OutboundWeightByMonth, _inOutSummary.OutboundAmountByMonth)</td>
                                     </tr>
                                 </tbody>
                             </table>
+
+                            @* 当前负荷快照：存量指标（当前时点，非按月），与上方分月流量矩阵分离 *@
+                            <div class="mt-3">
+                                <MudText Typo="Typo.body2" Class="mb-1"><b>当前负荷快照</b></MudText>
+                                <MudText Typo="Typo.caption" Class="text-hint mb-1">当前时点存量（非按月，系统无订单级历史库存快照）</MudText>
+                                <div style="overflow-x:auto;">
+                                    <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                        <thead>
+                                            <tr>
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">指标</th>
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">当前值</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">成品库存(完工)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@OrderOverviewFormatter.RenderInOutCell(_inOutSummary.FinishedStockCompleted, _inOutSummary.FinishedStockCompletedAmount)</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">成品库存(未完工)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@OrderOverviewFormatter.RenderInOutCell(_inOutSummary.FinishedStockUncompleted, _inOutSummary.FinishedStockUncompletedAmount)</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">订单负荷量(实时)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@OrderOverviewFormatter.RenderInOutCell(_inOutSummary.TurnoverTotal, _inOutSummary.TurnoverAmount)</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                             </div>
 
                             @* 两小表（订单交期预估：订单完成预估 / 延期交货订单预估），直接属于「订单接单·出库及现负荷汇总」表 *@
@@ -239,7 +171,247 @@
                                 </MudText>
                             }
                         }
-                    </MudPaper>
+                        }
+                        </MudCardContent>
+                    </MudCard>
+
+                    @* 投料产出总况（2026-09-14 新增：同源订单列表页卡片；行=订单完成月，口径可切换生产类型范围；默认折叠） *@
+                    <MudCard Class="mb-2 summary-card" Elevation="0">
+                        <MudCardContent>
+                            <div class="d-flex align-center mb-2">
+                                <MudIconButton Icon="@(IsCardCollapsed("report:throughput") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                               Size="Size.Small" Color="@(IsCardCollapsed("report:throughput") ? Color.Default : Color.Primary)"
+                                               OnClick="@(() => ToggleCardAsync("report:throughput"))" Title="展开/折叠" />
+                                <MudText Typo="Typo.subtitle2" Class="ml-1"><span class="report-tt report-tt-3">投料产出总况</span></MudText>
+                                <MudText Typo="Typo.caption" Class="text-hint ml-2">@ThroughputRangeCaption()</MudText>
+                                <div class="ml-auto">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Print"
+                                               OnClick="@(() => PrintTableAsync("#report-throughput-table", $"投料产出总况（{ThroughputScopeLabel(_throughputScope)}）", "report:throughput"))"
+                                               Disabled="@(_throughput == null)">
+                                        打印
+                                    </MudButton>
+                                </div>
+                            </div>
+                            @if (!IsCardCollapsed("report:throughput"))
+                            {
+                                <div class="d-flex align-center flex-wrap mb-2" style="gap: 12px;">
+                                    <MudSelect T="string" Value="_throughputScope" ValueChanged="OnThroughputScopeChangedAsync"
+                                               Label="生产类型范围" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                               Style="min-width: 260px;">
+                                        @foreach (var opt in _throughputScopeOptions)
+                                        {
+                                            <MudSelectItem T="string" Value="@opt.Key">@opt.Label</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    <MudSpacer />
+                                    @* 完成日期范围：2 输入框 + 应用 + 清除 为一个整体，靠右紧凑排列 *@
+                                    <div class="d-flex align-center" style="gap:8px;">
+                                        <MudTextField T="string" @bind-Value="_throughputDateFrom" Immediate="true" Placeholder="yyyy-MM-dd"
+                                                      Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense"
+                                                      Style="width:140px" Label="完成日期起" />
+                                        <MudTextField T="string" @bind-Value="_throughputDateTo" Immediate="true" Placeholder="yyyy-MM-dd"
+                                                      Variant="Variant.Outlined" Dense="true" Margin="Margin.Dense"
+                                                      Style="width:140px" Label="完成日期止" />
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                                   OnClick="ApplyThroughputRangeAsync">
+                                            应用
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Text" Size="Size.Small" Disabled="@(!_throughputRangeMode)"
+                                                   OnClick="ClearThroughputRangeAsync">
+                                            清除
+                                        </MudButton>
+                                    </div>
+                                </div>
+                                @if (_throughput == null)
+                                {
+                                    <MudText Typo="Typo.body2" Class="text-hint">暂无数据</MudText>
+                                }
+                                else
+                                {
+                                    var throughputRows = _throughputRows;
+                                    <div id="report-throughput-table" style="overflow-x:auto;">
+                                        <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                            <thead>
+                                                <tr>
+                                                    @foreach (var header in new[] { _throughputRangeMode ? "选定范围" : "完成月", "订单数", "生产投料", "订单成品入库", "余库料入库", "次品入库", "备料成品", "投料产出率", "产出成品比", "退货" })
+                                                    {
+                                                        <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center; white-space:nowrap;">@header</th>
+                                                    }
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @if (throughputRows.Count == 0)
+                                                {
+                                                    <tr>
+                                                        <td colspan="10" style="padding:6px 10px; border:1px solid #e0e0e0; text-align:center;">
+                                                            @(_throughputRangeMode ? "该日期区间内暂无完成订单" : "近 12 个月暂无完成订单")
+                                                        </td>
+                                                    </tr>
+                                                }
+                                                else
+                                                {
+                                                    @foreach (var row in throughputRows)
+                                                    {
+                                                        <tr>
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:600; white-space:nowrap;">@row.Month</td>
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@row.OrderCount</td>
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatThroughputWeight(row.InputWeight)</td>
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatThroughputWeight(row.OrderFinishedWeight)</td>
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatThroughputWeight(row.SurplusWeight)</td>
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatThroughputWeight(row.DefectWeight)</td>
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatThroughputWeight(row.PreparedWeight)</td>
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">@FormatThroughputRate(row.InputOutputRate)</td>
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">@FormatThroughputRate(row.FinishedOutputRate)</td>
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatThroughputWeight(row.ReturnWeight)</td>
+                                                        </tr>
+                                                    }
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <MudText Typo="Typo.caption" Class="text-hint">
+                                        @ThroughputFootnote()
+                                    </MudText>
+                                }
+                            }
+                        </MudCardContent>
+                    </MudCard>
+                    @* 客户往来数据（同源客户管理列表：默认折叠；展开显 10 行可切换；身份列点击排序 + 搜索；合计按显示行） *@
+                    <MudCard Class="mb-2 summary-card" Elevation="0">
+                        <MudCardContent>
+                            <div class="d-flex align-center mb-2">
+                                <MudIconButton Icon="@(IsCardCollapsed("report:customer-trade") ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                               Size="Size.Small" Color="@(IsCardCollapsed("report:customer-trade") ? Color.Default : Color.Primary)"
+                                               OnClick="@(() => ToggleCardAsync("report:customer-trade"))" Title="展开/折叠" />
+                                <MudText Typo="Typo.subtitle2" Class="ml-1"><span class="report-tt report-tt-1">客户往来数据</span></MudText>
+                                <MudText Typo="Typo.caption" Class="text-hint ml-2">同源「客户管理」列表｜单数(蓝)/吨(绿)/万元(橙) 取整，0 省略</MudText>
+                                <div class="ml-auto">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Print"
+                                               OnClick="@(() => PrintTableAsync("#report-customer-trade", "业务总况-客户往来数据", "report:customer-trade"))"
+                                               Disabled="@(!_customerTradeRows.Any())">打印</MudButton>
+                                </div>
+                            </div>
+                            @if (!IsCardCollapsed("report:customer-trade"))
+                            {
+                                var customerRows = CustomerTradeShown();
+                                @* 工具栏：外层 gap 16px 作为「组间隔离」，组内 gap 6px 紧凑（参照「投料产出总况」日期范围组合） *@
+                                <div class="d-flex align-center mb-2" style="gap:16px; flex-wrap:wrap;">
+                                    <MudTextField T="string" @bind-Value="_customerTradeKeyword" Immediate="true" Variant="Variant.Outlined"
+                                                  Dense="true" Margin="Margin.Dense" Style="width:220px" Label="搜索业务员/最终用户" />
+                                    @* 接单日期区间（2026-09-14）：任一端填写即「区间接单」生效；起/止/应用/清除 = 一个整体 *@
+                                    <div class="d-flex align-center" style="gap:6px;">
+                                        <MudTextField T="string" @bind-Value="_customerTradeSignFrom" Immediate="true" Variant="Variant.Outlined"
+                                                      Dense="true" Margin="Margin.Dense" Style="width:140px" Label="接单日期起"
+                                                      Placeholder="yyyy-MM-dd" />
+                                        <MudTextField T="string" @bind-Value="_customerTradeSignTo" Immediate="true" Variant="Variant.Outlined"
+                                                      Dense="true" Margin="Margin.Dense" Style="width:140px" Label="接单日期止"
+                                                      Placeholder="yyyy-MM-dd" />
+                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                                                   OnClick="OnCustomerTradeSignChangedAsync">应用接单区间</MudButton>
+                                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                                   OnClick="@(() => { _customerTradeSignFrom = ""; _customerTradeSignTo = ""; return OnCustomerTradeSignChangedAsync(); })"
+                                                   Disabled="@(!CustomerTradeSignRangeMode)">清除</MudButton>
+                                    </div>
+                                    <MudDivider Vertical="true" FlexItem="true" Style="height:28px;" />
+                                    @* 发货日期区间（2026-09-14）：与接单区间互相独立、可叠加；起/止/应用/清除 = 一个整体 *@
+                                    <div class="d-flex align-center" style="gap:6px;">
+                                        <MudTextField T="string" @bind-Value="_customerTradeShipFrom" Immediate="true" Variant="Variant.Outlined"
+                                                      Dense="true" Margin="Margin.Dense" Style="width:140px" Label="发货日期起"
+                                                      Placeholder="yyyy-MM-dd" />
+                                        <MudTextField T="string" @bind-Value="_customerTradeShipTo" Immediate="true" Variant="Variant.Outlined"
+                                                      Dense="true" Margin="Margin.Dense" Style="width:140px" Label="发货日期止"
+                                                      Placeholder="yyyy-MM-dd" />
+                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                                                   OnClick="OnCustomerTradeShipChangedAsync">应用发货区间</MudButton>
+                                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                                   OnClick="@(() => { _customerTradeShipFrom = ""; _customerTradeShipTo = ""; return OnCustomerTradeShipChangedAsync(); })"
+                                                   Disabled="@(!CustomerTradeShipRangeMode)">清除</MudButton>
+                                    </div>
+                                    @* 显示行数 + 计数注释 = 一个整体 *@
+                                    <div class="d-flex align-center" style="gap:6px;">
+                                        <MudSelect T="int" @bind-Value="_customerTradeTake" Dense="true" Variant="Variant.Outlined"
+                                                   Margin="Margin.Dense" Style="width:110px" Label="显示行数">
+                                            <MudSelectItem T="int" Value="10">10 行</MudSelectItem>
+                                            <MudSelectItem T="int" Value="20">20 行</MudSelectItem>
+                                            <MudSelectItem T="int" Value="50">50 行</MudSelectItem>
+                                            <MudSelectItem T="int" Value="0">全部</MudSelectItem>
+                                        </MudSelect>
+                                        <MudText Typo="Typo.caption" Class="text-hint">显示 @customerRows.Count / 共 @CustomerTradeVisible().Count 条｜合计按显示行计</MudText>
+                                    </div>
+                                    @if (CustomerTradeAnyRangeMode)
+                                    {
+                                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                                   OnClick="ClearCustomerTradeRangeAsync">清空全部区间</MudButton>
+                                    }
+                                </div>
+                                @if (CustomerTradeAnyRangeMode)
+                                {
+                                    <MudText Typo="Typo.caption" Class="text-hint mb-2">
+                                        @CustomerTradeRangeHint()
+                                    </MudText>
+                                }
+                                @if (customerRows.Count == 0)
+                                {
+                                    <MudText Typo="Typo.body2" Class="text-hint">暂无客户往来数据</MudText>
+                                }
+                                else
+                                {
+                                    <div id="report-customer-trade" style="overflow-x:auto; max-height:50vh; overflow-y:auto;">
+                                        <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                            <thead>
+                                                <tr>
+                                                    <th class="report-th-sort@(CustomerTradeSortedClass("salesman"))" @onclick="@(() => SortCustomerTrade("salesman"))" title="点击排序">业务员</th>
+                                                    <th class="report-th-sort@(CustomerTradeSortedClass("endcustomer"))" @onclick="@(() => SortCustomerTrade("endcustomer"))" title="点击排序">最终用户</th>
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">累计接单</th>
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeHeader("YearOrder")</th>
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeHeader("ShippedDone")</th>
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeHeader("ShippedOther")</th>
+                                                    @* 表头分组强调色（2026-09-14）：待发货=暖橙 / 待在产=冷紫，与源列表页 Customers.razor 同源 *@
+                                                    <th style="padding:4px 10px; background:#fff3e0; color:#E65100; border:1px solid #e0e0e0; border-bottom:2px solid #ffb74d; text-align:center; font-weight:700;">待发货(整单)</th>
+                                                    <th style="padding:4px 10px; background:#fff3e0; color:#E65100; border:1px solid #e0e0e0; border-bottom:2px solid #ffb74d; text-align:center; font-weight:700;">待发货(非整单)</th>
+                                                    <th style="padding:4px 10px; background:#f3e5f5; color:#6A1B9A; border:1px solid #e0e0e0; border-bottom:2px solid #ce93d8; text-align:center; font-weight:700;">待在产(整单未入库)</th>
+                                                    <th style="padding:4px 10px; background:#f3e5f5; color:#6A1B9A; border:1px solid #e0e0e0; border-bottom:2px solid #ce93d8; text-align:center; font-weight:700;">待在产(扣除部分入库)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var r in customerRows)
+                                                {
+                                                    <tr>
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0;">@r.Salesman</td>
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0;">@r.EndCustomer</td>
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeCell(r, "TotalOrder")</td>
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeCell(r, "YearOrder")</td>
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeCell(r, "ShippedDone")</td>
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeCell(r, "ShippedOther")</td>
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeCell(r, "StockDone")</td>
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeCell(r, "StockOther")</td>
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeCell(r, "WipNone")</td>
+                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@CustomerTradeCell(r, "WipPartial")</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                            <tfoot>
+                                                <tr>
+                                                    <td colspan="2" style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:700; background:#fffde7;">合计</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; background:#fffde7;">@CustomerTradeSummary(customerRows, "TotalOrder")</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; background:#fffde7;">@CustomerTradeSummary(customerRows, "YearOrder")</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; background:#fffde7;">@CustomerTradeSummary(customerRows, "ShippedDone")</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; background:#fffde7;">@CustomerTradeSummary(customerRows, "ShippedOther")</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; background:#fffde7;">@CustomerTradeSummary(customerRows, "StockDone")</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; background:#fffde7;">@CustomerTradeSummary(customerRows, "StockOther")</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; background:#fffde7;">@CustomerTradeSummary(customerRows, "WipNone")</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:700; background:#fffde7;">@CustomerTradeSummary(customerRows, "WipPartial")</td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                }
+                            }
+                        </MudCardContent>
+                    </MudCard>
+
                 }
             </div>
         </MudTabPanel>
@@ -283,30 +455,24 @@
                                 </MudButton>
                             </div>
 
-                            @* 标量徽章 *@
+                            @* 标量徽章（2026-09-10 用户决策：删「工单总数/计划投料」，全四档口径易误导） *@
                             <div class="d-flex" style="gap:24px; flex-wrap:wrap; margin-bottom:12px;">
-                                <MudText Typo="Typo.body2">
-                                    <b>工单总数:</b> @_pendingSummary.TotalOrderCount 批
-                                </MudText>
-                                <MudText Typo="Typo.body2">
-                                    <b>计划投料:</b> @((_pendingSummary.TotalWeight / 1000m).ToString("F1"))t
-                                </MudText>
                                 <MudText Typo="Typo.body2" Class="text-warning-orange">
-                                    <b>待投料:</b> @((_pendingSummary.PendingWeight / 1000m).ToString("F1"))t
+                                    <b>待投原料:</b> @((_pendingSummary.PendingWeight / 1000m).ToString("F1"))t
                                 </MudText>
                                 @if (_pendingSummary.HasPurchaseData)
                                 {
                                     <MudText Typo="Typo.body2" Class="text-primary">
-                                        <b>成购:</b> @((_pendingSummary.PurchaseWeight / 1000m).ToString("F1"))t（@_pendingSummary.PurchaseCount 行）
+                                        <b>成购:</b> @((_pendingSummary.PurchaseWeight / 1000m).ToString("F1"))t
                                     </MudText>
                                 }
                             </div>
 
                             <div id="report-pending-summary">
                                 <div style="display:flex; gap:16px; flex-wrap:wrap;">
-                                    @* 待投料矩阵：行=原料锁定备注，列=主号计划性 *@
+                                    @* 待投原料矩阵：行=原料锁定备注，列=主号计划性 *@
                                     <div style="flex:1; min-width:340px;">
-                                        <div style="font-weight:600; color:#E65100; margin-bottom:4px;">待投料</div>
+                                        <div style="font-weight:600; color:#E65100; margin-bottom:4px;">待投原料</div>
                                         <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
                                             <thead>
                                                 <tr>
@@ -360,11 +526,15 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    @for (var ri = 0; ri < _pendingSummary.MatrixRowLabels.Count; ri++)
+                                                    @* 成购仅为「执行用料计划」档的一个分支：只渲染该行（其余 3 档恒为 -，2026-09-10 用户决策） *@
+                                                    @{
+                                                        var pri = PurchaseMatrixRowIndex;
+                                                    }
+                                                    @if (pri >= 0)
                                                     {
-                                                        var row = _pendingSummary.MatrixRows[ri];
+                                                        var row = _pendingSummary.MatrixRows[pri];
                                                         <tr>
-                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">@_pendingSummary.MatrixRowLabels[ri]</td>
+                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">@_pendingSummary.MatrixRowLabels[pri]</td>
                                                             @foreach (var c in row.Cells)
                                                             {
                                                                 <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatMatrixPurchase(c.PurchaseCount, c.PurchaseWeight)</td>
@@ -372,14 +542,6 @@
                                                             <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#f0f7f0; font-weight:600;">@FormatMatrixPurchase(row.RowPurchaseCount, row.RowPurchaseWeight)</td>
                                                         </tr>
                                                     }
-                                                    <tr>
-                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600; background:#eef3fa;">合计</td>
-                                                        @foreach (var col in _pendingSummary.MatrixColumnTotals)
-                                                        {
-                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#eef3fa; font-weight:600;">@FormatMatrixPurchase(col.PurchaseCount, col.PurchaseWeight)</td>
-                                                        }
-                                                        <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#e8f0e8; font-weight:700;">@FormatMatrixPurchase(_pendingSummary.MatrixGrandTotals.PurchaseCount, _pendingSummary.MatrixGrandTotals.PurchaseWeight)</td>
-                                                    </tr>
                                                 </tbody>
                                             </table>
                                         </div>
@@ -393,7 +555,7 @@
                                         <thead>
                                             <tr>
                                                 <th style="text-align:left; padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0;">原锁类别</th>
-                                                <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">待投料总量</th>
+                                                <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">全期合计</th>
                                                 @foreach (var b in _pendingSummary.CutoffBucketLabels)
                                                 {
                                                     <th style="padding:4px 6px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center; white-space:nowrap;">@b</th>
@@ -461,7 +623,7 @@
                                 else
                                 {
                                     <div id="report-semi-pending" style="overflow-x: auto; max-height: 30vh;">
-                                        <MudTable T="PurchasePendingDto" Items="@_semiPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
+                                        <MudTable Breakpoint="Breakpoint.None" T="PurchasePendingDto" Items="@_semiPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
                                             <HeaderContent>
                                                 <MudTh Style="width: 120px;">工单号</MudTh>
                                                 <MudTh Style="width: 90px;">工单关注</MudTh>
@@ -470,7 +632,7 @@
                                                 <MudTh Style="width: 90px;">物料分类</MudTh>
                                                 <MudTh Style="width: 130px;">厂内钢种</MudTh>
                                                 <MudTh Style="width: 130px;">规格</MudTh>
-                                                <MudTh Style="width: 100px;" Class="text-right">待购量(kg)</MudTh>
+                                                <MudTh Style="width: 100px;" Class="text-center">待购量(kg)</MudTh>
                                             </HeaderContent>
                                             <RowTemplate>
                                                 <MudTd>@context.WorkOrderNo</MudTd>
@@ -613,7 +775,7 @@
                             else
                             {
                                 <div id="report-finished-pending" style="overflow-x: auto; max-height: 30vh;">
-                                    <MudTable T="PurchasePendingDto" Items="@_finishedPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
+                                    <MudTable Breakpoint="Breakpoint.None" T="PurchasePendingDto" Items="@_finishedPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
                                         <HeaderContent>
                                             <MudTh Style="width: 120px;">工单号</MudTh>
                                             <MudTh Style="width: 90px;">工单关注</MudTh>
@@ -622,7 +784,7 @@
                                             <MudTh Style="width: 90px;">物料分类</MudTh>
                                             <MudTh Style="width: 130px;">厂内钢种</MudTh>
                                             <MudTh Style="width: 130px;">规格</MudTh>
-                                            <MudTh Style="width: 100px;" Class="text-right">待购量(kg)</MudTh>
+                                            <MudTh Style="width: 100px;" Class="text-center">待购量(kg)</MudTh>
                                         </HeaderContent>
                                         <RowTemplate>
                                             <MudTd>@context.WorkOrderNo</MudTd>
@@ -765,7 +927,7 @@
                             else
                             {
                                 <div id="report-piercing-pending" style="overflow-x: auto; max-height: 30vh;">
-                                    <MudTable T="SubcontractPiercingPendingDto" Items="@_piercingPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
+                                    <MudTable Breakpoint="Breakpoint.None" T="SubcontractPiercingPendingDto" Items="@_piercingPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
                                         <HeaderContent>
                                             <MudTh Style="width: 130px;">工单号</MudTh>
                                             <MudTh Style="width: 90px;">工单关注</MudTh>
@@ -773,7 +935,7 @@
                                             <MudTh Style="width: 90px;">工单计划性</MudTh>
                                             <MudTh Style="width: 90px;">钢种</MudTh>
                                             <MudTh Style="width: 110px;">穿孔规格</MudTh>
-                                            <MudTh Style="width: 100px;" Class="text-right">缺少量(kg)</MudTh>
+                                            <MudTh Style="width: 100px;" Class="text-center">缺少量(kg)</MudTh>
                                         </HeaderContent>
                                         <RowTemplate>
                                             <MudTd>@context.WorkOrderNo</MudTd>
@@ -920,21 +1082,63 @@
                             </div>
                             @if (!IsCardCollapsed("report:supplier-trade"))
                             {
-                                <div class="d-flex align-center mb-2" style="gap:8px;">
+                                var supplierRows = SupplierTradeShown();
+                                @* 工具栏：外层 gap 16px 作为「组间隔离」，组内 gap 6px 紧凑（参照「客户往来数据」/「投料产出总况」日期范围组合） *@
+                                <div class="d-flex align-center mb-2" style="gap:16px; flex-wrap:wrap;">
                                     <MudTextField T="string" @bind-Value="_supplierTradeKeyword" Immediate="true" Variant="Variant.Outlined"
                                                   Dense="true" Margin="Margin.Dense" Style="width:220px" Label="搜索名称/物料分类/备注" />
-                                    <MudSelect T="int" @bind-Value="_supplierTradeTake" Dense="true" Variant="Variant.Outlined"
-                                               Margin="Margin.Dense" Style="width:110px" Label="显示行数">
-                                        <MudSelectItem T="int" Value="10">10 行</MudSelectItem>
-                                        <MudSelectItem T="int" Value="20">20 行</MudSelectItem>
-                                        <MudSelectItem T="int" Value="50">50 行</MudSelectItem>
-                                        <MudSelectItem T="int" Value="0">全部</MudSelectItem>
-                                    </MudSelect>
-                                    @{
-                                        var supplierRows = SupplierTradeShown();
+                                    @* 出单日期区间（2026-09-14）：任一端填写即「区间出单」生效；起/止/应用/清除 = 一个整体 *@
+                                    <div class="d-flex align-center" style="gap:6px;">
+                                        <MudTextField T="string" @bind-Value="_supplierTradeOrderFrom" Immediate="true" Variant="Variant.Outlined"
+                                                      Dense="true" Margin="Margin.Dense" Style="width:140px" Label="出单日期起"
+                                                      Placeholder="yyyy-MM-dd" />
+                                        <MudTextField T="string" @bind-Value="_supplierTradeOrderTo" Immediate="true" Variant="Variant.Outlined"
+                                                      Dense="true" Margin="Margin.Dense" Style="width:140px" Label="出单日期止"
+                                                      Placeholder="yyyy-MM-dd" />
+                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                                                   OnClick="OnSupplierTradeOrderChangedAsync">应用出单区间</MudButton>
+                                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                                   OnClick="@(() => { _supplierTradeOrderFrom = ""; _supplierTradeOrderTo = ""; return OnSupplierTradeOrderChangedAsync(); })"
+                                                   Disabled="@(!SupplierTradeOrderRangeMode)">清除</MudButton>
+                                    </div>
+                                    <MudDivider Vertical="true" FlexItem="true" Style="height:28px;" />
+                                    @* 到货日期区间（2026-09-14）：与出单区间互相独立、可叠加；起/止/应用/清除 = 一个整体 *@
+                                    <div class="d-flex align-center" style="gap:6px;">
+                                        <MudTextField T="string" @bind-Value="_supplierTradeArrivalFrom" Immediate="true" Variant="Variant.Outlined"
+                                                      Dense="true" Margin="Margin.Dense" Style="width:140px" Label="到货日期起"
+                                                      Placeholder="yyyy-MM-dd" />
+                                        <MudTextField T="string" @bind-Value="_supplierTradeArrivalTo" Immediate="true" Variant="Variant.Outlined"
+                                                      Dense="true" Margin="Margin.Dense" Style="width:140px" Label="到货日期止"
+                                                      Placeholder="yyyy-MM-dd" />
+                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                                                   OnClick="OnSupplierTradeArrivalChangedAsync">应用到货区间</MudButton>
+                                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                                   OnClick="@(() => { _supplierTradeArrivalFrom = ""; _supplierTradeArrivalTo = ""; return OnSupplierTradeArrivalChangedAsync(); })"
+                                                   Disabled="@(!SupplierTradeArrivalRangeMode)">清除</MudButton>
+                                    </div>
+                                    @* 显示行数 + 计数注释 = 一个整体 *@
+                                    <div class="d-flex align-center" style="gap:6px;">
+                                        <MudSelect T="int" @bind-Value="_supplierTradeTake" Dense="true" Variant="Variant.Outlined"
+                                                   Margin="Margin.Dense" Style="width:110px" Label="显示行数">
+                                            <MudSelectItem T="int" Value="10">10 行</MudSelectItem>
+                                            <MudSelectItem T="int" Value="20">20 行</MudSelectItem>
+                                            <MudSelectItem T="int" Value="50">50 行</MudSelectItem>
+                                            <MudSelectItem T="int" Value="0">全部</MudSelectItem>
+                                        </MudSelect>
+                                        <MudText Typo="Typo.caption" Class="text-hint">显示 @supplierRows.Count / 共 @SupplierTradeVisible().Count 条｜合计按显示行计</MudText>
+                                    </div>
+                                    @if (SupplierTradeAnyRangeMode)
+                                    {
+                                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                                   OnClick="ClearSupplierTradeRangeAsync">清空全部区间</MudButton>
                                     }
-                                    <MudText Typo="Typo.caption" Class="text-hint">显示 @supplierRows.Count / 共 @SupplierTradeVisible().Count 条｜合计按显示行计</MudText>
                                 </div>
+                                @if (SupplierTradeAnyRangeMode)
+                                {
+                                    <MudText Typo="Typo.caption" Class="text-hint mb-2">
+                                        @SupplierTradeRangeHint()
+                                    </MudText>
+                                }
                                 @if (supplierRows.Count == 0)
                                 {
                                     <MudText Typo="Typo.body2" Class="text-hint">暂无供应商往来数据</MudText>
@@ -949,10 +1153,11 @@
                                                     <th class="report-th-sort@(SupplierTradeSortedClass("category"))" @onclick="@(() => SortSupplierTrade("category"))" title="点击排序">物料分类</th>
                                                     <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">备注</th>
                                                     <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">累计出单</th>
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">本年出单</th>
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">本年到货[扣除退货]</th>
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">待收货</th>
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">本年退货</th>
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@SupplierTradeHeader("YearOrder")</th>
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@SupplierTradeHeader("Arrived")</th>
+                                                    @* 存量列表头强调色（2026-09-14）：待收货=暖橙，与「客户往来数据」待发货同源 *@
+                                                    <th style="padding:4px 10px; background:#fff3e0; color:#E65100; border:1px solid #e0e0e0; border-bottom:2px solid #ffb74d; text-align:center; font-weight:700;">待收货</th>
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@SupplierTradeHeader("YearReturn")</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1052,7 +1257,7 @@
                                                     <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@TonsText(group.PlannedFlowWeight)</td>
                                                     <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:600; background:#fff8e1;">@group.MachineCount</td>
                                                     <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:600; background:#fff8e1;">@SuggestionTierDisplay(group)</td>
-                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@(group.FlowState is { TargetGroupDisplay: { } tg } ? $"{tg}量 {TonsText(group.FlowState.SupplyToTargetWeight)}t / {group.FlowState.SupplyToTargetMachines}台" : "-")</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FlowStateText(group.FlowState)</td>
                                                 </tr>
                                             }
                                         </tbody>
@@ -1082,37 +1287,46 @@
                             @if (!IsCardCollapsed("production:paragraph-flow"))
                             {
                             <div id="report-paragraph-flow" style="overflow-x:auto;">
-                            <MudTable T="SectionParagraphFlowAnalysisDto" Items="@_paragraphRows"
-                                      Dense="true" Hover="true" Elevation="0" Class="auto-table">
-                                <HeaderContent>
-                                    <MudTh><div class="col-header-cell"><span class="th-label">生产段落</span></div></MudTh>
-                                    <MudTh><div class="col-header-cell"><span class="th-label">待在产重量</span></div></MudTh>
-                                    <MudTh Class="mud-table-cell--center"><div class="col-header-cell"><span class="th-label">总况判定</span></div></MudTh>
-                                    <MudTh><div class="col-header-cell"><span class="th-label">计划重点批流转量</span></div></MudTh>
-                                    <MudTh Class="mud-table-cell--center"><div class="col-header-cell"><span class="th-label">计划流转判定</span></div></MudTh>
-                                    <MudTh><div class="col-header-cell"><span class="th-label">特急批重量</span></div></MudTh>
-                                </HeaderContent>
-                                <RowTemplate Context="item">
-                                    <MudTd><span class="font-weight-bold">@item.ParagraphName</span></MudTd>
-                                    <MudTd>@RenderInt(item.PendingTotal)</MudTd>
-                                    <MudTd Class="mud-table-cell--center">
-                                        <MudChip Size="Size.Small" Color="@GetStatusColor(item.StatusJudgment)">@(item.StatusJudgment ?? "-")</MudChip>
-                                    </MudTd>
-                                    <MudTd>@RenderInt(item.PlanFlowQuantity)</MudTd>
-                                    <MudTd Class="mud-table-cell--center">
-                                        <MudChip Size="Size.Small" Color="@GetPlanFlowJudgmentColor(item.PlanFlowJudgment)">@(item.PlanFlowJudgment ?? "-")</MudChip>
-                                    </MudTd>
-                                    <MudTd>@RenderInt(item.PlanKeyWeight)</MudTd>
-                                </RowTemplate>
-                                <FooterContent>
-                                    <MudTd Class="col-footer-cell">&nbsp;</MudTd>
-                                    <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_paragraphRows.Sum(x => x.PendingTotal ?? 0m))</MudTd>
-                                    <MudTd Class="col-footer-cell">&nbsp;</MudTd>
-                                    <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_paragraphRows.Sum(x => x.PlanFlowQuantity ?? 0m))</MudTd>
-                                    <MudTd Class="col-footer-cell">&nbsp;</MudTd>
-                                    <MudTd Class="col-footer-cell col-footer-sum">@RenderInt(_paragraphRows.Sum(x => x.PlanKeyWeight ?? 0m))</MudTd>
-                                </FooterContent>
-                            </MudTable>
+                            @* 2026-09-14：改用带纵横格线的 HTML 表格，样式对齐「冷轧拔近日排程」 *@
+                            <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">生产段落</th>
+                                        <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">待在产重量</th>
+                                        <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">总况判定</th>
+                                        <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">计划重点批流转量</th>
+                                        <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">计划流转判定</th>
+                                        <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">特急批重量</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in _paragraphRows)
+                                    {
+                                        <tr>
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;">@item.ParagraphName</td>
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@RenderInt(item.PendingTotal)</td>
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">
+                                                <MudChip Size="Size.Small" Color="@GetStatusColor(item.StatusJudgment)">@(item.StatusJudgment ?? "-")</MudChip>
+                                            </td>
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@RenderInt(item.PlanFlowQuantity)</td>
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">
+                                                <MudChip Size="Size.Small" Color="@GetPlanFlowJudgmentColor(item.PlanFlowJudgment)">@(item.PlanFlowJudgment ?? "-")</MudChip>
+                                            </td>
+                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@RenderInt(item.PlanKeyWeight)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td class="col-footer-cell" style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">合计</td>
+                                        <td class="col-footer-cell col-footer-sum" style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@RenderInt(_paragraphRows.Sum(x => x.PendingTotal ?? 0m))</td>
+                                        <td class="col-footer-cell" style="padding:4px 10px; border:1px solid #e0e0e0;"></td>
+                                        <td class="col-footer-cell col-footer-sum" style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@RenderInt(_paragraphRows.Sum(x => x.PlanFlowQuantity ?? 0m))</td>
+                                        <td class="col-footer-cell" style="padding:4px 10px; border:1px solid #e0e0e0;"></td>
+                                        <td class="col-footer-cell col-footer-sum" style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@RenderInt(_paragraphRows.Sum(x => x.PlanKeyWeight ?? 0m))</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
                             </div>
                             }
                         </MudCardContent>
@@ -1342,21 +1556,63 @@
                             </div>
                             @if (!IsCardCollapsed("report:outsource-trade"))
                             {
-                                <div class="d-flex align-center mb-2" style="gap:8px;">
+                                var outsourceRows = OutsourceTradeShown();
+                                @* 工具栏：外层 gap 16px 作为「组间隔离」，组内 gap 6px 紧凑（参照「客户往来数据」/「投料产出总况」日期范围组合） *@
+                                <div class="d-flex align-center mb-2" style="gap:16px; flex-wrap:wrap;">
                                     <MudTextField T="string" @bind-Value="_outsourceTradeKeyword" Immediate="true" Variant="Variant.Outlined"
                                                   Dense="true" Margin="Margin.Dense" Style="width:220px" Label="搜索委外单位名/工段" />
-                                    <MudSelect T="int" @bind-Value="_outsourceTradeTake" Dense="true" Variant="Variant.Outlined"
-                                               Margin="Margin.Dense" Style="width:110px" Label="显示行数">
-                                        <MudSelectItem T="int" Value="10">10 行</MudSelectItem>
-                                        <MudSelectItem T="int" Value="20">20 行</MudSelectItem>
-                                        <MudSelectItem T="int" Value="50">50 行</MudSelectItem>
-                                        <MudSelectItem T="int" Value="0">全部</MudSelectItem>
-                                    </MudSelect>
-                                    @{
-                                        var outsourceRows = OutsourceTradeShown();
+                                    @* 发出日期区间（2026-09-14）：任一端填写即「区间委外」生效；起/止/应用/清除 = 一个整体 *@
+                                    <div class="d-flex align-center" style="gap:6px;">
+                                        <MudTextField T="string" @bind-Value="_outsourceTradeSendFrom" Immediate="true" Variant="Variant.Outlined"
+                                                      Dense="true" Margin="Margin.Dense" Style="width:140px" Label="发出日期起"
+                                                      Placeholder="yyyy-MM-dd" />
+                                        <MudTextField T="string" @bind-Value="_outsourceTradeSendTo" Immediate="true" Variant="Variant.Outlined"
+                                                      Dense="true" Margin="Margin.Dense" Style="width:140px" Label="发出日期止"
+                                                      Placeholder="yyyy-MM-dd" />
+                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                                                   OnClick="OnOutsourceTradeSendChangedAsync">应用发出区间</MudButton>
+                                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                                   OnClick="@(() => { _outsourceTradeSendFrom = ""; _outsourceTradeSendTo = ""; return OnOutsourceTradeSendChangedAsync(); })"
+                                                   Disabled="@(!OutsourceTradeSendRangeMode)">清除</MudButton>
+                                    </div>
+                                    <MudDivider Vertical="true" FlexItem="true" Style="height:28px;" />
+                                    @* 回收日期区间（2026-09-14）：与发出区间互相独立、可叠加；起/止/应用/清除 = 一个整体 *@
+                                    <div class="d-flex align-center" style="gap:6px;">
+                                        <MudTextField T="string" @bind-Value="_outsourceTradeRecoveryFrom" Immediate="true" Variant="Variant.Outlined"
+                                                      Dense="true" Margin="Margin.Dense" Style="width:140px" Label="回收日期起"
+                                                      Placeholder="yyyy-MM-dd" />
+                                        <MudTextField T="string" @bind-Value="_outsourceTradeRecoveryTo" Immediate="true" Variant="Variant.Outlined"
+                                                      Dense="true" Margin="Margin.Dense" Style="width:140px" Label="回收日期止"
+                                                      Placeholder="yyyy-MM-dd" />
+                                        <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                                                   OnClick="OnOutsourceTradeRecoveryChangedAsync">应用回收区间</MudButton>
+                                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                                   OnClick="@(() => { _outsourceTradeRecoveryFrom = ""; _outsourceTradeRecoveryTo = ""; return OnOutsourceTradeRecoveryChangedAsync(); })"
+                                                   Disabled="@(!OutsourceTradeRecoveryRangeMode)">清除</MudButton>
+                                    </div>
+                                    @* 显示行数 + 计数注释 = 一个整体 *@
+                                    <div class="d-flex align-center" style="gap:6px;">
+                                        <MudSelect T="int" @bind-Value="_outsourceTradeTake" Dense="true" Variant="Variant.Outlined"
+                                                   Margin="Margin.Dense" Style="width:110px" Label="显示行数">
+                                            <MudSelectItem T="int" Value="10">10 行</MudSelectItem>
+                                            <MudSelectItem T="int" Value="20">20 行</MudSelectItem>
+                                            <MudSelectItem T="int" Value="50">50 行</MudSelectItem>
+                                            <MudSelectItem T="int" Value="0">全部</MudSelectItem>
+                                        </MudSelect>
+                                        <MudText Typo="Typo.caption" Class="text-hint">显示 @outsourceRows.Count / 共 @OutsourceTradeVisible().Count 条｜合计按显示行计</MudText>
+                                    </div>
+                                    @if (OutsourceTradeAnyRangeMode)
+                                    {
+                                        <MudButton Variant="Variant.Text" Size="Size.Small"
+                                                   OnClick="ClearOutsourceTradeRangeAsync">清空全部区间</MudButton>
                                     }
-                                    <MudText Typo="Typo.caption" Class="text-hint">显示 @outsourceRows.Count / 共 @OutsourceTradeVisible().Count 条｜合计按显示行计</MudText>
                                 </div>
+                                @if (OutsourceTradeAnyRangeMode)
+                                {
+                                    <MudText Typo="Typo.caption" Class="text-hint mb-2">
+                                        @OutsourceTradeRangeHint()
+                                    </MudText>
+                                }
                                 @if (outsourceRows.Count == 0)
                                 {
                                     <MudText Typo="Typo.body2" Class="text-hint">暂无委外单位往来数据</MudText>
@@ -1370,10 +1626,11 @@
                                                     <th class="report-th-sort@(OutsourceTradeSortedClass("vendor"))" @onclick="@(() => SortOutsourceTrade("vendor"))" title="点击排序">委外单位名</th>
                                                     <th class="report-th-sort@(OutsourceTradeSortedClass("section"))" @onclick="@(() => SortOutsourceTrade("section"))" title="点击排序">委外工段</th>
                                                     <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">累计委外</th>
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">本年委外</th>
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">本年回收[扣除退回]</th>
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">委外未回收</th>
-                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">本年退回</th>
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@OutsourceTradeHeader("YearOrder")</th>
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@OutsourceTradeHeader("YearRecovered")</th>
+                                                    @* 存量列表头强调色（2026-09-14）：委外未回收=冷紫，与「客户往来数据」待在产同源 *@
+                                                    <th style="padding:4px 10px; background:#f3e5f5; color:#6A1B9A; border:1px solid #e0e0e0; border-bottom:2px solid #ce93d8; text-align:center; font-weight:700;">委外未回收</th>
+                                                    <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">@OutsourceTradeHeader("YearReturn")</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1461,7 +1718,7 @@
                                             <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">次品支数</th>
                                             <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">次品重量</th>
                                             <th style="text-align:left; padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0;">问题描述</th>
-                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">处置方式</th>
+                                            <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center;">流向</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1472,13 +1729,22 @@
                                                 <td style="padding:4px 10px; border:1px solid #e0e0e0; white-space:nowrap;">@GetNcrPendingReportDepartment(item)</td>
                                                 <td style="padding:4px 10px; border:1px solid #e0e0e0; white-space:nowrap;">@GetNcrPendingPipeCategoryText(item)</td>
                                                 <td style="padding:4px 10px; border:1px solid #e0e0e0; white-space:nowrap;">@item.WorkOrderNo</td>
-                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; white-space:nowrap;">@item.BatchNo</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; white-space:nowrap;">
+                                                    @if (item.ProductionBatchId > 0)
+                                                    {
+                                                        <MudLink Typo="Typo.body2" OnClick="@(() => OpenBatchDetail(item.ProductionBatchId))">@item.BatchNo</MudLink>
+                                                    }
+                                                    else
+                                                    {
+                                                        @item.BatchNo
+                                                    }
+                                                </td>
                                                 <td style="padding:4px 10px; border:1px solid #e0e0e0; white-space:nowrap;">@item.PlantGrade</td>
                                                 <td style="padding:4px 10px; border:1px solid #e0e0e0; white-space:nowrap;">@item.Specification</td>
                                                 <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@item.DefectQuantity</td>
                                                 <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@(item.DefectiveWeight?.ToString() ?? "-")</td>
                                                 <td style="padding:4px 10px; border:1px solid #e0e0e0;">@item.DefectDescription</td>
-                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; white-space:nowrap;">@DisplayHelper.GetDisposalMethodText(item.DisposalMethod)</td>
+                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; white-space:nowrap;">@(item.FlowDirection.HasValue ? DisplayHelper.GetFlowDirectionText(item.FlowDirection.Value) : "-")</td>
                                             </tr>
                                         }
                                     </tbody>

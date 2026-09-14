@@ -72,8 +72,10 @@ public static class QualityProcessTrackingPrintHelper
                 ["TotalQuantity"] = dto.TotalQuantity.ToString(),
                 ["QualifiedQuantity"] = dto.QualifiedQuantity.ToString(),
                 ["DefectReworkQuantity"] = dto.DefectReworkQuantity.ToString(),
+                ["DefectInProcessWarehouseQuantity"] = dto.DefectInProcessWarehouseQuantity.ToString(),
                 ["DefectWarehouseQuantity"] = dto.DefectWarehouseQuantity.ToString(),
                 ["DefectScrapQuantity"] = dto.DefectScrapQuantity.ToString(),
+                ["DefectReturnQuantity"] = dto.DefectReturnQuantity.ToString(),
 
                 // G5: 入库的信息
                 ["InboundDate"] = dto.InboundDate?.ToString("yyyy-MM-dd") ?? "",

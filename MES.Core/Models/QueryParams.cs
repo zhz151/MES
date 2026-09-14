@@ -150,6 +150,90 @@ public class QueryParams
     public DateTime? InboundDateTo { get; set; }
 
     /// <summary>
+    /// 接单日期范围筛选-开始（仅客户管理使用，取 SalesOrder.SignDate）
+    /// </summary>
+    /// <remarks>
+    /// 选定后「客户往来」的接单类列按 SignDate 落区间重算；与 <see cref="ShipDateFrom"/>/<see cref="ShipDateTo"/>
+    /// 互相独立、可叠加。待发货/待在产属存量口径无日期语义，不受影响。
+    /// </remarks>
+    public DateTime? SignDateFrom { get; set; }
+
+    /// <summary>
+    /// 接单日期范围筛选-结束（仅客户管理使用，取 SalesOrder.SignDate；闭区间含结束日）
+    /// </summary>
+    public DateTime? SignDateTo { get; set; }
+
+    /// <summary>
+    /// 发货日期范围筛选-开始（仅客户管理使用，取出库记录 OutboundDate）
+    /// </summary>
+    /// <remarks>
+    /// 选定后「客户往来」的已发货类列按 OutboundDate 落区间重算；与 <see cref="SignDateFrom"/>/<see cref="SignDateTo"/>
+    /// 互相独立、可叠加。待发货/待在产属存量口径无日期语义，不受影响。
+    /// </remarks>
+    public DateTime? ShipDateFrom { get; set; }
+
+    /// <summary>
+    /// 发货日期范围筛选-结束（仅客户管理使用，取出库记录 OutboundDate；闭区间含结束日）
+    /// </summary>
+    public DateTime? ShipDateTo { get; set; }
+
+    /// <summary>
+    /// 供应商出单日期范围筛选-开始（仅供应商管理使用，取采购/委外单 OrderDate）
+    /// </summary>
+    /// <remarks>
+    /// 选定后「供应商往来」的出单类列按 OrderDate 落区间重算；与 <see cref="SupplierArrivalDateFrom"/>/<see cref="SupplierArrivalDateTo"/>
+    /// 互相独立、可叠加。待收货属存量口径无日期语义，不受影响。
+    /// </remarks>
+    public DateTime? SupplierOrderDateFrom { get; set; }
+
+    /// <summary>
+    /// 供应商出单日期范围筛选-结束（仅供应商管理使用，取采购/委外单 OrderDate；闭区间含结束日）
+    /// </summary>
+    public DateTime? SupplierOrderDateTo { get; set; }
+
+    /// <summary>
+    /// 供应商到货日期范围筛选-开始（仅供应商管理使用，取入厂批 InventoryBatch.InboundDate）
+    /// </summary>
+    /// <remarks>
+    /// 选定后「供应商往来」的到货类列（到货净重/到货货款）与「本年退货」列改按 InboundDate / OutboundDate 落区间重算；
+    /// 与 <see cref="SupplierOrderDateFrom"/>/<see cref="SupplierOrderDateTo"/> 互相独立、可叠加。
+    /// </remarks>
+    public DateTime? SupplierArrivalDateFrom { get; set; }
+
+    /// <summary>
+    /// 供应商到货日期范围筛选-结束（仅供应商管理使用，取入厂批 InventoryBatch.InboundDate；闭区间含结束日）
+    /// </summary>
+    public DateTime? SupplierArrivalDateTo { get; set; }
+
+    /// <summary>
+    /// 委外单位发出日期范围筛选-开始（仅委外单位档案使用，取工段委外单 SendOutDate）
+    /// </summary>
+    /// <remarks>
+    /// 选定后「委外单位往来」的发出类列按 SendOutDate 落区间重算；与 <see cref="VendorRecoveryDateFrom"/>/<see cref="VendorRecoveryDateTo"/>
+    /// 互相独立、可叠加。在委外未回收属存量口径无日期语义，不受影响。
+    /// </remarks>
+    public DateTime? VendorSendDateFrom { get; set; }
+
+    /// <summary>
+    /// 委外单位发出日期范围筛选-结束（仅委外单位档案使用，取工段委外单 SendOutDate；闭区间含结束日）
+    /// </summary>
+    public DateTime? VendorSendDateTo { get; set; }
+
+    /// <summary>
+    /// 委外单位回收日期范围筛选-开始（仅委外单位档案使用，取委外回收记录 RecoveryDate）
+    /// </summary>
+    /// <remarks>
+    /// 选定后「委外单位往来」的回收/退回类列改按 RecoveryDate 落区间重算；
+    /// 与 <see cref="VendorSendDateFrom"/>/<see cref="VendorSendDateTo"/> 互相独立、可叠加。
+    /// </remarks>
+    public DateTime? VendorRecoveryDateFrom { get; set; }
+
+    /// <summary>
+    /// 委外单位回收日期范围筛选-结束（仅委外单位档案使用，取委外回收记录 RecoveryDate；闭区间含结束日）
+    /// </summary>
+    public DateTime? VendorRecoveryDateTo { get; set; }
+
+    /// <summary>
     /// 计算跳过的记录数
     /// </summary>
     public int Skip => (PageIndex - 1) * PageSize;

@@ -105,7 +105,7 @@
                                            StartIcon="@Icons.Material.Filled.Print" OnClick="PrintSemiPendingTable">打印</MudButton>
                             </div>
                             <div id="po-semi-pending-table" style="overflow-x: auto; max-height: 30vh;">
-                                <MudTable T="PurchasePendingDto" Items="@_semiPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
+                                <MudTable Breakpoint="Breakpoint.None" T="PurchasePendingDto" Items="@_semiPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
                                     <HeaderContent>
                                         <MudTh Style="width: 120px;">工单号</MudTh>
                                         <MudTh Style="width: 90px;">工单关注</MudTh>
@@ -286,7 +286,7 @@
                                            StartIcon="@Icons.Material.Filled.Print" OnClick="PrintFinishedPendingTable">打印</MudButton>
                             </div>
                             <div id="po-finished-pending-table" style="overflow-x: auto; max-height: 30vh;">
-                                <MudTable T="PurchasePendingDto" Items="@_finishedPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
+                                <MudTable Breakpoint="Breakpoint.None" T="PurchasePendingDto" Items="@_finishedPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
                                     <HeaderContent>
                                         <MudTh Style="width: 120px;">工单号</MudTh>
                                         <MudTh Style="width: 90px;">工单关注</MudTh>
@@ -459,7 +459,7 @@
                     @if (showProcurementStatus)
                     {
                         <div style="overflow-x: auto; overflow-y: auto; margin-top: 8px; max-height: 25vh;">
-                            <MudTable T="ProcurementStatusDto" Items="@procurementItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
+                            <MudTable Breakpoint="Breakpoint.None" T="ProcurementStatusDto" Items="@procurementItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
                                 <HeaderContent>
                                     <MudTh Style="width: 120px;">工单号</MudTh>
                                     <MudTh Style="width: 90px;">物料分类</MudTh>
@@ -531,7 +531,7 @@
                     }
                 </div>
             </div>
-            <MudTable @ref="table" T="PurchaseOrderDto" ServerData="@LoadDataFromServer" Dense="true" Hover="true" Class="mt-0 auto-table compact-table" Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
+            <MudTable Breakpoint="Breakpoint.None" @ref="table" T="PurchaseOrderDto" ServerData="@LoadDataFromServer" Dense="true" Hover="true" Class="mt-0 auto-table compact-table" Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
                 <HeaderContent>
                     @{
                         int? _prevGk = null;

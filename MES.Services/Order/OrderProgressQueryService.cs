@@ -17,8 +17,13 @@ namespace MES.Services.Order;
 /// 2) 主号头的标准牌号/产品标准与整单含项次数：实时 join OrderItem（按 OrderItemIds=Sequence 逗号分隔），规格/长度/交货/支数/重量仍取快照；
 /// 3) 成品检验 3 档：复用 IFinalInspectionPlanService.GetKanbanAsync（看板前 3 档，按 ProductionBatchId 去重
 ///    取首行，口径同工单执行看板 Stage3；第 4 档「完成检验待入库」不放入树）；
-/// 4) 成品入库 3 档：实时读 InventoryBatch(MaterialType=OrderFinished 可交付成品，排除 SpecialDeliveryStatus
-///    非交付态) + OutboundRecords(OutboundType=SalesOut)，口径同 OrderService 成品数据聚合。
+/// 4) 订单成品入库 3 档：实时读 InventoryBatch(MaterialType=OrderFinished 可交付成品，排除 SpecialDeliveryStatus
+///    非交付态) + OutboundRecords(OutboundType=SalesOut)，口径同 OrderService 成品数据聚合；
+/// 5) 完结主号补充分支（用户拍板「投料+产出」两维度）：「投料」= Σ 该主号生产批次的工艺卡领料重
+///    InputWeight，排除「返整/委外生产/对外加工」三种生产类型（不限制造物品），批次自身带订单号+主号（零 join）；
+///    「产出」全部按仓库实收 —— 在制品入库(在制品库 WIP 余库料 Surplus)/次品入库(次品库 DEFECT 6 类物料)/备料成品
+///    (成品库 FG 备料成品 Finished)，三者经 InventoryBatch.ProductionBatchNo 反查 ProductionBatch 取订单号+主号后
+///    聚合 InitialWeight（这些入库行自身不带订单号）；次品叶另附同叶退货出库量（次品库 OutboundType=ReturnOut）。
 /// </summary>
 public class OrderProgressQueryService : IOrderProgressQueryService
 {
@@ -62,6 +67,17 @@ public class OrderProgressQueryService : IOrderProgressQueryService
 
         // 3. 成品入库实时源（OrderFinished 可交付成品 + SalesOut 出库），按主号预分桶
         var warehousing = await BuildWarehousingByMainAsync(salesOrderNo);
+
+        // 3b. 完结主号「投料」：该主号生产批次工艺卡的领料重 Σ InputWeight（排除返整/委外生产/对外加工）
+        var inputByMain = await BuildInputByMainAsync(salesOrderNo);
+
+        // 3c. 完结主号「产出」实时源：在制品库(余料) / 次品库(6 类次品+退货) / 成品库(备料成品)
+        //     均按生产批号反查订单归属后按主号聚合
+        var surplusInbound = await BuildWarehouseInboundByMainAsync(
+            salesOrderNo, WarehouseCodes.WorkInProgress, InventoryMaterialTypes.Surplus);
+        var defectInbound = await BuildDefectInboundByMainAsync(salesOrderNo);
+        var finishedStockInbound = await BuildWarehouseInboundByMainAsync(
+            salesOrderNo, WarehouseCodes.FinishedGoods, InventoryMaterialTypes.Finished);
 
         // 4. 项次实时源：主号→(标准牌号,产品标准) + 整单去重项次数（WES 快照不含牌号/标准，须 join OrderItem）
         var itemInfo = await BuildOrderItemInfoAsync(salesOrderNo);
@@ -113,7 +129,15 @@ public class OrderProgressQueryService : IOrderProgressQueryService
                 // 成品检验：实时 3 档
                 node.FinalInspection = BuildInspectionBranch(inspectionByMain, group.Key);
             }
-            // 完结主号（ScheduleStage==1）：原料/生产/检验全空，仅成品入库（用户拍板）
+            else
+            {
+                // 完结主号（ScheduleStage==1）：原料/生产/成检看板全空，改出 4 个完结专属分支（用户拍板，固定序）
+                // 序1「投料」= 生产批次工艺卡 InputWeight；序2~4「产出」= 各仓库实收，经生产批号反查订单归属
+                node.ProductionInput = BuildInputBranch(inputByMain.GetValueOrDefault(group.Key));
+                node.SurplusInbound = BuildSingleInboundBranch(surplusInbound, group.Key, "SurplusInbound", "在制品入库");
+                node.DefectInbound = BuildDefectInboundBranch(defectInbound, group.Key);
+                node.FinishedStockInbound = BuildSingleInboundBranch(finishedStockInbound, group.Key, "FinishedStockInbound", "备料成品");
+            }
 
             node.Warehousing = BuildWarehousingBranch(warehousing, group.Key);
 
@@ -174,7 +198,7 @@ public class OrderProgressQueryService : IOrderProgressQueryService
             : null;
     }
 
-    // ===================== 成品入库（实时） =====================
+    // ===================== 订单成品入库（实时） =====================
     private async Task<Dictionary<string, (decimal Inbound, decimal Stock, decimal Outbound)>> BuildWarehousingByMainAsync(string salesOrderNo)
     {
         var result = new Dictionary<string, (decimal Inbound, decimal Stock, decimal Outbound)>(StringComparer.Ordinal);
@@ -230,8 +254,214 @@ public class OrderProgressQueryService : IOrderProgressQueryService
         if (w.Stock > 0m)
             leaves.Add(new MainProgressLeafDto { Key = "Stock", Text = "库存", WeightKg = w.Stock });
         return leaves.Count > 0
-            ? new MainProgressBranchDto { Key = "Warehousing", Title = "成品入库", Leaves = leaves }
+            ? new MainProgressBranchDto { Key = "Warehousing", Title = "订单成品入库", Leaves = leaves }
             : null;
+    }
+
+    // ===================== 完结主号补充（投料：生产批次工艺卡 InputWeight） =====================
+
+    /// <summary>
+    /// 完结主号「生产投料」取数：Σ 该主号生产批次的工艺卡领料重 InputWeight。
+    /// 用户拍板口径——排除「返整/委外生产/对外加工」三种生产类型，其余类型全收（不限制造物品）；
+    /// 同时返回同批次的 ProductionType 去重串，供分支标题后缀（如「生产投料[荒管生产+在制生产+外购]」）。
+    /// 批次自身带订单号+主号，零 join。
+    /// </summary>
+    private async Task<Dictionary<string, (decimal Weight, string? TypeText)>> BuildInputByMainAsync(string salesOrderNo)
+    {
+        var rows = await _context.ProductionBatches.AsNoTracking()
+            .Where(b => b.SalesOrderNo == salesOrderNo
+                && (b.ProductionType == null
+                    || (b.ProductionType != ProductionTypeKeys.Rework
+                        && b.ProductionType != ProductionTypeKeys.Subcontract
+                        && b.ProductionType != ProductionTypeKeys.ExternalProcessing)))
+            .Select(b => new { b.ProductionMainNo, b.ProductionType, b.InputWeight })
+            .ToListAsync();
+
+        var result = new Dictionary<string, (decimal Weight, string? TypeText)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var group in rows.GroupBy(r => r.ProductionMainNo ?? ""))
+        {
+            var weight = group.Sum(r => r.InputWeight ?? 0m);
+            var typeText = string.Join("+", group
+                .Select(r => r.ProductionType)
+                .Where(t => t != null)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(k =>
+                {
+                    var idx = Array.IndexOf(ProductionTypeKeys.All, k!);
+                    return idx < 0 ? int.MaxValue : idx;
+                })
+                .Select(k => ProductionTypeText(k!)));
+
+            result[group.Key] = (weight, typeText.Length > 0 ? typeText : null);
+        }
+        return result;
+    }
+
+    /// <summary>生产投料单叶：投料重来自生产批次工艺卡；标题后缀该主号涉及的生产类型</summary>
+    private static MainProgressBranchDto? BuildInputBranch((decimal Weight, string? TypeText) info)
+    {
+        return info.Weight > 0m
+            ? new MainProgressBranchDto
+            {
+                Key = "ProductionInput",
+                Title = string.IsNullOrEmpty(info.TypeText) ? "生产投料" : $"生产投料[{info.TypeText}]",
+                Leaves = [new MainProgressLeafDto { Key = "Input", Text = "投料", WeightKg = info.Weight }],
+            }
+            : null;
+    }
+
+    /// <summary>生产类型 Key → 中文（未知 Key 原样返回）</summary>
+    private static string ProductionTypeText(string key)
+        => Enum.TryParse<ProductionType>(key, out var parsed) ? EnumHelper.GetDisplayName(parsed) : key;
+
+    // ===================== 完结主号补充（次品入库：次品库实收 + 退货出库） =====================
+
+    /// <summary>次品库叶子物料类型顺序（与 InventoryMaterialTypes.WarehouseAllowedTypes["DEFECT"] 一致）</summary>
+    private static readonly string[] DefectMaterialTypeOrder =
+    [
+        InventoryMaterialTypes.DefectRoundBar,
+        InventoryMaterialTypes.DefectRoughTube,
+        InventoryMaterialTypes.DefectSemi,
+        InventoryMaterialTypes.DefectFinished,
+        InventoryMaterialTypes.DefectWIP,
+        InventoryMaterialTypes.Scrap,
+    ];
+
+    /// <summary>
+    /// 完结主号「次品入库」取数：次品库(DEFECT) 6 类物料类型的入库重，以及同批次的退货出库重
+    /// （OutboundType=ReturnOut，即「先入次品库、再退货出库」的下半程）。
+    /// 次品库入库行自身不带订单号+主号，只能经 InventoryBatch.ProductionBatchNo 反查 ProductionBatch 取归属；
+    /// 生产批号缺失或对不上生产批次的行不计入。返回 主号→物料类型→(入库重, 退货重)。
+    /// </summary>
+    private async Task<Dictionary<string, Dictionary<string, (decimal Inbound, decimal Return)>>> BuildDefectInboundByMainAsync(string salesOrderNo)
+    {
+        var defectTypes = DefectMaterialTypeOrder; // 局部集合供 EF 参数化翻译
+        var batches = await (from ib in _context.InventoryBatches.AsNoTracking()
+                             join w in _context.Warehouses.AsNoTracking() on ib.WarehouseId equals w.Id
+                             join pb in _context.ProductionBatches.AsNoTracking() on ib.ProductionBatchNo equals pb.BatchNo
+                             where w.Code == WarehouseCodes.Defect
+                                 && defectTypes.Contains(ib.MaterialType)
+                                 && ib.ProductionBatchNo != null
+                                 && pb.SalesOrderNo == salesOrderNo
+                             select new { ib.Id, pb.ProductionMainNo, ib.MaterialType, ib.InitialWeight })
+                             .ToListAsync();
+
+        var result = new Dictionary<string, Dictionary<string, (decimal Inbound, decimal Return)>>(StringComparer.OrdinalIgnoreCase);
+        var mainByBatchId = new Dictionary<int, (string Main, string MaterialType)>(batches.Count);
+        foreach (var b in batches)
+        {
+            var main = b.ProductionMainNo ?? "";
+            mainByBatchId[b.Id] = (main, b.MaterialType);
+            var bucket = Bucket(result, main);
+            var cur = bucket.GetValueOrDefault(b.MaterialType);
+            bucket[b.MaterialType] = (cur.Inbound + b.InitialWeight, cur.Return);
+        }
+
+        if (batches.Count > 0)
+        {
+            var ids = batches.Select(b => b.Id).ToList();
+            var outRows = await _context.OutboundRecords.AsNoTracking()
+                .Where(o => o.OutboundType == OutboundType.ReturnOut && ids.Contains(o.InventoryBatchId))
+                .Select(o => new { o.InventoryBatchId, o.OutboundWeight })
+                .ToListAsync();
+
+            foreach (var o in outRows)
+            {
+                if (!mainByBatchId.TryGetValue(o.InventoryBatchId, out var owner))
+                    continue;
+                var bucket = Bucket(result, owner.Main);
+                var cur = bucket.GetValueOrDefault(owner.MaterialType);
+                bucket[owner.MaterialType] = (cur.Inbound, cur.Return + o.OutboundWeight);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>按主号取（无则建）次品物料分桶</summary>
+    private static Dictionary<string, (decimal Inbound, decimal Return)> Bucket(
+        Dictionary<string, Dictionary<string, (decimal Inbound, decimal Return)>> byMain, string main)
+    {
+        if (!byMain.TryGetValue(main, out var bucket))
+        {
+            bucket = new Dictionary<string, (decimal Inbound, decimal Return)>(StringComparer.Ordinal);
+            byMain[main] = bucket;
+        }
+        return bucket;
+    }
+
+    /// <summary>次品入库分支：6 类次品叶（入库重 + 同叶退货出库重），入库与退货均为 0 的叶省略；全空不建分支</summary>
+    private static MainProgressBranchDto? BuildDefectInboundBranch(
+        Dictionary<string, Dictionary<string, (decimal Inbound, decimal Return)>> byMain, string productionMainNo)
+    {
+        if (!byMain.TryGetValue(productionMainNo, out var bucket))
+            return null;
+
+        var leaves = new List<MainProgressLeafDto>();
+        foreach (var materialType in DefectMaterialTypeOrder)
+        {
+            if (!bucket.TryGetValue(materialType, out var v) || (v.Inbound <= 0m && v.Return <= 0m))
+                continue;
+            leaves.Add(new MainProgressLeafDto
+            {
+                Key = materialType,
+                Text = MaterialTypeText(materialType),
+                WeightKg = v.Inbound,
+                ReturnWeightKg = v.Return,
+            });
+        }
+        return leaves.Count > 0
+            ? new MainProgressBranchDto { Key = "DefectInbound", Title = "次品入库", Leaves = leaves }
+            : null;
+    }
+
+    /// <summary>物料类型 Key → 中文（未知 Key 原样返回）</summary>
+    private static string MaterialTypeText(string key)
+        => Enum.TryParse<MaterialType>(key, out var parsed) ? EnumHelper.GetDisplayName(parsed) : key;
+
+    // ===================== 完结主号补充（在制品入库/备料成品：按生产批号反查订单归属） =====================
+
+    /// <summary>
+    /// 指定仓库+物料类型的入库重量，经 InventoryBatch.ProductionBatchNo 反查 ProductionBatch 归属，
+    /// 按主号聚合。在制品库(余料)/成品库(备料成品)的入库行自身不带订单号，只能按生产批号反查；
+    /// 生产批号缺失或对不上生产批次的行不计入（因此当前真库该两类多为空）。
+    /// </summary>
+    private async Task<Dictionary<string, decimal>> BuildWarehouseInboundByMainAsync(
+        string salesOrderNo, string warehouseCode, string materialType)
+    {
+        var rows = await (from ib in _context.InventoryBatches.AsNoTracking()
+                          join w in _context.Warehouses.AsNoTracking() on ib.WarehouseId equals w.Id
+                          join pb in _context.ProductionBatches.AsNoTracking() on ib.ProductionBatchNo equals pb.BatchNo
+                          where w.Code == warehouseCode
+                              && ib.MaterialType == materialType
+                              && ib.ProductionBatchNo != null
+                              && pb.SalesOrderNo == salesOrderNo
+                          select new { pb.ProductionMainNo, ib.InitialWeight })
+                          .ToListAsync();
+
+        // 生产批号跨表比较后按主号分桶，内存比较用 OrdinalIgnoreCase（SQL Server 大小写不敏感）
+        var result = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in rows)
+        {
+            var key = r.ProductionMainNo ?? "";
+            result[key] = result.GetValueOrDefault(key) + r.InitialWeight;
+        }
+        return result;
+    }
+
+    /// <summary>单叶入库分支（余料入库/备料入库）：无值或 0 时不建分支</summary>
+    private static MainProgressBranchDto? BuildSingleInboundBranch(
+        Dictionary<string, decimal> byMain, string productionMainNo, string key, string title)
+    {
+        if (!byMain.TryGetValue(productionMainNo, out var weight) || weight <= 0m)
+            return null;
+
+        return new MainProgressBranchDto
+        {
+            Key = key,
+            Title = title,
+            Leaves = [new MainProgressLeafDto { Key = "Inbound", Text = "入库", WeightKg = weight }],
+        };
     }
 
     // ===================== 生产执行（快照） =====================

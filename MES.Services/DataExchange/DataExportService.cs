@@ -160,6 +160,11 @@ public class DataExportService : IDataExportService
                     // ResponsibilityCategory 存储为英文 Key（NCR 责任类别字典），导出显示中文（配置表优先，兜底 NcrResponsibilityKeys）
                     sheet.Cells[row, col + 1].Value = DictValueDisplayHelper.GetText(DictValueDefaults.NcrResponsibilityKey, responsibilityCategory) ?? responsibilityCategory;
                 }
+                else if (colDef.Property == "DisposalMethod" && value is string disposalMethod)
+                {
+                    // DisposalMethod 存储为英文 Key（NCR 处置方式字典），导出显示中文（配置表优先，兜底 NcrDisposalKeys）
+                    sheet.Cells[row, col + 1].Value = DictValueDisplayHelper.GetText(DictValueDefaults.NcrDisposalKey, disposalMethod) ?? disposalMethod;
+                }
                 else if (colDef.Property == "Department" && value is string department)
                 {
                     // 员工岗位类别（PositionCategoryKey 字典值）导出中文（配置表优先，兜底 PositionCategoryKeys）

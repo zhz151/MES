@@ -9,12 +9,16 @@
     <link rel="icon" type="image/png" href="favicon.png" />
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#1a1a2e" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="apple-touch-icon" href="icon-192.png" />
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
-    <link href="css/app.css?v=2" rel="stylesheet" />
-    <link href="MES.Blazor.styles.css" rel="stylesheet" />
+    <!-- ⚠️ 版本串纪律（2026-09-14）：/css/ 由 nginx 下发 max-age=31536000 immutable，
+         内容一改必须同步抬串，否则浏览器一年内不重取（app.css 上次升串在 2026-09-04，之后改过 3 次未抬 → 新样式不下发）。
+         MES.Blazor.styles.css（scoped CSS 打包产物，与组件同名不指纹化）同理，改动 .razor.css 后一并抬串。 -->
+    <link href="css/app.css?v=13" rel="stylesheet" />
+    <link href="MES.Blazor.styles.css?v=2" rel="stylesheet" />
 </head>
 
 <body>
@@ -38,8 +42,13 @@
     <script src="js/table-nav.js?v=12"></script>
     <script src="js/scanner.js?v=5"></script>
     <script src="js/filter-popup.js"></script>
-    <script src="js/pwa-install.js"></script>
+    <script src="js/attachment.js?v=1"></script>
     <script>
+        // 抑制浏览器原生「安装应用」横幅：MES 不做 PWA 安装引导（原 js/pwa-install.js 已整文件删除，
+        // 其 triggerPwaInstall / getPwaInstallPrompt 为 0 调用死代码），此处只保留这一行。
+        // ⚠️ 刻意不调 prompt()：DevTools 会因此打一条 info 级提示「Banner not shown」——属预期、非错误。
+        window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); });
+
         // 响应式布局检测 - 监听窗口大小变化
         (function () {
             var MOBILE_BREAKPOINT = 960;
@@ -83,22 +92,30 @@
 
         // 横屏提示条（LandscapeHintBanner）多监听器总线：与上面 listenResize 的 _resizeRef 单槽互不干扰。
         // 负责把 orientationchange/resize 通知给 .NET 组件，让它在「仍处移动壳但已转横屏（<700 窄横屏）」时收起。
+        //
+        // ⚠️ 不可按对象身份 indexOf 去增删 DotNetObjectReference：
+        //    blazor.webassembly.js 反序列化 reviver 对 .NET 引用是 `new DotNetObject(id)`（每次跨边界都是新对象），
+        //    只有 JS 引用才走 `getWrappedObject()` 缓存复用 —— 同一个 _dotNetRef 在 JS 侧两次到达是不同对象，
+        //    indexOf 恒为 -1，stop 永远删不掉，组件销毁（_dotNetRef.Dispose()）后数组里留下僵尸引用，
+        //    之后每次 resize 都回调已释放的 id，报 "There is no tracked object with id 'N'"。
+        //    同一时刻只存在一个提示条（仅 MobileLayout 渲染、ResponsiveLayout 整壳切换），故按「整体清空」处理。
         window._landscapeHintRefs = [];
         window.listenLandscapeHintRefresh = function (dotnetRef, method) {
-            if (window._landscapeHintRefs.indexOf(dotnetRef) < 0) window._landscapeHintRefs.push(dotnetRef);
+            window._landscapeHintRefs = [dotnetRef];
             if (!window._landscapeHintBound) {
                 window._landscapeHintBound = true;
                 window.addEventListener('orientationchange', window._notifyLandscapeHint);
                 window.addEventListener('resize', window._notifyLandscapeHint);
             }
         };
-        window.stopLandscapeHintRefresh = function (dotnetRef) {
-            var i = window._landscapeHintRefs.indexOf(dotnetRef);
-            if (i >= 0) window._landscapeHintRefs.splice(i, 1);
+        window.stopLandscapeHintRefresh = function () {
+            window._landscapeHintRefs = [];
         };
         window._notifyLandscapeHint = function () {
-            for (var i = 0; i < window._landscapeHintRefs.length; i++) {
-                window._landscapeHintRefs[i].invokeMethodAsync('OnLandscapeHintChanged');
+            var refs = window._landscapeHintRefs;
+            for (var i = 0; i < refs.length; i++) {
+                // 兜底：dispose 与本事件存在竞态，在途调用可能落到已释放的引用上，吞掉即可（回调仅重算竖屏态）
+                refs[i].invokeMethodAsync('OnLandscapeHintChanged').catch(function () { });
             }
         };
     </script>

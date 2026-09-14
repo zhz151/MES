@@ -3,6 +3,7 @@ using Microsoft.JSInterop;
 using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Helpers;
+using MES.Blazor.Shared;
 using MES.Blazor.Models;
 using MES.Core.Enums;
 using MES.Core.Constants;
@@ -1030,8 +1031,41 @@ public partial class BatchPlans
         // 配置驱动工段 Tab 加载（置于 _selectedSection 恢复之后，内部含悬空校验）
         await LoadSectionTabOptionsAsync();
 
+        // 「生产编号」是否可点开「批次执行进度」弹窗：追踪端点策略为 BatchView，本页页级为 SchedulingView，
+        // 两策略不对称 → 按角色降级：无批次查看权限的用户保持纯文本，不出现可点样式。
+        // ⚠️ Policies.BatchView 是逗号分隔多角色串，ClaimsPrincipal.IsInRole 只认单个角色名 → 必须逐个展开判定。
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        _canViewBatchProgress = Roles.Policies.BatchView
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(authState.User.IsInRole);
+
         await LoadDataAsync();
         await LoadSummaryAsync();
+    }
+
+    // ========== 批次执行进度弹窗 ==========
+
+    /// <summary>当前用户是否有权查看批次执行进度（决定「生产编号」是否为可点链接）</summary>
+    private bool _canViewBatchProgress;
+
+    /// <summary>点「生产编号」弹「批次执行进度」卡片（不跳转批次详情页）</summary>
+    private async Task OpenBatchProgressAsync(int batchId, string? batchNo)
+    {
+        if (batchId <= 0) return;
+        var parameters = new DialogParameters
+        {
+            { nameof(BatchProgressDialog.BatchId), batchId },
+            { nameof(BatchProgressDialog.BatchNo), batchNo }
+        };
+        var options = new DialogOptions
+        {
+            // ⚠️ MudBlazor 6.19 的 MaxWidth.ExtraLarge = max-width:1920px，再叠 FullWidth( width:calc(100% - 64px) )
+            // 会几乎满屏、而卡片是 inline-flex 定宽卡 → 右侧大片留白。
+            // 降到 Large(1280px) 且**不开 FullWidth**，让弹窗按内容自适应收缩。
+            MaxWidth = MaxWidth.Large,
+            CloseOnEscapeKey = true
+        };
+        await DialogService.ShowAsync<BatchProgressDialog>("批次执行进度", parameters, options);
     }
 
     /// <summary>
@@ -1286,7 +1320,21 @@ public partial class BatchPlans
         {
             // G1
             case "BatchNo":
-                builder.AddContent(0, item.BatchNo);
+                if (_canViewBatchProgress && item.BatchId > 0)
+                {
+                    // 可点：弹「批次执行进度」卡片（不跳转批次详情页）
+                    builder.OpenElement(0, "span");
+                    builder.AddAttribute(1, "class", "cell-link");
+                    builder.AddAttribute(2, "title", "查看批次执行进度");
+                    builder.AddAttribute(3, "onclick", EventCallback.Factory.Create(this,
+                        () => OpenBatchProgressAsync(item.BatchId, item.BatchNo)));
+                    builder.AddContent(4, item.BatchNo);
+                    builder.CloseElement();
+                }
+                else
+                {
+                    builder.AddContent(0, item.BatchNo);
+                }
                 break;
             case "TagNo":
                 builder.AddContent(0, item.TagNo ?? "-");

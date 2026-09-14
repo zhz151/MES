@@ -2763,7 +2763,8 @@ public class BatchService : IBatchService
                 ProductionBatchId = g.Key,
                 TotalDefectQty = (g.Sum(p => p.DefectReworkQuantity ?? 0)
                                 + g.Sum(p => p.DefectWarehouseQuantity ?? 0)
-                                + g.Sum(p => p.DefectScrapQuantity ?? 0)),
+                                + g.Sum(p => p.DefectScrapQuantity ?? 0)
+                                + g.Sum(p => p.DefectReturnQuantity ?? 0)),
                 TotalInspectionQty = g.Sum(p => p.Quantity ?? 0),
                 MaxInspectionTime = g.Max(p => (DateTimeOffset?)p.CreatedTime)
             })

@@ -73,7 +73,7 @@
                                            StartIcon="@Icons.Material.Filled.Print" OnClick="PrintPiercingPendingTable">打印</MudButton>
                             </div>
                             <div id="sc-piercing-pending-table" style="overflow-x: auto; max-height: 30vh;">
-                                <MudTable T="SubcontractPiercingPendingDto" Items="@_piercingPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
+                                <MudTable Breakpoint="Breakpoint.None" T="SubcontractPiercingPendingDto" Items="@_piercingPendingItems" Dense="true" Hover="true" Class="auto-table" Elevation="0">
                                     <HeaderContent>
                                         <MudTh Style="width: 130px;">工单号</MudTh>
                                         <MudTh Style="width: 90px;">工单关注</MudTh>
@@ -273,7 +273,7 @@
                 </div>
             </div>
 
-            <MudTable @ref="table" T="SubcontractReturnItemListDto" ServerData="@LoadDataFromServer" Dense="true" Hover="true" Class="mt-0 auto-table compact-table" Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
+            <MudTable Breakpoint="Breakpoint.None" @ref="table" T="SubcontractReturnItemListDto" ServerData="@LoadDataFromServer" Dense="true" Hover="true" Class="mt-0 auto-table compact-table" Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">
                 <HeaderContent>
                     @{
                         int? _prevGk = null;

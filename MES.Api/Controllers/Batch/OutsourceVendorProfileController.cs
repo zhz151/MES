@@ -32,7 +32,11 @@ public class OutsourceVendorProfileController : ControllerBase
         [FromQuery] string? keyword = null,
         [FromQuery] string? sortBy = null,
         [FromQuery] bool isDescending = true,
-        [FromQuery] string? filters = null)
+        [FromQuery] string? filters = null,
+        [FromQuery] DateTime? sendDateFrom = null,
+        [FromQuery] DateTime? sendDateTo = null,
+        [FromQuery] DateTime? recoveryDateFrom = null,
+        [FromQuery] DateTime? recoveryDateTo = null)
     {
         if (pageSize > 5000) pageSize = 5000;
         var query = new QueryParams
@@ -41,7 +45,11 @@ public class OutsourceVendorProfileController : ControllerBase
             PageSize = pageSize,
             Keyword = keyword,
             SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
-            IsDescending = isDescending
+            IsDescending = isDescending,
+            VendorSendDateFrom = sendDateFrom,
+            VendorSendDateTo = sendDateTo,
+            VendorRecoveryDateFrom = recoveryDateFrom,
+            VendorRecoveryDateTo = recoveryDateTo
         };
         if (!string.IsNullOrEmpty(filters))
         {

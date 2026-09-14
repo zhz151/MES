@@ -52,7 +52,7 @@
 
             <!-- 数据表格 -->
             <div id="repair-orders-list-table">
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="RepairOrderListDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"

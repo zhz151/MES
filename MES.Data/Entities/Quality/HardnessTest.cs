@@ -11,8 +11,8 @@ public class HardnessTest : BaseEntity
     /// <summary>检验员</summary>
     public string Inspector { get; set; } = null!;
 
-    /// <summary>炉批号</summary>
-    public string FurnaceNo { get; set; } = null!;
+    /// <summary>生产编号</summary>
+    public string BatchNo { get; set; } = null!;
 
     /// <summary>牌号</summary>
     public string Grade { get; set; } = null!;

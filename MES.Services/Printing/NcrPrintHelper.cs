@@ -13,7 +13,27 @@ namespace MES.Services.Printing;
 /// </summary>
 public static class NcrPrintHelper
 {
-    public static byte[] GeneratePdf(List<Ncr> entities)
+    /// <summary>照片（磁盘原图字节 + 原始文件名），由调用方读取后传入</summary>
+    public sealed class PrintImage
+    {
+        public string FileName { get; init; } = "";
+        public byte[] Data { get; init; } = Array.Empty<byte>();
+    }
+
+    /// <summary>
+    /// 单张照片占位高度（pt）。2026-09-12 二次拍板「单列 + 每页 2 张」（原每行 2 张 / 200pt）：
+    /// 照片单列铺满页宽，高度 290pt 时 A4 竖版正文（≈709pt）恰好容纳「归属行 + 2 张」（≈2×(290+27)+33），
+    /// 第 3 张自动续页。⚠️ 照片实际尺寸只由高度决定（FitArea 等比缩放，宽度受高度约束），
+    /// 故「放大照片」的唯一手段是加大高度，而高度上限由每页张数决定。
+    /// </summary>
+    private const float ImageBoxHeight = 290f;
+
+    /// <summary>
+    /// 生成不合格报告 PDF：A4 竖版，每条记录独立成页。
+    /// 照片按 NCR 记录 Id 分组传入（取自关联的不合格反馈单附件；无照片的记录整区省略）。
+    /// </summary>
+    public static byte[] GeneratePdf(List<Ncr> entities,
+        IReadOnlyDictionary<int, IReadOnlyList<PrintImage>>? imagesByNcr = null)
     {
         return Document.Create(container =>
         {
@@ -24,7 +44,7 @@ public static class NcrPrintHelper
                 page.DefaultTextStyle(x => x.FontSize(10).FontFamily("SimSun"));
 
                 page.Header().Element(ComposeDocHeader);
-                page.Content().Element(c => ComposeContent(c, entities));
+                page.Content().Element(c => ComposeContent(c, entities, imagesByNcr));
                 page.Footer().Element(ComposeDocFooter);
             });
         }).GeneratePdf();
@@ -60,21 +80,23 @@ public static class NcrPrintHelper
         });
     }
 
-    private static void ComposeContent(IContainer container, List<Ncr> entities)
+    private static void ComposeContent(IContainer container, List<Ncr> entities,
+        IReadOnlyDictionary<int, IReadOnlyList<PrintImage>>? imagesByNcr)
     {
         container.Column(col =>
         {
             for (int i = 0; i < entities.Count; i++)
             {
                 var n = entities[i];
-                ComposeNcrReport(col, n);
+                ComposeNcrReport(col, n, imagesByNcr);
                 if (i < entities.Count - 1)
                     col.Item().PageBreak();
             }
         });
     }
 
-    private static void ComposeNcrReport(ColumnDescriptor col, Ncr n)
+    private static void ComposeNcrReport(ColumnDescriptor col, Ncr n,
+        IReadOnlyDictionary<int, IReadOnlyList<PrintImage>>? imagesByNcr)
     {
         // 报告编号 + 状态
         col.Item().PaddingTop(8).Row(row =>
@@ -92,6 +114,14 @@ public static class NcrPrintHelper
             AppendFieldRow(table, "牌号", n.PlantGrade ?? "", "规格", n.Specification ?? "");
             AppendFieldRow(table, "次品支数", n.DefectiveQuantity?.ToString("G29") ?? "0", "次品重量", n.DefectiveWeight?.ToString("G29") ?? "0");
             AppendFieldSpan(table, "问题描述", n.ProblemDescription ?? "");
+            // 让步放行维度：仅被动来源（过程检验/成品检验超阈值建单）有值；主动（不合格反馈/人工上报）无此概念，不占版面
+            if (!string.IsNullOrEmpty(n.SourceGroupKey) || n.FlowDirection.HasValue)
+            {
+                AppendFieldRow(table, "次品流向", GetFlowDirectionText(n.FlowDirection),
+                    "让步支数", n.ConcessionQuantity?.ToString("G29") ?? "");
+                AppendFieldRow(table, "让步重量", n.ConcessionWeight?.ToString("G29") ?? "", "", "");
+                AppendFieldSpan(table, "让步说明", n.ConcessionRemark ?? "");
+            }
         });
 
         // G2 不合格品处置
@@ -128,13 +158,54 @@ public static class NcrPrintHelper
             AppendFieldSpan(table, "纠正预防措施", n.CorrectiveAction ?? "");
         });
 
-        // 页脚审计
+        // 页脚审计（留在字段页末尾）
         col.Item().PaddingTop(8).PaddingBottom(4)
             .AlignCenter().Text(t =>
             {
                 t.Span($"创建时间: {FormatDateTime(n.CreatedTime)} | 更新时间: {FormatDateTime(n.UpdatedTime)}")
                     .FontSize(8).FontColor(Colors.Grey.Darken2);
             });
+
+        // 问题照片（取自关联不合格反馈单附件；统一另起第 2 页，无照片则整页省略）
+        if (imagesByNcr != null && imagesByNcr.TryGetValue(n.Id, out var images))
+            ComposeImages(col, $"编号: NCR-{n.Id:D4}", "问题照片", images);
+    }
+
+    /// <summary>
+    /// 照片页：强制另起一页，页首归属行（编号 + 区名 + 张数），照片单列铺排（每页 2 张，超出自动续页）；
+    /// 无照片时整页省略（不产生空白页）。
+    /// </summary>
+    private static void ComposeImages(ColumnDescriptor col, string ownerLabel, string title, IReadOnlyList<PrintImage> images)
+    {
+        if (images.Count == 0) return;
+
+        col.Item().PageBreak();
+
+        col.Item().PaddingTop(10).BorderLeft(4f).BorderColor(Color.FromHex("5c6bc0"))
+            .Background(Color.FromHex("e8eaf6"))
+            .PaddingVertical(4).PaddingHorizontal(8)
+            .Row(row =>
+            {
+                row.RelativeItem().Text(ownerLabel).FontSize(11).Bold();
+                row.RelativeItem().AlignRight().Text($"{title}（{images.Count} 张）")
+                    .FontSize(9).FontColor(Colors.Grey.Darken2);
+            });
+
+        col.Item().PaddingTop(4).Table(table =>
+        {
+            table.ColumnsDefinition(c => c.RelativeColumn());
+
+            foreach (var img in images)
+            {
+                table.Cell().Element(CellValueStyle).Padding(4).Column(cell =>
+                {
+                    cell.Item().Height(ImageBoxHeight).AlignMiddle().AlignCenter()
+                        .Image(img.Data).FitArea();
+                    cell.Item().PaddingTop(2).AlignCenter()
+                        .Text(img.FileName).FontSize(7).FontColor(Colors.Grey.Darken2);
+                });
+            }
+        });
     }
 
     private static void ComposeSection(ColumnDescriptor col, string title, string borderColor, string bgColor, Action<TableDescriptor> buildFields)
@@ -206,7 +277,9 @@ public static class NcrPrintHelper
 
     private static string GetMaterialTypeText(MaterialType category) => EnumHelper.GetDisplayName(category);
 
-    private static string GetDisposalMethodText(DisposalMethod? method) => method.HasValue ? EnumHelper.GetDisplayName(method.Value) : "";
+    private static string GetDisposalMethodText(string? method) => DictValueDisplayHelper.GetText(DictValueDefaults.NcrDisposalKey, method) ?? "";
+
+    private static string GetFlowDirectionText(FlowDirection? direction) => direction.HasValue ? EnumHelper.GetDisplayName(direction.Value) : "";
 
     private static string GetSeverityText(SeverityLevel? severity) => severity.HasValue ? EnumHelper.GetDisplayName(severity.Value) : "";
 

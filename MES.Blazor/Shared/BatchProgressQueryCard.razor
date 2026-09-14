@@ -1,0 +1,61 @@
+@* 首页「生产批次进度查询」卡（2026-09-14 用户拍板）：
+   卡内查询框（生产编号）→ 结果**就地渲染「批次执行进度」卡片**，不是链接、不跳转批次详情页。
+   两步取数（两步端点自 2026-09-14 起均仅需登录、不带 BatchView 档，首页人人可查）：
+     ① GET api/batch/by-batch-no/{batchNo} 换出批次 Id；
+     ② 内嵌 Shared/BatchProgressCard（GET api/batch/{id}/tracking，与批次详情/两计划页弹窗同一组件）。
+   桌面端外壳 = .home-stack-card（半屏宽居中，与首页其它卡一致）；手机端外壳 = .mh-card。 *@
+@namespace MES.Blazor.Shared
+
+<MudPaper Class="@CardClass" Elevation="@CardElevation">
+    <div class="d-flex align-center mb-3">
+        <MudIcon Icon="@Icons.Material.Filled.Timeline" Class="mr-1" Color="Color.Primary" />
+        <MudText Typo="@TitleTypo" Class="font-weight-bold">生产批次进度查询</MudText>
+    </div>
+
+    <div class="home-query-bar">
+        <MudTextField @bind-Value="_batchNo"
+                      T="string"
+                      Label="生产编号"
+                      Variant="Variant.Outlined"
+                      Dense="true"
+                      Class="home-query-input"
+                      OnKeyDown="OnBatchNoEnter" />
+        <div class="home-query-actions">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Search"
+                       OnClick="QueryAsync"
+                       Disabled="_loading">
+                查询
+            </MudButton>
+            @* 取消查询：清空输入与结果，回到未查询的空态（原只能靠刷新页面，用户反馈无入口） *@
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.Clear"
+                       OnClick="Clear"
+                       Disabled="_loading || !CanClear">
+                清除
+            </MudButton>
+        </div>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="d-flex justify-center py-4">
+            <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+        </div>
+    }
+    else if (_searched && _batchId <= 0)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Text" Dense="true">
+            未找到该生产编号的批次，请核对生产编号。
+        </MudAlert>
+    }
+    else if (_batchId > 0)
+    {
+        <MudText Typo="Typo.caption" Class="text-hint mb-2">批次：@_resolvedBatchNo</MudText>
+        <div class="home-query-result">
+            <BatchProgressCard BatchId="_batchId" />
+        </div>
+    }
+</MudPaper>

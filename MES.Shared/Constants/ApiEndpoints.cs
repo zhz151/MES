@@ -21,6 +21,8 @@ public static class ApiEndpoints
     public const string Order = "api/order";
     public const string Customer = "api/customer";
     public const string OrderProgress = "api/order/progress";
+    // 投料产出总况（订单列表页卡片：按订单完成月聚合的投料/产出/退货）
+    public const string OrderThroughputSummary = "api/order/throughput-summary";
 
     // ===== WorkOrder 工单 =====
     public const string WorkOrder = "api/workorder";
@@ -39,6 +41,10 @@ public static class ApiEndpoints
     public const string ProcessInspection = "api/process-inspection";
     public const string QualityProcessTracking = "api/quality-process-tracking";
     public const string Ncr = "api/ncr";
+    public const string NonconformingFeedback = "api/nonconforming-feedback";
+    public const string InspectionPatrol = "api/inspection-patrol";
+    // 扫码链质量端点（仅登录，不走质量角色档；供扫码报工页上传巡检/不合格反馈照片）
+    public const string ScanQuality = "api/scan-quality";
     public const string ChemicalAnalysis = "api/chemical-analysis";
     public const string HardnessTest = "api/hardness-test";
     public const string GrainSizeTest = "api/grain-size-test";

@@ -3,15 +3,18 @@
 using Hangfire;
 using Hangfire.SqlServer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi.Models;
 using System.Net;
 using System.Text;
 using System.Text.Json.Serialization;
+using MES.Api.Health;
 using MES.Api.Middlewares;
 using MES.Api.Services;
 using MES.Api.Utils;
@@ -85,6 +88,10 @@ builder.Services.AddScoped<HangfireJobService>();
 
 // 内存缓存（用于 GetFilterContexts 等高频查询）
 builder.Services.AddMemoryCache();
+
+// 健康检查（供部署脚本/运维探活 GET /api/health；放在 /api/ 下以便走 nginx 既有反向代理）
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database");
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
@@ -191,6 +198,7 @@ builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 // Register order service
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IOrderProgressQueryService, OrderProgressQueryService>();
+builder.Services.AddScoped<IOrderThroughputQueryService, OrderThroughputQueryService>();
 builder.Services.AddScoped<IPendingDeliveryQueryService, PendingDeliveryQueryService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 // Register auxiliary services
@@ -245,6 +253,11 @@ builder.Services.AddScoped<IMetallographicTestService, MetallographicTestService
 builder.Services.AddScoped<IFlatteningTestService, FlatteningTestService>();
 builder.Services.AddScoped<IFlaringTestService, FlaringTestService>();
 builder.Services.AddScoped<INcrService, NcrService>();
+builder.Services.AddScoped<INonconformingFeedbackService, NonconformingFeedbackService>();
+builder.Services.AddScoped<IInspectionPatrolService, InspectionPatrolService>();
+// 扫码链质量包装（仅登录端点用；内部转发到上面两个质量服务）
+builder.Services.AddScoped<IScanQualityService, ScanQualityService>();
+builder.Services.AddSingleton<IAttachmentStorage, AttachmentStorage>();
 builder.Services.AddScoped<ISectionOutsourceService, SectionOutsourceService>();
 builder.Services.AddScoped<IOutsourceVendorProfileService, OutsourceVendorProfileService>();
 builder.Services.AddScoped<IPicklingService, PicklingService>();
@@ -448,5 +461,27 @@ app.UseMiddleware<ExceptionMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// 健康检查端点：匿名可访问（部署脚本在服务刚起来、尚无 token 时就要能探活）。
+// 只回报状态与各项耗时，不暴露连接串等敏感信息。
+app.MapHealthChecks("/api/health", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json; charset=utf-8";
+        await context.Response.WriteAsJsonAsync(new
+        {
+            status = report.Status.ToString(),
+            totalDurationMs = report.TotalDuration.TotalMilliseconds,
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                durationMs = e.Value.Duration.TotalMilliseconds,
+                description = e.Value.Description
+            })
+        });
+    }
+});
 
 app.Run();

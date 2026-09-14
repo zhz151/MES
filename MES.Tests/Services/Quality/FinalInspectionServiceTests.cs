@@ -25,6 +25,7 @@ using MES.Core.Interfaces.Quality;
 using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
 using MES.Core.Interfaces.WorkOrder;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
 using MES.Core.Models;
@@ -46,10 +47,28 @@ namespace MES.Tests.Services;
 public class FinalInspectionServiceTests : TestBase
 {
     private FinalInspectionService CreateService(AppDbContext ctx, IFixedLengthWorkOrderService? fixedLengthSvc = null)
+        => CreateService(ctx, Mock.Of<IAttachmentStorage>(), fixedLengthSvc);
+
+    private FinalInspectionService CreateService(AppDbContext ctx, IAttachmentStorage storage,
+        IFixedLengthWorkOrderService? fixedLengthSvc = null)
     {
         var workOrderExecMock = new Mock<IWorkOrderExecutionService>();
         var qptMock = new Mock<IQualityProcessTrackingService>();
-        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FinalInspectionService>.Instance, workOrderExecMock.Object, qptMock.Object, fixedLengthSvc ?? CreateFixedLengthSvcMock(), new MemoryCache(new MemoryCacheOptions()), Mock.Of<IOperatorNameValidator>());
+        return new(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<FinalInspectionService>.Instance, workOrderExecMock.Object, qptMock.Object, fixedLengthSvc ?? CreateFixedLengthSvcMock(), new MemoryCache(new MemoryCacheOptions()), Mock.Of<IOperatorNameValidator>(), storage);
+    }
+
+    /// <summary>附件存储 mock（上限 5MB；保存返回固定 StoredName，读取返回 3 字节）</summary>
+    private static Mock<IAttachmentStorage> CreateStorageMock()
+    {
+        var storage = new Mock<IAttachmentStorage>();
+        storage.SetupGet(s => s.MaxFileSizeBytes).Returns(5 * 1024 * 1024);
+        storage.Setup(s => s.SaveAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("stored.jpg");
+        storage.Setup(s => s.ReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new byte[] { 1, 2, 3 });
+        storage.Setup(s => s.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        return storage;
     }
 
     /// <summary>
@@ -419,6 +438,58 @@ public class FinalInspectionServiceTests : TestBase
 
         await act.Should().ThrowAsync<BusinessException>()
             .WithMessage("*检验支数(20) ≠ 合格支数(18)*");
+    }
+
+    [Fact]
+    public async Task CreateAsync_不合格品去向五档_平衡校验通过并落库()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedMrCheckAsync(ctx, batch);
+        var svc = CreateService(ctx);
+
+        // 检验支数 20 = 合格 15 + 返整 1 + 入在制库 1 + 入次品库 1 + 退货 1 + 可入备库 1
+        var result = await svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 15,
+            DefectReworkQuantity = 1,
+            DefectInProcessWarehouseQuantity = 1,
+            DefectScrapQuantity = 1,
+            DefectReturnQuantity = 1,
+            DefectWarehouseQuantity = 1
+        });
+
+        result.Should().NotBeNull();
+        var entity = await ctx.FinalInspections.FirstAsync();
+        entity.DefectInProcessWarehouseQuantity.Should().Be(1);
+        entity.DefectReworkQuantity.Should().Be(1);
+        entity.DefectWarehouseQuantity.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task CreateAsync_入在制库档未计入平衡_抛出BusinessException()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        await SeedMrCheckAsync(ctx, batch);
+        var svc = CreateService(ctx);
+
+        var act = () => svc.CreateAsync(new CreateFinalInspectionRequest
+        {
+            InspectionItem = InspectionItem.Dimension,
+            InspectionDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            Quantity = 20,
+            QualifiedQuantity = 18,
+            DefectInProcessWarehouseQuantity = 1
+        });
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("*入在制库(1)*");
     }
 
     [Fact]
@@ -1463,5 +1534,187 @@ public class FinalInspectionServiceTests : TestBase
             Quantity = 10
         });
         await ctx.SaveChangesAsync();
+    }
+
+    // ========== 照片附件 ==========
+
+    /// <summary>播种一条成品检验记录并返回其 Id</summary>
+    private async Task<int> SeedFinalInspectionIdAsync(AppDbContext ctx)
+    {
+        var batch = await SeedBatchAsync(ctx);
+        await AddFinalInspection(ctx, batch, null);
+        return await ctx.FinalInspections.AsNoTracking().Select(r => r.Id).FirstAsync();
+    }
+
+    [Fact]
+    public async Task AddAttachmentAsync_落库并记录大小()
+    {
+        var ctx = CreateDbContext();
+        var storage = CreateStorageMock();
+        var id = await SeedFinalInspectionIdAsync(ctx);
+        var svc = CreateService(ctx, storage.Object);
+        using var ms = new MemoryStream(new byte[42]);
+
+        var att = await svc.AddAttachmentAsync(id, ms, "photo.jpg", "image/jpeg");
+
+        att.FileName.Should().Be("photo.jpg");
+        att.ContentType.Should().Be("image/jpeg");
+        att.SizeBytes.Should().Be(42);
+        att.SortOrder.Should().Be(0);
+        (await svc.GetAttachmentsAsync(id)).Should().HaveCount(1);
+        storage.Verify(s => s.SaveAsync(It.IsAny<Stream>(), "photo.jpg", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task AddAttachmentAsync_超过张数上限_抛业务异常()
+    {
+        var ctx = CreateDbContext();
+        var storage = CreateStorageMock();
+        var id = await SeedFinalInspectionIdAsync(ctx);
+        var svc = CreateService(ctx, storage.Object);
+
+        for (var i = 0; i < QualityPhotoLimits.PerRecord; i++)
+            await svc.AddAttachmentAsync(id, new MemoryStream(new byte[1]), $"{i}.jpg", "image/jpeg");
+
+        var act = () => svc.AddAttachmentAsync(id, new MemoryStream(new byte[1]), "x.jpg", "image/jpeg");
+
+        await act.Should().ThrowAsync<BusinessException>().WithMessage("*上限*");
+    }
+
+    [Fact]
+    public async Task AddAttachmentAsync_记录不存在_抛业务异常()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx, CreateStorageMock().Object);
+
+        var act = () => svc.AddAttachmentAsync(999, new MemoryStream(new byte[1]), "x.jpg", "image/jpeg");
+
+        await act.Should().ThrowAsync<BusinessException>();
+    }
+
+    [Fact]
+    public async Task AddAttachmentAsync_落库失败_回收已写盘文件且不留跟踪实体()
+    {
+        var ctx = CreateFailingDbContext();
+        var storage = CreateStorageMock();
+        var id = await SeedFinalInspectionIdAsync(ctx);
+        var svc = CreateService(ctx, storage.Object);
+
+        ctx.FailOnSave = true;
+
+        var act = () => svc.AddAttachmentAsync(id, new MemoryStream(new byte[1]), "orphan.jpg", "image/jpeg");
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        // 文件已落盘但落库失败 → 必须回收磁盘文件，且不残留被跟踪实体（否则下次 SaveChanges 会重试插入）
+        storage.Verify(s => s.DeleteAsync("stored.jpg", It.IsAny<CancellationToken>()), Times.Once);
+        ctx.ChangeTracker.Entries<FinalInspectionAttachment>().Should().BeEmpty();
+        (await ctx.FinalInspectionAttachments.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetAttachmentContentAsync_返回文件内容_不存在返回null()
+    {
+        var ctx = CreateDbContext();
+        var storage = CreateStorageMock();
+        var id = await SeedFinalInspectionIdAsync(ctx);
+        var svc = CreateService(ctx, storage.Object);
+        var att = await svc.AddAttachmentAsync(id, new MemoryStream(new byte[3]), "a.jpg", "image/jpeg");
+
+        var content = await svc.GetAttachmentContentAsync(id, att.Id);
+
+        content.Should().NotBeNull();
+        content!.Content.Should().Equal(1, 2, 3);
+        content.ContentType.Should().Be("image/jpeg");
+        (await svc.GetAttachmentContentAsync(id, 9999)).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task DeleteAttachmentAsync_删除记录与磁盘文件()
+    {
+        var ctx = CreateDbContext();
+        var storage = CreateStorageMock();
+        var id = await SeedFinalInspectionIdAsync(ctx);
+        var svc = CreateService(ctx, storage.Object);
+        var att = await svc.AddAttachmentAsync(id, new MemoryStream(new byte[3]), "a.jpg", "image/jpeg");
+
+        await svc.DeleteAttachmentAsync(id, att.Id);
+
+        (await svc.GetAttachmentsAsync(id)).Should().BeEmpty();
+        storage.Verify(s => s.DeleteAsync("stored.jpg", It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_连同照片删除磁盘文件()
+    {
+        var ctx = CreateDbContext();
+        var storage = CreateStorageMock();
+        var id = await SeedFinalInspectionIdAsync(ctx);
+        var svc = CreateService(ctx, storage.Object);
+        await svc.AddAttachmentAsync(id, new MemoryStream(new byte[1]), "a.jpg", "image/jpeg");
+
+        await svc.DeleteAsync(id);
+
+        storage.Verify(s => s.DeleteAsync("stored.jpg", It.IsAny<CancellationToken>()), Times.Once);
+        (await ctx.FinalInspectionAttachments.CountAsync()).Should().Be(0);
+    }
+
+    // ========== 单据式打印（A4 竖版每条一页） ==========
+
+    /// <summary>1×1 PNG（最小合法图片，用于验证照片嵌入渲染路径）</summary>
+    private const string TinyPngBase64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+    [Fact]
+    public async Task PrintSelectedDocAsync_无照片_生成PDF()
+    {
+        QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+        var ctx = CreateDbContext();
+        var id = await SeedFinalInspectionIdAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var pdf = await svc.PrintSelectedDocAsync(new[] { id });
+
+        pdf.Length.Should().BeGreaterThan(1000);
+        System.Text.Encoding.ASCII.GetString(pdf, 0, 5).Should().Be("%PDF-");
+    }
+
+    [Fact]
+    public async Task PrintSelectedDocAsync_含照片_嵌入图片不抛异常()
+    {
+        QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+        var ctx = CreateDbContext();
+        var storage = CreateStorageMock();
+        var id = await SeedFinalInspectionIdAsync(ctx);
+        var svc = CreateService(ctx, storage.Object);
+        await svc.AddAttachmentAsync(id, new MemoryStream(new byte[1]), "a.jpg", "image/jpeg");
+        storage.Setup(s => s.ReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Convert.FromBase64String(TinyPngBase64));
+
+        var pdf = await svc.PrintSelectedDocAsync(new[] { id });
+
+        pdf.Length.Should().BeGreaterThan(1000);
+        System.Text.Encoding.ASCII.GetString(pdf, 0, 5).Should().Be("%PDF-");
+    }
+
+    [Fact]
+    public async Task PrintSelectedDocAsync_未选记录_抛业务异常()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.PrintSelectedDocAsync(Array.Empty<int>());
+
+        await act.Should().ThrowAsync<BusinessException>();
+    }
+
+    [Fact]
+    public async Task PrintSelectedDocAsync_记录不存在_抛业务异常()
+    {
+        var ctx = CreateDbContext();
+        var svc = CreateService(ctx);
+
+        var act = () => svc.PrintSelectedDocAsync(new[] { 9999 });
+
+        await act.Should().ThrowAsync<BusinessException>();
     }
 }

@@ -213,4 +213,26 @@ public class NcrControllerTests : ControllerTestBase
         var (_, response) = AssertOk<ApiResponse<Dictionary<string, List<string>>>>(result);
         Assert.Empty(response.Data!);
     }
+
+    [Fact]
+    public async Task Create_IgnoreStatus_ReturnsOk()
+    {
+        // Arrange
+        var request = new CreateNcrRequest
+        {
+            ReportDate = DateTime.Today,
+            BatchNo = "BATCH001",
+            PipeCategory = MaterialType.OrderFinished,
+            Status = NcrStatus.Ignored
+        };
+        _serviceMock.Setup(x => x.CreateAsync(request)).ReturnsAsync(new NcrDto { Id = 1, Status = NcrStatus.Ignored });
+
+        // Act
+        var result = await _controller.Create(request);
+
+        // Assert
+        var (_, response) = AssertOk<ApiResponse<NcrDto>>(result);
+        Assert.True(response.Success);
+        Assert.Equal(NcrStatus.Ignored, response.Data!.Status);
+    }
 }

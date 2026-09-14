@@ -1,0 +1,274 @@
+@* 巡检单查看弹窗：只读全字段 + 巡检明细 + 巡检/整改照片（点缩略图放大）+ 单条 PDF 打印。
+   只读动作，列表页 QualityView 用户即可打开；编辑入口由列表页单独按 QualityEdit 门控。 *@
+@using MES.Blazor.Helpers
+@using MES.Blazor.Services
+@using MES.Core.Constants
+@using MES.Core.DTOs.Quality
+@using MES.Shared.Constants
+@inject InspectionPatrolService PatrolService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject HttpClient Http
+@implements IAsyncDisposable
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center flex-wrap" style="gap:6px;">
+            <MudIcon Icon="@Icons.Material.Filled.FactCheck" Size="Size.Small" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">巡检单</MudText>
+            @if (_dto != null)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Primary" Class="font-weight-bold">@_dto.BatchNo</MudText>
+                @if (_dto.NeedRectification)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="@(_dto.IsClosed ? Color.Success : Color.Warning)">
+                        @(_dto.IsClosed ? "整改已闭环" : "整改未闭环")
+                    </MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Default">无需整改</MudChip>
+                }
+            }
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center ma-4">
+                <MudProgressCircular Indeterminate Size="Size.Small" />
+            </div>
+        }
+        else if (_dto == null)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Error">加载失败：@_errorMessage</MudText>
+        }
+        else
+        {
+            <MudGrid>
+                @foreach (var f in _fields)
+                {
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@f.Label</MudText>
+                        <MudText Typo="Typo.body2">@(string.IsNullOrWhiteSpace(f.Value) ? "-" : f.Value)</MudText>
+                    </MudItem>
+                }
+            </MudGrid>
+
+            <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">
+                巡检明细
+                <MudText Typo="Typo.caption" Class="ml-2 text-secondary">（共 @_dto.Items.Count 条）</MudText>
+            </MudText>
+            @if (_dto.Items.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">无巡检明细</MudText>
+            }
+            else
+            {
+                <MudTable Breakpoint="Breakpoint.None" Items="_dto.Items" Dense="true" Hover="true" Elevation="0" Class="auto-table compact-table">
+                    <HeaderContent>
+                        <MudTh Style="width: 60px;">序号</MudTh>
+                        <MudTh Style="width: 30%;">巡检项</MudTh>
+                        <MudTh Style="width: 30%;">巡检结果</MudTh>
+                        <MudTh>备注</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="row">
+                        <MudTd>@(_dto.Items.IndexOf(row) + 1)</MudTd>
+                        <MudTd>@(string.IsNullOrWhiteSpace(row.ItemName) ? "-" : row.ItemName)</MudTd>
+                        <MudTd>@(string.IsNullOrWhiteSpace(row.Result) ? "-" : row.Result)</MudTd>
+                        <MudTd>@(string.IsNullOrWhiteSpace(row.Remark) ? "-" : row.Remark)</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+
+            @if (_dto.NeedRectification)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">整改闭环</MudText>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">整改内容描述</MudText>
+                        <MudText Typo="Typo.body2">@(string.IsNullOrWhiteSpace(_dto.RectificationDescription) ? "-" : _dto.RectificationDescription)</MudText>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">验证结果</MudText>
+                        <MudText Typo="Typo.body2">@(string.IsNullOrWhiteSpace(_dto.VerificationResult) ? "-" : _dto.VerificationResult)</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">是否闭环</MudText>
+                        <MudText Typo="Typo.body2">@(_dto.IsClosed ? "已闭环" : "未闭环")</MudText>
+                    </MudItem>
+                </MudGrid>
+            }
+
+            <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">
+                巡检照片
+                <MudText Typo="Typo.caption" Class="ml-2 text-secondary">
+                    （共 @_patrolPhotos.Count 张，点击缩略图查看大图）
+                </MudText>
+            </MudText>
+            @if (_patrolPhotos.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">未上传照片</MudText>
+            }
+            else
+            {
+                <div class="d-flex flex-wrap align-center" style="gap:12px;">
+                    @foreach (var photo in _patrolPhotos)
+                    {
+                        <div class="attachment-thumb view-thumb" @onclick="() => ZoomPhoto(photo)">
+                            <img src="@photo.PreviewUrl" alt="@photo.FileName" />
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (_dto.NeedRectification)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">
+                    整改验证照片
+                    <MudText Typo="Typo.caption" Class="ml-2 text-secondary">
+                        （共 @_rectPhotos.Count 张，点击缩略图查看大图）
+                    </MudText>
+                </MudText>
+                @if (_rectPhotos.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">未上传照片</MudText>
+                }
+                else
+                {
+                    <div class="d-flex flex-wrap align-center" style="gap:12px;">
+                        @foreach (var photo in _rectPhotos)
+                        {
+                            <div class="attachment-thumb view-thumb" @onclick="() => ZoomPhoto(photo)">
+                                <img src="@photo.PreviewUrl" alt="@photo.FileName" />
+                            </div>
+                        }
+                    </div>
+                }
+            }
+
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-4">
+                创建：@_dto.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")　|　更新：@_dto.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
+            </MudText>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print"
+                   OnClick="PrintAsync" Disabled="@(_dto == null)">
+            打印
+        </MudButton>
+        <MudButton Variant="Variant.Text" OnClick="Close">关闭</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@if (!string.IsNullOrEmpty(_zoomUrl))
+{
+    <div style="position:fixed; inset:0; z-index:1400; background:rgba(0,0,0,.85); display:flex; align-items:center; justify-content:center; cursor:zoom-out;"
+         @onclick="() => _zoomUrl = null">
+        <img src="@_zoomUrl" alt="照片大图" style="max-width:95vw; max-height:95vh; object-fit:contain;" />
+    </div>
+}
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>巡检单主键</summary>
+    [Parameter] public int PatrolId { get; set; }
+
+    private const string StaleClientHint = "页面脚本未加载（页面版本过旧），请关闭本页重新打开，或按 Ctrl+Shift+R 强制刷新后再试";
+
+    private bool _isLoading = true;
+    private string _errorMessage = string.Empty;
+    private InspectionPatrolDto? _dto;
+    private string? _zoomUrl;
+
+    private readonly List<(string Label, string? Value)> _fields = new();
+    private readonly List<ViewPhoto> _patrolPhotos = new();
+    private readonly List<ViewPhoto> _rectPhotos = new();
+
+    private class ViewPhoto
+    {
+        public string FileName { get; set; } = "";
+        public string PreviewUrl { get; set; } = "";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await PatrolService.GetByIdAsync(PatrolId);
+        if (!response.Success || response.Data == null)
+        {
+            _errorMessage = response.Message ?? "记录不存在";
+            _isLoading = false;
+            return;
+        }
+
+        _dto = response.Data;
+        BuildFields(_dto);
+
+        foreach (var att in _dto.Attachments)
+        {
+            var bytes = await PatrolService.GetAttachmentBytesAsync(PatrolId, att.Id);
+            if (bytes == null) continue;
+            string? url;
+            try
+            {
+                url = await JS.InvokeAsync<string?>("MES.base64ToObjectUrl", Convert.ToBase64String(bytes), att.ContentType);
+            }
+            catch (JSException)
+            {
+                Snackbar.Add(StaleClientHint, Severity.Warning);
+                break;
+            }
+            if (string.IsNullOrEmpty(url)) continue;
+            var target = att.PhotoType == InspectionPatrolPhotoTypes.Rectification ? _rectPhotos : _patrolPhotos;
+            target.Add(new ViewPhoto { FileName = att.FileName, PreviewUrl = url });
+        }
+
+        _isLoading = false;
+    }
+
+    /// <summary>只读字段（顺序对齐录入页）</summary>
+    private void BuildFields(InspectionPatrolDto d)
+    {
+        _fields.Clear();
+        _fields.Add(("巡检日期", d.PatrolDate.ToString("yyyy-MM-dd")));
+        _fields.Add(("巡检人", MES.Core.Helpers.OperatorNameHelper.ToNamesOnly(d.Inspector)));
+        _fields.Add(("数据来源", MES.Core.Helpers.StringEnumDisplayHelper.GetDataSourceText(d.DataSource)));
+        _fields.Add(("生产编号", d.BatchNo));
+        _fields.Add(("工单号", d.WorkOrderNo));
+        _fields.Add(("工序名称", ProcessDisplayHelper.GetProcessNameText(d.ProcessName)));
+        _fields.Add(("工段名称", SectionDisplayHelper.GetSectionNameText(d.SectionName)));
+        _fields.Add(("工厂牌号", d.PlantGrade));
+        _fields.Add(("制造规格", d.ManufacturingSpec));
+        _fields.Add(("产类", string.IsNullOrEmpty(d.ProductStatus) ? null : DisplayHelper.GetProductStatusText(d.ProductStatus)));
+        _fields.Add(("在产单位/车间", d.ProductionUnit));
+        _fields.Add(("在产设备名", d.EquipmentName));
+        _fields.Add(("在产操作人", MES.Core.Helpers.OperatorNameHelper.ToNamesOnly(d.ProductionOperator)));
+        _fields.Add(("涉及整改", d.NeedRectification ? "是" : "否"));
+        _fields.Add(("巡检项数", d.Items.Count.ToString()));
+    }
+
+    private void ZoomPhoto(ViewPhoto photo) => _zoomUrl = photo.PreviewUrl;
+
+    /// <summary>打印单条巡检单（服务端 QuestPDF 出 PDF，含巡检明细与两类照片）</summary>
+    private async Task PrintAsync()
+    {
+        try
+        {
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.InspectionPatrol}/{PatrolId}/print-file";
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}", true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Close() => MudDialog.Close();
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("MES.revokeAllObjectUrls"); } catch { }
+    }
+}

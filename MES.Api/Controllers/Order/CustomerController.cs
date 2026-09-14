@@ -27,6 +27,10 @@ public class CustomerController : ControllerBase
     /// <summary>
     /// 分页查询客户列表
     /// </summary>
+    /// <param name="signDateFrom">接单日期范围-开始（可选；传了则客户往来的接单类列按区间重算）</param>
+    /// <param name="signDateTo">接单日期范围-结束（可选；闭区间含结束日）</param>
+    /// <param name="shipDateFrom">发货日期范围-开始（可选；传了则客户往来的已发货类列按区间重算）</param>
+    /// <param name="shipDateTo">发货日期范围-结束（可选；闭区间含结束日）</param>
     [HttpGet("list")]
     [Authorize(Roles = Roles.Policies.OrderView)]
     public async Task<ActionResult<ApiResponse<PagedResult<CustomerProfileDto>>>> GetPaged(
@@ -35,7 +39,11 @@ public class CustomerController : ControllerBase
         [FromQuery] string? keyword = null,
         [FromQuery] string? sortBy = null,
         [FromQuery] bool isDescending = true,
-        [FromQuery] string? filters = null)
+        [FromQuery] string? filters = null,
+        [FromQuery] DateTime? signDateFrom = null,
+        [FromQuery] DateTime? signDateTo = null,
+        [FromQuery] DateTime? shipDateFrom = null,
+        [FromQuery] DateTime? shipDateTo = null)
     {
         // 限制最大每页数量
         if (pageSize > 5000) pageSize = 5000;
@@ -46,7 +54,11 @@ public class CustomerController : ControllerBase
             PageSize = pageSize,
             Keyword = keyword,
             SortBy = string.IsNullOrEmpty(sortBy) ? "CreatedTime" : sortBy,
-            IsDescending = isDescending
+            IsDescending = isDescending,
+            SignDateFrom = signDateFrom,
+            SignDateTo = signDateTo,
+            ShipDateFrom = shipDateFrom,
+            ShipDateTo = shipDateTo
         };
         if (!string.IsNullOrEmpty(filters))
         {

@@ -138,7 +138,7 @@ public class RawMaterialLockPlanAndExecutionServiceTests : TestBase
         });
         r.MatrixGrandTotals.Count.Should().Be(0);
         r.CutoffBucketLabels.Should().HaveCount(7);
-        r.CutoffRows.Should().HaveCount(4);   // 完善计划/执行计划/外购成品/合计
+        r.CutoffRows.Should().HaveCount(4);   // 完善用料-原料类/执行用料-原料类/执行用料-成购类/合计
         r.CutoffRows[3].Category.Should().Be("合计");
         r.CutoffRows[3].Total.Should().Be(0m);
     }
@@ -148,7 +148,8 @@ public class RawMaterialLockPlanAndExecutionServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // Total=1000, 成购缺口=200-100=100, base=(1000-100)*1.1=990, pending=990-100(已投)=890
-        // 注：PiercingPlanWeight>0 使其非「单一成品采购」工单（方案 B 待投料排除口径），否则不计入标量
+        // 注1：PiercingPlanWeight>0 使其非「单一成品采购」工单（方案 B 待投料排除口径），否则不计入标量
+        // 注2：备注=执行用料计划，成购口径仅统计 ExecutePlan 工单（2026-09-10）
         SeedComputedSummary(ctx, "WO001", e =>
         {
             e.ScheduleStage = 2;
@@ -157,7 +158,7 @@ public class RawMaterialLockPlanAndExecutionServiceTests : TestBase
             e.FinishInWeight = 100m;
             e.InputWeight = 100m;
             e.PiercingPlanWeight = 300m;
-            e.RawMaterialLockRemark = RawMaterialLockRemarkKeys.ImprovePlan;
+            e.RawMaterialLockRemark = RawMaterialLockRemarkKeys.ExecutePlan;
         });
         await ctx.SaveChangesAsync();
 
@@ -251,26 +252,26 @@ public class RawMaterialLockPlanAndExecutionServiceTests : TestBase
 
         var r = await CreateService(ctx).GetPendingSummaryAsync();
 
-        // WO001：pending=(1000-100)*1.1=990 → 完善计划 桶0
+        // WO001：pending=(1000-100)*1.1=990 → 完善用料-原料类 桶0
         var improve = r.CutoffRows[0];
-        improve.Category.Should().Be("完善用料计划");
+        improve.Category.Should().Be("完善用料-原料类");
         improve.Total.Should().Be(990m);
         improve.Buckets[0].Should().Be(990m);
-        // WO002：pending=1000*1.1=1100 → 执行计划 末桶
+        // WO002：pending=1000*1.1=1100 → 执行用料-原料类 末桶
         var execute = r.CutoffRows[1];
-        execute.Category.Should().Be("执行用料计划");
+        execute.Category.Should().Be("执行用料-原料类");
         execute.Total.Should().Be(1100m);
         execute.Buckets[6].Should().Be(1100m);
-        // 外购成品 = 全部成购缺口 = 100 + 0
+        // 执行用料-成购类 = 仅 ExecutePlan 工单成购缺口；WO001(完善用料) 缺口 100 不计入，WO002 缺口 0 → 合计 0
         var purchase = r.CutoffRows[2];
-        purchase.Category.Should().Be("外购成品");
-        purchase.Total.Should().Be(100m);
+        purchase.Category.Should().Be("执行用料-成购类");
+        purchase.Total.Should().Be(0m);
         // 合计行
         var total = r.CutoffRows[3];
         total.Category.Should().Be("合计");
-        total.Total.Should().Be(990m + 1100m + 100m);
-        total.Buckets[0].Should().Be(990m + 100m);      // 完善计划990 + 外购成品100
-        total.Buckets[6].Should().Be(1100m);            // 执行计划(空截止末桶) + 外购成品0
+        total.Total.Should().Be(990m + 1100m + 0m);
+        total.Buckets[0].Should().Be(990m);             // 完善用料-原料类990
+        total.Buckets[6].Should().Be(1100m);            // 执行用料-原料类(空截止末桶)
     }
 
     [Fact]

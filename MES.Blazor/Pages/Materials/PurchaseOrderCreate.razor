@@ -47,7 +47,7 @@
                     @if (showProcurementStatus)
                     {
                         <div style="overflow-x: auto; overflow-y: auto; margin-top: 8px; max-height: 25vh;">
-                            <MudTable T="ProcurementStatusDto" Items="@procurementItems" Dense="true" Hover="true" Elevation="0" Class="auto-table">
+                            <MudTable Breakpoint="Breakpoint.None" T="ProcurementStatusDto" Items="@procurementItems" Dense="true" Hover="true" Elevation="0" Class="auto-table">
                                 <HeaderContent>
                                     <MudTh Style="width: 120px;">工单号</MudTh>
                                     <MudTh Style="width: 90px;">物料分类</MudTh>

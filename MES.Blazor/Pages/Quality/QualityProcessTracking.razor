@@ -91,7 +91,7 @@
                     }
                 </div>
             </div>
-            <MudTable @ref="table" T="QualityProcessTrackingDto"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table" T="QualityProcessTrackingDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true" Hover="true" Class="mt-0 auto-table compact-table"
                       Elevation="0" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:">

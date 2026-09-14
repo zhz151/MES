@@ -79,7 +79,7 @@ public class FlatteningTestService : IFlatteningTestService
             var kw = query.Keyword;
             queryable = queryable.Where(r =>
                 r.Inspector.Contains(kw) ||
-                r.FurnaceNo.Contains(kw) ||
+                r.BatchNo.Contains(kw) ||
                 r.Grade.Contains(kw) ||
                 r.Specification.Contains(kw) ||
                 (r.InspectionStandard != null && r.InspectionStandard.Contains(kw)) ||
@@ -124,7 +124,7 @@ public class FlatteningTestService : IFlatteningTestService
 
         entity.InspectionDate = request.InspectionDate;
         entity.Inspector = request.Inspector ?? entity.Inspector;
-        entity.FurnaceNo = request.FurnaceNo ?? entity.FurnaceNo;
+        entity.BatchNo = request.BatchNo ?? entity.BatchNo;
         entity.Grade = request.Grade ?? entity.Grade;
         entity.Specification = request.Specification ?? entity.Specification;
         entity.SampleNo = request.SampleNo ?? entity.SampleNo;
@@ -163,13 +163,13 @@ public class FlatteningTestService : IFlatteningTestService
 
             var all = await _context.FlatteningTests
                 .AsNoTracking()
-                .Select(r => new { r.Inspector, r.FurnaceNo, r.Grade, r.Specification, r.InspectionStandard, r.Judgment, r.InspectionDate })
+                .Select(r => new { r.Inspector, r.BatchNo, r.Grade, r.Specification, r.InspectionStandard, r.Judgment, r.InspectionDate })
                 .ToListAsync();
 
             return new Dictionary<string, List<string>>
             {
                 ["Inspector"] = all.Select(x => x.Inspector ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
-                ["FurnaceNo"] = all.Select(x => x.FurnaceNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
+                ["BatchNo"] = all.Select(x => x.BatchNo ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["Grade"] = all.Select(x => x.Grade ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["Specification"] = all.Select(x => x.Specification ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
                 ["InspectionStandard"] = all.Select(x => x.InspectionStandard ?? "").Where(v => v != "").Distinct().OrderBy(v => v).ToList(),
@@ -195,7 +195,7 @@ public class FlatteningTestService : IFlatteningTestService
         Id = e.Id,
         InspectionDate = e.InspectionDate,
         Inspector = e.Inspector,
-        FurnaceNo = e.FurnaceNo,
+        BatchNo = e.BatchNo,
         Grade = e.Grade,
         Specification = e.Specification,
         SampleNo = e.SampleNo,
@@ -213,7 +213,7 @@ public class FlatteningTestService : IFlatteningTestService
         Id = e.Id,
         InspectionDate = e.InspectionDate,
         Inspector = e.Inspector,
-        FurnaceNo = e.FurnaceNo,
+        BatchNo = e.BatchNo,
         Grade = e.Grade,
         Specification = e.Specification,
         SampleNo = e.SampleNo,
@@ -230,7 +230,7 @@ public class FlatteningTestService : IFlatteningTestService
     {
         InspectionDate = r.InspectionDate,
         Inspector = r.Inspector,
-        FurnaceNo = r.FurnaceNo,
+        BatchNo = r.BatchNo,
         Grade = r.Grade,
         Specification = r.Specification,
         SampleNo = r.SampleNo,

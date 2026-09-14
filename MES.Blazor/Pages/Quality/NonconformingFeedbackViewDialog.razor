@@ -1,0 +1,196 @@
+@* 不合格反馈单查看弹窗：只读全字段 + 问题照片（点缩略图放大）+ 单条 PDF 打印。
+   只读动作，列表页 QualityView 用户即可打开；编辑入口由列表页单独按 QualityEdit 门控。 *@
+@using MES.Blazor.Helpers
+@using MES.Blazor.Services
+@using MES.Core.DTOs.Quality
+@using MES.Shared.Constants
+@inject NonconformingFeedbackService FeedbackService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject HttpClient Http
+@implements IAsyncDisposable
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center flex-wrap" style="gap:6px;">
+            <MudIcon Icon="@Icons.Material.Filled.ReportProblem" Size="Size.Small" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">不合格反馈单</MudText>
+            @if (_dto != null)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Primary" Class="font-weight-bold">@_dto.BatchNo</MudText>
+            }
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center ma-4">
+                <MudProgressCircular Indeterminate Size="Size.Small" />
+            </div>
+        }
+        else if (_dto == null)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Error">加载失败：@_errorMessage</MudText>
+        }
+        else
+        {
+            <MudGrid>
+                @foreach (var f in _fields)
+                {
+                    <MudItem xs="12" sm="6" md="3">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@f.Label</MudText>
+                        <MudText Typo="Typo.body2">@(string.IsNullOrWhiteSpace(f.Value) ? "-" : f.Value)</MudText>
+                    </MudItem>
+                }
+                <MudItem xs="12">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">问题描述</MudText>
+                    <MudText Typo="Typo.body2">@(string.IsNullOrWhiteSpace(_dto.ProblemDescription) ? "-" : _dto.ProblemDescription)</MudText>
+                </MudItem>
+            </MudGrid>
+
+            <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">
+                问题照片
+                <MudText Typo="Typo.caption" Class="ml-2 text-secondary">
+                    （共 @_photos.Count 张，点击缩略图查看大图）
+                </MudText>
+            </MudText>
+            @if (_photos.Count == 0)
+            {
+                <MudText Typo="Typo.body2" Color="Color.Secondary">未上传照片</MudText>
+            }
+            else
+            {
+                <div class="d-flex flex-wrap align-center" style="gap:12px;">
+                    @foreach (var photo in _photos)
+                    {
+                        <div class="attachment-thumb view-thumb" @onclick="() => ZoomPhoto(photo)">
+                            <img src="@photo.PreviewUrl" alt="@photo.FileName" />
+                        </div>
+                    }
+                </div>
+            }
+
+            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-4">
+                创建：@_dto.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")　|　更新：@_dto.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm")
+            </MudText>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print"
+                   OnClick="PrintAsync" Disabled="@(_dto == null)">
+            打印
+        </MudButton>
+        <MudButton Variant="Variant.Text" OnClick="Close">关闭</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@if (!string.IsNullOrEmpty(_zoomUrl))
+{
+    <div style="position:fixed; inset:0; z-index:1400; background:rgba(0,0,0,.85); display:flex; align-items:center; justify-content:center; cursor:zoom-out;"
+         @onclick="() => _zoomUrl = null">
+        <img src="@_zoomUrl" alt="照片大图" style="max-width:95vw; max-height:95vh; object-fit:contain;" />
+    </div>
+}
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>不合格反馈单主键</summary>
+    [Parameter] public int FeedbackId { get; set; }
+
+    private const string StaleClientHint = "页面脚本未加载（页面版本过旧），请关闭本页重新打开，或按 Ctrl+Shift+R 强制刷新后再试";
+
+    private bool _isLoading = true;
+    private string _errorMessage = string.Empty;
+    private NonconformingFeedbackDto? _dto;
+    private string? _zoomUrl;
+
+    private readonly List<(string Label, string? Value)> _fields = new();
+    private readonly List<ViewPhoto> _photos = new();
+
+    private class ViewPhoto
+    {
+        public string FileName { get; set; } = "";
+        public string PreviewUrl { get; set; } = "";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await FeedbackService.GetByIdAsync(FeedbackId);
+        if (!response.Success || response.Data == null)
+        {
+            _errorMessage = response.Message ?? "记录不存在";
+            _isLoading = false;
+            return;
+        }
+
+        _dto = response.Data;
+        BuildFields(_dto);
+
+        foreach (var att in _dto.Attachments)
+        {
+            var bytes = await FeedbackService.GetAttachmentBytesAsync(FeedbackId, att.Id);
+            if (bytes == null) continue;
+            string? url;
+            try
+            {
+                url = await JS.InvokeAsync<string?>("MES.base64ToObjectUrl", Convert.ToBase64String(bytes), att.ContentType);
+            }
+            catch (JSException)
+            {
+                Snackbar.Add(StaleClientHint, Severity.Warning);
+                break;
+            }
+            if (string.IsNullOrEmpty(url)) continue;
+            _photos.Add(new ViewPhoto { FileName = att.FileName, PreviewUrl = url });
+        }
+
+        _isLoading = false;
+    }
+
+    /// <summary>只读字段（顺序对齐录入页：来源类型 → 工序名称 → 工段名称/检验项目 → 工厂牌号 → 制造规格）</summary>
+    private void BuildFields(NonconformingFeedbackDto d)
+    {
+        _fields.Clear();
+        _fields.Add(("反馈日期", d.ReportDate.ToString("yyyy-MM-dd")));
+        _fields.Add(("反馈人", MES.Core.Helpers.OperatorNameHelper.ToNamesOnly(d.Reporter)));
+        _fields.Add(("生产编号", d.BatchNo));
+        _fields.Add(("工单号", d.WorkOrderNo));
+        _fields.Add(("来源类型", DisplayHelper.GetNonconformingFeedbackSourceTypeText(d.SourceType)));
+        _fields.Add(("工序名称", ProcessDisplayHelper.GetProcessNameText(d.ProcessName)));
+        _fields.Add(("工段名称", SectionDisplayHelper.GetSectionNameText(d.SectionName)));
+        _fields.Add(("检验项目", d.InspectionItem.HasValue ? DisplayHelper.GetInspectionItemText(d.InspectionItem.Value) : null));
+        _fields.Add(("工厂牌号", d.PlantGrade));
+        _fields.Add(("制造规格", d.ManufacturingSpec));
+        _fields.Add(("产类", string.IsNullOrEmpty(d.ProductStatus) ? null : DisplayHelper.GetProductStatusText(d.ProductStatus)));
+        _fields.Add(("来料支数", d.IncomingQuantity?.ToString()));
+        _fields.Add(("来料重量(kg)", d.IncomingWeight?.ToString("G29")));
+        _fields.Add(("不合格支数", d.DefectQuantity?.ToString()));
+        _fields.Add(("不合格重量(kg)", d.DefectWeight?.ToString()));
+        _fields.Add(("数据来源", MES.Core.Helpers.StringEnumDisplayHelper.GetDataSourceText(d.DataSource)));
+    }
+
+    private void ZoomPhoto(ViewPhoto photo) => _zoomUrl = photo.PreviewUrl;
+
+    /// <summary>打印单条不合格反馈单（服务端 QuestPDF 出 PDF，含问题照片）</summary>
+    private async Task PrintAsync()
+    {
+        try
+        {
+            Snackbar.Add("正在生成PDF...", Severity.Info);
+            var apiUrl = $"{Http.BaseAddress}{ApiEndpoints.NonconformingFeedback}/{FeedbackId}/print-file";
+            await JS.InvokeVoidAsync("openPdfFromApi", apiUrl, "{}", true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Close() => MudDialog.Close();
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("MES.revokeAllObjectUrls"); } catch { }
+    }
+}

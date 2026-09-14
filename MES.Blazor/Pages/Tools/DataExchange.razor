@@ -147,7 +147,7 @@
 
                 @if (previewResult.ErrorCount > 0 || previewResult.DuplicateCount > 0)
                 {
-                    <MudTable Items="@previewResult.RowResults.Where(r => !r.IsValid || r.IsDuplicate).ToList()"
+                    <MudTable Breakpoint="Breakpoint.None" Items="@previewResult.RowResults.Where(r => !r.IsValid || r.IsDuplicate).ToList()"
                               Dense="true"
                               Hover="true"
                               Elevation="0"
@@ -192,7 +192,7 @@
                 {
                     <MudExpansionPanels Class="mt-3">
                         <MudExpansionPanel Text="@($"将新增 {previewResult.AddCount} 行（无ID或业务键未命中；重复上传会重复插入，请仔细核对）")" Class="pa-3" Color="Color.Success">
-                            <MudTable Items="@previewResult.RowResults.Where(r => r.RowAction == "新增" && r.IsValid).ToList()"
+                            <MudTable Breakpoint="Breakpoint.None" Items="@previewResult.RowResults.Where(r => r.RowAction == "新增" && r.IsValid).ToList()"
                                       Dense="true"
                                       Hover="true"
                                       Elevation="0"
@@ -221,7 +221,7 @@
                 {
                     <MudExpansionPanels Class="mt-3">
                         <MudExpansionPanel Text="@($"将覆盖 {previewResult.OverwriteCount} 行（命中已存在记录；更新后空白单元格将清空对应字段）")" Class="pa-3">
-                            <MudTable Items="@previewResult.RowResults.Where(r => r.RowAction == "覆盖" && r.IsValid).ToList()"
+                            <MudTable Breakpoint="Breakpoint.None" Items="@previewResult.RowResults.Where(r => r.RowAction == "覆盖" && r.IsValid).ToList()"
                                       Dense="true"
                                       Hover="true"
                                       Elevation="0"
@@ -288,7 +288,7 @@
 
                 @if (importResult.Errors.Any())
                 {
-                    <MudTable Items="@importResult.Errors" Dense="true" Hover="true" Elevation="0" Class="auto-table">
+                    <MudTable Breakpoint="Breakpoint.None" Items="@importResult.Errors" Dense="true" Hover="true" Elevation="0" Class="auto-table">
                         <HeaderContent>
                             <MudTh>行号</MudTh>
                             <MudTh>错误信息</MudTh>

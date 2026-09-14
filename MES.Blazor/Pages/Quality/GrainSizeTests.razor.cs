@@ -60,7 +60,7 @@ public partial class GrainSizeTests
     {
         new() { Key = "InspectionDate",    Label = "检验日期",   SortKey = "inspectiondate", FilterType = "date", Width = "110" },
         new() { Key = "Inspector",         Label = "检验员",     SortKey = "inspector", FilterType = "string", Width = "80" },
-        new() { Key = "FurnaceNo",         Label = "生产编号",     SortKey = "furnaceno", FilterType = "string", Width = "100" },
+        new() { Key = "BatchNo",         Label = "生产编号",     SortKey = "batchno", FilterType = "string", Width = "100" },
         new() { Key = "Grade",             Label = "牌号",       SortKey = "grade", FilterType = "string", Width = "100" },
         new() { Key = "Specification",     Label = "规格",       SortKey = "specification", FilterType = "string", Width = "100" },
         new() { Key = "SampleNo",          Label = "试样编号",   SortKey = "sampleno", Width = "80" },
@@ -205,7 +205,7 @@ public partial class GrainSizeTests
     {
         public string InspectionDate { get; set; } = "";
         public string? Inspector { get; set; }
-        public string? FurnaceNo { get; set; }
+        public string? BatchNo { get; set; }
         public string? Grade { get; set; }
         public string? Specification { get; set; }
         public int? SampleNo { get; set; }
@@ -224,7 +224,7 @@ public partial class GrainSizeTests
         {
             InspectionDate = item.InspectionDate.ToString("yyyy-MM-dd"),
             Inspector = item.Inspector,
-            FurnaceNo = item.FurnaceNo,
+            BatchNo = item.BatchNo,
             Grade = item.Grade,
             Specification = item.Specification,
             SampleNo = item.SampleNo,
@@ -251,7 +251,7 @@ public partial class GrainSizeTests
             {
                 InspectionDate = date,
                 Inspector = cache.Inspector,
-                FurnaceNo = cache.FurnaceNo,
+                BatchNo = cache.BatchNo,
                 Grade = cache.Grade,
                 Specification = cache.Specification,
                 SampleNo = cache.SampleNo,
@@ -265,7 +265,7 @@ public partial class GrainSizeTests
             if (result.Success && result.Data != null)
             {
                 item.InspectionDate = result.Data.InspectionDate; item.Inspector = result.Data.Inspector;
-                item.FurnaceNo = result.Data.FurnaceNo; item.Grade = result.Data.Grade;
+                item.BatchNo = result.Data.BatchNo; item.Grade = result.Data.Grade;
                 item.Specification = result.Data.Specification; item.SampleNo = result.Data.SampleNo;
                 item.SampleSize = result.Data.SampleSize; item.InspectionStandard = result.Data.InspectionStandard;
                 item.GrainSizeGrade = result.Data.GrainSizeGrade; item.GrainSizeMethod = result.Data.GrainSizeMethod;
@@ -304,7 +304,7 @@ public partial class GrainSizeTests
                     RenderStr(builder, true, cache?.Inspector, v => { if (cache != null) cache.Inspector = v; }, item.Inspector);
                 else builder.AddContent(0, MES.Core.Helpers.OperatorNameHelper.ToNamesOnly(item.Inspector));
                 break;
-            case "FurnaceNo": RenderStr(builder, isEditing, cache?.FurnaceNo, v => { if (cache != null) cache.FurnaceNo = v; }, item.FurnaceNo); break;
+            case "BatchNo": RenderStr(builder, isEditing, cache?.BatchNo, v => { if (cache != null) cache.BatchNo = v; }, item.BatchNo); break;
             case "Grade": RenderStr(builder, isEditing, cache?.Grade, v => { if (cache != null) cache.Grade = v; }, item.Grade); break;
             case "Specification": RenderStr(builder, isEditing, cache?.Specification, v => { if (cache != null) cache.Specification = v; }, item.Specification); break;
             case "SampleNo": RenderInt(builder, isEditing, cache?.SampleNo, v => { if (cache != null) cache.SampleNo = v; }, item.SampleNo); break;
@@ -368,7 +368,7 @@ public partial class GrainSizeTests
     {
         var dialog = DialogService.Show<ConfirmDialog>("确认", new DialogParameters
         {
-            ["ContentText"] = $"确定要删除生产编号 \"{item.FurnaceNo}\" 的晶粒度检验记录吗？\n\n删除后数据将不可恢复！",
+            ["ContentText"] = $"确定要删除生产编号 \"{item.BatchNo}\" 的晶粒度检验记录吗？\n\n删除后数据将不可恢复！",
             ["ConfirmText"] = "确认删除",
             ["Color"] = Color.Error
         });

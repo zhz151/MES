@@ -186,7 +186,7 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
                 e.HydroDate, e.UnderwaterPneumaticDate, e.EddyCurrentDate,
                 e.UltrasonicDate, e.PortColoringDate, e.InspectionCount,
                 e.ProductionCutQuantity, e.TotalQuantity, e.QualifiedQuantity,
-                e.DefectReworkQuantity, e.DefectWarehouseQuantity, e.DefectScrapQuantity,
+                e.DefectReworkQuantity, e.DefectInProcessWarehouseQuantity, e.DefectWarehouseQuantity, e.DefectScrapQuantity, e.DefectReturnQuantity,
                 e.MaxInspectionDate,
                 e.InboundQuantity, e.InboundWeight, e.InboundDate,
                 e.QualityStatus
@@ -236,8 +236,10 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
             TotalQuantity = e.TotalQuantity,
             QualifiedQuantity = e.QualifiedQuantity,
             DefectReworkQuantity = e.DefectReworkQuantity,
+            DefectInProcessWarehouseQuantity = e.DefectInProcessWarehouseQuantity,
             DefectWarehouseQuantity = e.DefectWarehouseQuantity,
             DefectScrapQuantity = e.DefectScrapQuantity,
+            DefectReturnQuantity = e.DefectReturnQuantity,
             MaxInspectionDate = e.MaxInspectionDate,
             InboundQuantity = e.InboundQuantity,
             InboundWeight = e.InboundWeight,
@@ -300,8 +302,10 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
                     e.TotalQuantity,
                     e.QualifiedQuantity,
                     e.DefectReworkQuantity,
+                    e.DefectInProcessWarehouseQuantity,
                     e.DefectWarehouseQuantity,
                     e.DefectScrapQuantity,
+                    e.DefectReturnQuantity,
                     e.ProductionWeight,
                     e.InboundDate,
                     e.InboundQuantity,
@@ -349,8 +353,10 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
                 ["TotalQuantity"] = DistinctInts(all.Select(x => x.TotalQuantity)),
                 ["QualifiedQuantity"] = DistinctInts(all.Select(x => x.QualifiedQuantity)),
                 ["DefectReworkQuantity"] = DistinctInts(all.Select(x => x.DefectReworkQuantity)),
+                ["DefectInProcessWarehouseQuantity"] = DistinctInts(all.Select(x => x.DefectInProcessWarehouseQuantity)),
                 ["DefectWarehouseQuantity"] = DistinctInts(all.Select(x => x.DefectWarehouseQuantity)),
                 ["DefectScrapQuantity"] = DistinctInts(all.Select(x => x.DefectScrapQuantity)),
+                ["DefectReturnQuantity"] = DistinctInts(all.Select(x => x.DefectReturnQuantity)),
                 ["ProductionWeight"] = DistinctNullableDecimals(all.Select(x => x.ProductionWeight)),
                 ["InboundQuantity"] = DistinctInts(all.Select(x => x.InboundQuantity)),
                 ["InboundWeight"] = DistinctNullableDecimals(all.Select(x => x.InboundWeight)),
@@ -692,18 +698,21 @@ public class QualityProcessTrackingService : IQualityProcessTrackingService
                 ? unitWeight.Value * entity.ProductionCutQuantity
                 : null;
         }
-        // 三个次品：按唯一性（批次+成检类型）汇总全部检验记录
+        // 五个次品：按唯一性（批次+成检类型）汇总全部检验记录（返整/入在制库/可入备库/入次品库/退货）
         entity.DefectReworkQuantity = inspections.Sum(fi => fi.DefectReworkQuantity ?? 0);
+        entity.DefectInProcessWarehouseQuantity = inspections.Sum(fi => fi.DefectInProcessWarehouseQuantity ?? 0);
         entity.DefectWarehouseQuantity = inspections.Sum(fi => fi.DefectWarehouseQuantity ?? 0);
         entity.DefectScrapQuantity = inspections.Sum(fi => fi.DefectScrapQuantity ?? 0);
+        entity.DefectReturnQuantity = inspections.Sum(fi => fi.DefectReturnQuantity ?? 0);
         // 检验支数：按（唯一性+检验项目）分组汇总 Quantity，跨检验项目取最大
         // （同一项目多条记录各代表一批受检管子，需求和；不同项目覆盖管子数可能不同，取最大为受检总数）
         entity.TotalQuantity = inspections
             .GroupBy(fi => fi.InspectionItem)
             .Max(g => (int?)g.Sum(fi => fi.Quantity ?? 0)) ?? 0;
-        // 理论合格支：检验支数 - 三个次品汇总（负值归零，防御跨项目重复计数）
+        // 理论合格支：检验支数 - 五个次品汇总（负值归零，防御跨项目重复计数）
         entity.QualifiedQuantity = Math.Max(0,
-            entity.TotalQuantity - entity.DefectReworkQuantity - entity.DefectWarehouseQuantity - entity.DefectScrapQuantity);
+            entity.TotalQuantity - entity.DefectReworkQuantity - entity.DefectInProcessWarehouseQuantity
+            - entity.DefectWarehouseQuantity - entity.DefectScrapQuantity - entity.DefectReturnQuantity);
         entity.MaxInspectionDate = inspections.Max(fi => (DateTime?)fi.InspectionDate);
 
         // G4

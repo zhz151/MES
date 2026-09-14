@@ -57,7 +57,7 @@
 
             <!-- 数据表格 -->
             <div id="process-definitions-list-table">
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="ProcessDefinitionDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"

@@ -11,37 +11,37 @@ public class RawMaterialLockPendingSummaryDto
     /// <summary>计划投料总重（kg，同上排除「单一成品采购」工单）</summary>
     public decimal TotalWeight { get; set; }
 
-    /// <summary>待投料量（kg，Σ PendingCalc；排除「单一成品采购」工单）</summary>
+    /// <summary>待投原料量（kg，Σ PendingCalc；排除「单一成品采购」工单）</summary>
     public decimal PendingWeight { get; set; }
 
-    /// <summary>待购工单行数（「包含」口径 FinishPlanWeight &gt; 0，含单一成品采购）</summary>
+    /// <summary>成购工单行数（仅 ExecutePlan 执行用料计划工单，FinishPlanWeight &gt; 0）</summary>
     public int PurchaseCount { get; set; }
 
-    /// <summary>待购总重（kg，Σ PurchaseCalc）</summary>
+    /// <summary>成购总重（kg，Σ PurchaseCalc；仅 ExecutePlan 执行用料计划工单）</summary>
     public decimal PurchaseWeight { get; set; }
 
-    /// <summary>是否有待购数据（= PurchaseCount &gt; 0，前端成购矩阵显隐）</summary>
+    /// <summary>是否有成购数据（= PurchaseCount &gt; 0，前端成购矩阵显隐）</summary>
     public bool HasPurchaseData { get; set; }
 
-    /// <summary>待投料矩阵行标签（4：RawMaterialLockRemarkKeys 全备注中文）</summary>
+    /// <summary>待投原料矩阵行标签（4：RawMaterialLockRemarkKeys 全备注中文）</summary>
     public List<string> MatrixRowLabels { get; set; } = new();
 
-    /// <summary>待投料矩阵列标签（5：UrgencyLevelKeys 排除 EPaused 中文）</summary>
+    /// <summary>待投原料矩阵列标签（5：UrgencyLevelKeys 排除 EPaused 中文）</summary>
     public List<string> MatrixColumnLabels { get; set; } = new();
 
-    /// <summary>待投料矩阵行（4 行 × 5 列）</summary>
+    /// <summary>待投原料矩阵行（4 行 × 5 列）</summary>
     public List<PendingMatrixRowDto> MatrixRows { get; set; } = new();
 
-    /// <summary>待投料矩阵 5 列合计（每列一个，与 MatrixColumnLabels 对齐）</summary>
+    /// <summary>待投原料矩阵 5 列合计（每列一个，与 MatrixColumnLabels 对齐）</summary>
     public List<PendingMatrixTotalsDto> MatrixColumnTotals { get; set; } = new();
 
-    /// <summary>待投料矩阵全表合计</summary>
+    /// <summary>待投原料矩阵全表合计</summary>
     public PendingMatrixTotalsDto MatrixGrandTotals { get; set; } = new();
 
     /// <summary>理论待投料截日桶标签（7：绝对日期 ≤今日/区间/≥尾，桶边界走 DateBucket 配置）</summary>
     public List<string> CutoffBucketLabels { get; set; } = new();
 
-    /// <summary>理论待投料截日行（4：完善用料计划/执行用料计划/外购成品/合计）</summary>
+    /// <summary>理论待投料截日行（4：完善用料-原料类/执行用料-原料类/执行用料-成购类/合计）</summary>
     public List<CutoffRowDto> CutoffRows { get; set; } = new();
 }
 
@@ -85,7 +85,7 @@ public class PendingMatrixTotalsDto
 /// <summary>理论待投料截日行</summary>
 public class CutoffRowDto
 {
-    /// <summary>类别（完善用料计划/执行用料计划/外购成品/合计）</summary>
+    /// <summary>类别（完善用料-原料类/执行用料-原料类/执行用料-成购类/合计）</summary>
     public string Category { get; set; } = "";
 
     /// <summary>全期合计（kg）</summary>

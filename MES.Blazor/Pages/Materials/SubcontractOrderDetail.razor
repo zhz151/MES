@@ -56,7 +56,7 @@
                 </div>
 
                 <div style="overflow-x: auto;">
-                    <MudTable Items="@_singleItemList" Dense="true" Hover="true" Elevation="0" Class="auto-table" ReadOnly="true">
+                    <MudTable Breakpoint="Breakpoint.None" Items="@_singleItemList" Dense="true" Hover="true" Elevation="0" Class="auto-table" ReadOnly="true">
                         <HeaderContent>
                             @foreach (var col in _visibleHeaderColumns)
                             {
@@ -106,7 +106,7 @@
                 </div>
 
                 <div id="subcontract-detail-table"><div style="overflow-x: auto;">
-                    <MudTable Items="@_editReturnItems" Dense="true" Hover="true" Elevation="0" ReadOnly="@(!_isEditMode)" Class="auto-table">
+                    <MudTable Breakpoint="Breakpoint.None" Items="@_editReturnItems" Dense="true" Hover="true" Elevation="0" ReadOnly="@(!_isEditMode)" Class="auto-table">
                         <HeaderContent>
                             @{
                                 int? _prevGk = null;

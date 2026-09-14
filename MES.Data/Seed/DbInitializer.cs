@@ -24,7 +24,7 @@ namespace MES.Data.Seed;
 
 public static class DbInitializer
 {
-    /// <summary>DictValueDefinition 种子字典：除专门配置表（工段/工序）外的 11 个（含责任类别/NCR责任类别/原锁备注/生产关注/岗位/岗位类别）</summary>
+    /// <summary>DictValueDefinition 种子字典：除专门配置表（工段/工序）外的 12 个（含责任类别/NCR责任类别/原锁备注/生产关注/岗位/岗位类别/NCR处置方式）</summary>
     private static readonly string[] DictValueSeedKeys =
     [
         DictValueDefaults.UrgencyLevelKey,
@@ -38,6 +38,7 @@ public static class DbInitializer
         DictValueDefaults.ProductionAttentionKey,
         DictValueDefaults.PositionKey,
         DictValueDefaults.PositionCategoryKey,
+        DictValueDefaults.NcrDisposalKey,
     ];
 
     public static async Task InitializeAsync(IServiceProvider serviceProvider)
@@ -569,13 +570,10 @@ public static class DbInitializer
                 new() { Category = "ContractWeight", CategoryDisplay = "订单-合同重量校验", Context = "订单", ParamKey = "LowerBound", ParamValue = 0.94m, Remark = "合同重量验证下限" },
                 new() { Category = "ContractWeight", CategoryDisplay = "订单-合同重量校验", Context = "订单", ParamKey = "UpperBound", ParamValue = 1.06m, Remark = "合同重量验证上限" },
 
-                // ===== NcrThreshold NCR 触发阈值 =====
-                new() { Category = "NcrThreshold", CategoryDisplay = "质量-NCR触发阈值", Context = "质量", ParamKey = "ReworkCount", ParamValue = 5m, Remark = "返工触发绝对支数" },
-                new() { Category = "NcrThreshold", CategoryDisplay = "质量-NCR触发阈值", Context = "质量", ParamKey = "ReworkPercent", ParamValue = 0.05m, Remark = "返工触发百分比" },
-                new() { Category = "NcrThreshold", CategoryDisplay = "质量-NCR触发阈值", Context = "质量", ParamKey = "WarehouseCount", ParamValue = 5m, Remark = "让步接收触发绝对支数" },
-                new() { Category = "NcrThreshold", CategoryDisplay = "质量-NCR触发阈值", Context = "质量", ParamKey = "WarehousePercent", ParamValue = 0.05m, Remark = "让步接收触发百分比" },
-                new() { Category = "NcrThreshold", CategoryDisplay = "质量-NCR触发阈值", Context = "质量", ParamKey = "ScrapCount", ParamValue = 3m, Remark = "报废触发绝对支数" },
-                new() { Category = "NcrThreshold", CategoryDisplay = "质量-NCR触发阈值", Context = "质量", ParamKey = "ScrapPercent", ParamValue = 0.05m, Remark = "报废触发百分比" },
+                // ===== NcrThreshold NCR 触发阈值（2026-09-12 统一口径：不再按流向分设）=====
+                // 组内不合格合计（让步放行支 + 各流向支）需同时「> Count」且「> Percent」才列出待处理
+                new() { Category = "NcrThreshold", CategoryDisplay = "质量-NCR触发阈值", Context = "质量", ParamKey = "Count", ParamValue = 5m, Remark = "组内不合格合计触发绝对支数（严格大于）" },
+                new() { Category = "NcrThreshold", CategoryDisplay = "质量-NCR触发阈值", Context = "质量", ParamKey = "Percent", ParamValue = 0.10m, Remark = "组内不合格合计触发占比（严格大于，0.1=10%）" },
 
                 // ===== DefaultValue 默认值 =====
                 new() { Category = "DefaultValue", CategoryDisplay = "工单-默认工艺周期", Context = "工单", ParamKey = "DefaultProcessCycle", ParamValue = 22m, Remark = "默认工艺周期(天)，主号/库料改制无工时默认使用" },

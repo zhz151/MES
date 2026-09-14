@@ -161,15 +161,19 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        @for (var ri = 0; ri < _pendingSummary.MatrixRowLabels.Count; ri++)
+                                                        @* 成购仅为「执行用料计划」档的一个分支：只渲染该行（其余 3 档恒为 -，2026-09-10 用户决策） *@
+                                                        @{
+                                                            var pri = PurchaseMatrixRowIndex;
+                                                        }
+                                                        @if (pri >= 0)
                                                         {
-                                                            var riCopy = ri;
-                                                            var row = _pendingSummary.MatrixRows[ri];
+                                                            var riCopy = pri;
+                                                            var row = _pendingSummary.MatrixRows[pri];
                                                             var rowClickable = row.RowPurchaseCount > 0;
                                                             <tr>
                                                                 <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600;@(rowClickable ? " cursor:pointer;" : "")"
                                                                     class="@(rowClickable ? "estimate-cell" : "")"
-                                                                    @onclick="() => OnPurchaseMatrixRowClick(riCopy)">@_pendingSummary.MatrixRowLabels[ri]</td>
+                                                                    @onclick="() => OnPurchaseMatrixRowClick(riCopy)">@_pendingSummary.MatrixRowLabels[pri]</td>
                                                                 @for (var ci = 0; ci < row.Cells.Count; ci++)
                                                                 {
                                                                     var ciCopy = ci;
@@ -184,19 +188,6 @@
                                                                     @onclick="() => OnPurchaseMatrixRowClick(riCopy)">@FormatMatrixPurchase(row.RowPurchaseCount, row.RowPurchaseWeight)</td>
                                                             </tr>
                                                         }
-                                                        <tr>
-                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; font-weight:600; background:#eef3fa;">合计</td>
-                                                            @for (var ci = 0; ci < _pendingSummary.MatrixColumnTotals.Count; ci++)
-                                                            {
-                                                                var ciCopy = ci;
-                                                                var col = _pendingSummary.MatrixColumnTotals[ci];
-                                                                var colClickable = col.PurchaseCount > 0;
-                                                                <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#eef3fa; font-weight:600;@(colClickable ? " cursor:pointer;" : "")"
-                                                                    class="@(colClickable ? "estimate-cell" : "")"
-                                                                    @onclick="() => OnPurchaseMatrixColumnClick(ciCopy)">@FormatMatrixPurchase(col.PurchaseCount, col.PurchaseWeight)</td>
-                                                            }
-                                                            <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; background:#e8f0e8; font-weight:700;">@FormatMatrixPurchase(_pendingSummary.MatrixGrandTotals.PurchaseCount, _pendingSummary.MatrixGrandTotals.PurchaseWeight)</td>
-                                                        </tr>
                                                     </tbody>
                                                 </table>
                                             </div>
@@ -336,7 +327,7 @@
                     }
                 </div>
             </div>
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="WorkOrderListDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"

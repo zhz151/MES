@@ -110,6 +110,16 @@ public class NcrController : ControllerBase
         return Ok(ApiResponse<NcrLookupResultDto?>.Ok(result));
     }
 
+    /// <summary>取不合格报告来源关联的照片（主动来源传 feedbackId；被动来源传 groupKey；无照片时返回空列表）</summary>
+    [HttpGet("source-photos")]
+    [Authorize(Roles = Roles.Policies.QualityView)]
+    public async Task<ActionResult<ApiResponse<List<NcrSourcePhotoGroupDto>>>> GetSourcePhotos(
+        [FromQuery] string? groupKey, [FromQuery] int? feedbackId)
+    {
+        var result = await _ncrService.GetSourcePhotosAsync(groupKey, feedbackId);
+        return Ok(ApiResponse<List<NcrSourcePhotoGroupDto>>.Ok(result));
+    }
+
     /// <summary>获取待处理批次卡片数据</summary>
     [HttpGet("pending-checks")]
     [Authorize(Roles = Roles.Policies.QualityView)]

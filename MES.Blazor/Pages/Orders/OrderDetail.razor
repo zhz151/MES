@@ -102,7 +102,7 @@
                 </div>
 
                 <div style="overflow-x: auto;" class="mb-6">
-                    <MudTable Items="@_singleItemList" Dense="true" Hover="true" Elevation="0" Class="auto-table" ReadOnly="true">
+                    <MudTable Breakpoint="Breakpoint.None" Items="@_singleItemList" Dense="true" Hover="true" Elevation="0" Class="auto-table" ReadOnly="true">
                         <HeaderContent>
                             @foreach (var col in _visibleHeaderColumns)
                             {
@@ -154,7 +154,7 @@
 
 
                 <div style="overflow-x: auto;" id="order-items-table">
-                    <MudTable Items="@(_isEditMode ? _editItems : _viewItems)"
+                    <MudTable Breakpoint="Breakpoint.None" Items="@(_isEditMode ? _editItems : _viewItems)"
                               Dense="true"
                               Hover="true"
                               Elevation="0"
@@ -222,7 +222,7 @@
                 }
                 else
                 {
-                    <MudTable Items="_operationLogs" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
+                    <MudTable Breakpoint="Breakpoint.None" Items="_operationLogs" Dense="true" Hover="true" Elevation="0" ReadOnly="true" Class="auto-table">
                         <HeaderContent>
                             <MudTh>操作类型</MudTh>
                             <MudTh>详情</MudTh>

@@ -61,6 +61,8 @@ public class ProcessInspectionService : IProcessInspectionService
     private readonly Dictionary<string, Dictionary<string, decimal>> _configMaps = new();
     private readonly IProcessDefinitionService _processDefService;
     private readonly IOperatorNameValidator _operatorNameValidator;
+    private readonly IAttachmentStorage _storage;
+    private readonly ISectionNameDisplayService _sectionNameDisplayService;
 
     public ProcessInspectionService(
         AppDbContext context,
@@ -69,7 +71,9 @@ public class ProcessInspectionService : IProcessInspectionService
         IConfigParameterService configService,
         IMemoryCache cache,
         IProcessDefinitionService processDefService,
-        IOperatorNameValidator operatorNameValidator)
+        IOperatorNameValidator operatorNameValidator,
+        IAttachmentStorage storage,
+        ISectionNameDisplayService sectionNameDisplayService)
     {
         _context = context;
         _logger = logger;
@@ -78,6 +82,8 @@ public class ProcessInspectionService : IProcessInspectionService
         _configService = configService;
         _cache = cache;
         _processDefService = processDefService;
+        _storage = storage;
+        _sectionNameDisplayService = sectionNameDisplayService;
     }
 
     private async Task<decimal> GetConfigAsync(string category, string key, decimal defaultValue)
@@ -193,9 +199,11 @@ public class ProcessInspectionService : IProcessInspectionService
                 r.DefectReworkQuantity,
                 r.DefectWarehouseQuantity,
                 r.DefectScrapQuantity,
+                r.DefectReturnQuantity,
                 r.TheoreticalReworkWeight,
                 r.TheoreticalWarehouseWeight,
                 r.TheoreticalScrapWeight,
+                r.TheoreticalReturnWeight,
                 r.DefectDescription,
                 r.SourceUnit,
                 r.TagNo,
@@ -207,6 +215,7 @@ public class ProcessInspectionService : IProcessInspectionService
                 ProductionMainNo = r.ProductionBatch.ProductionMainNo,
                 r.DataSource,
                 r.ProductStatus,
+                AttachmentCount = r.Attachments.Count,
                 r.CreatedTime,
                 r.UpdatedTime
             })
@@ -234,9 +243,11 @@ public class ProcessInspectionService : IProcessInspectionService
                 DefectReworkQuantity = r.DefectReworkQuantity,
                 DefectWarehouseQuantity = r.DefectWarehouseQuantity,
                 DefectScrapQuantity = r.DefectScrapQuantity,
+                DefectReturnQuantity = r.DefectReturnQuantity,
                 TheoreticalReworkWeight = r.TheoreticalReworkWeight,
                 TheoreticalWarehouseWeight = r.TheoreticalWarehouseWeight,
                 TheoreticalScrapWeight = r.TheoreticalScrapWeight,
+                TheoreticalReturnWeight = r.TheoreticalReturnWeight,
                 DefectDescription = r.DefectDescription,
                 SourceUnit = r.SourceUnit,
                 TagNo = r.TagNo,
@@ -248,6 +259,7 @@ public class ProcessInspectionService : IProcessInspectionService
                 ProductionMainNo = r.ProductionMainNo,
                 DataSource = r.DataSource,
                 ProductStatus = r.ProductStatus,
+                AttachmentCount = r.AttachmentCount,
                 CreatedTime = r.CreatedTime,
                 UpdatedTime = r.UpdatedTime
             })
@@ -462,15 +474,16 @@ public class ProcessInspectionService : IProcessInspectionService
                 }
             }
 
-            // 4) 检验支数 = 合格支数 + 返整支数 + 入库支数 + 报废支数
+            // 4) 检验支数 = 合格支数 + 返整支数 + 入在制库支数 + 入次品库支数 + 退货支数
             if (request.Quantity.HasValue)
             {
                 var sum = (request.QualifiedQuantity ?? 0)
                     + (request.DefectReworkQuantity ?? 0)
                     + (request.DefectWarehouseQuantity ?? 0)
-                    + (request.DefectScrapQuantity ?? 0);
+                    + (request.DefectScrapQuantity ?? 0)
+                    + (request.DefectReturnQuantity ?? 0);
                 if (request.Quantity.Value != sum)
-                    errors.Add($"第{i + 1}行：检验支数({request.Quantity}) ≠ 合格支数({request.QualifiedQuantity ?? 0}) + 返整({request.DefectReworkQuantity ?? 0}) + 入库({request.DefectWarehouseQuantity ?? 0}) + 报废({request.DefectScrapQuantity ?? 0}) = {sum}");
+                    errors.Add($"第{i + 1}行：检验支数({request.Quantity}) ≠ 合格支数({request.QualifiedQuantity ?? 0}) + 返整({request.DefectReworkQuantity ?? 0}) + 入在制库({request.DefectWarehouseQuantity ?? 0}) + 入次品库({request.DefectScrapQuantity ?? 0}) + 退货({request.DefectReturnQuantity ?? 0}) = {sum}");
             }
 
             // 5) 让步放行支数 ≤ 合格支数
@@ -511,9 +524,11 @@ public class ProcessInspectionService : IProcessInspectionService
                 DefectReworkQuantity = request.DefectReworkQuantity ?? 0,
                 DefectWarehouseQuantity = request.DefectWarehouseQuantity ?? 0,
                 DefectScrapQuantity = request.DefectScrapQuantity ?? 0,
+                DefectReturnQuantity = request.DefectReturnQuantity ?? 0,
                 TheoreticalReworkWeight = ComputeTheoreticalWeight(request.Weight, request.Quantity, request.DefectReworkQuantity),
                 TheoreticalWarehouseWeight = ComputeTheoreticalWeight(request.Weight, request.Quantity, request.DefectWarehouseQuantity),
                 TheoreticalScrapWeight = ComputeTheoreticalWeight(request.Weight, request.Quantity, request.DefectScrapQuantity),
+                TheoreticalReturnWeight = ComputeTheoreticalWeight(request.Weight, request.Quantity, request.DefectReturnQuantity),
                 DefectDescription = request.DefectDescription,
                 SourceUnit = request.SourceUnit,
                 TagNo = request.TagNo,
@@ -563,9 +578,11 @@ public class ProcessInspectionService : IProcessInspectionService
             DefectReworkQuantity = e.DefectReworkQuantity,
             DefectWarehouseQuantity = e.DefectWarehouseQuantity,
             DefectScrapQuantity = e.DefectScrapQuantity,
+            DefectReturnQuantity = e.DefectReturnQuantity,
             TheoreticalReworkWeight = e.TheoreticalReworkWeight,
             TheoreticalWarehouseWeight = e.TheoreticalWarehouseWeight,
             TheoreticalScrapWeight = e.TheoreticalScrapWeight,
+            TheoreticalReturnWeight = e.TheoreticalReturnWeight,
             DefectDescription = e.DefectDescription,
             SourceUnit = e.SourceUnit,
             TagNo = e.TagNo,
@@ -590,15 +607,16 @@ public class ProcessInspectionService : IProcessInspectionService
         // 加载批次（用于重量校验）
         var batch = await _context.ProductionBatches.FindAsync(entity.ProductionBatchId);
 
-        // 支数平衡校验：检验支数 = 合格支数 + 返整支数 + 入库支数 + 报废支数
+        // 支数平衡校验：检验支数 = 合格支数 + 返整支数 + 入在制库支数 + 入次品库支数 + 退货支数
         if (request.Quantity.HasValue)
         {
             var sum = (request.QualifiedQuantity ?? 0)
                 + (request.DefectReworkQuantity ?? 0)
                 + (request.DefectWarehouseQuantity ?? 0)
-                + (request.DefectScrapQuantity ?? 0);
+                + (request.DefectScrapQuantity ?? 0)
+                + (request.DefectReturnQuantity ?? 0);
             if (request.Quantity.Value != sum)
-                throw new BusinessException($"检验支数({request.Quantity}) ≠ 合格支数({request.QualifiedQuantity ?? 0}) + 返整({request.DefectReworkQuantity ?? 0}) + 入库({request.DefectWarehouseQuantity ?? 0}) + 报废({request.DefectScrapQuantity ?? 0}) = {sum}");
+                throw new BusinessException($"检验支数({request.Quantity}) ≠ 合格支数({request.QualifiedQuantity ?? 0}) + 返整({request.DefectReworkQuantity ?? 0}) + 入在制库({request.DefectWarehouseQuantity ?? 0}) + 入次品库({request.DefectScrapQuantity ?? 0}) + 退货({request.DefectReturnQuantity ?? 0}) = {sum}");
         }
 
         // 让步放行支数 ≤ 合格支数
@@ -628,6 +646,7 @@ public class ProcessInspectionService : IProcessInspectionService
         entity.DefectReworkQuantity = request.DefectReworkQuantity ?? entity.DefectReworkQuantity;
         entity.DefectWarehouseQuantity = request.DefectWarehouseQuantity ?? entity.DefectWarehouseQuantity;
         entity.DefectScrapQuantity = request.DefectScrapQuantity ?? entity.DefectScrapQuantity;
+        entity.DefectReturnQuantity = request.DefectReturnQuantity ?? entity.DefectReturnQuantity;
 
         // 自动计算理论重量
         var effectiveQty = request.Quantity ?? entity.Quantity;
@@ -635,6 +654,7 @@ public class ProcessInspectionService : IProcessInspectionService
         entity.TheoreticalReworkWeight = ComputeTheoreticalWeight(effectiveWeight, effectiveQty, request.DefectReworkQuantity ?? entity.DefectReworkQuantity);
         entity.TheoreticalWarehouseWeight = ComputeTheoreticalWeight(effectiveWeight, effectiveQty, request.DefectWarehouseQuantity ?? entity.DefectWarehouseQuantity);
         entity.TheoreticalScrapWeight = ComputeTheoreticalWeight(effectiveWeight, effectiveQty, request.DefectScrapQuantity ?? entity.DefectScrapQuantity);
+        entity.TheoreticalReturnWeight = ComputeTheoreticalWeight(effectiveWeight, effectiveQty, request.DefectReturnQuantity ?? entity.DefectReturnQuantity);
 
         entity.DefectDescription = request.DefectDescription ?? entity.DefectDescription;
         entity.SourceUnit = request.SourceUnit ?? entity.SourceUnit;
@@ -690,9 +710,11 @@ public class ProcessInspectionService : IProcessInspectionService
             DefectReworkQuantity = entity.DefectReworkQuantity,
             DefectWarehouseQuantity = entity.DefectWarehouseQuantity,
             DefectScrapQuantity = entity.DefectScrapQuantity,
+            DefectReturnQuantity = entity.DefectReturnQuantity,
             TheoreticalReworkWeight = entity.TheoreticalReworkWeight,
             TheoreticalWarehouseWeight = entity.TheoreticalWarehouseWeight,
             TheoreticalScrapWeight = entity.TheoreticalScrapWeight,
+            TheoreticalReturnWeight = entity.TheoreticalReturnWeight,
             DefectDescription = entity.DefectDescription,
             SourceUnit = entity.SourceUnit,
             TagNo = entity.TagNo,
@@ -710,8 +732,14 @@ public class ProcessInspectionService : IProcessInspectionService
 
     public async Task DeleteAsync(int id)
     {
-        var entity = await _context.ProcessInspections.FindAsync(id)
+        var entity = await _context.ProcessInspections
+            .Include(r => r.Attachments)
+            .FirstOrDefaultAsync(r => r.Id == id)
             ?? throw new BusinessException($"过程检验记录不存在(Id={id})");
+
+        // 先删磁盘文件（文件不存在则忽略），再删主记录（附件行级联删除）
+        foreach (var att in entity.Attachments)
+            await _storage.DeleteAsync(att.StoredName);
 
         _context.ProcessInspections.Remove(entity);
         await _context.SaveChangesAsync();
@@ -728,6 +756,145 @@ public class ProcessInspectionService : IProcessInspectionService
         return ProcessInspectionPrintHelper.GenerateBatchPdf(selected, columns, await _processDefService.GetProcessNameMapAsync());
     }
 
+    public async Task<byte[]> PrintSelectedDocAsync(int[] ids)
+    {
+        if (ids.Length == 0) throw new BusinessException("请至少选择一条记录");
+
+        var loaded = await _context.ProcessInspections
+            .AsNoTracking()
+            .Include(r => r.Attachments)
+            .Where(r => ids.Contains(r.Id))
+            .ToListAsync();
+
+        if (loaded.Count == 0) throw new BusinessException("选中的记录不存在");
+
+        // 按前端选中顺序输出（SQL IN 不保序）
+        var orderMap = ids.Select((id, index) => (id, index)).ToDictionary(x => x.id, x => x.index);
+        var records = loaded
+            .OrderBy(r => orderMap.TryGetValue(r.Id, out var idx) ? idx : int.MaxValue)
+            .ToList();
+
+        var imagesByRecord = new Dictionary<int, IReadOnlyList<ProcessInspectionPrintHelper.PrintImage>>();
+        foreach (var record in records)
+        {
+            var images = new List<ProcessInspectionPrintHelper.PrintImage>();
+            foreach (var att in record.Attachments.OrderBy(a => a.SortOrder).ThenBy(a => a.Id))
+            {
+                var bytes = await _storage.ReadAsync(att.StoredName);
+                if (bytes is not { Length: > 0 }) continue;
+                images.Add(new ProcessInspectionPrintHelper.PrintImage { FileName = att.FileName, Data = bytes });
+            }
+            if (images.Count > 0) imagesByRecord[record.Id] = images;
+        }
+
+        // 工序/工段存英文 Key，打印层须转中文（配置表优先，兜底常量规范中文）
+        var processNameMap = await _processDefService.GetProcessNameMapAsync();
+        var sectionNameMap = await _sectionNameDisplayService.GetSectionNameMapAsync();
+
+        return ProcessInspectionPrintHelper.GeneratePagePdf(records, imagesByRecord, processNameMap, sectionNameMap);
+    }
+
+    // ========== 照片附件 ==========
+
+    public int MaxAttachmentCount => QualityPhotoLimits.PerRecord;
+
+    public long MaxAttachmentSizeBytes => _storage.MaxFileSizeBytes;
+
+    public async Task<List<ProcessInspectionAttachmentDto>> GetAttachmentsAsync(int id)
+    {
+        return await _context.ProcessInspectionAttachments
+            .AsNoTracking()
+            .Where(a => a.ProcessInspectionId == id)
+            .OrderBy(a => a.SortOrder).ThenBy(a => a.Id)
+            .Select(a => new ProcessInspectionAttachmentDto
+            {
+                Id = a.Id,
+                FileName = a.FileName,
+                ContentType = a.ContentType,
+                SizeBytes = a.SizeBytes,
+                SortOrder = a.SortOrder,
+                CreatedTime = a.CreatedTime
+            })
+            .ToListAsync();
+    }
+
+    public async Task<ProcessInspectionAttachmentDto> AddAttachmentAsync(
+        int id, Stream content, string fileName, string contentType)
+    {
+        var exists = await _context.ProcessInspections.AnyAsync(r => r.Id == id);
+        if (!exists) throw new BusinessException($"过程检验记录不存在(Id={id})");
+
+        var count = await _context.ProcessInspectionAttachments.CountAsync(a => a.ProcessInspectionId == id);
+        if (count >= QualityPhotoLimits.PerRecord)
+            throw new BusinessException($"照片数量已达上限（{QualityPhotoLimits.PerRecord} 张）");
+
+        // IFormFile 流可寻址，直接取长度；不可寻址时由后端兜底为 0（仅展示用途）
+        var sizeBytes = content.CanSeek ? content.Length : 0L;
+        var storedName = await _storage.SaveAsync(content, fileName);
+
+        var entity = new ProcessInspectionAttachment
+        {
+            ProcessInspectionId = id,
+            FileName = Path.GetFileName(fileName),
+            StoredName = storedName,
+            ContentType = string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType,
+            SizeBytes = sizeBytes,
+            SortOrder = count
+        };
+
+        try
+        {
+            _context.ProcessInspectionAttachments.Add(entity);
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            // 文件已落盘但落库失败 → 回收磁盘文件并脱离变更跟踪，避免孤儿文件与下次 SaveChanges 重试
+            _context.Entry(entity).State = EntityState.Detached;
+            await _storage.DeleteAsync(storedName);
+            throw;
+        }
+
+        return new ProcessInspectionAttachmentDto
+        {
+            Id = entity.Id,
+            FileName = entity.FileName,
+            ContentType = entity.ContentType,
+            SizeBytes = entity.SizeBytes,
+            SortOrder = entity.SortOrder,
+            CreatedTime = entity.CreatedTime
+        };
+    }
+
+    public async Task<AttachmentContent?> GetAttachmentContentAsync(int id, int attachmentId)
+    {
+        var att = await _context.ProcessInspectionAttachments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == attachmentId && a.ProcessInspectionId == id);
+        if (att == null) return null;
+
+        var bytes = await _storage.ReadAsync(att.StoredName);
+        if (bytes == null) return null;
+
+        return new AttachmentContent
+        {
+            Content = bytes,
+            ContentType = att.ContentType,
+            FileName = att.FileName
+        };
+    }
+
+    public async Task DeleteAttachmentAsync(int id, int attachmentId)
+    {
+        var att = await _context.ProcessInspectionAttachments
+            .FirstOrDefaultAsync(a => a.Id == attachmentId && a.ProcessInspectionId == id)
+            ?? throw new BusinessException("照片不存在");
+
+        _context.ProcessInspectionAttachments.Remove(att);
+        await _context.SaveChangesAsync();
+        await _storage.DeleteAsync(att.StoredName);
+    }
+
     private static int? ComputeTheoreticalWeight(decimal? weight, int? quantity, int? defectQuantity)
     {
         if (!weight.HasValue || !quantity.HasValue || quantity.Value <= 0
@@ -738,6 +905,12 @@ public class ProcessInspectionService : IProcessInspectionService
 
     private static IQueryable<ProcessInspection> ApplySorting(IQueryable<ProcessInspection> queryable, string sortBy, bool isDescending)
     {
+        // 附件计数为派生列（实体无此属性），通用 ApplySort 反射不到 → 特判
+        if (sortBy.Equals("attachmentcount", StringComparison.OrdinalIgnoreCase))
+            return isDescending
+                ? queryable.OrderByDescending(r => r.Attachments.Count)
+                : queryable.OrderBy(r => r.Attachments.Count);
+
         // 导航字段 WorkOrderNo/SalesOrderNo/ProductionMainNo 需特判（通用 ApplySort 只反射实体属性，不支持导航属性）
         if (sortBy.Equals("workorderno", StringComparison.OrdinalIgnoreCase))
             return isDescending

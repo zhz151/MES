@@ -50,7 +50,7 @@ public partial class QualityProcessTracking
     private static readonly HashSet<string> _centerColumnKeys = new(StringComparer.Ordinal)
     { "ProductionCutQuantity", "ProductionWeight", "InspectionCount", "TotalQuantity",
       "QualifiedQuantity", "DefectReworkQuantity", "DefectWarehouseQuantity",
-      "DefectScrapQuantity", "InboundQuantity", "InboundWeight" };
+      "DefectScrapQuantity", "DefectReturnQuantity", "InboundQuantity", "InboundWeight" };
     private static bool IsNumericColumn(ColumnDef col) => _centerColumnKeys.Contains(col.Key);
 
 
@@ -126,8 +126,10 @@ public partial class QualityProcessTracking
             new() { Key = "TotalQuantity",              Label = "检验支数",       SortKey = "totalquantity",           FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
             new() { Key = "QualifiedQuantity",           Label = "理论合格支",     SortKey = "qualifiedquantity",       FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
             new() { Key = "DefectReworkQuantity",        Label = "返整支数",       SortKey = "defectreworkquantity",    FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
-            new() { Key = "DefectWarehouseQuantity",     Label = "不合格入库",     SortKey = "defectwarehousequantity", FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
-            new() { Key = "DefectScrapQuantity",         Label = "报废支数",       SortKey = "defectscrapquantity",     FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
+            new() { Key = "DefectInProcessWarehouseQuantity", Label = "入在制库支",  SortKey = "defectinprocesswarehousequantity", FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
+            new() { Key = "DefectScrapQuantity",         Label = "入次品库支",     SortKey = "defectscrapquantity",     FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
+            new() { Key = "DefectReturnQuantity",        Label = "退货支数",       SortKey = "defectreturnquantity",    FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
+            new() { Key = "DefectWarehouseQuantity",     Label = "可入备库支",     SortKey = "defectwarehousequantity", FilterType = "number", Width = "80", GroupKey = 4, GroupName = "检验的数量信息" },
         };
 
         // G5: 入库的信息
@@ -161,7 +163,7 @@ public partial class QualityProcessTracking
     private static readonly HashSet<string> _summableColumnKeys = new()
     {
         "InspectionCount", "TotalQuantity", "QualifiedQuantity",
-        "DefectReworkQuantity", "DefectWarehouseQuantity", "DefectScrapQuantity",
+        "DefectReworkQuantity", "DefectInProcessWarehouseQuantity", "DefectWarehouseQuantity", "DefectScrapQuantity", "DefectReturnQuantity",
         "ProductionCutQuantity", "ProductionWeight",
         "InboundQuantity", "InboundWeight"
     };
@@ -743,6 +745,7 @@ public partial class QualityProcessTracking
             case "DefectReworkQuantity":
             case "DefectWarehouseQuantity":
             case "DefectScrapQuantity":
+            case "DefectReturnQuantity":
                 {
                     var val = (int)(typeof(QualityProcessTrackingDto).GetProperty(col.Key)?.GetValue(item) ?? 0);
                     builder.AddContent(0, val > 0 ? val.ToString() : "-");

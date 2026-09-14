@@ -39,6 +39,11 @@ public partial class MaterialPlanOverview
     // 矩阵行/列序 → 英文 Key（与后端 pending-summary 的行列序一致：备注 4 类，计划性排除 EPaused）
     private static readonly string[] _matrixRemarkKeys = RawMaterialLockRemarkKeys.All;
     private static readonly string[] _matrixUrgencyKeys = UrgencyLevelKeys.All.Where(k => k != UrgencyLevelKeys.EPaused).ToArray();
+    /// <summary>
+    /// 成购矩阵唯一有值的行号（=「执行用料计划」档）。成购只是该档的一个分支，
+    /// 其余 3 档恒为 0 不渲染（2026-09-10 用户决策，防止误读为「成购横跨 4 档」）。
+    /// </summary>
+    private static int PurchaseMatrixRowIndex => Array.IndexOf(RawMaterialLockRemarkKeys.All, RawMaterialLockRemarkKeys.ExecutePlan);
     // 选中状态
     private bool allSelected => _pageItems.Any() && _pageItems.All(i => selectedWorkOrderIds.Contains(i.Id));
     private HashSet<int> selectedWorkOrderIds = new();

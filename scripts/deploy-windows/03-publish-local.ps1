@@ -29,8 +29,20 @@ $appJson = Join-Path $pubBlz "wwwroot\appsettings.json"
 if (-not (Test-Path $appJson)) { throw "published appsettings.json not found: $appJson" }
 $json = Get-Content $appJson -Raw | ConvertFrom-Json
 $json.ApiSettings.BaseUrl = ""
-$json | ConvertTo-Json -Depth 5 | Set-Content $appJson -Encoding UTF8
+# Write UTF-8 WITHOUT BOM: on Windows PowerShell 5.1 'Set-Content -Encoding UTF8' emits a BOM,
+# which makes the Blazor WASM config reader (builder.Configuration) fail to parse the file.
+# NOTE: keep this script ASCII-only - PS 5.1 reads a BOM-less .ps1 as ANSI, so non-ASCII
+# characters here would be mis-decoded and can swallow line breaks, silently skipping lines.
+[System.IO.File]::WriteAllText($appJson, ($json | ConvertTo-Json -Depth 5), (New-Object System.Text.UTF8Encoding($false)))
 Write-Host "    BaseUrl rewritten to '' (same-origin /api) at $appJson"
+
+# sanity 1: no BOM in the rewritten file
+$head = [System.IO.File]::ReadAllBytes($appJson)[0..2] -join ','
+if ($head -eq "239,187,191") { throw "published appsettings.json contains UTF-8 BOM (head=$head)" }
+# sanity 2: the rewrite really landed (catches a silently skipped line)
+$verify = (Get-Content $appJson -Raw | ConvertFrom-Json).ApiSettings.BaseUrl
+if ($verify) { throw "BaseUrl rewrite did not take effect (still '$verify')" }
+Write-Host "    appsettings.json verified: head=$head, BaseUrl is empty"
 
 # sanity: blazor publish contains PWA files
 foreach ($f in @("index.html","manifest.json","_framework\blazor.webassembly.js")) {

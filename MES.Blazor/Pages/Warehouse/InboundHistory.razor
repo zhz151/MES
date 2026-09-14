@@ -172,7 +172,7 @@
                     <div class="col-group-header-item" style="width:150px;flex:none;"></div>
                 </div>
             </div>
-            <MudTable @ref="_table" T="InventoryBatchDto" ServerData="@LoadDataFromServer"
+            <MudTable Breakpoint="Breakpoint.None" @ref="_table" T="InventoryBatchDto" ServerData="@LoadDataFromServer"
                       Dense="true" Hover="true"
                       Elevation="0" Striped="true" RowsPerPage="@_pageSize" RowsPerPageLabel="每页行数:"
                       Class="mt-0 auto-table inbound-history-edit-table compact-table">

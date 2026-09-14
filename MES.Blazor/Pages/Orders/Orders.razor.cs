@@ -14,6 +14,7 @@ using MES.Blazor.Shared;
 using MES.Core.DTOs.Order;
 using MES.Core.DTOs.Shared;
 using System.Text.Json;
+using System.Globalization;
 using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Orders;
@@ -43,6 +44,28 @@ public partial class Orders
     private bool _showEstimateCard;
     /// <summary>订单交期预估（两小表：订单(整单)完成预估 / 风险-已延期订单(整单)，x单/y吨，订单级口径）</summary>
     private OrderDeliveryEstimateDto? _deliveryEstimate;
+
+    // ========== 投料产出总况（卡片：按订单完成月聚合的投料 / 产出 / 退货） ==========
+    private bool _showThroughputCard;
+    /// <summary>投料产出总况（默认近 12 个月按完成月分行；口径随 <see cref="_throughputScope"/>、日期区间随起/止切换）</summary>
+    private OrderThroughputSummaryDto? _throughput;
+    /// <summary>生产类型范围口径（默认「全部四种」：荒管 + 在制 + 库存 + 外购）</summary>
+    private string _throughputScope = ProductionScopeKeys.All;
+    /// <summary>完成日期范围-起（yyyy-MM-dd；与止同时为空 = 默认最近 12 个月）</summary>
+    private string _throughputDateFrom = string.Empty;
+    /// <summary>完成日期范围-止（yyyy-MM-dd；含当天）</summary>
+    private string _throughputDateTo = string.Empty;
+
+    /// <summary>口径下拉选项（合计 2 档 + 单一生产类型 4 档）</summary>
+    private static readonly (string Key, string Label)[] _throughputScopeOptions =
+    [
+        (ProductionScopeKeys.All, "全部（荒管+在制+库存+外购）"),
+        (ProductionScopeKeys.Pure, "纯生产（荒管+在制）"),
+        (ProductionTypeKeys.RoughTube, "荒管生产"),
+        (ProductionTypeKeys.InProcess, "在制生产"),
+        (ProductionTypeKeys.Inventory, "库存料生产"),
+        (ProductionTypeKeys.OutsourcedPurchased, "外购生产"),
+    ];
 
     // ========== 小表点击联动筛选订单列表 ==========
     /// <summary>小表点击联动筛选条件（null=未联动），点击后覆盖现有搜索/列筛选</summary>
@@ -950,8 +973,117 @@ public partial class Orders
         }
     }
 
-    // ========== 打印方法 ==========
+    // ========== 投料产出总况（卡片，懒加载 + 口径切换 + 完成日期范围） ==========
 
+    /// <summary>是否处于完成日期区间模式（任一端有值）</summary>
+    private bool _throughputRangeMode =>
+        !string.IsNullOrWhiteSpace(_throughputDateFrom) || !string.IsNullOrWhiteSpace(_throughputDateTo);
+
+    private async Task ToggleThroughputCard()
+    {
+        _showThroughputCard = !_showThroughputCard;
+        if (_showThroughputCard && _throughput == null)
+            await LoadThroughputAsync();
+    }
+
+    /// <summary>加载投料产出总况（首次展开 / 口径切换 / 应用日期区间）；失败不阻断主表，保留既有数据</summary>
+    private async Task LoadThroughputAsync()
+    {
+        try
+        {
+            var result = await OrderService.GetThroughputSummaryAsync(
+                _throughputScope, ParseThroughputDate(_throughputDateFrom), ParseThroughputDate(_throughputDateTo));
+            if (result.Success && result.Data != null)
+                _throughput = result.Data;
+            else
+                Snackbar.Add(result.Message ?? "加载投料产出总况失败", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"加载投料产出总况失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task OnThroughputScopeChanged(string scope)
+    {
+        _throughputScope = ProductionScopeKeys.Resolve(scope);
+        await LoadThroughputAsync();
+    }
+
+    /// <summary>应用完成日期区间（重新取数，服务端按「订单真实完成日落入区间」过滤）</summary>
+    private async Task ApplyThroughputRangeAsync() => await LoadThroughputAsync();
+
+    /// <summary>清除完成日期区间并回落到默认最近 12 个月</summary>
+    private async Task ClearThroughputRangeAsync()
+    {
+        _throughputDateFrom = string.Empty;
+        _throughputDateTo = string.Empty;
+        await LoadThroughputAsync();
+    }
+
+    /// <summary>解析 yyyy-MM-dd 日期文本（空/非法返回 null，该端不参与过滤）</summary>
+    private static DateTime? ParseThroughputDate(string text)
+        => DateTime.TryParseExact(text.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out var d) ? d : null;
+
+    /// <summary>
+    /// 卡内脚注（随日期区间模式切换）：区间模式须显式提示「按真实完成日过滤」与
+    /// 「各列为命中订单的全生命周期合计（含区间外投料/入库量）」，避免被误读为区间内发生量。
+    /// </summary>
+    private string ThroughputFootnote()
+        => _throughputRangeMode
+            ? "注：行 = 所选完成日期范围（按订单真实完成日落入该区间过滤，起止当日均含；整区间聚合为 1 行）。"
+              + "各列为命中订单的全生命周期合计、与完成日不相关——生产投料 = 各批次工艺卡领料重之和，入库列为各批次入库量之和，"
+              + "故区间之外发生的投料/入库量也会计入本行。重量单位 kg 四舍五入取整，比率 = 0~1（分母 ≤0 显示 —）。"
+              + "生产投料、次品入库已扣退货，退货单列供核对。订单数 = 本口径（生产类型范围）内有生产批次的订单数（非区间内完成订单总数）。"
+              + "口径「全部」下订单成品入库只计交付态成品，「纯生产 / 单一生产类型」口径含非交付态（U 型管自产只到非交付态，交付态由外购委外产出）。"
+            : "注：行 = 订单完成月（订单级「完成」，即该订单全部主号最终入库完成日所在月；固定近 12 个月，无完成订单的月不显示）；"
+              + "重量单位 kg 四舍五入取整，比率 = 0~1（分母 ≤0 显示 —）。生产投料、次品入库已扣退货，退货单列供核对。"
+              + "订单数 = 该完成月中在本口径（生产类型范围）内有生产批次的订单数，与本行各列同口径（非该月完成订单总数）；某月在该口径下无相关订单则该月整行不显示。"
+              + "口径「全部」下订单成品入库只计交付态成品，「纯生产 / 单一生产类型」口径含非交付态（U 型管自产只到非交付态，交付态由外购委外产出）。";
+
+    /// <summary>当前口径下由服务端返回的行（日期过滤已在服务端完成；区间模式下为整区间聚合的单行）</summary>
+    private List<OrderThroughputMonthDto> _throughputRows => _throughput?.Months ?? new List<OrderThroughputMonthDto>();
+
+    /// <summary>重量显示：四舍五入取整（本报表口径，不用 DisplayHelper.FormatDecimalAsInt 的截断）</summary>
+    private static string FormatThroughputWeight(decimal value)
+        => Math.Round(value, 0, MidpointRounding.AwayFromZero).ToString("0");
+
+    /// <summary>比率显示：0~1 转百分数一位小数；分母 ≤0（null）显示占位符</summary>
+    private static string FormatThroughputRate(decimal? ratio)
+        => ratio.HasValue ? (ratio.Value * 100m).ToString("0.0") + "%" : "—";
+
+    /// <summary>口径中文标签（打印标题用）</summary>
+    private static string ThroughputScopeLabel(string scope)
+    {
+        var key = ProductionScopeKeys.Resolve(scope);
+        foreach (var opt in _throughputScopeOptions)
+        {
+            if (opt.Key == key) return opt.Label;
+        }
+        return key;
+    }
+
+    /// <summary>打印投料产出总况表（所见即所得：按当前口径 + 完成日期范围结果输出；页脚由 print.js 带打印日期）</summary>
+    private async Task PrintThroughputCard()
+    {
+        try
+        {
+            var html = await JS.InvokeAsync<string>("getTableHtml", "#order-throughput-table");
+            if (string.IsNullOrEmpty(html))
+            {
+                Snackbar.Add("未找到可打印的投料产出总况表", Severity.Warning);
+                return;
+            }
+            await JS.InvokeVoidAsync("printRawHtml", html, $"投料产出总况（{ThroughputScopeLabel(_throughputScope)}）");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"打印失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // ========== 打印方法 ==========
     /// <summary>打印选中列表（按当前可见列渲染列表 PDF，Mode A 前端已准备数据）</summary>
     private async Task PrintSelectedList()
     {

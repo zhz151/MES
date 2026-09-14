@@ -84,8 +84,10 @@ public class FinalInspectionPlanDto
 
     // ========== G7: 检验的数量信息（来自 FinalInspection） ==========
     public int TotalQuantity { get; set; }                   // 检验支数（按检验项目分组求和取最大，与成检追踪一致）
-    public int QualifiedQuantity { get; set; }               // 理论合格支（检验支数 - 返整/入库/报废三次品汇总，负值归零）
+    public int QualifiedQuantity { get; set; }               // 理论合格支（检验支数 - 返整/入在制库/可入备库/入次品库/退货五次品汇总，负值归零）
     public int DefectReworkQuantity { get; set; }            // 返整支数合计
-    public int DefectWarehouseQuantity { get; set; }         // 不合格入库支数合计
-    public int DefectScrapQuantity { get; set; }             // 报废支数合计
+    public int DefectInProcessWarehouseQuantity { get; set; } // 入在制库支数合计（2026-09-11 新增第 5 档）
+    public int DefectWarehouseQuantity { get; set; }         // 可入备库支数合计
+    public int DefectScrapQuantity { get; set; }             // 入次品库支数合计
+    public int DefectReturnQuantity { get; set; }            // 退货支数合计（2026-09-11 新增第 4 档）
 }

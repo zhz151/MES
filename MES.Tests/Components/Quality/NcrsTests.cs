@@ -1,6 +1,7 @@
 using Bunit;
 using FluentAssertions;
 using Microsoft.AspNetCore.Components.Authorization;
+using MES.Core.Constants;
 using MES.Core.Enums;
 using MES.Core.Models;
 using MES.Blazor.Pages.Quality;
@@ -82,7 +83,7 @@ public class NcrsTests : TestBase
                     DefectQuantity = 5,
                     TotalQuantity = 100,
                     Percentage = 5m,
-                    DisposalMethod = DisposalMethod.Rework
+                    FlowDirection = FlowDirection.Rework
                 }
             }
         });
@@ -124,7 +125,8 @@ public class NcrsTests : TestBase
                     Specification = "219*8",
                     DefectiveQuantity = 5,
                     ProblemDescription = "表面划伤",
-                    DisposalMethod = DisposalMethod.Rework,
+                    FlowDirection = FlowDirection.Rework,
+                    DisposalMethod = NcrDisposalKeys.Rework,
                     DisposalIsCompleted = false,
                     Severity = SeverityLevel.General,
                     CreatedTime = DateTimeOffset.Now,

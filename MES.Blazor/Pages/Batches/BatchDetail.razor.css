@@ -1,4 +1,6 @@
-/* ===== 详情页通用样式 ===== */
+/* ===== 批次详情页专用样式 =====
+   注意：「批次执行进度」卡片已抽为 Shared/BatchProgressCard.razor（批次详情页 + 批次计划/成检计划弹窗三处复用），
+   其 .detail-* 样式（进度条/摘要条/工段卡片等）因 Blazor scoped CSS 无法跨组件复用，已上提到 wwwroot/css/app.css。 */
 
 /* 标签文字颜色（用于字段名 label） */
 .detail-label {
@@ -8,11 +10,6 @@
 /* 子标题颜色（如"基本信息""工艺参数"等分组标题） */
 .detail-subsection {
     color: #78909C !important;
-}
-
-/* 空状态/提示文字 */
-.detail-empty {
-    color: #999 !important;
 }
 
 /* 链接颜色 */
@@ -34,149 +31,7 @@
     background: #fafafa;
 }
 
-/* 跟踪可视化进度条容器 */
-.detail-progress-track {
-    width: 200px;
-    height: 8px;
-    border-radius: 4px;
-    background: #e0e0e0;
-    overflow: hidden;
-    flex-shrink: 0;
-}
-
-/* 跟踪可视化进度条填充 */
-.detail-progress-fill {
-    height: 100%;
-    background: var(--mud-palette-success);
-    border-radius: 4px;
-    transition: width 0.3s;
-}
-
-/* 跟踪可视化摘要条 */
-.detail-summary-bar {
-    gap: 4px 20px;
-    padding: 6px 10px;
-    background: #f5f5f5;
-    border-radius: 6px;
-}
-
-/* 跟踪可视化当前工段文字 */
-.detail-current-section {
-    font-weight: 600;
-}
-
-/* 跟踪可视化当前工段名称 */
-.detail-current-name {
-    color: #1976d2;
-}
-
-/* 跟踪可视化委外状态 */
-.detail-outsource-status {
-    color: #e65100;
-}
-
-/* 跟踪可视化下一工段 */
-.detail-next-section {
-    color: #7b1fa2;
-}
-
-/* 工段卡片容器——水平滚动 */
-.detail-section-scroll {
-    overflow-x: auto;
-    white-space: nowrap;
-    padding: 4px 0;
-}
-
-/* 工段卡片——工序组容器 */
-.detail-group-card {
-    display: inline-flex;
-    flex-direction: column;
-    min-width: 150px;
-    margin-right: 14px;
-    vertical-align: top;
-}
-
-/* 工段卡片——组标题 */
-.detail-group-header {
-    text-align: center;
-    padding: 4px 8px;
-    background: #e3f2fd;
-    border-radius: 6px 6px 0 0;
-    font-size: 0.8125rem;
-    font-weight: 600;
-    border: 1px solid #bbdefb;
-    border-bottom: none;
-}
-
-/* 工段卡片——组计数 */
-.detail-group-count {
-    font-weight: 400;
-    color: #666;
-}
-
-/* 工段卡片——工段列表 */
-.detail-section-list {
-    border: 1px solid #e0e0e0;
-    border-top: none;
-    border-radius: 0 0 6px 6px;
-    padding: 3px;
-}
-
-/* 工段卡片——单个工段 */
-.detail-section-item {
-    border-radius: 4px;
-    margin: 2px 0;
-    padding: 4px 6px;
-    gap: 6px;
-}
-
-/* 工段卡片——工段图标 */
-.detail-section-icon {
-    font-size: 0.75rem;
-    min-width: 18px;
-    text-align: center;
-}
-
-/* 工段卡片——工段名称 */
-.detail-section-name {
-    font-size: 0.8125rem;
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* 工段卡片——名称+meta 信息竖排区 */
-.detail-section-main {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    white-space: normal;
-}
-
-/* 工段卡片——meta 明细行（小字） */
-.detail-meta-line {
-    font-size: 0.65rem;
-    line-height: 1.4;
-    color: #666;
-    white-space: normal;
-    word-break: break-all;
-}
-
-/* 成品检验组标题——浅绿底与生产组区分 */
-.detail-final-header {
-    background: #e8f5e9;
-    border-color: #c8e6c9;
-}
-
-/* 工段卡片——委外套签 */
-.detail-outsource-chip {
-    font-size: 0.6875rem;
-}
-
 /* 表格滚动容器 */
 .detail-table-scroll {
     overflow-x: auto;
 }
-

@@ -164,7 +164,7 @@
                     else
                     {
                         <div style="overflow-x:auto; max-height:250px; overflow-y:auto;">
-                            <MudTable T="AvailableBatchDto" Items="@sortedAvailableBatches" RowsPerPage="5" RowsPerPageLabel="每页行数:" Dense="true" Hover="true" Elevation="0" Class="auto-table" Style="cursor:pointer;">
+                            <MudTable Breakpoint="Breakpoint.None" T="AvailableBatchDto" Items="@sortedAvailableBatches" RowsPerPage="5" RowsPerPageLabel="每页行数:" Dense="true" Hover="true" Elevation="0" Class="auto-table" Style="cursor:pointer;">
                                 <HeaderContent>
                                     <MudTh Style="width:100px;">
                                         <span Class="sortable-header" @onclick="@(() => ToggleSort("BatchNo"))">

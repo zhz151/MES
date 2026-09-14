@@ -21,6 +21,7 @@ if (-not (Test-Path "$ApiDir\MES.Api.dll")) {
 }
 if (-not (Test-Path $NssmExe)) { Write-Host "[FATAL] nssm not found: $NssmExe"; exit 1 }
 New-Item -ItemType Directory -Force -Path $LogsDir | Out-Null
+New-Item -ItemType Directory -Force -Path $AttachmentsDir | Out-Null
 
 $dotnet = (Get-Command dotnet).Source
 
@@ -49,7 +50,8 @@ $envs = @(
     "Seed__AdminPassword=$AdminPassword",
     "Hangfire__Username=$HangfireUser",
     "Hangfire__Password=$HangfirePassword",
-    "CorsOrigins=$CorsOrigins"
+    "CorsOrigins=$CorsOrigins",
+    "Attachment__RootPath=$AttachmentsDir"
 )
 & $NssmExe set $ApiServiceName AppEnvironmentExtra $envs
 if ($LASTEXITCODE -ne 0) { Write-Host "[WARN] AppEnvironmentExtra set may have partially failed. Verify via: nssm dump $ApiServiceName" -ForegroundColor Yellow }
@@ -63,6 +65,7 @@ Write-Host "    `$env:ASPNETCORE_URLS = '$ApiBindUrl'"
 Write-Host "    `$env:ASPNETCORE_ENVIRONMENT = 'Production'"
 Write-Host "    `$env:JwtSettings__Secret = '$JwtSecret'"
 Write-Host "    `$env:Seed__AdminPassword = '$AdminPassword'"
+Write-Host "    `$env:Attachment__RootPath = '$AttachmentsDir'"
 Write-Host "    dotnet MES.Api.dll"
 Write-Host "Wait until you see no error and the app stays listening (first run creates all tables + seeds 46 roles + Admin). Then press Ctrl+C and come back here."
 Write-Host ""

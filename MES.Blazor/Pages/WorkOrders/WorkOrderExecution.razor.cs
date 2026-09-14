@@ -114,13 +114,15 @@ public partial class WorkOrderExecution
         {
             new() { Key = "ProcessInspectionDefectWeight",     Label = "过程检次品总重",  SortKey = "ProcessInspectionDefectWeight",     FilterType = "number", Width = "90",  GroupKey = 16, GroupName = "次品总量" },
             new() { Key = "ProcessInspectionReworkWeight",    Label = "过程检返整量",    SortKey = "ProcessInspectionReworkWeight",    FilterType = "number", Width = "90",  Visible = false, GroupKey = 16, GroupName = "次品总量" },
-            new() { Key = "ProcessInspectionWarehouseWeight", Label = "过程检入库重",    SortKey = "ProcessInspectionWarehouseWeight", FilterType = "number", Width = "90",  Visible = false, GroupKey = 16, GroupName = "次品总量" },
-            new() { Key = "ProcessInspectionScrapWeight",     Label = "过程检报废重",    SortKey = "ProcessInspectionScrapWeight",     FilterType = "number", Width = "90",  Visible = false, GroupKey = 16, GroupName = "次品总量" },
+            new() { Key = "ProcessInspectionWarehouseWeight", Label = "过程检入在制重",  SortKey = "ProcessInspectionWarehouseWeight", FilterType = "number", Width = "90",  Visible = false, GroupKey = 16, GroupName = "次品总量" },
+            new() { Key = "ProcessInspectionScrapWeight",     Label = "过程检入次库重",  SortKey = "ProcessInspectionScrapWeight",     FilterType = "number", Width = "90",  Visible = false, GroupKey = 16, GroupName = "次品总量" },
+            new() { Key = "ProcessInspectionReturnWeight",    Label = "过程检退货重",    SortKey = "ProcessInspectionReturnWeight",    FilterType = "number", Width = "90",  Visible = false, GroupKey = 16, GroupName = "次品总量" },
             new() { Key = "FinalInspectionDefectQty",         Label = "成检次品总支",    SortKey = "FinalInspectionDefectQty",         FilterType = "number", Width = "90",  Visible = false, GroupKey = 16, GroupName = "次品总量" },
             new() { Key = "FinalInspectionDefectWeight",      Label = "成检次品总重",    SortKey = "FinalInspectionDefectWeight",      FilterType = "number", Width = "90",  GroupKey = 16, GroupName = "次品总量" },
             new() { Key = "FinalInspectionReworkWeight",      Label = "成品检返整量",    SortKey = "FinalInspectionReworkWeight",      FilterType = "number", Width = "90",  Visible = false, GroupKey = 16, GroupName = "次品总量" },
-            new() { Key = "FinalInspectionWarehouseWeight",   Label = "成检入库重",      SortKey = "FinalInspectionWarehouseWeight",   FilterType = "number", Width = "90",  Visible = false, GroupKey = 16, GroupName = "次品总量" },
-            new() { Key = "FinalInspectionScrapWeight",       Label = "成检报废重",      SortKey = "FinalInspectionScrapWeight",       FilterType = "number", Width = "90",  Visible = false, GroupKey = 16, GroupName = "次品总量" },
+            new() { Key = "FinalInspectionWarehouseWeight",   Label = "成检可入备库重",  SortKey = "FinalInspectionWarehouseWeight",   FilterType = "number", Width = "90",  Visible = false, GroupKey = 16, GroupName = "次品总量" },
+            new() { Key = "FinalInspectionScrapWeight",       Label = "成检入次库重",    SortKey = "FinalInspectionScrapWeight",       FilterType = "number", Width = "90",  Visible = false, GroupKey = 16, GroupName = "次品总量" },
+            new() { Key = "FinalInspectionReturnWeight",      Label = "成检退货重",      SortKey = "FinalInspectionReturnWeight",      FilterType = "number", Width = "90",  Visible = false, GroupKey = 16, GroupName = "次品总量" },
         };
 
         // G15: 返整执行数据

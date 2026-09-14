@@ -290,15 +290,17 @@
         new() { Key = "QualifiedConcessionQuantity", Label = "含让步放行支",     GroupKey = 5, GroupName = "检验结果" },
         new() { Key = "ConcessionRemark",    Label = "让步说明",                 GroupKey = 5, GroupName = "检验结果" },
 
-        // ========== G6：不合格处理 ==========
-        new() { Key = "DefectReworkQuantity", Label = "返整支数",                GroupKey = 6, GroupName = "不合格处理" },
-        new() { Key = "DefectWarehouseQuantity", Label = "入库支数",             GroupKey = 6, GroupName = "不合格处理" },
-        new() { Key = "DefectScrapQuantity", Label = "报废支数",                 GroupKey = 6, GroupName = "不合格处理" },
-        new() { Key = "TheoreticalReworkWeight", Label = "理论返整重",           GroupKey = 6, GroupName = "不合格处理" },
-        new() { Key = "TheoreticalWarehouseWeight", Label = "理论入库重",         GroupKey = 6, GroupName = "不合格处理" },
-        new() { Key = "TheoreticalScrapWeight", Label = "理论报废重",             GroupKey = 6, GroupName = "不合格处理" },
-        new() { Key = "DefectDescription",   Label = "不合格描述",               GroupKey = 6, GroupName = "不合格处理" },
-        new() { Key = "Remark",              Label = "备注",                     GroupKey = 6, GroupName = "不合格处理" },
+        // ========== G6：不合格品去向（4 档：返整/入在制库/入次品库/退货） ==========
+        new() { Key = "DefectReworkQuantity", Label = "返整支数",                GroupKey = 6, GroupName = "不合格品去向" },
+        new() { Key = "DefectWarehouseQuantity", Label = "入在制库支数",          GroupKey = 6, GroupName = "不合格品去向" },
+        new() { Key = "DefectScrapQuantity", Label = "入次品库支数",              GroupKey = 6, GroupName = "不合格品去向" },
+        new() { Key = "DefectReturnQuantity", Label = "退货支数",                GroupKey = 6, GroupName = "不合格品去向" },
+        new() { Key = "TheoreticalReworkWeight", Label = "理论返整重",           GroupKey = 6, GroupName = "不合格品去向" },
+        new() { Key = "TheoreticalWarehouseWeight", Label = "理论入在制重",       GroupKey = 6, GroupName = "不合格品去向" },
+        new() { Key = "TheoreticalScrapWeight", Label = "理论入次库重",           GroupKey = 6, GroupName = "不合格品去向" },
+        new() { Key = "TheoreticalReturnWeight", Label = "理论退货重",            GroupKey = 6, GroupName = "不合格品去向" },
+        new() { Key = "DefectDescription",   Label = "不合格描述",               GroupKey = 6, GroupName = "不合格品去向" },
+        new() { Key = "Remark",              Label = "备注",                     GroupKey = 6, GroupName = "不合格品去向" },
     };
 
     private async Task OnColumnToggle(ColumnDef col)
@@ -348,9 +350,11 @@
         public int? DefectReworkQuantity { get; set; }
         public int? DefectWarehouseQuantity { get; set; }
         public int? DefectScrapQuantity { get; set; }
+        public int? DefectReturnQuantity { get; set; }
         public int? TheoreticalReworkWeight { get; set; }
         public int? TheoreticalWarehouseWeight { get; set; }
         public int? TheoreticalScrapWeight { get; set; }
+        public int? TheoreticalReturnWeight { get; set; }
         public string? DefectDescription { get; set; }
         public string? SourceUnit { get; set; }
         public string? TagNo { get; set; }
@@ -425,9 +429,11 @@
         "DefectReworkQuantity" => 100,
         "DefectWarehouseQuantity" => 100,
         "DefectScrapQuantity" => 100,
+        "DefectReturnQuantity" => 100,
         "TheoreticalReworkWeight" => 100,
         "TheoreticalWarehouseWeight" => 100,
         "TheoreticalScrapWeight" => 100,
+        "TheoreticalReturnWeight" => 100,
         "DefectDescription" => 160,
         "Remark" => 150,
         _ => 130
@@ -634,15 +640,16 @@
             if (!r.Weight.HasValue || r.Weight.Value <= 0)
                 errors.Add($"第{i + 1}行：检验重量不能为空且必须大于0");
 
-            // 检验支数 = 合格支数 + 返整支数 + 入库支数 + 报废支数
+            // 检验支数 = 合格支数 + 返整支数 + 入在制库支数 + 入次品库支数 + 退货支数
             if (r.Quantity.HasValue)
             {
                 var sum = (r.QualifiedQuantity ?? 0)
                     + (r.DefectReworkQuantity ?? 0)
                     + (r.DefectWarehouseQuantity ?? 0)
-                    + (r.DefectScrapQuantity ?? 0);
+                    + (r.DefectScrapQuantity ?? 0)
+                    + (r.DefectReturnQuantity ?? 0);
                 if (sum != r.Quantity.Value)
-                    errors.Add($"第{i + 1}行：检验支数({r.Quantity})须等于合格支数+返整支数+入库支数+报废支数(={sum})");
+                    errors.Add($"第{i + 1}行：检验支数({r.Quantity})须等于合格支数+返整支数+入在制库支数+入次品库支数+退货支数(={sum})");
             }
         }
 
@@ -677,6 +684,7 @@
                 DefectReworkQuantity = r.DefectReworkQuantity,
                 DefectWarehouseQuantity = r.DefectWarehouseQuantity,
                 DefectScrapQuantity = r.DefectScrapQuantity,
+                DefectReturnQuantity = r.DefectReturnQuantity,
                 DefectDescription = r.DefectDescription,
                 SourceUnit = r.SourceUnit,
                 TagNo = r.TagNo,
@@ -771,6 +779,7 @@
             r.TheoreticalReworkWeight = null;
             r.TheoreticalWarehouseWeight = null;
             r.TheoreticalScrapWeight = null;
+            r.TheoreticalReturnWeight = null;
             return;
         }
         if (r.DefectReworkQuantity.HasValue && r.DefectReworkQuantity.Value > 0)
@@ -787,6 +796,11 @@
             r.TheoreticalScrapWeight = (int?)(r.Weight.Value / r.Quantity.Value * r.DefectScrapQuantity.Value);
         else
             r.TheoreticalScrapWeight = null;
+
+        if (r.DefectReturnQuantity.HasValue && r.DefectReturnQuantity.Value > 0)
+            r.TheoreticalReturnWeight = (int?)(r.Weight.Value / r.Quantity.Value * r.DefectReturnQuantity.Value);
+        else
+            r.TheoreticalReturnWeight = null;
     }
 
     // ========== 单元格渲染 ==========
@@ -1039,6 +1053,16 @@
                 builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => { r.DefectScrapQuantity = v; AutoFillTheoryWeights(r); }));
                 builder.CloseComponent();
                 break;
+            case "DefectReturnQuantity":
+                builder.OpenComponent<MudNumericField<int?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "HideSpinButtons",true);
+                builder.AddAttribute(5, "Value", r.DefectReturnQuantity);
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<int?>(this, v => { r.DefectReturnQuantity = v; AutoFillTheoryWeights(r); }));
+                builder.CloseComponent();
+                break;
             case "TheoreticalReworkWeight":
                 builder.OpenComponent<MudNumericField<int?>>(0);
                 builder.AddAttribute(1, "Dense", true);
@@ -1066,6 +1090,16 @@
                 builder.AddAttribute(3, "Size", Size.Small);
                 builder.AddAttribute(5, "HideSpinButtons", true);
                 builder.AddAttribute(5, "Value", r.TheoreticalScrapWeight);
+                builder.AddAttribute(6, "Disabled", true);
+                builder.CloseComponent();
+                break;
+            case "TheoreticalReturnWeight":
+                builder.OpenComponent<MudNumericField<int?>>(0);
+                builder.AddAttribute(1, "Dense", true);
+                builder.AddAttribute(2, "Variant", Variant.Outlined);
+                builder.AddAttribute(3, "Size", Size.Small);
+                builder.AddAttribute(5, "HideSpinButtons", true);
+                builder.AddAttribute(5, "Value", r.TheoreticalReturnWeight);
                 builder.AddAttribute(6, "Disabled", true);
                 builder.CloseComponent();
                 break;

@@ -115,36 +115,56 @@ public class FinalInspection : BaseEntity
     public int? DefectReworkQuantity { get; set; }
 
     /// <summary>
-    /// 不合格入库支数
+    /// 不合格入在制库支数（2026-09-11 新增，与过程检验口径对齐）
+    /// </summary>
+    public int? DefectInProcessWarehouseQuantity { get; set; }
+
+    /// <summary>
+    /// 不合格可入备库支数（原「次品入库」，2026-09-11 更名）
     /// </summary>
     public int? DefectWarehouseQuantity { get; set; }
 
     /// <summary>
-    /// 不合格报废支数
+    /// 不合格入次品库支数（原「次品报废」，2026-09-11 更名）
     /// </summary>
     public int? DefectScrapQuantity { get; set; }
+
+    /// <summary>
+    /// 不合格退货支数（2026-09-11 新增第 4 档）
+    /// </summary>
+    public int? DefectReturnQuantity { get; set; }
 
     /// <summary>
     /// 不合格情况描述
     /// </summary>
     public string? DefectDescription { get; set; }
 
-    // ========== 不合格处理重量 ==========
+    // ========== 不合格品去向重量 ==========
 
     /// <summary>
-    /// 次品返整重量(kg，整数)
+    /// 理论返整重(kg，整数)
     /// </summary>
     public int? DefectReworkWeight { get; set; }
 
     /// <summary>
-    /// 次品入库重量(kg，整数)
+    /// 理论入在制重(kg，整数)
+    /// </summary>
+    public int? DefectInProcessWarehouseWeight { get; set; }
+
+    /// <summary>
+    /// 理论可入备库重(kg，整数)
     /// </summary>
     public int? DefectWarehouseWeight { get; set; }
 
     /// <summary>
-    /// 次品报废重量(kg，整数)
+    /// 理论入次库重(kg，整数)
     /// </summary>
     public int? DefectScrapWeight { get; set; }
+
+    /// <summary>
+    /// 理论退货重(kg，整数)
+    /// </summary>
+    public int? DefectReturnWeight { get; set; }
 
     // ========== 尺寸检验专用字段（仅InspectionItem=Dimension时有效） ==========
 
@@ -265,4 +285,9 @@ public class FinalInspection : BaseEntity
     /// 所属生产批次
     /// </summary>
     public ProductionBatch ProductionBatch { get; set; } = null!;
+
+    /// <summary>
+    /// 检验照片附件（每记录限 QualityPhotoLimits.PerRecord 张）
+    /// </summary>
+    public ICollection<FinalInspectionAttachment> Attachments { get; set; } = new List<FinalInspectionAttachment>();
 }

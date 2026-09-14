@@ -51,7 +51,7 @@
 
             <!-- 数据表格 -->
             <div id="daily-output-estimates-list-table">
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="DailyOutputEstimateDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"

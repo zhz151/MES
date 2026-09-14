@@ -90,6 +90,22 @@ public class NcrService
         catch (Exception ex) { return ApiResponse<NcrLookupResultDto?>.Ok(null, $"网络错误: {ex.Message}"); }
     }
 
+    /// <summary>取来源关联的照片（主动来源传 feedbackId；被动来源传 groupKey；无照片时返回空列表）</summary>
+    public async Task<ApiResponse<List<NcrSourcePhotoGroupDto>>> GetSourcePhotosAsync(string? groupKey, int? feedbackId)
+    {
+        try
+        {
+            var url = $"{BaseUrl}/source-photos?";
+            if (feedbackId is > 0) url += $"feedbackId={feedbackId.Value}";
+            else if (!string.IsNullOrWhiteSpace(groupKey)) url += $"groupKey={Uri.EscapeDataString(groupKey)}";
+            else return ApiResponse<List<NcrSourcePhotoGroupDto>>.Ok(new List<NcrSourcePhotoGroupDto>());
+
+            return await _http.GetFromJsonAsync<ApiResponse<List<NcrSourcePhotoGroupDto>>>(url)
+                   ?? ApiResponse<List<NcrSourcePhotoGroupDto>>.Fail("获取照片失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<NcrSourcePhotoGroupDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     public async Task<ApiResponse<Dictionary<string, List<string>>>> GetFilterContextsAsync()
     {
         try

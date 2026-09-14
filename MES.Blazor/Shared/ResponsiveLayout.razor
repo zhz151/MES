@@ -50,17 +50,27 @@ else
         //     ⚠️ 夸克“电脑模式”会剥掉 UA 的 Quark 字样、把布局视口拉宽到 ~1280、把主指针模拟成鼠标
         //     （coarse=false、touch=0），上述 UA/宽度/触屏判定全部失效。device-width 反映设备物理
         //     屏幕宽，任何 UA/视口伪装都改不了真手机的 ~390px，是钉死手机布局的最可靠信号。
-        //   - 横屏例外（2026-09-05 用户拍板）：手机/触屏平板横屏且 innerWidth≥700 时改用桌面布局
-        //     （MainLayout 电脑版表格观感；侧栏默认收起、Responsive 抽屉 <960 为浮层不占位）。
-        //     旋转回竖屏立即回落移动布局。夸克等锁竖屏浏览器 orientation 恒 portrait → 不受影响。
+        //   - 不再有「横屏例外」（2026-09-14 用户拍板删除）：曾于 2026-09-05 加过一条例外——
+        //     手机/触屏平板横屏且 innerWidth≥700 时改走桌面布局（MainLayout 电脑版表格观感）。
+        //     当时的理由是「宽表竖屏物理上不可读」：MudTable 默认 Breakpoint=Xs 会把手机竖屏的
+        //     每条记录拆成「列名—值」竖排 N 行，只能靠横屏凑出接近桌面的宽度。
+        //     ⚠️ 该理由已被同日 V135–V139 四批改动推翻（`.mh-shell` 全站手机壳 / 各列表页
+        //        `Breakpoint="Breakpoint.None"` 恢复真横滚宽表 / 粘性表头 / 不冻结任何列），
+        //        且例外本身有代价：a) 横屏反而丢掉全部 `.mh-shell` 收敛规则（页头不换行、
+        //        MudGrid 不堆叠、宽表无粘性表头与限高滚动区）；b) 扫码流等「窄页」也被误切成
+        //        桌面版，与「扫码流竖屏本就流畅」的判定矛盾；c) 旋转屏幕时因换壳而重建整棵
+        //        页面子树，已查询的列表 / 填了一半的表单状态全部丢失。
+        //     → 故手机/触屏设备**不再按横竖屏区分**，一律走 MobileLayout（手机壳）；横屏下
+        //       纵向空间不足的问题改由 app.css 手机壳段的「横屏筛选网格每行 2 列」规则缓解。
+        //     ⚠️ 已知代价（用户知情拍板接受）：判据中含 UA / `pointer:coarse` / `maxTouchPoints`，
+        //        故**触屏笔记本与大平板横屏也会走移动布局**（大屏上被"手机化"）。纯鼠标桌面机
+        //        不受影响（宽≥960 且无任何触屏特征 → 仍走 MainLayout）。
         const string expr =
             "(window.innerWidth<960)||" +
             "(window.matchMedia&&window.matchMedia('(max-device-width: 767px)').matches)||" +
             "/Android|iPhone|iPad|iPod|Mobile|Mobi|Windows Phone|Quark|MicroMessenger/i.test(navigator.userAgent)||" +
             "(window.matchMedia&&window.matchMedia('(pointer: coarse)').matches)||" +
-            "((navigator.maxTouchPoints||0)>0&&window.innerWidth<1600)" +
-            // 命中移动条件后，若处于横屏大宽（landscape 且 ≥700px）→ 切桌面布局渲染宽表格；其余保持移动布局
-            "&&!(window.matchMedia&&window.matchMedia('(orientation: landscape)').matches&&window.innerWidth>=700)";
+            "((navigator.maxTouchPoints||0)>0&&window.innerWidth<1600)";
         try
         {
             return await JSRuntime.InvokeAsync<bool>("eval", expr);

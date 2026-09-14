@@ -129,7 +129,7 @@
                             选中一条真实产量记录点「试算」→ 按现行启用类别给出结算单价与整行计件额（与当月结算同口径、未按写名人头均分）
                         </MudText>
 
-                        <MudTable @ref="_trialTable"
+                        <MudTable Breakpoint="Breakpoint.None" @ref="_trialTable"
                                   T="PieceRateProductionTrialRecordDto"
                                   ServerData="@LoadTrialRecords"
                                   Dense="true"
@@ -248,7 +248,7 @@
 
             <!-- 数据表格 -->
             <div id="piece-rate-category-list-table">
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="PieceRateProductionCategoryListItemDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"

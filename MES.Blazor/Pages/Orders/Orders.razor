@@ -36,6 +36,13 @@
                            OnClick="ToggleEstimateCard">
                     完成预估及延期风险
                 </MudButton>
+                <MudButton Variant="Variant.Outlined"
+                           Size="Size.Small"
+                           Color="@(_showThroughputCard ? Color.Primary : Color.Default)"
+                           StartIcon="@(_showThroughputCard ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                           OnClick="ToggleThroughputCard">
+                    投料产出总况
+                </MudButton>
                 <MudButton Variant="Variant.Filled"
                            Color="Color.Primary"
                            StartIcon="@Icons.Material.Filled.Add"
@@ -112,8 +119,105 @@
                 </MudCard>
             }
 
-            <!-- 订单交期预估小表点击联动筛选提示条 -->
-            @if (_estimateLinkFilter != null)
+            <!-- 投料产出总况（行=订单完成月；口径可切换生产类型范围；默认折叠，标题栏按钮切换显隐） -->
+            @if (_showThroughputCard)
+            {
+                <MudCard Class="mb-2 summary-card" Elevation="0">
+                    <MudCardContent>
+                        <div class="d-flex align-center flex-wrap" style="gap: 12px;">
+                            <MudText Typo="Typo.subtitle2"><b>投料产出总况</b></MudText>
+                            <MudSelect T="string" Value="_throughputScope" ValueChanged="OnThroughputScopeChanged"
+                                       Label="生产类型范围" Dense="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                       Style="min-width: 260px;">
+                                @foreach (var opt in _throughputScopeOptions)
+                                {
+                                    <MudSelectItem T="string" Value="@opt.Key">@opt.Label</MudSelectItem>
+                                }
+                            </MudSelect>
+                            <MudSpacer />
+                            @if (_throughput != null)
+                            {
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Print"
+                                           OnClick="PrintThroughputCard">
+                                    打印
+                                </MudButton>
+                            }
+                            @* 完成日期范围：2 输入框 + 应用 + 清除 为一个整体，靠右紧凑排列 *@
+                            <div class="d-flex align-center" style="gap:8px;">
+                                <MudTextField T="string" @bind-Value="_throughputDateFrom" Immediate="true"
+                                              Label="完成日期起" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" Style="width:140px" />
+                                <MudTextField T="string" @bind-Value="_throughputDateTo" Immediate="true"
+                                              Label="完成日期止" Placeholder="yyyy-MM-dd" Dense="true" Variant="Variant.Outlined"
+                                              Margin="Margin.Dense" Style="width:140px" />
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                                           OnClick="ApplyThroughputRangeAsync">
+                                    应用
+                                </MudButton>
+                                <MudButton Variant="Variant.Text" Size="Size.Small" Disabled="@(!_throughputRangeMode)"
+                                           OnClick="ClearThroughputRangeAsync">
+                                    清除
+                                </MudButton>
+                            </div>
+                        </div>
+
+                        @if (_throughput == null)
+                        {
+                            <MudText Typo="Typo.body2" Class="text-hint mt-3">正在加载...</MudText>
+                        }
+                        else
+                        {
+                            var rows = _throughputRows;
+                            <div id="order-throughput-table" class="mt-3" style="overflow-x:auto;">
+                                <table style="border-collapse: collapse; width: 100%; font-size: 0.8125rem;">
+                                    <thead>
+                                        <tr>
+                                            @foreach (var header in new[] { _throughputRangeMode ? "选定范围" : "完成月", "订单数", "生产投料", "订单成品入库", "余库料入库", "次品入库", "备料成品", "投料产出率", "产出成品比", "退货" })
+                                            {
+                                                <th style="padding:4px 10px; background:#f5f5f5; border:1px solid #e0e0e0; text-align:center; white-space:nowrap;">@header</th>
+                                            }
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (rows.Count == 0)
+                                        {
+                                            <tr>
+                                                <td colspan="10" style="padding:6px 10px; border:1px solid #e0e0e0; text-align:center;">
+                                                    @(_throughputRangeMode ? "该日期区间内暂无完成订单" : "近 12 个月暂无完成订单")
+                                                </td>
+                                            </tr>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var row in rows)
+                                            {
+                                                <tr>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:600; white-space:nowrap;">@row.Month</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@row.OrderCount</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatThroughputWeight(row.InputWeight)</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatThroughputWeight(row.OrderFinishedWeight)</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatThroughputWeight(row.SurplusWeight)</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatThroughputWeight(row.DefectWeight)</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatThroughputWeight(row.PreparedWeight)</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">@FormatThroughputRate(row.InputOutputRate)</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center; font-weight:600;">@FormatThroughputRate(row.FinishedOutputRate)</td>
+                                                    <td style="padding:4px 10px; border:1px solid #e0e0e0; text-align:center;">@FormatThroughputWeight(row.ReturnWeight)</td>
+                                                </tr>
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <MudText Typo="Typo.caption" Class="text-hint">
+                                @ThroughputFootnote()
+                            </MudText>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            }
+
+            <!-- 订单交期预估小表点击联动筛选提示条 -->            @if (_estimateLinkFilter != null)
             {
                 <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-2" Dense="true">
                     <div class="d-flex align-center justify-space-between" style="gap: 8px;">
@@ -221,7 +325,7 @@
                     }
                 </div>
             </div>
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="SalesOrderListDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"

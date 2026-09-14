@@ -1191,6 +1191,13 @@ public class DataImportService : IDataImportService
                             ?? NcrResponsibilityKeys.ToKey(responsibilityCategory) ?? responsibilityCategory;
                     }
 
+                    // 特殊处理：NCR DisposalMethod 处置方式存储改英文 Key（Excel 中文 → Key；配置表加值项优先，静态兜底）
+                    if (colDef.Property == "DisposalMethod" && value is string disposalMethod)
+                    {
+                        value = ResolveDictValueKey(DictValueDefaults.NcrDisposalKey, disposalMethod)
+                            ?? NcrDisposalKeys.ToKey(disposalMethod) ?? disposalMethod;
+                    }
+
                     // 特殊处理：员工岗位类别 Department 存储改英文 Key（PositionCategoryKey 字典；配置表优先，静态兜底）
                     if (colDef.Property == "Department" && value is string department)
                     {

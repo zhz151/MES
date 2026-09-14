@@ -1486,7 +1486,7 @@ public class ProductionRecordService : IProductionRecordService
                 continue;
             }
 
-            // ④ 过程检验：检验员 + 4 值（合格支/重、次品支=返整+入库+报废、次品重=三项理论重和，跨记录累加）
+            // ④ 过程检验：检验员 + 4 值（合格支/重、次品支=返整+入在制库+入次品库+退货、次品重=四项理论重和，跨记录累加）
             if (inspectionsByKey.TryGetValue(sKey, out var inspList) && inspList.Count > 0)
             {
                 var sorted = inspList.OrderBy(i => i.InspectionDate).ToList();
@@ -1498,9 +1498,9 @@ public class ProductionRecordService : IProductionRecordService
                 s.QualifiedQuantity = sorted.Sum(i => i.QualifiedQuantity ?? 0);
                 s.QualifiedWeight = sorted.Sum(i => i.QualifiedWeight ?? 0);
                 s.DefectQuantity = sorted.Sum(i => (i.DefectReworkQuantity ?? 0)
-                    + (i.DefectWarehouseQuantity ?? 0) + (i.DefectScrapQuantity ?? 0));
+                    + (i.DefectWarehouseQuantity ?? 0) + (i.DefectScrapQuantity ?? 0) + (i.DefectReturnQuantity ?? 0));
                 s.DefectWeight = sorted.Sum(i => (i.TheoreticalReworkWeight ?? 0)
-                    + (i.TheoreticalWarehouseWeight ?? 0) + (i.TheoreticalScrapWeight ?? 0));
+                    + (i.TheoreticalWarehouseWeight ?? 0) + (i.TheoreticalScrapWeight ?? 0) + (i.TheoreticalReturnWeight ?? 0));
                 continue;
             }
 
@@ -1661,9 +1661,11 @@ public class ProductionRecordService : IProductionRecordService
                 QualifiedQuantity = SumNonNull(f => f.QualifiedQuantity),
                 QualifiedWeight = SumNonNull(f => f.QualifiedWeight),
                 DefectQuantity = SumNonNull(f => (f.DefectReworkQuantity ?? 0)
-                    + (f.DefectWarehouseQuantity ?? 0) + (f.DefectScrapQuantity ?? 0)),
+                    + (f.DefectInProcessWarehouseQuantity ?? 0)
+                    + (f.DefectWarehouseQuantity ?? 0) + (f.DefectScrapQuantity ?? 0) + (f.DefectReturnQuantity ?? 0)),
                 DefectWeight = SumNonNull(f => (f.DefectReworkWeight ?? 0)
-                    + (f.DefectWarehouseWeight ?? 0) + (f.DefectScrapWeight ?? 0))
+                    + (f.DefectInProcessWarehouseWeight ?? 0)
+                    + (f.DefectWarehouseWeight ?? 0) + (f.DefectScrapWeight ?? 0) + (f.DefectReturnWeight ?? 0))
             });
         }
         return result;
@@ -2165,7 +2167,7 @@ public class ProductionRecordService : IProductionRecordService
     {
         // 缺陷量：全量累计（不限工序组）
         batch.ProcessInspectionReworkWeight = processInspections.Sum(p => p.TheoreticalReworkWeight ?? 0);
-        batch.ProcessInspectionScrapWeight = processInspections.Sum(p => (p.TheoreticalWarehouseWeight ?? 0) + (p.TheoreticalScrapWeight ?? 0));
+        batch.ProcessInspectionScrapWeight = processInspections.Sum(p => (p.TheoreticalWarehouseWeight ?? 0) + (p.TheoreticalScrapWeight ?? 0) + (p.TheoreticalReturnWeight ?? 0));
 
         // 合格支/合格量：当前执行工序组聚合
         int qty = 0;

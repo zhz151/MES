@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using Blazored.LocalStorage;
@@ -60,8 +61,9 @@ public partial class ReportOverview
     }
 
     // ========== 汇总卡折叠状态（localStorage 持久化） ==========
-    // 方案B（生产执行/质量管理/物料执行）：默认折叠「月度/历史」类低频卡，核心实时卡展开
-    // 业务总况/原料需求 为单区域大表 Tab（非多卡），不参与折叠
+    // 方案B（业务总况/物料执行/生产执行/质量管理）：默认折叠「月度/历史」类低频卡，核心实时卡展开
+    // 业务总况（2026-09-14）：全卡可折叠（客户往来/投料产出总况属历史类默认折叠，订单接单出库·现负荷汇总默认展开）
+    // 原料需求 为单区域大表 Tab（非多卡），不参与折叠
     // 现订单负荷总量/仓库报表 为嵌入组件 Tab，无可打印汇总卡，不参与折叠
     // 三张「往来数据」卡（2026-09-10 批二十二）：低频查看、默认折叠，展开默认显 10 行 + 行数切换
 
@@ -73,6 +75,7 @@ public partial class ReportOverview
     private static readonly HashSet<string> DefaultCollapsedCards = new(StringComparer.OrdinalIgnoreCase)
     {
         // 三张「往来数据」卡（批二十二）：默认折叠，展开显 10 行
+        "report:throughput",        // 投料产出总况（2026-09-14）：12 个月趋势/历史类，默认折叠
         "report:customer-trade",
         "report:supplier-trade",
         "report:outsource-trade",
@@ -165,7 +168,6 @@ public partial class ReportOverview
     // ========== Tab1 业务总况：订单接单·出库及现负荷汇总 ==========
 
     private OrderInOutSummaryDto? _inOutSummary;
-    private int _currentMonthIndex => DateTime.Today.Month - 1;
 
     /// <summary>订单交期预估（两小表：订单完成预估 / 延期交货订单预估，x单/y吨，订单级口径）</summary>
     private OrderDeliveryEstimateDto? _deliveryEstimate;
@@ -175,7 +177,8 @@ public partial class ReportOverview
         var t1 = OrderService.GetInOutSummaryAsync(DateTime.Today.Year);
         var t2 = OrderService.GetDeliveryEstimateAsync();
         var t3 = LoadCustomerTradeAsync();
-        await Task.WhenAll(t1, t2, t3);
+        var t4 = LoadThroughputAsync();
+        await Task.WhenAll(t1, t2, t3, t4);
 
         var r1 = await t1;
         if (r1.Success && r1.Data != null)
@@ -196,22 +199,134 @@ public partial class ReportOverview
     private string? _customerTradeSortBy;   // null=原序；salesman / endcustomer
     private bool _customerTradeDesc;
     private int _customerTradeTake = 10;    // 显示行数：0=全部；默认 10
+    private string _customerTradeSignFrom = "";   // 接单区间-开始（yyyy-MM-dd，空=不限）
+    private string _customerTradeSignTo = "";     // 接单区间-结束（yyyy-MM-dd，闭区间含当天）
+    private string _customerTradeShipFrom = "";   // 发货区间-开始（yyyy-MM-dd，空=不限）
+    private string _customerTradeShipTo = "";     // 发货区间-结束（yyyy-MM-dd，闭区间含当天）
+
+    /// <summary>
+    /// 是否处于「接单区间」模式（任一端填写即生效）。生效时服务端把「本年接单」改按 <c>SalesOrder.SignDate</c> 落区间重算。
+    /// </summary>
+    private bool CustomerTradeSignRangeMode => !string.IsNullOrWhiteSpace(_customerTradeSignFrom) || !string.IsNullOrWhiteSpace(_customerTradeSignTo);
+
+    /// <summary>
+    /// 是否处于「发货区间」模式（任一端填写即生效）。生效时服务端把「本年已发货」改按 <c>OutboundRecord.OutboundDate</c> 落区间重算。
+    /// </summary>
+    private bool CustomerTradeShipRangeMode => !string.IsNullOrWhiteSpace(_customerTradeShipFrom) || !string.IsNullOrWhiteSpace(_customerTradeShipTo);
+
+    /// <summary>任一时间区间生效（两个区间互相独立、可叠加）。生效时只显示「有数据」的客户行。</summary>
+    private bool CustomerTradeAnyRangeMode => CustomerTradeSignRangeMode || CustomerTradeShipRangeMode;
+
+    /// <summary>接单区间生效时唯一有意义的列（服务端口径已切换）。</summary>
+    private static readonly string[] CustomerTradeSignColumns = ["YearOrder"];
+    /// <summary>发货区间生效时唯一有意义的列（服务端口径已切换）。</summary>
+    private static readonly string[] CustomerTradeShipColumns = ["ShippedDone", "ShippedOther"];
+
+    /// <summary>
+    /// 当前区间模式下「有数据」的列集合；返回 null 表示未启用任何区间（8 列全部正常展示、不筛行）。
+    /// 未激活的列渲染为「—」防视觉污染——因为该列仍为自然年/存量的旧口径，与所选区间不同源。
+    /// </summary>
+    private HashSet<string>? CustomerTradeActiveColumns()
+    {
+        if (!CustomerTradeAnyRangeMode) return null;
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        if (CustomerTradeSignRangeMode) set.UnionWith(CustomerTradeSignColumns);
+        if (CustomerTradeShipRangeMode) set.UnionWith(CustomerTradeShipColumns);
+        return set;
+    }
+
+    /// <summary>该统计列在当前区间模式下是否有数据（无区间模式时恒 true）</summary>
+    private bool CustomerTradeColumnActive(string col)
+        => CustomerTradeActiveColumns()?.Contains(col) ?? true;
 
     /// <summary>拉取客户档案全量（PageSize=5000 覆盖全量小档案，统计随 GetPagedAsync 回填；失败不阻断总览）</summary>
     private async Task LoadCustomerTradeAsync()
     {
         try
         {
-            var r = await CustomerSvc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 5000 });
+            var r = await CustomerSvc.GetPagedAsync(new QueryParams
+            {
+                PageIndex = 1,
+                PageSize = 5000,
+                SignDateFrom = ParseTradeDate(_customerTradeSignFrom),
+                SignDateTo = ParseTradeDate(_customerTradeSignTo),
+                ShipDateFrom = ParseTradeDate(_customerTradeShipFrom),
+                ShipDateTo = ParseTradeDate(_customerTradeShipTo)
+            });
             _customerTradeRows = OkData(r)?.Items ?? new List<CustomerProfileDto>();
         }
         catch { _customerTradeRows = new List<CustomerProfileDto>(); }
     }
 
-    /// <summary>客户往来可见行：身份列关键字过滤 + 业务员/最终用户点击排序（中文按 Unicode，客户端小集够用）</summary>
+    /// <summary>解析区间日期文本（yyyy-MM-dd；空或非法一律返回 null，该端不参与过滤）</summary>
+    private static DateTime? ParseTradeDate(string text)
+        => DateTime.TryParseExact(text.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
+            ? d
+            : null;
+
+    /// <summary>接单区间变更：按新口径重新拉取统计（该区间两端皆空则回到「本年接单」口径）</summary>
+    private async Task OnCustomerTradeSignChangedAsync()
+    {
+        await LoadCustomerTradeAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>发货区间变更：按新口径重新拉取统计（该区间两端皆空则回到「本年已发货」口径）</summary>
+    private async Task OnCustomerTradeShipChangedAsync()
+    {
+        await LoadCustomerTradeAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>清空全部区间条件（接单 + 发货），回到完全现状口径</summary>
+    private async Task ClearCustomerTradeRangeAsync()
+    {
+        _customerTradeSignFrom = _customerTradeSignTo = "";
+        _customerTradeShipFrom = _customerTradeShipTo = "";
+        await LoadCustomerTradeAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>表头动态文本：各自区间生效时对应列改称「区间接单 / 区间已发货」（口径已切换，防误导）</summary>
+    private string CustomerTradeHeader(string col) => col switch
+    {
+        "YearOrder" => CustomerTradeSignRangeMode ? "区间接单" : "本年接单",
+        "ShippedDone" => CustomerTradeShipRangeMode ? "区间已发货(整单)" : "本年已发货(整单)",
+        "ShippedOther" => CustomerTradeShipRangeMode ? "区间已发货(非整单)" : "本年已发货(非整单)",
+        _ => col
+    };
+
+    /// <summary>区间生效时的口径提示条（说明哪些列有值、哪些列置「—」、存量列不受影响）</summary>
+    private string CustomerTradeRangeHint()
+    {
+        if (CustomerTradeSignRangeMode && CustomerTradeShipRangeMode)
+            return "接单 + 发货区间模式：「区间接单」「区间已发货(整单/非整单)」按各自所选日期区间统计；其余列置「—」（口径与所选区间的维度不同源）；待发货/待在产为当前存量，不受区间影响；列表只显示所选区间内有数据的客户。";
+        if (CustomerTradeSignRangeMode)
+            return "接单区间模式：仅「区间接单」按所选接单日期区间统计；其余列置「—」（口径为自然年/全时段/当前存量，与区间不同源）；列表只显示该区间内有接单数据的客户。";
+        return "发货区间模式：仅「区间已发货(整单/非整单)」按所选发货日期区间统计；其余列置「—」（口径为自然年/全时段/当前存量，与区间不同源）；列表只显示该区间内有发货数据的客户。";
+    }
+
+    /// <summary>区间/累计模式下的空值占位（灰色破折号，避免与真实 0 混淆）</summary>
+    private static readonly MarkupString CustomerTradeDash = new("<span style=\"color:#9e9e9e\">—</span>");
+
+    /// <summary>
+    /// 客户往来可见行：任一区间生效时先剔除「激活列全为 0」的客户行（防区间口径下满屏空行），
+    /// 再做身份列关键字过滤 + 业务员/最终用户点击排序（中文按 Unicode，客户端小集够用）。
+    /// </summary>
     private List<CustomerProfileDto> CustomerTradeVisible()
     {
         IEnumerable<CustomerProfileDto> q = _customerTradeRows;
+
+        var active = CustomerTradeActiveColumns();
+        if (active != null)
+        {
+            q = q.Where(r => active.Any(col =>
+            {
+                var v = CustomerTradeValues(r, col);
+                return v.Count > 0 || v.Weight > 0m;
+            }));
+        }
+
         if (!string.IsNullOrWhiteSpace(_customerTradeKeyword))
         {
             var kw = _customerTradeKeyword.Trim();
@@ -249,16 +364,19 @@ public partial class ReportOverview
     private string CustomerTradeSortedClass(string col)
         => _customerTradeSortBy == col ? " report-th-sorted" : "";
 
-    /// <summary>客户往来统计格（z单/x吨/y万 三色取整；与客户管理列表口径一致）</summary>
-    private static MarkupString CustomerTradeCell(CustomerProfileDto r, string col)
+    /// <summary>客户往来统计格（z单/x吨/y万 三色取整；与客户管理列表口径一致）。区间模式下未激活列置「—」。</summary>
+    private MarkupString CustomerTradeCell(CustomerProfileDto r, string col)
     {
+        if (!CustomerTradeColumnActive(col))
+            return CustomerTradeDash;
         var v = CustomerTradeValues(r, col);
         return OrderOverviewFormatter.RenderTradeMarkup(v.Count, v.Weight, v.Amount, v.WithCount);
     }
 
-    /// <summary>单行 7 统计列取值（客户 7 列均含单数成分）</summary>
+    /// <summary>单行 8 统计列取值（客户 8 列均含单数成分；与源列表页「客户管理」往来信息列表同源同口径）</summary>
     private static (bool WithCount, int Count, decimal Weight, decimal Amount) CustomerTradeValues(CustomerProfileDto r, string col) => col switch
     {
+        "TotalOrder" => (true, r.TotalOrderCount, r.TotalOrderWeight, r.TotalOrderAmount),
         "YearOrder" => (true, r.YearOrderCount, r.YearOrderWeight, r.YearOrderAmount),
         "ShippedDone" => (true, r.ShippedCompletedCount, r.ShippedCompletedWeight, r.ShippedCompletedAmount),
         "ShippedOther" => (true, r.ShippedOtherCount, r.ShippedOtherWeight, r.ShippedOtherAmount),
@@ -269,9 +387,11 @@ public partial class ReportOverview
         _ => (true, 0, 0m, 0m)
     };
 
-    /// <summary>客户往来列合计（按当前显示行汇总，供卡内「合计」行）</summary>
-    private static MarkupString CustomerTradeSummary(IEnumerable<CustomerProfileDto> rows, string col)
+    /// <summary>客户往来列合计（按当前显示行汇总，供卡内「合计」行）。区间模式下未激活列置「—」。</summary>
+    private MarkupString CustomerTradeSummary(IEnumerable<CustomerProfileDto> rows, string col)
     {
+        if (!CustomerTradeColumnActive(col))
+            return CustomerTradeDash;
         var c = 0; decimal w = 0m, a = 0m;
         foreach (var r in rows)
         {
@@ -279,6 +399,110 @@ public partial class ReportOverview
             c += v.Count; w += v.Weight; a += v.Amount;
         }
         return OrderOverviewFormatter.RenderTradeMarkup(c, w, a, true);
+    }
+
+    // ========== Tab1 业务总况·投料产出总况（行=订单完成月；同源订单列表页卡片） ==========
+
+    /// <summary>投料产出总况（口径随 <see cref="_throughputScope"/>、日期范围随 <see cref="_throughputDateFrom"/>/<see cref="_throughputDateTo"/> 切换）</summary>
+    private OrderThroughputSummaryDto? _throughput;
+    /// <summary>生产类型范围口径（默认「全部四种」：荒管 + 在制 + 库存 + 外购）</summary>
+    private string _throughputScope = ProductionScopeKeys.All;
+    /// <summary>完成日期范围-起（yyyy-MM-dd；与止同时为空 = 默认最近 12 个月）</summary>
+    private string _throughputDateFrom = string.Empty;
+    /// <summary>完成日期范围-止（yyyy-MM-dd；含当天）</summary>
+    private string _throughputDateTo = string.Empty;
+
+    /// <summary>口径下拉选项（合计 2 档 + 单一生产类型 4 档；同源订单列表页）</summary>
+    private static readonly (string Key, string Label)[] _throughputScopeOptions =
+    [
+        (ProductionScopeKeys.All, "全部（荒管+在制+库存+外购）"),
+        (ProductionScopeKeys.Pure, "纯生产（荒管+在制）"),
+        (ProductionTypeKeys.RoughTube, "荒管生产"),
+        (ProductionTypeKeys.InProcess, "在制生产"),
+        (ProductionTypeKeys.Inventory, "库存料生产"),
+        (ProductionTypeKeys.OutsourcedPurchased, "外购生产"),
+    ];
+
+    /// <summary>是否处于完成日期区间模式（任一端有值）</summary>
+    private bool _throughputRangeMode =>
+        !string.IsNullOrWhiteSpace(_throughputDateFrom) || !string.IsNullOrWhiteSpace(_throughputDateTo);
+
+    /// <summary>加载投料产出总况（随 Tab1 一并加载 / 口径或日期区间变更）；失败不阻断主表，保留 null 显示「暂无数据」</summary>
+    private async Task LoadThroughputAsync()
+    {
+        try
+        {
+            var result = await OrderService.GetThroughputSummaryAsync(
+                _throughputScope, ParseThroughputDate(_throughputDateFrom), ParseThroughputDate(_throughputDateTo));
+            if (result.Success && result.Data != null)
+                _throughput = result.Data;
+        }
+        catch { /* 不阻断业务总况主表 */ }
+    }
+
+    private async Task OnThroughputScopeChangedAsync(string scope)
+    {
+        _throughputScope = ProductionScopeKeys.Resolve(scope);
+        await LoadThroughputAsync();
+    }
+
+    /// <summary>应用完成日期区间（重新取数，服务端按「订单真实完成日落入区间」过滤）</summary>
+    private async Task ApplyThroughputRangeAsync() => await LoadThroughputAsync();
+
+    /// <summary>清除完成日期区间并回落到默认最近 12 个月</summary>
+    private async Task ClearThroughputRangeAsync()
+    {
+        _throughputDateFrom = string.Empty;
+        _throughputDateTo = string.Empty;
+        await LoadThroughputAsync();
+    }
+
+    /// <summary>解析 yyyy-MM-dd 日期文本（空/非法返回 null，该端不参与过滤）</summary>
+    private static DateTime? ParseThroughputDate(string text)
+        => DateTime.TryParseExact(text.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out var d) ? d : null;
+
+    /// <summary>卡头口径说明（随日期区间模式切换文案）</summary>
+    private string ThroughputRangeCaption()
+        => _throughputRangeMode ? "同源「订单列表页」卡片｜按完成日落入所选区间，整区间聚合为 1 行"
+                                : "同源「订单列表页」卡片｜行 = 订单完成月（近 12 个月）";
+
+    /// <summary>
+    /// 卡内脚注（随日期区间模式切换）：区间模式须显式提示「按真实完成日过滤」与
+    /// 「各列为命中订单的全生命周期合计（含区间外投料/入库量）」，避免被误读为区间内发生量。
+    /// </summary>
+    private string ThroughputFootnote()
+        => _throughputRangeMode
+            ? "注：行 = 所选完成日期范围（按订单真实完成日落入该区间过滤，起止当日均含；整区间聚合为 1 行）。"
+              + "各列为命中订单的全生命周期合计、与完成日不相关——生产投料 = 各批次工艺卡领料重之和，入库列为各批次入库量之和，"
+              + "故区间之外发生的投料/入库量也会计入本行。重量 kg 四舍五入取整，比率 0~1（分母 ≤0 显示 —）。"
+              + "生产投料、次品入库已扣退货，退货单列供核对。订单数 = 本口径内有生产批次的订单数（非区间内完成订单总数）。"
+              + "口径「全部」下订单成品入库只计交付态成品，「纯生产 / 单一生产类型」口径含非交付态。"
+            : "注：行 = 订单完成月（该订单全部主号最终入库完成日所在月；固定近 12 个月，无完成订单的月不显示）；"
+              + "重量 kg 四舍五入取整，比率 0~1（分母 ≤0 显示 —）。生产投料、次品入库已扣退货，退货单列供核对。"
+              + "订单数 = 该完成月中在本口径内有生产批次的订单数（非该月完成订单总数）。"
+              + "口径「全部」下订单成品入库只计交付态成品，「纯生产 / 单一生产类型」口径含非交付态。";
+
+    /// <summary>当前口径下由服务端返回的月度行（日期过滤已在服务端完成）</summary>
+    private List<OrderThroughputMonthDto> _throughputRows => _throughput?.Months ?? new List<OrderThroughputMonthDto>();
+
+    /// <summary>重量显示：四舍五入取整（本报表口径，不用 DisplayHelper.FormatDecimalAsInt 的截断）</summary>
+    private static string FormatThroughputWeight(decimal value)
+        => Math.Round(value, 0, MidpointRounding.AwayFromZero).ToString("0");
+
+    /// <summary>比率显示：0~1 转百分数一位小数；分母 ≤0（null）显示占位符</summary>
+    private static string FormatThroughputRate(decimal? ratio)
+        => ratio.HasValue ? (ratio.Value * 100m).ToString("0.0") + "%" : "—";
+
+    /// <summary>口径中文标签（打印标题用）</summary>
+    private static string ThroughputScopeLabel(string scope)
+    {
+        var key = ProductionScopeKeys.Resolve(scope);
+        foreach (var opt in _throughputScopeOptions)
+        {
+            if (opt.Key == key) return opt.Label;
+        }
+        return key;
     }
 
     // ========== Tab3 原料需求：原锁待投料量汇总 ==========
@@ -338,24 +562,120 @@ public partial class ReportOverview
     private string? _supplierTradeSortBy;   // null=原序；name / category
     private bool _supplierTradeDesc;
     private int _supplierTradeTake = 10;    // 显示行数：0=全部；默认 10
+    private string _supplierTradeOrderFrom = "";     // 出单区间-开始（yyyy-MM-dd，空=不限）
+    private string _supplierTradeOrderTo = "";       // 出单区间-结束（yyyy-MM-dd，闭区间含当天）
+    private string _supplierTradeArrivalFrom = "";   // 到货区间-开始（yyyy-MM-dd，空=不限）
+    private string _supplierTradeArrivalTo = "";     // 到货区间-结束（yyyy-MM-dd，闭区间含当天）
+
+    /// <summary>是否处于「出单区间」模式（任一端填写即生效）。生效时把「本年出单」改按采购/委外单 <c>OrderDate</c> 落区间重算。</summary>
+    private bool SupplierTradeOrderRangeMode => !string.IsNullOrWhiteSpace(_supplierTradeOrderFrom) || !string.IsNullOrWhiteSpace(_supplierTradeOrderTo);
+
+    /// <summary>是否处于「到货区间」模式（任一端填写即生效）。生效时把「本年到货」「本年退货」改按 <c>InboundDate</c>/<c>OutboundDate</c> 落区间重算。</summary>
+    private bool SupplierTradeArrivalRangeMode => !string.IsNullOrWhiteSpace(_supplierTradeArrivalFrom) || !string.IsNullOrWhiteSpace(_supplierTradeArrivalTo);
+
+    /// <summary>任一时间区间生效（两个区间互相独立、可叠加）。生效时只显示「有数据」的供应商行。</summary>
+    private bool SupplierTradeAnyRangeMode => SupplierTradeOrderRangeMode || SupplierTradeArrivalRangeMode;
+
+    /// <summary>出单区间生效时唯一有意义的列（服务端口径已切换）</summary>
+    private static readonly string[] SupplierTradeOrderColumns = ["YearOrder"];
+    /// <summary>到货区间生效时有意义的列（到货 + 退货，两者同源同一区间窗口）</summary>
+    private static readonly string[] SupplierTradeArrivalColumns = ["Arrived", "YearReturn"];
+
+    /// <summary>当前区间模式下「有数据」的列集合；返回 null 表示未启用任何区间（5 列全部正常展示、不筛行）</summary>
+    private HashSet<string>? SupplierTradeActiveColumns()
+    {
+        if (!SupplierTradeAnyRangeMode) return null;
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        if (SupplierTradeOrderRangeMode) set.UnionWith(SupplierTradeOrderColumns);
+        if (SupplierTradeArrivalRangeMode) set.UnionWith(SupplierTradeArrivalColumns);
+        return set;
+    }
+
+    /// <summary>该统计列在当前区间模式下是否有数据（无区间模式时恒 true）</summary>
+    private bool SupplierTradeColumnActive(string col)
+        => SupplierTradeActiveColumns()?.Contains(col) ?? true;
 
     /// <summary>拉取供应商档案全量（统计随 GetPagedAsync 回填；失败不阻断物料执行卡组）</summary>
     private async Task LoadSupplierTradeAsync()
     {
         try
         {
-            var r = await SupplierSvc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 5000 });
+            var r = await SupplierSvc.GetPagedAsync(new QueryParams
+            {
+                PageIndex = 1,
+                PageSize = 5000,
+                SupplierOrderDateFrom = ParseTradeDate(_supplierTradeOrderFrom),
+                SupplierOrderDateTo = ParseTradeDate(_supplierTradeOrderTo),
+                SupplierArrivalDateFrom = ParseTradeDate(_supplierTradeArrivalFrom),
+                SupplierArrivalDateTo = ParseTradeDate(_supplierTradeArrivalTo)
+            });
             _supplierTradeRows = OkData(r)?.Items ?? new List<SupplierProfileDto>();
         }
         catch { _supplierTradeRows = new List<SupplierProfileDto>(); }
     }
 
+    /// <summary>出单区间变更：按新口径重新拉取统计（该区间两端皆空则回到「本年出单」口径）</summary>
+    private async Task OnSupplierTradeOrderChangedAsync()
+    {
+        await LoadSupplierTradeAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>到货区间变更：按新口径重新拉取统计（该区间两端皆空则回到「本年到货/本年退货」口径）</summary>
+    private async Task OnSupplierTradeArrivalChangedAsync()
+    {
+        await LoadSupplierTradeAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>清空全部区间条件（出单 + 到货），回到完全现状口径</summary>
+    private async Task ClearSupplierTradeRangeAsync()
+    {
+        _supplierTradeOrderFrom = _supplierTradeOrderTo = "";
+        _supplierTradeArrivalFrom = _supplierTradeArrivalTo = "";
+        await LoadSupplierTradeAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>表头动态文本：各自区间生效时对应列改称「区间出单 / 区间到货 / 区间退货」（口径已切换，防误导）</summary>
+    private string SupplierTradeHeader(string col) => col switch
+    {
+        "YearOrder" => SupplierTradeOrderRangeMode ? "区间出单" : "本年出单",
+        "Arrived" => SupplierTradeArrivalRangeMode ? "区间到货[扣除退货]" : "本年到货[扣除退货]",
+        "YearReturn" => SupplierTradeArrivalRangeMode ? "区间退货" : "本年退货",
+        _ => col
+    };
+
+    /// <summary>区间生效时的口径提示条（说明哪些列有值、哪些列置「—」、存量列不受影响）</summary>
+    private string SupplierTradeRangeHint()
+    {
+        if (SupplierTradeOrderRangeMode && SupplierTradeArrivalRangeMode)
+            return "出单 + 到货区间模式：「区间出单」「区间到货[扣除退货]」「区间退货」按各自所选日期区间统计；其余列置「—」（口径与所选区间的维度不同源）；待收货为当前存量，不受区间影响；列表只显示所选区间内有数据的供应商。";
+        if (SupplierTradeOrderRangeMode)
+            return "出单区间模式：仅「区间出单」按所选出单日期区间统计；其余列置「—」（口径为自然年/全时段/当前存量，与区间不同源）；列表只显示该区间内有出单数据的供应商。";
+        return "到货区间模式：仅「区间到货[扣除退货]」「区间退货」按所选到货日期区间统计；其余列置「—」（口径为自然年/全时段/当前存量，与区间不同源）；列表只显示该区间内有到货数据的供应商。";
+    }
+
+    /// <summary>区间/累计模式下的空值占位（灰色破折号，避免与真实 0 混淆）</summary>
+    private static readonly MarkupString SupplierTradeDash = new("<span style=\"color:#9e9e9e\">—</span>");
+
     private static string SupplierMaterialText(SupplierProfileDto r) => DisplayHelper.GetMaterialTypeText(r.MaterialCategory);
 
-    /// <summary>供应商往来可见行：名称/物料分类/备注 关键字过滤 + 名称/分类 点击排序</summary>
+    /// <summary>供应商往来可见行：区间生效时先剔除「激活列全为 0」的行，再关键字过滤 + 名称/分类 点击排序</summary>
     private List<SupplierProfileDto> SupplierTradeVisible()
     {
         IEnumerable<SupplierProfileDto> q = _supplierTradeRows;
+
+        var active = SupplierTradeActiveColumns();
+        if (active != null)
+        {
+            q = q.Where(r => active.Any(col =>
+            {
+                var v = SupplierTradeValues(r, col);
+                return v.Count > 0 || v.Weight > 0m;
+            }));
+        }
+
         if (!string.IsNullOrWhiteSpace(_supplierTradeKeyword))
         {
             var kw = _supplierTradeKeyword.Trim();
@@ -394,9 +714,11 @@ public partial class ReportOverview
     private string SupplierTradeSortedClass(string col)
         => _supplierTradeSortBy == col ? " report-th-sorted" : "";
 
-    /// <summary>供应商往来统计格（出单列 z单/x吨/y万；到货/待收 x吨/y万；退货 仅吨；与供应商管理列表口径一致）</summary>
-    private static MarkupString SupplierTradeCell(SupplierProfileDto r, string col)
+    /// <summary>供应商往来统计格（出单列 z单/x吨/y万；到货/待收 x吨/y万；退货 仅吨；与供应商管理列表口径一致）。区间模式下未激活列置「—」。</summary>
+    private MarkupString SupplierTradeCell(SupplierProfileDto r, string col)
     {
+        if (!SupplierTradeColumnActive(col))
+            return SupplierTradeDash;
         var v = SupplierTradeValues(r, col);
         return OrderOverviewFormatter.RenderTradeMarkup(v.Count, v.Weight, v.Amount, v.WithCount);
     }
@@ -412,9 +734,11 @@ public partial class ReportOverview
         _ => (false, 0, 0m, 0m)
     };
 
-    /// <summary>供应商往来列合计（按当前显示行汇总，供卡内「合计」行）</summary>
-    private static MarkupString SupplierTradeSummary(IEnumerable<SupplierProfileDto> rows, string col)
+    /// <summary>供应商往来列合计（按当前显示行汇总，供卡内「合计」行）。区间模式下未激活列置「—」。</summary>
+    private MarkupString SupplierTradeSummary(IEnumerable<SupplierProfileDto> rows, string col)
     {
+        if (!SupplierTradeColumnActive(col))
+            return SupplierTradeDash;
         var c = 0; decimal w = 0m, a = 0m;
         foreach (var r in rows)
         {
@@ -491,25 +815,121 @@ public partial class ReportOverview
     private string? _outsourceTradeSortBy;   // null=原序；vendor / section
     private bool _outsourceTradeDesc;
     private int _outsourceTradeTake = 10;    // 显示行数：0=全部；默认 10
+    private string _outsourceTradeSendFrom = "";      // 发出区间-开始（yyyy-MM-dd，空=不限）
+    private string _outsourceTradeSendTo = "";        // 发出区间-结束（yyyy-MM-dd，闭区间含当天）
+    private string _outsourceTradeRecoveryFrom = "";  // 回收区间-开始（yyyy-MM-dd，空=不限）
+    private string _outsourceTradeRecoveryTo = "";    // 回收区间-结束（yyyy-MM-dd，闭区间含当天）
+
+    /// <summary>是否处于「发出区间」模式（任一端填写即生效）。生效时把「本年委外」改按工段委外单 <c>SendOutDate</c> 落区间重算。</summary>
+    private bool OutsourceTradeSendRangeMode => !string.IsNullOrWhiteSpace(_outsourceTradeSendFrom) || !string.IsNullOrWhiteSpace(_outsourceTradeSendTo);
+
+    /// <summary>是否处于「回收区间」模式（任一端填写即生效）。生效时把「本年回收」「本年退回」改按 <c>RecoveryDate</c> 落区间重算。</summary>
+    private bool OutsourceTradeRecoveryRangeMode => !string.IsNullOrWhiteSpace(_outsourceTradeRecoveryFrom) || !string.IsNullOrWhiteSpace(_outsourceTradeRecoveryTo);
+
+    /// <summary>任一时间区间生效（两个区间互相独立、可叠加）。生效时只显示「有数据」的委外单位行。</summary>
+    private bool OutsourceTradeAnyRangeMode => OutsourceTradeSendRangeMode || OutsourceTradeRecoveryRangeMode;
+
+    /// <summary>发出区间生效时唯一有意义的列（服务端口径已切换）</summary>
+    private static readonly string[] OutsourceTradeSendColumns = ["YearOrder"];
+    /// <summary>回收区间生效时有意义的列（回收 + 退回，两者同源同一区间窗口）</summary>
+    private static readonly string[] OutsourceTradeRecoveryColumns = ["YearRecovered", "YearReturn"];
+
+    /// <summary>当前区间模式下「有数据」的列集合；返回 null 表示未启用任何区间（5 列全部正常展示、不筛行）</summary>
+    private HashSet<string>? OutsourceTradeActiveColumns()
+    {
+        if (!OutsourceTradeAnyRangeMode) return null;
+        var set = new HashSet<string>(StringComparer.Ordinal);
+        if (OutsourceTradeSendRangeMode) set.UnionWith(OutsourceTradeSendColumns);
+        if (OutsourceTradeRecoveryRangeMode) set.UnionWith(OutsourceTradeRecoveryColumns);
+        return set;
+    }
+
+    /// <summary>该统计列在当前区间模式下是否有数据（无区间模式时恒 true）</summary>
+    private bool OutsourceTradeColumnActive(string col)
+        => OutsourceTradeActiveColumns()?.Contains(col) ?? true;
 
     /// <summary>拉取委外单位档案全量（仅保留外协行：厂内 IsWorkshop=1 无往来不计，统计随 GetPagedAsync 回填；失败不阻断生产执行卡组）</summary>
     private async Task LoadOutsourceTradeAsync()
     {
         try
         {
-            var r = await OutsourceVendorSvc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 5000 });
+            var r = await OutsourceVendorSvc.GetPagedAsync(new QueryParams
+            {
+                PageIndex = 1,
+                PageSize = 5000,
+                VendorSendDateFrom = ParseTradeDate(_outsourceTradeSendFrom),
+                VendorSendDateTo = ParseTradeDate(_outsourceTradeSendTo),
+                VendorRecoveryDateFrom = ParseTradeDate(_outsourceTradeRecoveryFrom),
+                VendorRecoveryDateTo = ParseTradeDate(_outsourceTradeRecoveryTo)
+            });
             _outsourceTradeRows = (OkData(r)?.Items ?? new List<OutsourceVendorProfileDto>())
                 .Where(v => !v.IsWorkshop).ToList();
         }
         catch { _outsourceTradeRows = new List<OutsourceVendorProfileDto>(); }
     }
 
+    /// <summary>发出区间变更：按新口径重新拉取统计（该区间两端皆空则回到「本年委外」口径）</summary>
+    private async Task OnOutsourceTradeSendChangedAsync()
+    {
+        await LoadOutsourceTradeAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>回收区间变更：按新口径重新拉取统计（该区间两端皆空则回到「本年回收/本年退回」口径）</summary>
+    private async Task OnOutsourceTradeRecoveryChangedAsync()
+    {
+        await LoadOutsourceTradeAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>清空全部区间条件（发出 + 回收），回到完全现状口径</summary>
+    private async Task ClearOutsourceTradeRangeAsync()
+    {
+        _outsourceTradeSendFrom = _outsourceTradeSendTo = "";
+        _outsourceTradeRecoveryFrom = _outsourceTradeRecoveryTo = "";
+        await LoadOutsourceTradeAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>表头动态文本：各自区间生效时对应列改称「区间委外 / 区间回收 / 区间退回」（口径已切换，防误导）</summary>
+    private string OutsourceTradeHeader(string col) => col switch
+    {
+        "YearOrder" => OutsourceTradeSendRangeMode ? "区间委外" : "本年委外",
+        "YearRecovered" => OutsourceTradeRecoveryRangeMode ? "区间回收" : "本年回收",
+        "YearReturn" => OutsourceTradeRecoveryRangeMode ? "区间退回" : "本年退回",
+        _ => col
+    };
+
+    /// <summary>区间生效时的口径提示条（说明哪些列有值、哪些列置「—」、存量列不受影响）</summary>
+    private string OutsourceTradeRangeHint()
+    {
+        if (OutsourceTradeSendRangeMode && OutsourceTradeRecoveryRangeMode)
+            return "发出 + 回收区间模式：「区间委外」「区间回收」「区间退回」按各自所选日期区间统计；其余列置「—」（口径与所选区间的维度不同源）；在委外未回收为当前存量，不受区间影响；列表只显示所选区间内有数据的委外单位。";
+        if (OutsourceTradeSendRangeMode)
+            return "发出区间模式：仅「区间委外」按所选发出日期区间统计；其余列置「—」（口径为自然年/全时段/当前存量，与区间不同源）；列表只显示该区间内有发出数据的委外单位。";
+        return "回收区间模式：仅「区间回收」「区间退回」按所选回收日期区间统计；其余列置「—」（口径为自然年/全时段/当前存量，与区间不同源）；列表只显示该区间内有回收数据的委外单位。";
+    }
+
+    /// <summary>区间/累计模式下的空值占位（灰色破折号，避免与真实 0 混淆）</summary>
+    private static readonly MarkupString OutsourceTradeDash = new("<span style=\"color:#9e9e9e\">—</span>");
+
     private static string OutsourceSectionText(OutsourceVendorProfileDto r) => SectionKeys.ToChinese(r.SectionName) ?? r.SectionName;
 
-    /// <summary>委外单位往来可见行：单位名/工段 关键字过滤 + 单位名/工段 点击排序</summary>
+    /// <summary>委外单位往来可见行：区间生效时先剔除「激活列全为 0」的行，再关键字过滤 + 单位名/工段 点击排序</summary>
     private List<OutsourceVendorProfileDto> OutsourceTradeVisible()
     {
         IEnumerable<OutsourceVendorProfileDto> q = _outsourceTradeRows;
+
+        var active = OutsourceTradeActiveColumns();
+        if (active != null)
+        {
+            q = q.Where(r => active.Any(col =>
+            {
+                var v = OutsourceTradeValues(r, col);
+                return v.Count > 0 || v.Weight > 0m;
+            }));
+        }
+
         if (!string.IsNullOrWhiteSpace(_outsourceTradeKeyword))
         {
             var kw = _outsourceTradeKeyword.Trim();
@@ -547,9 +967,11 @@ public partial class ReportOverview
     private string OutsourceTradeSortedClass(string col)
         => _outsourceTradeSortBy == col ? " report-th-sorted" : "";
 
-    /// <summary>委外单位往来统计格（累计/本年 z单/x吨/y万；回收/未回收 x吨/y万；退回 仅吨；与委外单位档案列表口径一致）</summary>
-    private static MarkupString OutsourceTradeCell(OutsourceVendorProfileDto r, string col)
+    /// <summary>委外单位往来统计格（累计/本年 z单/x吨/y万；回收/未回收 x吨/y万；退回 仅吨；与委外单位档案列表口径一致）。区间模式下未激活列置「—」。</summary>
+    private MarkupString OutsourceTradeCell(OutsourceVendorProfileDto r, string col)
     {
+        if (!OutsourceTradeColumnActive(col))
+            return OutsourceTradeDash;
         var v = OutsourceTradeValues(r, col);
         return OrderOverviewFormatter.RenderTradeMarkup(v.Count, v.Weight, v.Amount, v.WithCount);
     }
@@ -565,9 +987,11 @@ public partial class ReportOverview
         _ => (false, 0, 0m, 0m)
     };
 
-    /// <summary>委外单位往来列合计（按当前显示行汇总，供卡内「合计」行）</summary>
-    private static MarkupString OutsourceTradeSummary(IEnumerable<OutsourceVendorProfileDto> rows, string col)
+    /// <summary>委外单位往来列合计（按当前显示行汇总，供卡内「合计」行）。区间模式下未激活列置「—」。</summary>
+    private MarkupString OutsourceTradeSummary(IEnumerable<OutsourceVendorProfileDto> rows, string col)
     {
+        if (!OutsourceTradeColumnActive(col))
+            return OutsourceTradeDash;
         var c = 0; decimal w = 0m, a = 0m;
         foreach (var r in rows)
         {
@@ -603,6 +1027,13 @@ public partial class ReportOverview
 
     // ========== NCR：不合格品实时待处理 + 不合格品月度汇总 ==========
     private List<NcrPendingCheckDto> _ncrPendingItems = new();
+
+    /// <summary>点「生产编号」跳生产批次详情页（本页策略 ReportView ⊆ BatchView，跳转不会被拦）</summary>
+    private void OpenBatchDetail(int productionBatchId)
+    {
+        if (productionBatchId <= 0) return;
+        Navigation.NavigateTo($"/batches/{productionBatchId}");
+    }
     private NcrMonthlySummaryDto? _ncrMonthlySummary;
     private List<NcrMonthlyRowDto> _ncrMonthlyRows = new();
     private List<int> _ncrCategoryRowspans = new();
@@ -673,7 +1104,7 @@ public partial class ReportOverview
     /// <summary>反馈部门 = 来源 + 检验项目（中文化，与 NcrForm 自动填充口径一致）</summary>
     private static string GetNcrPendingReportDepartment(NcrPendingCheckDto item)
     {
-        var sourceText = EnumHelper.GetDisplayName<ReportTemplateType>(item.SourceType);
+        var sourceText = EnumHelper.GetDisplayName<NcrPendingSourceType>(item.SourceType);
         var itemText = GetNcrInspectionItemDisplay(item.InspectionItem);
         return string.IsNullOrEmpty(itemText) ? sourceText : $"{sourceText}-{itemText}";
     }
@@ -690,14 +1121,16 @@ public partial class ReportOverview
     /// <summary>物料类型（过程检验按工序名判荒管/在制；成品检验按物料名解析，与 NcrForm 口径一致）</summary>
     private static string GetNcrPendingPipeCategoryText(NcrPendingCheckDto item)
     {
-        if (item.SourceType == "ProcessInspection")
+        if (item.SourceType == nameof(NcrPendingSourceType.ProcessInspection)
+            || item.SourceType == nameof(NcrPendingSourceType.NonconformingFeedback))
         {
+            // 不合格反馈按过程检验口径：圆棒穿孔→荒管，否则在制
             var category = string.Equals(item.ProcessName, ProcessKeys.RoughTubeProcessing, StringComparison.OrdinalIgnoreCase)
                 ? MaterialType.RoughTube
                 : MaterialType.WorkInProgress;
             return DisplayHelper.GetMaterialTypeText(category);
         }
-        if (item.SourceType == "FinalInspection")
+        if (item.SourceType == nameof(NcrPendingSourceType.FinalInspection))
         {
             var category = string.IsNullOrEmpty(item.MaterialName)
                 ? MaterialType.WorkInProgress
@@ -788,11 +1221,9 @@ public partial class ReportOverview
 
     // ========== 格式化 ==========
 
-    /// <summary>Tab1 现负荷三行：仅当前月份显示 x吨/y万（彩色），其余月份 "-"。</summary>
-    private MarkupString RenderCurrentOnly(decimal weightKg, decimal amountYuan, int monthIndex)
-        => monthIndex == _currentMonthIndex
-            ? OrderOverviewFormatter.RenderInOutCell(weightKg, amountYuan)
-            : new MarkupString("-");
+    /// <summary>Tab1 流量行「汇总」列：本年 12 个月重量(kg)/金额(元)分别求和后按 x吨/y万 渲染。</summary>
+    private static MarkupString RenderYearTotalCell(decimal[] weightKgByMonth, decimal[] amountYuanByMonth)
+        => OrderOverviewFormatter.RenderInOutCell(weightKgByMonth.Sum(), amountYuanByMonth.Sum());
 
     // Tab4 采购待购（kg 取整，0 空）
     private static string FormatPendingWeight(decimal kg) => kg > 0 ? ((int)kg).ToString() : string.Empty;
@@ -856,6 +1287,17 @@ public partial class ReportOverview
     /// <summary>重量(kg) → 吨显示（保留 1 位小数，0 显 "0"）</summary>
     private static string TonsText(decimal kg) => kg > 0 ? (kg / 1000m).ToString("F1") : "0";
 
+    /// <summary>
+    /// 冷轧拔近日排程「后流转」格：「{目标组}量 X t / N 台」；
+    /// 无目标组、或量与台数均为 0（避免出现「0t / 0台」误导）时显「-」（2026-09-10 用户决策）。
+    /// </summary>
+    private static string FlowStateText(FlowStateDto? state)
+        => state is not null
+           && !string.IsNullOrEmpty(state.TargetGroupDisplay)
+           && (state.SupplyToTargetWeight != 0m || state.SupplyToTargetMachines != 0)
+            ? $"{state.TargetGroupDisplay}量 {TonsText(state.SupplyToTargetWeight)}t / {state.SupplyToTargetMachines}台"
+            : "-";
+
     // Tab5 实时委外在产单元格「总量/[流转]/[*特急]」（t）
     private static MarkupString FormatOutsourceCell(OutsourcePendingCellDto? cell)
     {
@@ -894,6 +1336,12 @@ public partial class ReportOverview
         => count > 0 ? $"{count} 单 / {weight / 1000m:F1}吨" : "-";
     private static string FormatMatrixPurchase(int count, decimal weight)
         => count > 0 ? $"{count} 单 / {weight / 1000m:F1}吨" : "-";
+
+    /// <summary>
+    /// 成购矩阵唯一有值的行号（=「执行用料计划」档）。成购只是该档的一个分支，
+    /// 其余 3 档恒为 0 不渲染（2026-09-10 用户决策，防止误读为「成购横跨 4 档」）。
+    /// </summary>
+    private static int PurchaseMatrixRowIndex => Array.IndexOf(RawMaterialLockRemarkKeys.All, RawMaterialLockRemarkKeys.ExecutePlan);
 
     // Tab3 截日（吨）
     private static string FormatCutoffCell(decimal kg) => kg > 0 ? $"{(kg / 1000m).ToString("F1")}吨" : "-";

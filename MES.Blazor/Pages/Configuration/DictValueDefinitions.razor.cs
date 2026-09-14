@@ -67,6 +67,7 @@ public partial class DictValueDefinitions
         [DictValueDefaults.NcrResponsibilityKey] = "NCR 责任类别",
         [DictValueDefaults.RawMaterialLockRemarkKey] = "原锁备注",
         [DictValueDefaults.ProductionAttentionKey] = "生产关注",
+        [DictValueDefaults.NcrDisposalKey] = "NCR 处置方式",
     };
 
     private static string GetDictKeyText(string dictKey)

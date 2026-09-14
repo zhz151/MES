@@ -102,7 +102,14 @@ public class ProductionOverviewService : IProductionOverviewService
                 s.FlowOutputRatio,
                 s.RawMaterialLockRemark,
                 s.ScheduleStage,
-                s.WorkOrderNo
+                s.WorkOrderNo,
+                // 「单一成品采购」判定所需（与原锁计划待投料口径同步，2026-09-10）
+                s.PiercingPlanWeight,
+                s.SemiPlanWeight,
+                s.InventoryPlanWeight,
+                s.ReworkPlanWeight,
+                s.InProcessReworkPlanWeight,
+                s.InMainPlanWeight
             })
             .ToListAsync();
 
@@ -164,7 +171,7 @@ public class ProductionOverviewService : IProductionOverviewService
         var groupsByBatch = processGroups.GroupBy(pg => pg.ProductionBatchId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        // ========== 行 1: 完善用料计划（原「待计划」，2026-08-19 用户决策与待投料量汇总三档严格对齐） ==========
+        // ========== 行 1: 完善用料-原料类（原「待计划」，2026-08-19 用户决策与待投料量汇总三档严格对齐） ==========
         // 待投料口径与原锁计划「待投料」一致：
         // 成品重量 → 原料重量按配置倍率换算（TotalWeight 为成品重）
         // 成购扣减 = 成品计划量 − 已到货量（缺口口径，外购由供应商生产、本厂不投料）
@@ -172,8 +179,13 @@ public class ProductionOverviewService : IProductionOverviewService
         // 其他：(总重−成购)×1.1 − 已投料；逐工单 Max(0) 后再汇总（与原锁计划待投料矩阵同口径）
         // 完善用料计划 = 原锁计划「待投料量汇总」中 完善用料计划（ImprovePlan）工单的合计待投料重量
         var rawRatio = await GetConfigAsync("ProcessingDiscount", "RawMaterialRatio", 1.1m);
-        var row1Remaining = stage2Summaries.Sum(s => ProductionSummaryHelper.CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
-        var improvePlanSummaries = stage2Summaries
+        // 待投料口径（方案 B）：排除「单一成品采购」工单（= 纯成购单），与原锁计划「待投原料」标量/矩阵完全对齐（2026-09-10）
+        var pendingEligibleSummaries = stage2Summaries
+            .Where(s => !IsSingleFinishPurchase(s.FinishPlanWeight, s.PiercingPlanWeight, s.SemiPlanWeight,
+                s.InventoryPlanWeight, s.ReworkPlanWeight, s.InProcessReworkPlanWeight, s.InMainPlanWeight))
+            .ToList();
+        var row1Remaining = pendingEligibleSummaries.Sum(s => ProductionSummaryHelper.CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
+        var improvePlanSummaries = pendingEligibleSummaries
             .Where(s => RawMaterialLockRemarkKeys.ToKey(s.RawMaterialLockRemark) == RawMaterialLockRemarkKeys.ImprovePlan)
             .ToList();
         var pendingPlanRemaining = improvePlanSummaries.Sum(s => ProductionSummaryHelper.CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
@@ -189,8 +201,8 @@ public class ProductionOverviewService : IProductionOverviewService
         rows.Add(new OverviewRowDto
         {
             Seq = 1,
-            Category = "原料",
-            Section = "完善用料计划",
+            Category = "原料锁定",
+            Section = "完善用料-原料类",
             CategoryNo = 1,
             RowNo = 1,
             PendingPlanTons = ConvertToTons(pendingPlanRemaining),
@@ -202,9 +214,14 @@ public class ProductionOverviewService : IProductionOverviewService
             DateBucketTons = row1BucketTons
         });
 
-        // ========== 行 2: 执行用料计划（原「在购荒管」，2026-08-19 用户决策改为执行用料计划待投料） ==========
+        // ========== 行 2: 执行用料-原料类（原「在购荒管」，2026-08-19 用户决策改为执行用料计划待投料） ==========
         // 执行用料计划 = 原锁计划「待投料量汇总」中 执行用料计划（ExecutePlan）工单的合计待投料重量
-        var executePlanSummaries = stage2Summaries
+        // 执行用料-原料类：待投料口径（方案 B，排除单一成品采购），与原锁计划「待投原料」矩阵完全对齐（2026-09-10 用户决策）
+        var executePlanSummaries = pendingEligibleSummaries
+            .Where(s => RawMaterialLockRemarkKeys.ToKey(s.RawMaterialLockRemark) == RawMaterialLockRemarkKeys.ExecutePlan)
+            .ToList();
+        // 成购口径：不排除单一成品采购（纯成购单正是成购本体）
+        var executePlanAllSummaries = stage2Summaries
             .Where(s => RawMaterialLockRemarkKeys.ToKey(s.RawMaterialLockRemark) == RawMaterialLockRemarkKeys.ExecutePlan)
             .ToList();
         var executePlanRemaining = executePlanSummaries.Sum(s => ProductionSummaryHelper.CalcPending(s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio));
@@ -220,24 +237,28 @@ public class ProductionOverviewService : IProductionOverviewService
         rows.Add(new OverviewRowDto
         {
             Seq = 2,
-            Category = "原料",
-            Section = "执行用料计划",
+            Category = "原料锁定",
+            Section = "执行用料-原料类",
             CategoryNo = 1,
             RowNo = 2,
-            PendingPlanTons = ConvertToTons(executePlanRemaining),
-            InProcurementTons = null,
+            // 2026-09-10 用户决策：本行数值改由「待落实量」列承载（计划已定、待执行投料，非「未编制计划」）
+            PendingPlanTons = null,
+            InProcurementTons = ConvertToTons(executePlanRemaining),
             TotalRemainingTons = null,
             EstDays = null,
             EstDeadline = null,
             DateBucketTons = row2BucketTons
         });
 
-        // ========== 行 3: 外购成品（原「成品在购」；与原锁计划「外购成品」成购缺口同口径） ==========
+        // ========== 行 3: 执行用料-成购类（原「外购成品/成品在购」）==========
         // 成购 = 成品计划量 − 已到货量（缺口口径，外购由供应商生产、本厂不投料）
+        // 2026-09-10 用户决策：成购属「执行用料计划」的子类，仅统计备注=执行用料计划(ExecutePlan)的工单，
+        // 排除质量补料/生产返整补足/完善用料计划（真库此三类成购缺口恒为 0，收紧口径不改数值）；
+        // 注意：本行**不排除**「单一成品采购」工单——纯成购单正是成购本体（与行 1-2 的待投料口径互补）
         var row0BucketTons = new List<decimal>();
         foreach (var bucket in buckets)
         {
-            var tons = stage2Summaries
+            var tons = executePlanAllSummaries
                 .Where(s => IsInBucket(s.DeliveryDate, bucket))
                 .Sum(s => Math.Max(0m, s.FinishPlanWeight - s.FinishInWeight));
             row0BucketTons.Add(ConvertToTons(tons));
@@ -246,18 +267,18 @@ public class ProductionOverviewService : IProductionOverviewService
         rows.Add(new OverviewRowDto
         {
             Seq = 3,
-            Category = "原料",
-            Section = "外购成品",
+            Category = "原料锁定",
+            Section = "执行用料-成购类",
             CategoryNo = 1,
             RowNo = 3,
-            InProcurementTons = ConvertToTons(stage2Summaries.Sum(s => Math.Max(0m, s.FinishPlanWeight - s.FinishInWeight))),
+            InProcurementTons = ConvertToTons(executePlanAllSummaries.Sum(s => Math.Max(0m, s.FinishPlanWeight - s.FinishInWeight))),
             TotalRemainingTons = null,
             EstDays = null,
             EstDeadline = null,
             DateBucketTons = row0BucketTons
         });
 
-        // ========== 行 4: 原料汇总（待计划量=完善用料计划+执行用料计划、在购量=外购成品，日期桶三行求和） ==========
+        // ========== 行 4: 原料汇总（未编制计划=完善用料-原料类、待落实量=执行用料-原料类+执行用料-成购类，日期桶三行求和） ==========
         var row4BucketTons = new List<decimal>();
         for (int i = 0; i < buckets.Count; i++)
         {
@@ -267,10 +288,10 @@ public class ProductionOverviewService : IProductionOverviewService
         rows.Add(new OverviewRowDto
         {
             Seq = 4,
-            Category = "原料",
+            Category = "原料锁定",
             Section = "汇总",
-            PendingPlanTons = (rows[0].PendingPlanTons ?? 0) + (rows[1].PendingPlanTons ?? 0),
-            InProcurementTons = rows[2].InProcurementTons,
+            PendingPlanTons = rows[0].PendingPlanTons,
+            InProcurementTons = (rows[1].InProcurementTons ?? 0) + (rows[2].InProcurementTons ?? 0),
             TotalRemainingTons = null,
             EstDays = null,
             EstDeadline = null,
@@ -689,6 +710,22 @@ public class ProductionOverviewService : IProductionOverviewService
     {
         return date >= bucket.Start && date <= bucket.End;
     }
+
+    /// <summary>
+    /// 是否「单一成品采购」工单：成品采购计划量 &gt; 0，且其余 6 类计划量（穿孔/荒管/库存/库改/在产改/主工单）全部 ≤ 0。
+    /// 待投料口径（方案 B）扣除这类工单（纯成购单，其待投料残留不计入「原料类」），
+    /// 与 <c>RawMaterialLockPlanAndExecutionService.IsSingleFinishPurchase</c> 同口径（2026-09-10 两表对齐）。
+    /// </summary>
+    private static bool IsSingleFinishPurchase(
+        decimal finishPlanWeight, decimal piercingPlanWeight, decimal semiPlanWeight, decimal inventoryPlanWeight,
+        decimal reworkPlanWeight, decimal inProcessReworkPlanWeight, decimal inMainPlanWeight)
+        => finishPlanWeight > 0
+            && piercingPlanWeight <= 0
+            && semiPlanWeight <= 0
+            && inventoryPlanWeight <= 0
+            && reworkPlanWeight <= 0
+            && inProcessReworkPlanWeight <= 0
+            && inMainPlanWeight <= 0;
 
     /// <summary>
     /// 解析机台组 ProcessKeys 逗号串为 Key 数组（Trim + 去空）。

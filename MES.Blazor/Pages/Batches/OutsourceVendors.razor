@@ -51,6 +51,48 @@
                 </MudItem>
             </MudGrid>
 
+            @* 双日期区间（2026-09-14）：发出区间驱动「区间委外」、回收区间驱动「区间回收/区间退回」；两区间互相独立可叠加 *@
+            <div class="d-flex align-center mb-2" style="gap:16px; flex-wrap:wrap;">
+                <div class="d-flex align-center" style="gap:6px;">
+                    <MudTextField T="string" @bind-Value="_sendDateFrom" Immediate="true" Variant="Variant.Outlined"
+                                  Dense="true" Margin="Margin.Dense" Style="width:140px" Label="发出日期起"
+                                  Placeholder="yyyy-MM-dd" />
+                    <MudTextField T="string" @bind-Value="_sendDateTo" Immediate="true" Variant="Variant.Outlined"
+                                  Dense="true" Margin="Margin.Dense" Style="width:140px" Label="发出日期止"
+                                  Placeholder="yyyy-MM-dd" />
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                               OnClick="ApplyRangeAsync">应用发出区间</MudButton>
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               OnClick="@(() => { _sendDateFrom = ""; _sendDateTo = ""; return ApplyRangeAsync(); })"
+                               Disabled="@(!SendRangeMode)">清除</MudButton>
+                </div>
+                <MudDivider Vertical="true" FlexItem="true" Style="height:28px;" />
+                <div class="d-flex align-center" style="gap:6px;">
+                    <MudTextField T="string" @bind-Value="_recoveryDateFrom" Immediate="true" Variant="Variant.Outlined"
+                                  Dense="true" Margin="Margin.Dense" Style="width:140px" Label="回收日期起"
+                                  Placeholder="yyyy-MM-dd" />
+                    <MudTextField T="string" @bind-Value="_recoveryDateTo" Immediate="true" Variant="Variant.Outlined"
+                                  Dense="true" Margin="Margin.Dense" Style="width:140px" Label="回收日期止"
+                                  Placeholder="yyyy-MM-dd" />
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                               OnClick="ApplyRangeAsync">应用回收区间</MudButton>
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               OnClick="@(() => { _recoveryDateFrom = ""; _recoveryDateTo = ""; return ApplyRangeAsync(); })"
+                               Disabled="@(!RecoveryRangeMode)">清除</MudButton>
+                </div>
+                @if (AnyRangeMode)
+                {
+                    <MudButton Variant="Variant.Text" Size="Size.Small"
+                               OnClick="@(() => { _sendDateFrom = _sendDateTo = _recoveryDateFrom = _recoveryDateTo = ""; return ApplyRangeAsync(); })">
+                        清空全部区间
+                    </MudButton>
+                }
+            </div>
+            @if (AnyRangeMode)
+            {
+                <MudText Typo="Typo.caption" Class="text-hint mb-2">@RangeHint()</MudText>
+            }
+
             <!-- 工具栏 -->
             <div class="list-toolbar">
                 <div class="d-flex align-center">
@@ -93,7 +135,7 @@
                     }
                 </div>
             </div>
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="OutsourceVendorProfileDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"
@@ -113,10 +155,10 @@
                     {
                         var _isGroupStart = col.GroupKey.HasValue && col.GroupKey != _prevGk;
                         _prevGk = col.GroupKey;
-                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart);
+                        var _headerClass = GetHeaderGroupCss(col.GroupKey, _isGroupStart) + GetTradeAccentCss(col.Key);
                         <MudTh Class="@_headerClass" Style="@($"width:{col.Width}px")">
                             <div style="display:inline-flex; align-items:center; gap:4px;">
-                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@col.Label @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
+                                <span @onclick='() => ToggleSort(col.Key)' style="cursor:pointer" class="th-label">@TradeColumnLabel(col) @if (sortColumn == col.Key) {@(sortDescending ? " ▼" : " ▲")}</span>
                                 @if (col.FilterType != null)
                                 {
                                     <ExcelFilter T="OutsourceVendorProfileDto"

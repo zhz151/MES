@@ -52,6 +52,12 @@ public class OutsourceVendorProfileService : IOutsourceVendorProfileService
         queryable = queryable.ApplyFilters(query.Filters);
         queryable = queryable.ApplySort(query.SortBy, query.IsDescending);
 
+        // 区间模式（发出区间 / 回收区间任一有值）：按「激活列有数据」过滤档案行后再分页（见下）
+        var sendRangeMode = query.VendorSendDateFrom.HasValue || query.VendorSendDateTo.HasValue;
+        var recoveryRangeMode = query.VendorRecoveryDateFrom.HasValue || query.VendorRecoveryDateTo.HasValue;
+        if (sendRangeMode || recoveryRangeMode)
+            return await GetPagedInRangeModeAsync(query, queryable, sendRangeMode, recoveryRangeMode);
+
         var totalCount = await queryable.CountAsync();
         var items = await queryable
             .Skip(query.Skip)
@@ -80,6 +86,66 @@ public class OutsourceVendorProfileService : IOutsourceVendorProfileService
         {
             Items = dtos,
             TotalCount = totalCount,
+            PageIndex = query.PageIndex,
+            PageSize = query.PageSize
+        };
+    }
+
+    /// <summary>
+    /// 区间模式分页：发出区间 / 回收区间任一生效时，只保留「激活列有数据」的档案行
+    /// （与报表总览「委外单位往来数据」卡的行过滤同口径）。行过滤须在分页之前完成，故内存过滤后再切页——
+    /// 委外单位档案量级小，代价可忽略；<c>TotalCount</c> 返回过滤后条数，前端「共 N 条记录」与显示行一致。
+    /// </summary>
+    private async Task<PagedResult<OutsourceVendorProfileDto>> GetPagedInRangeModeAsync(
+        QueryParams query, IQueryable<OutsourceVendorProfile> queryable, bool sendRangeMode, bool recoveryRangeMode)
+    {
+        var rows = await queryable.Select(v => new
+        {
+            v.Id,
+            v.VendorCode,
+            v.VendorName,
+            v.SectionName,
+            v.IsWorkshop,
+            v.ContactPerson,
+            v.ContactPhone,
+            v.IsActive,
+            v.Remark,
+            v.CreatedTime
+        }).ToListAsync();
+
+        var statsRows = rows.Select(r => new OutsourceVendorStatsRow
+        {
+            Id = r.Id,
+            VendorName = r.VendorName,
+            SectionName = r.SectionName
+        }).ToList();
+
+        var buckets = await BuildOutsourceStatsAsync(_context, DateTime.Today.Year, statsRows,
+            query.VendorSendDateFrom, query.VendorSendDateTo,
+            query.VendorRecoveryDateFrom, query.VendorRecoveryDateTo);
+
+        var activeColumns = ActiveStatsColumns(sendRangeMode, recoveryRangeMode);
+
+        var filtered = rows.Where(r => HasDataInActiveColumns(buckets, r.Id, activeColumns)).ToList();
+
+        var dtos = filtered
+            .Skip(query.Skip)
+            .Take(query.PageSize)
+            .Select(r => ToDto(r.Id, r.VendorCode, r.VendorName, r.SectionName, r.IsWorkshop,
+                r.ContactPerson, r.ContactPhone, r.IsActive, r.Remark, r.CreatedTime))
+            .ToList();
+
+        // ② 往来信息统计回填（同一份桶，随行过滤复用，不重复聚合）
+        foreach (var dto in dtos)
+        {
+            if (buckets.TryGetValue(dto.Id, out var b))
+                ApplyStats(dto, b);
+        }
+
+        return new PagedResult<OutsourceVendorProfileDto>
+        {
+            Items = dtos,
+            TotalCount = filtered.Count,
             PageIndex = query.PageIndex,
             PageSize = query.PageSize
         };
@@ -114,8 +180,12 @@ public class OutsourceVendorProfileService : IOutsourceVendorProfileService
     /// <summary>
     /// 为当前页委外单位档案明细回填 ② 往来信息 9 字段。
     /// 列表每行 =「委外单位名 + 委外工段」档案；发出单按同名 + 同工段精确分流到该行（新单已强制命中档案，历史档外文本不属本页任何行）。
+    /// 两个**互相独立**的区间，可单独或叠加使用：<paramref name="sendFrom"/>/<paramref name="sendTo"/>（发出）、
+    /// <paramref name="recoveryFrom"/>/<paramref name="recoveryTo"/>（回收）。未指定者仍按自然年 <c>year</c> 统计。
     /// </summary>
-    private async Task AttachTradeStatsAsync(List<OutsourceVendorProfileDto> items)
+    private async Task AttachTradeStatsAsync(List<OutsourceVendorProfileDto> items,
+        DateTime? sendFrom = null, DateTime? sendTo = null,
+        DateTime? recoveryFrom = null, DateTime? recoveryTo = null)
     {
         if (items.Count == 0)
             return;
@@ -128,25 +198,66 @@ public class OutsourceVendorProfileService : IOutsourceVendorProfileService
             SectionName = x.SectionName
         }).ToList();
 
-        var buckets = await BuildOutsourceStatsAsync(_context, year, rows);
+        var buckets = await BuildOutsourceStatsAsync(_context, year, rows, sendFrom, sendTo, recoveryFrom, recoveryTo);
 
         foreach (var dto in items)
         {
-            if (!buckets.TryGetValue(dto.Id, out var b))
-                continue;
-
-            dto.TotalOrderCount = b.TotalCount;
-            dto.TotalWeight = b.TotalWeight;
-            dto.TotalAmount = b.TotalAmount;
-            dto.YearOrderCount = b.YearCount;
-            dto.YearWeight = b.YearWeight;
-            dto.YearAmount = b.YearAmount;
-            dto.YearRecoveredWeight = b.YearRecoveredWeight;
-            dto.YearRecoveredAmount = b.YearRecoveredAmount;
-            dto.PendingWeight = b.PendingWeight;
-            dto.PendingAmount = b.PendingAmount;
-            dto.YearReturnWeight = b.YearReturnWeight;
+            if (buckets.TryGetValue(dto.Id, out var b))
+                ApplyStats(dto, b);
         }
+    }
+
+    /// <summary>把统计桶回填到 DTO 的 9 个往来字段（累计 3 + 发出 3 + 回收 2 + 退货 1）</summary>
+    private static void ApplyStats(OutsourceVendorProfileDto dto, OutsourceVendorStatsBucket b)
+    {
+        dto.TotalOrderCount = b.TotalCount;
+        dto.TotalWeight = b.TotalWeight;
+        dto.TotalAmount = b.TotalAmount;
+        dto.YearOrderCount = b.YearCount;
+        dto.YearWeight = b.YearWeight;
+        dto.YearAmount = b.YearAmount;
+        dto.YearRecoveredWeight = b.YearRecoveredWeight;
+        dto.YearRecoveredAmount = b.YearRecoveredAmount;
+        dto.PendingWeight = b.PendingWeight;
+        dto.PendingAmount = b.PendingAmount;
+        dto.YearReturnWeight = b.YearReturnWeight;
+    }
+
+    // ========== 区间模式下的「激活列」（与报表总览「委外单位往来数据」卡的列激活同口径，两处须同步） ==========
+
+    /// <summary>发出区间生效时唯一有数据的统计列</summary>
+    private static readonly string[] SendRangeColumns = ["YearOrder"];
+    /// <summary>回收区间生效时有数据的统计列（回收 + 本年退回，两者同源同一区间窗口）</summary>
+    private static readonly string[] RecoveryRangeColumns = ["YearRecovered", "YearReturn"];
+
+    private static string[] ActiveStatsColumns(bool sendRangeMode, bool recoveryRangeMode)
+    {
+        var list = new List<string>(3);
+        if (sendRangeMode) list.AddRange(SendRangeColumns);
+        if (recoveryRangeMode) list.AddRange(RecoveryRangeColumns);
+        return list.ToArray();
+    }
+
+    /// <summary>该档案行在激活列上是否有数据（单数或重量任一 &gt; 0；无桶即无数据）</summary>
+    private static bool HasDataInActiveColumns(
+        Dictionary<int, OutsourceVendorStatsBucket> buckets, int id, string[] activeColumns)
+    {
+        if (!buckets.TryGetValue(id, out var b))
+            return false;
+
+        foreach (var col in activeColumns)
+        {
+            var (count, weight) = col switch
+            {
+                "YearOrder" => (b.YearCount, b.YearWeight),
+                "YearRecovered" => (0, b.YearRecoveredWeight),
+                "YearReturn" => (0, b.YearReturnWeight),
+                _ => (0, 0m)
+            };
+            if (count > 0 || weight > 0m)
+                return true;
+        }
+        return false;
     }
 
     private static string BuildRowKey(string name, string section) => name + "\u0001" + section;
@@ -154,18 +265,50 @@ public class OutsourceVendorProfileService : IOutsourceVendorProfileService
     /// <summary>
     /// 按「委外单位名 + 委外工段」归档案行（仅非厂内 !IsInternal 发出单，与月度汇总/读模型同约定：厂内无价、Status=Virtual、永不回收）。
     /// 口径（唯一事实源）：
-    /// - 累计/本年委外：单数、吨(SendWeight)、元(TotalAmount)，年份按发出日期 SendOutDate.Year；
-    /// - 本年回收：kg = 该行发出单的回收记录中 RecoveryDate.Year==今年 的 Σ RecoveryWeight（正常）；元 = Σ 单 TotalAmount×本年正常回收重/发出重 分摊（仅正常回收计费，退回不产生金额；份额截于发出重防超发回收异常放大）；
-    /// - 本年退回(kg) = 同上 RecoveryDate.Year==今年 的 Σ UnprocessedWeight（非正常退回，无金额）；
+    /// - 累计/本年委外：单数、吨(SendWeight)、元(TotalAmount)，年份按发出日期 SendOutDate（见下双区间：发出窗口）；
+    /// - 本年回收：kg = 该行发出单的回收记录落在回收窗口内的 Σ RecoveryWeight（正常）；元 = Σ 单 TotalAmount×窗口内正常回收重/发出重 分摊（仅正常回收计费，退回不产生金额；份额截于发出重防超发回收异常放大）；
+    /// - 本年退回(kg) = 同上回收窗口内的 Σ UnprocessedWeight（非正常退回，无金额）；
     /// - 委外未回收：kg = 当前时点 Status==PendingRecovery 的行 Σ (SendWeight − Σ(Recovery+Unprocessed)全量)，负数截 0（非年份口径）；元 = 各待回收单 TotalAmount×未回收净欠/发出重 分摊。
     /// 归行键 = (OutsourceVendor, SectionName)，OrdinalIgnoreCase 精确命中档案行；档外文本/厂内行不计（累计 0 → 前端显「—」）。
+    /// <para>
+    /// **双区间（与客户往来/供应商往来同构，两个互相独立可叠加的窗口）**：
+    /// <list type="bullet">
+    /// <item><b>发出区间</b>（<paramref name="sendFrom"/>/<paramref name="sendTo"/> 任一有值）：发出类列（<c>YearOrder*</c>）改按 <c>SendOutDate ∈ 区间</c>。</item>
+    /// <item><b>回收区间</b>（<paramref name="recoveryFrom"/>/<paramref name="recoveryTo"/> 任一有值）：回收/退回类列改按 <c>RecoveryDate ∈ 区间</c>（两者同源同一窗口）。</item>
+    /// </list>
+    /// 未指定区间的维度仍按自然年 <paramref name="year"/> 统计；累计委外与在委外未回收（存量口径）恒为原语义。
+    /// 前端在任一区间生效时，把不属于该区间的列渲染为「—」（详见 <c>ReportOverview</c> 的列激活判定）。结束日按闭区间含当天处理。
+    /// </para>
     /// </summary>
     private static async Task<Dictionary<int, OutsourceVendorStatsBucket>> BuildOutsourceStatsAsync(
-        AppDbContext ctx, int year, List<OutsourceVendorStatsRow> rows)
+        AppDbContext ctx, int year, List<OutsourceVendorStatsRow> rows,
+        DateTime? sendFrom = null, DateTime? sendTo = null,
+        DateTime? recoveryFrom = null, DateTime? recoveryTo = null)
     {
         var buckets = new Dictionary<int, OutsourceVendorStatsBucket>();
         if (rows.Count == 0)
             return buckets;
+
+        // 发出窗口：区间模式 ? [sendFrom, sendTo] : 自然年
+        var sendRangeMode = sendFrom.HasValue || sendTo.HasValue;
+        var sendFromBound = sendFrom?.Date;
+        var sendToBoundExclusive = sendTo?.Date.AddDays(1);
+        // 回收窗口：区间模式 ? [recoveryFrom, recoveryTo] : 自然年（退回归属同该窗口，与「本年退回」列同源）
+        var recoveryRangeMode = recoveryFrom.HasValue || recoveryTo.HasValue;
+        var recoveryFromBound = recoveryFrom?.Date;
+        var recoveryToBoundExclusive = recoveryTo?.Date.AddDays(1);
+
+        // 发出窗口判定：区间模式按日期落 [起, 止+1) 闭区间含当天；否则按自然年
+        bool InSendWindow(DateTimeOffset d) => sendRangeMode
+            ? (!sendFromBound.HasValue || d.Date >= sendFromBound.Value)
+              && (!sendToBoundExclusive.HasValue || d.Date < sendToBoundExclusive.Value)
+            : d.Year == year;
+
+        // 回收窗口判定（退回归属同该窗口，与「本年退回」列同源）
+        bool InRecoveryWindow(DateTimeOffset d) => recoveryRangeMode
+            ? (!recoveryFromBound.HasValue || d.Date >= recoveryFromBound.Value)
+              && (!recoveryToBoundExclusive.HasValue || d.Date < recoveryToBoundExclusive.Value)
+            : d.Year == year;
 
         // 页内委外单位名（同名跨工段档案共享，再由工段精确分流到行）
         var names = rows.Select(r => r.VendorName).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToList();
@@ -213,7 +356,7 @@ public class OutsourceVendorProfileService : IOutsourceVendorProfileService
                 foreach (var r in recs)
                 {
                     var t = recovTotals.GetValueOrDefault(r.SectionOutsourceId);
-                    if (r.RecoveryDate.Year == year)
+                    if (InRecoveryWindow(r.RecoveryDate))
                     {
                         t.YearRecovered += r.RecoveryWeight;
                         t.YearReturn += r.UnprocessedWeight;
@@ -241,7 +384,7 @@ public class OutsourceVendorProfileService : IOutsourceVendorProfileService
             b.TotalCount++;
             b.TotalWeight += sendWeight;
             b.TotalAmount += amount;
-            if (o.SendOutDate.Year == year)
+            if (InSendWindow(o.SendOutDate))
             {
                 b.YearCount++;
                 b.YearWeight += sendWeight;

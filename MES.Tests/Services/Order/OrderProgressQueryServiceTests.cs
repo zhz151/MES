@@ -7,6 +7,7 @@ using MES.Core.Enums;
 using MES.Core.Helpers;
 using MES.Core.Interfaces.Scheduling;
 using MES.Data;
+using MES.Data.Entities.Batch;
 using MES.Data.Entities.Warehouse;
 using MES.Data.Entities.WorkOrder;
 using MES.Services.Order;
@@ -90,13 +91,76 @@ public class OrderProgressQueryServiceTests : TestBase
             CreatedBy = "u1",
         };
 
+    /// <summary>造一个指定仓库代码的仓库（SeedWarehouseAsync 固定 WH001，此处需 WIP/FG）</summary>
+    private static async Task<Warehouse> SeedWarehouseWithCodeAsync(AppDbContext ctx, string code, string name)
+    {
+        var wh = new Warehouse { Code = code, Name = name };
+        ctx.Warehouses.Add(wh);
+        await ctx.SaveChangesAsync();
+        return wh;
+    }
+
+    /// <summary>造一条生产批次（既是「生产批号 → 订单+主号」反查桥，也是完结主号「投料」的工艺卡取数源）</summary>
+    private static ProductionBatch NewProductionBatch(string batchNo, string mainNo,
+        string manufacturingItem = InventoryMaterialTypes.OrderFinished, string? productionType = null,
+        decimal? inputWeight = null)
+        => new()
+        {
+            BatchNo = batchNo,
+            ManufacturingItem = manufacturingItem,
+            ProductionType = productionType,
+            InputWeight = inputWeight,
+            WorkOrderNo = $"WO-{batchNo}",
+            SalesOrderNo = SO,
+            ProductionMainNo = mainNo,
+            OrderItemIds = "1",
+            Salesman = "测试业务员",
+            MaterialName = "无缝管",
+            SettlementMethod = "电汇",
+            StandardCode = "GB/T13296-2023",
+            DeliveryState = "Fixed",
+            LengthStatus = "Fixed",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            TechnicalRequirements = "无",
+            CreatedBy = "u1",
+        };
+
+    /// <summary>造一条指定仓库的入库批次（余料/备料成品共用；ProductionBatchNo 为反查订单的唯一桥）</summary>
+    private static InventoryBatch NewInboundBatch(int warehouseId, string batchNo, string materialType,
+        string? productionBatchNo, decimal initialWeight)
+        => new()
+        {
+            BatchNo = batchNo,
+            WarehouseId = warehouseId,
+            MaterialType = materialType,
+            InboundSource = "ProductionInbound",
+            SourceName = "生产入库",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            InitialQuantity = (int)initialWeight,
+            InitialWeight = initialWeight,
+            RemainingQuantity = (int)initialWeight,
+            RemainingWeight = initialWeight,
+            InboundDate = new DateTime(2026, 9, 1),
+            ProductionBatchNo = productionBatchNo,
+            CreatedBy = "u1",
+        };
+
     /// <summary>造一条销售出库记录</summary>
     private static OutboundRecord NewSalesOut(long id, int inventoryBatchId, decimal weight)
+        => NewOutbound(id, inventoryBatchId, OutboundType.SalesOut, weight);
+
+    /// <summary>造一条退货出库记录（次品库「先入库、后退货出库」的下半程）</summary>
+    private static OutboundRecord NewReturnOut(long id, int inventoryBatchId, decimal weight)
+        => NewOutbound(id, inventoryBatchId, OutboundType.ReturnOut, weight);
+
+    private static OutboundRecord NewOutbound(long id, int inventoryBatchId, OutboundType type, decimal weight)
         => new()
         {
             Id = id,
             InventoryBatchId = inventoryBatchId,
-            OutboundType = OutboundType.SalesOut,
+            OutboundType = type,
             OutboundQuantity = (int)weight,
             OutboundWeight = weight,
             OutboundDate = new DateTime(2026, 9, 2),
@@ -354,10 +418,10 @@ public class OrderProgressQueryServiceTests : TestBase
         });
     }
 
-    // ===================== 完结主号（仅成品入库分支） =====================
+    // ===================== 完结主号（投料：生产批次工艺卡 + 产出：各仓库实收） =====================
 
     [Fact]
-    public async Task GetTreeAsync_完结主号_仅成品入库分支_忽略在产待量与看板()
+    public async Task GetTreeAsync_完结主号_忽略在产待量与看板_零值快照分支不渲染且成品入库保留()
     {
         var ctx = CreateDbContext();
         var wh = await SeedWarehouseAsync(ctx);
@@ -390,6 +454,12 @@ public class OrderProgressQueryServiceTests : TestBase
         main.Production.Should().BeNull();
         main.FinalInspection.Should().BeNull();
 
+        // 完结专属分支零值全部不渲染（无生产批次 → 投料 0；无次品库/在制品库/成品库备料入库）
+        main.ProductionInput.Should().BeNull();
+        main.SurplusInbound.Should().BeNull();
+        main.DefectInbound.Should().BeNull();
+        main.FinishedStockInbound.Should().BeNull();
+
         main.Warehousing.Should().NotBeNull();
         main.Warehousing!.Leaves.Should().HaveCount(3);
         LeafOf(main.Warehousing, "Inbound")!.Text.Should().Be("入库");
@@ -398,6 +468,132 @@ public class OrderProgressQueryServiceTests : TestBase
         LeafOf(main.Warehousing, "Stock")!.WeightKg.Should().Be(700m);
         LeafOf(main.Warehousing, "Outbound")!.Text.Should().Be("出库");
         LeafOf(main.Warehousing, "Outbound")!.WeightKg.Should().Be(500m); // 300+200 两条 SalesOut 求和
+    }
+
+    [Fact]
+    public async Task GetTreeAsync_完结主号_投料取生产批次工艺卡领料重并排除返整委外生产对外加工()
+    {
+        var ctx = CreateDbContext();
+
+        // 投料 = Σ 生产批次工艺卡 InputWeight；排除 返整/委外生产/对外加工；不限制造物品；
+        // 标题 = 该主号投料批次 ProductionType 去重、按 ProductionTypeKeys.All 序、中文「+」连接
+        ctx.ProductionBatches.AddRange(
+            NewProductionBatch("2609-1001", "G100", InventoryMaterialTypes.OrderFinished, ProductionTypeKeys.RoughTube, 600m),
+            NewProductionBatch("2609-1002", "G100", InventoryMaterialTypes.Surplus, ProductionTypeKeys.InProcess, 400m), // 非订单成品制造物品亦计
+            NewProductionBatch("2609-1003", "G100", InventoryMaterialTypes.OrderFinished, ProductionTypeKeys.InProcess, 300m), // 类型重复：标题去重
+            NewProductionBatch("2609-1004", "G100", InventoryMaterialTypes.OrderFinished, ProductionTypeKeys.OutsourcedPurchased, 200m),
+            NewProductionBatch("2609-1005", "G100", InventoryMaterialTypes.OrderFinished, ProductionTypeKeys.Rework, 999m),        // 返整：不计
+            NewProductionBatch("2609-1006", "G100", InventoryMaterialTypes.OrderFinished, ProductionTypeKeys.Subcontract, 888m),   // 委外生产：不计
+            NewProductionBatch("2609-1007", "G100", InventoryMaterialTypes.OrderFinished, ProductionTypeKeys.ExternalProcessing, 777m)); // 对外加工：不计
+
+        var r = NewSummary(1, "G100", stage: 1); // 完结
+        r.InputWeight = 12345m;                  // WES 快照投料：新口径不再采用
+        ctx.Set<WorkOrderExecutionSummary>().Add(r);
+        await ctx.SaveChangesAsync();
+
+        var tree = await CreateService(ctx, EmptyKanban()).GetTreeAsync(SO);
+
+        var main = tree!.MainNos.Should().ContainSingle().Subject;
+        main.IsCompleted.Should().BeTrue();
+
+        main.ProductionInput.Should().NotBeNull();
+        main.ProductionInput!.Title.Should().Be("生产投料[荒管生产+在制生产+外购]");
+        var input = LeafOf(main.ProductionInput, "Input")!;
+        input.Text.Should().Be("投料");
+        input.WeightKg.Should().Be(1500m); // 600+400+300+200
+
+        // 非完结分支在完结主号下恒空
+        main.RawMaterialLock.Should().BeNull();
+        main.Production.Should().BeNull();
+        main.FinalInspection.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetTreeAsync_完结主号_次品入库按生产批号反查主号聚合且每叶附同叶退货出库量()
+    {
+        var ctx = CreateDbContext();
+        var defect = await SeedWarehouseWithCodeAsync(ctx, WarehouseCodes.Defect, "次品库");
+        var fg = await SeedWarehouseWithCodeAsync(ctx, WarehouseCodes.FinishedGoods, "成品库");
+
+        ctx.ProductionBatches.AddRange(
+            NewProductionBatch("2609-3001", "G100"),
+            NewProductionBatch("2609-3002", "G200"));
+
+        // 次品库 6 类物料均可入叶；叶序与 InventoryMaterialTypes.WarehouseAllowedTypes["DEFECT"] 一致
+        var d1 = NewInboundBatch(defect.Id, "CK-D1", InventoryMaterialTypes.DefectRoughTube, "2609-3001", 500m);
+        var d2 = NewInboundBatch(defect.Id, "CK-D2", InventoryMaterialTypes.DefectRoughTube, "2609-3002", 111m); // 归属另一主号
+        var d3 = NewInboundBatch(defect.Id, "CK-D3", InventoryMaterialTypes.Scrap, "2609-3001", 60m);
+        var d4 = NewInboundBatch(defect.Id, "CK-D4", InventoryMaterialTypes.DefectSemi, null, 999m);            // 无生产批号：不计
+        // 成品库批次不属次品入库分支（仅取次品库）
+        var d5 = NewInboundBatch(fg.Id, "CK-B9", InventoryMaterialTypes.Finished, "2609-3001", 777m);
+        ctx.InventoryBatches.AddRange(d1, d2, d3, d4, d5);
+        await ctx.SaveChangesAsync();
+
+        // 退货出库只挂次品叶：d1 退 400；d5 的退货出库因不在次品库而不计
+        ctx.OutboundRecords.AddRange(
+            NewReturnOut(9101, d1.Id, 400m),
+            NewReturnOut(9102, d5.Id, 700m));
+        await ctx.SaveChangesAsync();
+
+        ctx.Set<WorkOrderExecutionSummary>().AddRange(
+            NewSummary(1, "G100", stage: 1),
+            NewSummary(2, "G200", stage: 1));
+        await ctx.SaveChangesAsync();
+
+        var tree = await CreateService(ctx, EmptyKanban()).GetTreeAsync(SO);
+
+        var g1 = tree!.MainNos.Should().ContainSingle(m => m.ProductionMainNo == "G100").Subject;
+        g1.DefectInbound.Should().NotBeNull();
+        g1.DefectInbound!.Title.Should().Be("次品入库");
+        g1.DefectInbound.Leaves.Should().HaveCount(2); // 次品荒管 + 报废品（无值的叶省略）
+        var rt = LeafOf(g1.DefectInbound, InventoryMaterialTypes.DefectRoughTube)!;
+        rt.Text.Should().Be("次品荒管");
+        rt.WeightKg.Should().Be(500m);
+        rt.ReturnWeightKg.Should().Be(400m);
+        var scrap = LeafOf(g1.DefectInbound, InventoryMaterialTypes.Scrap)!;
+        scrap.Text.Should().Be("报废品");
+        scrap.WeightKg.Should().Be(60m);
+        scrap.ReturnWeightKg.Should().Be(0m);
+
+        var g2 = tree.MainNos.Should().ContainSingle(m => m.ProductionMainNo == "G200").Subject;
+        LeafOf(g2.DefectInbound!, InventoryMaterialTypes.DefectRoughTube)!.WeightKg.Should().Be(111m);
+    }
+
+    [Fact]
+    public async Task GetTreeAsync_完结主号_余料与备料入库按生产批号反查订单主号聚合并忽略无批号行()
+    {
+        var ctx = CreateDbContext();
+        var wip = await SeedWarehouseWithCodeAsync(ctx, WarehouseCodes.WorkInProgress, "在制品库");
+        var fg = await SeedWarehouseWithCodeAsync(ctx, WarehouseCodes.FinishedGoods, "成品库");
+
+        ctx.ProductionBatches.AddRange(
+            NewProductionBatch("2609-0001", "G100"),
+            NewProductionBatch("2609-0002", "G100"),
+            NewProductionBatch("2609-0003", "G200", inputWeight: 800m));
+
+        ctx.InventoryBatches.AddRange(
+            // 在制品库余料：同主号两批求和；入库行自身不带订单号，只能靠生产批号反查
+            NewInboundBatch(wip.Id, "CK-S1", InventoryMaterialTypes.Surplus, "2609-0001", 300m),
+            NewInboundBatch(wip.Id, "CK-S2", InventoryMaterialTypes.Surplus, "2609-0002", 200m),
+            NewInboundBatch(wip.Id, "CK-S3", InventoryMaterialTypes.Surplus, null, 999m), // 无生产批号：不计
+            // 成品库备料成品：归属另一主号
+            NewInboundBatch(fg.Id, "CK-B1", InventoryMaterialTypes.Finished, "2609-0003", 700m));
+
+        var g200 = NewSummary(2, "G200", stage: 1);
+        ctx.Set<WorkOrderExecutionSummary>().AddRange(NewSummary(1, "G100", stage: 1), g200);
+        await ctx.SaveChangesAsync();
+
+        var tree = await CreateService(ctx, EmptyKanban()).GetTreeAsync(SO);
+
+        var g1 = tree!.MainNos.Should().ContainSingle(m => m.ProductionMainNo == "G100").Subject;
+        LeafOf(g1.SurplusInbound, "Inbound")!.Text.Should().Be("入库");
+        LeafOf(g1.SurplusInbound, "Inbound")!.WeightKg.Should().Be(500m); // 300+200，无批号的 999 不计
+        g1.FinishedStockInbound.Should().BeNull();
+
+        var g2 = tree.MainNos.Should().ContainSingle(m => m.ProductionMainNo == "G200").Subject;
+        LeafOf(g2.FinishedStockInbound, "Inbound")!.WeightKg.Should().Be(700m);
+        g2.SurplusInbound.Should().BeNull();
+        g2.ProductionInput!.Title.Should().Be("生产投料"); // 无生产类型 → 无方括号
     }
 
     // ===================== 成品检验（看板去重 / 档位归属 / 第4档不入树） =====================

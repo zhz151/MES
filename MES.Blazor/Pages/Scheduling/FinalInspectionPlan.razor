@@ -14,6 +14,8 @@
 @inject IJSRuntime JS
 @inject PageStateService PageState
 @inject HttpClient Http
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthProvider
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <div class="d-flex flex-column mb-4">
@@ -239,7 +241,7 @@
                     }
                 </div>
             </div>
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="FinalInspectionPlanDto"
                       Items="@_filteredItems"
                       Dense="true"

@@ -10,7 +10,7 @@ public class MetallographicTestDto
     public int Id { get; set; }
     public DateTime InspectionDate { get; set; }
     public string Inspector { get; set; } = null!;
-    public string FurnaceNo { get; set; } = null!;
+    public string BatchNo { get; set; } = null!;
     public string Grade { get; set; } = null!;
     public string Specification { get; set; } = null!;
     public int? SampleNo { get; set; }
@@ -40,7 +40,7 @@ public class CreateMetallographicTestRequest
 
     [Required(ErrorMessage = "生产编号不能为空")]
     [MaxLength(50)]
-    public string FurnaceNo { get; set; } = string.Empty;
+    public string BatchNo { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "牌号不能为空")]
     [MaxLength(50)]
@@ -87,7 +87,7 @@ public class UpdateMetallographicTestRequest
     public string? Inspector { get; set; }
 
     [MaxLength(50)]
-    public string? FurnaceNo { get; set; }
+    public string? BatchNo { get; set; }
 
     [MaxLength(50)]
     public string? Grade { get; set; }

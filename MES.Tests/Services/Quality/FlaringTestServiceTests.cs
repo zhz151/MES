@@ -28,7 +28,7 @@ public class FlaringTestServiceTests : TestBase
         {
             InspectionDate = date,
             Inspector = inspector,
-            FurnaceNo = furnaceNo,
+            BatchNo = furnaceNo,
             Grade = grade,
             Specification = specification,
             MandrelTaper = mandrelTaper,
@@ -43,7 +43,7 @@ public class FlaringTestServiceTests : TestBase
     {
         InspectionDate = new DateTime(2026, 3, 1),
         Inspector = "张三",
-        FurnaceNo = furnaceNo,
+        BatchNo = furnaceNo,
         Grade = "Q345B",
         Specification = "219*8",
         MandrelTaper = "1:30",
@@ -61,11 +61,11 @@ public class FlaringTestServiceTests : TestBase
         var dto = await svc.CreateAsync(NewCreate("FUR-100"));
 
         dto.Id.Should().BeGreaterThan(0);
-        dto.FurnaceNo.Should().Be("FUR-100");
+        dto.BatchNo.Should().Be("FUR-100");
         dto.MandrelTaper.Should().Be("1:30");
         dto.FlaredDiameter.Should().Be(300m);
         var row = await ctx.FlaringTests.SingleAsync();
-        row.FurnaceNo.Should().Be("FUR-100");
+        row.BatchNo.Should().Be("FUR-100");
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public class FlaringTestServiceTests : TestBase
         var dto = await CreateService(ctx).GetByIdAsync(e.Id);
 
         dto.Should().NotBeNull();
-        dto!.FurnaceNo.Should().Be("FUR-7");
+        dto!.BatchNo.Should().Be("FUR-7");
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public class FlaringTestServiceTests : TestBase
         var svc = CreateService(ctx);
 
         var byFurnace = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "FUR-2" });
-        byFurnace.Items.Should().ContainSingle().Which.FurnaceNo.Should().Be("FUR-2");
+        byFurnace.Items.Should().ContainSingle().Which.BatchNo.Should().Be("FUR-2");
 
         var byInspector = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "李四" });
         byInspector.Items.Should().ContainSingle().Which.Inspector.Should().Be("李四");
@@ -129,7 +129,7 @@ public class FlaringTestServiceTests : TestBase
 
         var hit = await svc.GetAllAsync(new QueryParams { PageIndex = 1, PageSize = 20, Keyword = "1:50" });
 
-        hit.Items.Should().ContainSingle().Which.FurnaceNo.Should().Be("FUR-3");
+        hit.Items.Should().ContainSingle().Which.BatchNo.Should().Be("FUR-3");
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public class FlaringTestServiceTests : TestBase
         });
 
         page.TotalCount.Should().Be(2);
-        page.Items.Select(i => i.FurnaceNo).Should().BeEquivalentTo("FUR-1", "FUR-2");
+        page.Items.Select(i => i.BatchNo).Should().BeEquivalentTo("FUR-1", "FUR-2");
     }
 
     // ========== UpdateAsync：null 补丁 / 缺失 ==========
@@ -165,12 +165,12 @@ public class FlaringTestServiceTests : TestBase
         var dto = await svc.UpdateAsync(e.Id, new UpdateFlaringTestRequest
         {
             InspectionDate = new DateTime(2026, 3, 2),
-            FurnaceNo = "FUR-1-NEW",
+            BatchNo = "FUR-1-NEW",
             FlaredDiameter = 320m
             // Inspector/Grade/Specification/MandrelTaper 传 null → 回退保留
         });
 
-        dto.FurnaceNo.Should().Be("FUR-1-NEW");
+        dto.BatchNo.Should().Be("FUR-1-NEW");
         dto.InspectionDate.Should().Be(new DateTime(2026, 3, 2));
         dto.FlaredDiameter.Should().Be(320m);
         dto.Inspector.Should().Be("张三");
@@ -231,7 +231,7 @@ public class FlaringTestServiceTests : TestBase
         });
 
         list.Should().HaveCount(2);
-        list.Select(d => d.FurnaceNo).Should().Equal("FUR-A1", "FUR-A2");
+        list.Select(d => d.BatchNo).Should().Equal("FUR-A1", "FUR-A2");
         ctx.FlaringTests.Count().Should().Be(2);
     }
 
@@ -260,7 +260,7 @@ public class FlaringTestServiceTests : TestBase
         var contexts = await svc.GetFilterContextsAsync();
 
         contexts["Inspector"].Should().Equal("张三");
-        contexts["FurnaceNo"].Should().Equal("FUR-1", "FUR-2");
+        contexts["BatchNo"].Should().Equal("FUR-1", "FUR-2");
         contexts.Should().ContainKey("MandrelTaper");
         contexts.Should().ContainKey("Judgment");
     }

@@ -64,10 +64,12 @@ public class QualityProcessTrackingDto
     // ========== G3: 检验汇总 ==========
     public int ProductionCutQuantity { get; set; }           // 生产支数（断切成品切后支数和）
     public int TotalQuantity { get; set; }                   // 检验支数（按唯一性+检验项目汇总 Quantity，跨项目取最大）
-    public int QualifiedQuantity { get; set; }               // 理论合格支（检验支数 - 三次品汇总）
+    public int QualifiedQuantity { get; set; }               // 理论合格支（检验支数 - 五次品汇总）
     public int DefectReworkQuantity { get; set; }            // 返整支数合计
-    public int DefectWarehouseQuantity { get; set; }         // 不合格入库支数合计
-    public int DefectScrapQuantity { get; set; }             // 报废支数合计
+    public int DefectInProcessWarehouseQuantity { get; set; } // 不合格入在制库支数合计（2026-09-11 新增第 5 档）
+    public int DefectWarehouseQuantity { get; set; }         // 不合格可入备库支数合计
+    public int DefectScrapQuantity { get; set; }             // 不合格入次品库支数合计
+    public int DefectReturnQuantity { get; set; }            // 退货支数合计（2026-09-11 新增第 4 档）
     public DateTime? MaxInspectionDate { get; set; }         // 最晚检验日期
 
     // ========== G4: 成品入库 ==========

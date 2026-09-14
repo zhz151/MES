@@ -235,32 +235,41 @@ public class WorkOrderExecutionSummary : BaseEntity
 
     // ========== Group 15: 次品总量（过程检/成检次品聚合，仅订单成品批次） ==========
     // 前端显示为 G15：次品总量（位于合格流转之后）
-    /// <summary>过程检次品总重(kg) = Σ(理论返整重 + 理论入库重 + 理论报废重)</summary>
+    /// <summary>过程检次品总重(kg) = Σ(理论返整重 + 理论入在制重 + 理论入次库重 + 理论退货重)</summary>
     public int? ProcessInspectionDefectWeight { get; set; }
 
     /// <summary>过程检返整重(kg) = Σ 过程检验理论返整重</summary>
     public int? ProcessInspectionReworkWeight { get; set; }
 
-    /// <summary>过程检入库重(kg) = Σ 过程检验理论入库重</summary>
+    /// <summary>过程检入在制重(kg) = Σ 过程检验理论入在制重</summary>
     public int? ProcessInspectionWarehouseWeight { get; set; }
 
-    /// <summary>过程检报废重(kg) = Σ 过程检验理论报废重</summary>
+    /// <summary>过程检入次库重(kg) = Σ 过程检验理论入次库重</summary>
     public int? ProcessInspectionScrapWeight { get; set; }
 
-    /// <summary>成检次品总支(支) = Σ(返整支数 + 入库支数 + 报废支数)</summary>
+    /// <summary>过程检退货重(kg) = Σ 过程检验理论退货重（2026-09-11 新增第 4 档）</summary>
+    public int? ProcessInspectionReturnWeight { get; set; }
+
+    /// <summary>成检次品总支(支) = Σ(返整支数 + 入在制库支数 + 可入备库支数 + 入次品库支数 + 退货支数)</summary>
     public int? FinalInspectionDefectQty { get; set; }
 
-    /// <summary>成检次品总重(kg) = Σ(返整重 + 入库重 + 报废重)</summary>
+    /// <summary>成检次品总重(kg) = Σ(返整重 + 入在制重 + 可入备库重 + 入次库重 + 退货重)</summary>
     public int? FinalInspectionDefectWeight { get; set; }
 
     /// <summary>成品检返整重(kg) = Σ 成品检验返整重</summary>
     public int? FinalInspectionReworkWeight { get; set; }
 
-    /// <summary>成检入库重(kg) = Σ 成品检验入库重</summary>
+    /// <summary>成检入在制重(kg) = Σ 成品检验入在制重（2026-09-11 新增第 5 档）</summary>
+    public int? FinalInspectionInProcessWarehouseWeight { get; set; }
+
+    /// <summary>成检可入备库重(kg) = Σ 成品检验可入备库重</summary>
     public int? FinalInspectionWarehouseWeight { get; set; }
 
-    /// <summary>成检报废重(kg) = Σ 成品检验报废重</summary>
+    /// <summary>成检入次库重(kg) = Σ 成品检验入次库重</summary>
     public int? FinalInspectionScrapWeight { get; set; }
+
+    /// <summary>成检退货重(kg) = Σ 成品检验退货重（2026-09-11 新增第 4 档）</summary>
+    public int? FinalInspectionReturnWeight { get; set; }
 
     // ========== Group 12: 实际生产总流转（G13~G15 的汇整） ==========
     // 前端显示为 G12：有效流转

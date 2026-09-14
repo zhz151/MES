@@ -2,9 +2,15 @@ namespace MES.Core.DTOs.Order;
 
 /// <summary>
 /// 订单进度树 DTO（一级=订单号）。只读树：
-/// 二级=订单号+主号（含完结主号），三级=原料锁定/生产执行/成品检验/成品入库四分支，
+/// 二级=订单号+主号（含完结主号）；三级分支分两套：
+/// 非完结主号=原料锁定/生产执行/成品检验/成品入库；
+/// 完结主号=生产投料/在制品入库(余料)/次品入库/备料成品/订单成品入库。
 /// 四级=叶子重量(kg)。零值叶省略、空分支为 null（前端不显示该分支）。
-/// 原料锁定/生产执行分支取自 WorkOrderExecutionSummary 快照口径；成品检验/成品入库为实时口径；
+/// 完结主号口径分两侧：「投料」= 该主号生产批次工艺卡的领料重 Σ InputWeight，取数排除
+/// 「返整/委外生产/对外加工」三种生产类型、不限制造物品；「产出」全部按仓库实收 ——
+/// 在制品入库(在制品库余料)/次品入库(次品库)/备料成品(成品库备料成品)/订单成品入库(成品库订单成品，
+/// 排除订成-非交付态)，后三者经生产批号反查订单+主号；次品叶可附带同叶的退货出库量(次品库 ReturnOut 出库)。
+/// 非完结主号的原料锁定/生产执行取自 WorkOrderExecutionSummary 快照、成品检验/成品入库为实时口径；
 /// 主号头的标准牌号/产品标准与整单含项次数为 OrderItem 实时口径，其余头部字段取快照。
 /// </summary>
 public class OrderProgressTreeDto
@@ -84,10 +90,22 @@ public class OrderMainProgressDto
     /// <summary>生产执行[待产]分支（8 在产节点待量叶）</summary>
     public MainProgressBranchDto? Production { get; set; }
 
-    /// <summary>成品检验分支（待到料/待检验/检验中 3 叶，成检计划实时）</summary>
+    /// <summary>成品检验分支（待到料/待检验/检验中 3 叶，成检计划实时；仅非完结主号）</summary>
     public MainProgressBranchDto? FinalInspection { get; set; }
 
-    /// <summary>成品入库分支（入库/出库/库存 3 叶，实时，唯一完结主号仍有的分支）</summary>
+    /// <summary>生产投料分支（单叶=投料，Σ 该主号生产批次 InputWeight；排除返整/委外生产/对外加工；仅完结主号）</summary>
+    public MainProgressBranchDto? ProductionInput { get; set; }
+
+    /// <summary>在制品入库(余料)分支（在制品库 WIP 余库料 Surplus，按生产批号反查订单+主号聚合入库重，实时；仅完结主号）</summary>
+    public MainProgressBranchDto? SurplusInbound { get; set; }
+
+    /// <summary>次品入库分支（次品库 6 类物料类型入库重，叶可附同叶退货出库量，均按生产批号反查订单+主号；实时；仅完结主号）</summary>
+    public MainProgressBranchDto? DefectInbound { get; set; }
+
+    /// <summary>备料成品分支（成品库 FG 备料成品 Finished 按生产批号反查订单+主号聚合入库重，实时；仅完结主号）</summary>
+    public MainProgressBranchDto? FinishedStockInbound { get; set; }
+
+    /// <summary>订单成品入库分支（入库/出库/库存 3 叶，成品库订单成品 OrderFinished，实时）</summary>
     public MainProgressBranchDto? Warehousing { get; set; }
 }
 
@@ -119,4 +137,7 @@ public class MainProgressLeafDto
 
     /// <summary>重量(kg)</summary>
     public decimal WeightKg { get; set; }
+
+    /// <summary>退货出库量(kg)。仅次品入库叶填（次品库 ReturnOut 出库，与 WeightKg 同叶对照入库/退货）；其余恒 0 不渲染</summary>
+    public decimal ReturnWeightKg { get; set; }
 }

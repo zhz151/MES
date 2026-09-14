@@ -75,7 +75,7 @@
                                     打印
                                 </MudButton>
                             </div>
-                            <MudTable Items="_errorDoubtVisibleItems" Dense="true" Hover="true" Elevation="0" Class="auto-table"
+                            <MudTable Breakpoint="Breakpoint.None" Items="_errorDoubtVisibleItems" Dense="true" Hover="true" Elevation="0" Class="auto-table"
                                       Striped="true" Style="font-size: 0.8125rem;" id="mpol-error-doubt-table">
                                 <HeaderContent>
                                     <MudTh Style="text-align:center">
@@ -430,7 +430,7 @@
                     }
                 </div>
             </div>
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="WorkOrderListDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"

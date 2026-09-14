@@ -344,7 +344,8 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
         var today = DateTime.Today;
         var buckets = ProductionSummaryHelper.GenerateDateBuckets(today, bucket1, bucket2, bucket3, bucket4, bucket5);
 
-        // 标量（口径 = 前端 RecalculateSummary；方案 B：待投料排除「单一成品采购」工单，成购改「包含」口径）
+        // 标量（口径 = 前端 RecalculateSummary；方案 B：待投料排除「单一成品采购」工单，
+        // 成购 2026-09-10 用户决策收紧为「仅执行用料计划工单」）
         // 「单一成品采购」= FinishPlanWeight > 0 且其余 6 类计划量（穿孔/荒管/库存/库改/在产改/主工单）全部 ≤ 0
         var totalWeight = 0m;
         var purchaseCount = 0;
@@ -353,25 +354,26 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
         var totalOrderCount = 0;
         foreach (var s in summaries)
         {
+            // 成购口径（2026-09-10 用户决策）：成购属「执行用料计划」子类，仅统计备注=执行用料计划(ExecutePlan)的工单
+            if (RawMaterialLockRemarkKeys.ToKey(s.RawMaterialLockRemark) == RawMaterialLockRemarkKeys.ExecutePlan)
+            {
+                purchaseCount += s.FinishPlanWeight > 0 ? 1 : 0;
+                purchaseWeight += Math.Max(0m, s.FinishPlanWeight - s.FinishInWeight);
+            }
+
             // 待投料口径（方案 B）：TotalOrderCount/TotalWeight/PendingWeight 排除「单一成品采购」工单
             if (IsSingleFinishPurchase(s.FinishPlanWeight, s.PiercingPlanWeight, s.SemiPlanWeight,
                     s.InventoryPlanWeight, s.ReworkPlanWeight, s.InProcessReworkPlanWeight, s.InMainPlanWeight))
-            {
-                // 成购口径（「包含」）：有计划成品采购就算单数，重量=缺口
-                purchaseCount += s.FinishPlanWeight > 0 ? 1 : 0;
-                purchaseWeight += Math.Max(0m, s.FinishPlanWeight - s.FinishInWeight);
                 continue;
-            }
+
             totalOrderCount++;
             totalWeight += s.TotalWeight;
             pendingWeight += ProductionSummaryHelper.CalcPending(
                 s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio);
-            if (s.FinishPlanWeight > 0) purchaseCount++;
-            purchaseWeight += Math.Max(0m, s.FinishPlanWeight - s.FinishInWeight);
         }
 
         // 矩阵：备注 × 计划性（列排除 EPaused 暂停档）
-        // 待投料（Count/PendingWeight）排除「单一成品采购」工单；成购（PurchaseCount/PurchaseWeight）按「包含」口径
+        // 待投料（Count/PendingWeight）排除「单一成品采购」工单；成购（PurchaseCount/PurchaseWeight）仅 ExecutePlan 工单
         var matrix = new Dictionary<string, PendingMatrixCellDto>(StringComparer.Ordinal);
         foreach (var s in summaries)
         {
@@ -383,7 +385,6 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                 cell = new PendingMatrixCellDto();
                 matrix[key] = cell;
             }
-            var purchase = Math.Max(0m, s.FinishPlanWeight - s.FinishInWeight);
             if (!IsSingleFinishPurchase(s.FinishPlanWeight, s.PiercingPlanWeight, s.SemiPlanWeight,
                     s.InventoryPlanWeight, s.ReworkPlanWeight, s.InProcessReworkPlanWeight, s.InMainPlanWeight))
             {
@@ -391,8 +392,12 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                 cell.PendingWeight += ProductionSummaryHelper.CalcPending(
                     s.TotalWeight, s.FinishPlanWeight, s.FinishInWeight, s.InputWeight, s.FlowOutputRatio, s.RawMaterialLockRemark, rawRatio);
             }
-            cell.PurchaseCount += s.FinishPlanWeight > 0 ? 1 : 0;
-            cell.PurchaseWeight += purchase;
+            // 成购仅 ExecutePlan 工单（其余备注行恒为 0，矩阵结构保留）
+            if (remarkKey == RawMaterialLockRemarkKeys.ExecutePlan)
+            {
+                cell.PurchaseCount += s.FinishPlanWeight > 0 ? 1 : 0;
+                cell.PurchaseWeight += Math.Max(0m, s.FinishPlanWeight - s.FinishInWeight);
+            }
         }
 
         var remarkRows = RawMaterialLockRemarkKeys.All;
@@ -432,12 +437,12 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
             grandTotals.PurchaseWeight += row.RowPurchaseWeight;
         }
 
-        // 理论待投料截日：完善用料计划/执行用料计划（各加 PendingCalc）+ 外购成品（全工单 PurchaseCalc）+ 合计
+        // 理论待投料截日：完善用料-原料类/执行用料-原料类（各加 PendingCalc）+ 执行用料-成购类（ExecutePlan 工单 PurchaseCalc）+ 合计
         var cutoffRows = new List<CutoffRowDto>
         {
-            new() { Category = "完善用料计划", Buckets = new List<decimal>(new decimal[buckets.Count]) },
-            new() { Category = "执行用料计划", Buckets = new List<decimal>(new decimal[buckets.Count]) },
-            new() { Category = "外购成品", Buckets = new List<decimal>(new decimal[buckets.Count]) },
+            new() { Category = "完善用料-原料类", Buckets = new List<decimal>(new decimal[buckets.Count]) },
+            new() { Category = "执行用料-原料类", Buckets = new List<decimal>(new decimal[buckets.Count]) },
+            new() { Category = "执行用料-成购类", Buckets = new List<decimal>(new decimal[buckets.Count]) },
         };
         foreach (var s in summaries)
         {
@@ -454,8 +459,9 @@ public class RawMaterialLockPlanAndExecutionService : IRawMaterialLockPlanAndExe
                 else if (remarkKey == RawMaterialLockRemarkKeys.ExecutePlan)
                     AddCutoffWeight(cutoffRows[1], pending, bucket);
             }
-            // 外购成品 = 全部工单成购缺口（与标量 _purchaseWeight 同口径）
-            AddCutoffWeight(cutoffRows[2], Math.Max(0m, s.FinishPlanWeight - s.FinishInWeight), bucket);
+            // 执行用料-成购类 = 仅 ExecutePlan 工单的成购缺口（与标量 purchaseWeight 同口径）
+            if (remarkKey == RawMaterialLockRemarkKeys.ExecutePlan)
+                AddCutoffWeight(cutoffRows[2], Math.Max(0m, s.FinishPlanWeight - s.FinishInWeight), bucket);
         }
         var totalRow = new CutoffRowDto { Category = "合计", Buckets = new List<decimal>(new decimal[buckets.Count]) };
         foreach (var r in cutoffRows)

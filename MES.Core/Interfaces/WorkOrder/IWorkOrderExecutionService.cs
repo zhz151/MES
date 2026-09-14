@@ -25,7 +25,7 @@ public interface IWorkOrderExecutionService
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 
     /// <summary>
-    /// 获取工单执行看板聚合数据（按 ScheduleStage × UrgencyLevel 分组）
+    /// 获取工单执行看板聚合数据（按 ScheduleStage 一行；单数按**订单号**去重）
     /// </summary>
     Task<List<WorkOrderExecutionDashboardItem>> GetDashboardSummaryAsync();
 

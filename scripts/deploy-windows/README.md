@@ -4,8 +4,9 @@
 > 服务器：腾讯云 Windows Server 2022（4核 / 4GB 内存 / **60GB 系统盘 C:**，试验期暂不加数据盘），公网 IP `111.231.10.18`，域名 `zhz.js.cn`（已解析）。
 > **数据库：服务器已预装 SQL Server 2022 Express（命名实例 `SQLEXPRESS`）**，直接沿用即可，无需再装 SQL。Express 自带限制（内存约 1.4GB、库≤10GB、无 SQL Agent），试验期够用，脚本已按此适配（备份改用 Windows 计划任务）。
 > 目录约定：应用放 `C:\mes`、SQL 数据/备份放 `C:\MSSQL`（都在 60GB 系统盘上）。
+> 用户上传数据（不合格反馈照片等附件）放 `C:\mes\data\attachments`（由配置 `Attachment:RootPath` 指定；04 脚本会自动建目录并注入该环境变量，**增量覆盖 `C:\mes\api` 不会动它**，备份/迁移时别漏）。
 
-这套脚本共 `00-07` 步。**按下面顺序做，别跳步**。标「服务器」的在腾讯云服务器上做，标「开发机」的在你写代码的电脑上做。
+首次部署是 `00-07` 步（另：`08-restore-db.ps1` 整库灾难恢复、`09-apply-deploy.ps1` 日常增量发布，不在首次流程里，见文末「以后怎么更新」）。**按下面顺序做，别跳步**。标「服务器」的在腾讯云服务器上做，标「开发机」的在你写代码的电脑上做。
 
 > **第 0 步：先把这个 `deploy-windows` 文件夹整个拷到服务器**（RDP 直接拖），放到 `C:\mes\deploy\`（下面的命令都在 `C:\mes\deploy` 里执行）。
 
@@ -122,7 +123,16 @@ powershell -ExecutionPolicy Bypass -File .\05-setup-nginx.ps1
 powershell -ExecutionPolicy Bypass -File .\06-verify.ps1
 ```
 
-期望输出全 `OK`（首页 200 / manifest 200 / login 400=后端活着 / hangfire 401=有保护）。
+期望输出全 `OK`（首页 200 / manifest 200 / login 400=后端活着 / **`/api/health` 200** / hangfire 401=有保护），末尾还有一道 **Blazor 路由门禁**：
+
+```
+--- Blazor route gate (deployed wasm) ---
+  downloaded 7.8 MB
+  [OK ] route gate passed (no lost @page directives)
+```
+
+> ⚠️ **这道门禁是 2026-09-14 全站故障后加的**：某次批量脚本把 95 个 `.razor` 首行 `@page "..."` 的 `@` 弄丢，编译 **0 错误 0 警告**、单测全过，但一个路由都没注册 → 每个页面都落到 `App.razor` 的 `<NotFound>`，全站显示「抱歉，此页面不存在。」。
+> 上面那 5 个 HTTP 码检查在**那次故障中全部通过**（nginx 的 SPA fallback 让 `/` 永远是 200）——**只有 wasm 标记检查能抓到**。报 `[FAIL] ROUTE GATE` 说明源码里 `@page` 又丢了，改回源码 → 重跑 `03-publish-local.ps1` → 重跑 `09-apply-deploy.ps1`。
 
 然后**用手机**：浏览器打开 `https://zhz.js.cn` → 登录 Admin → 浏览器菜单「添加到主屏幕」装成 App → 扫码报工实测。Hangfire 面板 `https://zhz.js.cn/hangfire`。
 
@@ -146,10 +156,34 @@ powershell -ExecutionPolicy Bypass -File .\07-setup-backup.ps1
 
 ## 以后怎么更新（增量发布）
 
-1. 开发机跑 `03-publish-local.ps1` 打新 zip
-2. 服务器解压覆盖 `C:\mes\api`、`C:\mes\web`（覆盖前先拷一份到 `C:\mes\publish\<日期>\` 留底）
-3. 含数据库变更的新版本：先 `nssm restart MES.API` 让它自动跑迁移，确认日志正常，再覆盖前端
-4. `nginx` 不用重启（静态文件即时生效）
+推荐走 `09-apply-deploy.ps1`（**服务器上以管理员运行**），它一手包掉「校验 → 备份 → 覆盖 → 起服务 → 探活」：
+
+```powershell
+# 1) 开发机：打新 zip
+powershell -ExecutionPolicy Bypass -File .\03-publish-local.ps1
+
+# 2) 把 zip 上传到服务器 C:\mes\，然后服务器上运行
+#    （包名改 09-apply-deploy.ps1 顶部的 $Zip 默认值，或用 -Zip 直接传）
+powershell -ExecutionPolicy Bypass -File C:\mes\deploy\09-apply-deploy.ps1 -Zip C:\mes\mes-deploy-YYYYMMDD_HHMM.zip
+
+# 3) 任意能上网的电脑：公网冒烟 + 路由门禁
+powershell -ExecutionPolicy Bypass -File .\06-verify.ps1
+```
+
+`09` 会在**动任何文件之前**做完校验，任何一步不过就中止、`api`/`web` 保持原样：
+
+| 检查 | 不过的后果（不加检查时） |
+|---|---|
+| 包体三件套 `MES.Api.dll` / `index.html` / `_framework\blazor.boot.json` | 覆盖到一半发现包是坏的，站点半死 |
+| **wasm 路由门禁**（`@page` 是否丢失） | 全站「抱歉，此页面不存在」（2026-09-14 实际发生过） |
+| 覆盖前把 `api`/`web` 备份到 `C:\mes\_backup\<时间戳>\` + 写 `ROLLBACK.txt` | 装错包后无路可退，只能重装上一个包 |
+
+补充：
+
+1. 含数据库变更的新版本：先 `nssm restart MES.API` 让它自动跑迁移，确认日志正常，再覆盖前端
+2. `nginx` 不用重启（静态文件即时生效）
+3. 覆盖完浏览器 **Ctrl+F5** —— `css/app.css` 走 `/css/` 的 `immutable` 一年缓存，改了样式必须抬 `index.html` 里的 `?v=` 串
+4. 日志在 `C:\mes\logs\api.out.log` / `api.err.log`（nssm 追加写）；探活看 `GET /api/health`
 
 ## 常见问题
 
@@ -173,8 +207,10 @@ powershell -ExecutionPolicy Bypass -File .\07-setup-backup.ps1
 | `03-publish-local.ps1` | **开发机**发布打包（自动把前端接口改同源） |
 | `04-setup-api.ps1` | NSSM 注册 API 服务 + 注入密钥环境变量 |
 | `05-setup-nginx.ps1` | 生成 nginx.conf + 注册 nginx 服务 |
-| `06-verify.ps1` | 公网冒烟 + 手机清单 |
+| `06-verify.ps1` | 公网冒烟（含 `/api/health`）+ **Blazor 路由门禁** + 手机清单 |
 | `07-setup-backup.ps1` | **Express 用**：一键注册每日备份计划任务（会当场试跑一次） |
+| `08-restore-db.ps1` | **服务器**：从 `.bak` 整库恢复（灾难恢复用，会覆盖现有库） |
+| `09-apply-deploy.ps1` | **服务器**：增量发布（校验包体 + 路由门禁 + 备份回滚 + 起服务探活） |
 | `backup-mes.ps1` | 被计划任务调用：每日压缩备份 + 清理 5 天前（日志 `C:\mes\logs\backup.log`） |
 | `07-backup-job.sql` | 仅当以后升级 Standard/Developer（默认实例 + SQL Agent）时用；**Express 不适用** |
 | `nginx-mes.conf.template` | nginx 配置模板 |

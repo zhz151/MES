@@ -81,7 +81,8 @@ public class QualityProcessTrackingServiceTests : TestBase
 
     private static FinalInspection SeedInspection(AppDbContext ctx, ProductionBatch batch,
         InspectionItem item, int quantity, string inspectionType,
-        int? rework = null, int? warehouse = null, int? scrap = null)
+        int? rework = null, int? warehouse = null, int? scrap = null,
+        int? inProcessWarehouse = null, int? returnQty = null)
     {
         var fi = new FinalInspection
         {
@@ -94,8 +95,10 @@ public class QualityProcessTrackingServiceTests : TestBase
             QualifiedQuantity = quantity
         };
         if (rework.HasValue) fi.DefectReworkQuantity = rework;
+        if (inProcessWarehouse.HasValue) fi.DefectInProcessWarehouseQuantity = inProcessWarehouse;
         if (warehouse.HasValue) fi.DefectWarehouseQuantity = warehouse;
         if (scrap.HasValue) fi.DefectScrapQuantity = scrap;
+        if (returnQty.HasValue) fi.DefectReturnQuantity = returnQty;
         ctx.FinalInspections.Add(fi);
         return fi;
     }
@@ -148,6 +151,29 @@ public class QualityProcessTrackingServiceTests : TestBase
         // 非定尺 + 无需切割：生产支数=理论成品支数，生产重量=批次理论成品重量
         row.ProductionCutQuantity.Should().Be(100);
         row.ProductionWeight.Should().Be(5000);
+    }
+
+    [Fact]
+    public async Task Refresh_不合格品去向五档_入在制库与退货参与汇总与理论合格支()
+    {
+        var ctx = CreateDbContext();
+        var batch = await SeedBatchAsync(ctx);
+        SeedMrCheck(ctx, batch, nameof(InspectionType.FormalInspection));
+        SeedInspection(ctx, batch, InspectionItem.Dimension, 30, "FormalInspection",
+            rework: 2, inProcessWarehouse: 4, warehouse: 1, scrap: 3, returnQty: 5);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshByProductionBatchIdAsync(batch.Id);
+
+        var row = await ctx.QualityProcessTrackings
+            .SingleAsync(q => q.ProductionBatchId == batch.Id && q.InspectionType == "FormalInspection");
+        row.DefectReworkQuantity.Should().Be(2);
+        row.DefectInProcessWarehouseQuantity.Should().Be(4);
+        row.DefectWarehouseQuantity.Should().Be(1);
+        row.DefectScrapQuantity.Should().Be(3);
+        row.DefectReturnQuantity.Should().Be(5);
+        row.QualifiedQuantity.Should().Be(30 - 2 - 4 - 1 - 3 - 5);
     }
 
     [Fact]

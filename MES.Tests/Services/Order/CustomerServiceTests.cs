@@ -401,11 +401,13 @@ public class CustomerServiceTests : TestBase
 
     // ========== 客户业务统计 9 列（服务层按「业务员+最终用户」聚合注入，金额结算分治） ==========
 
-    /// <summary>种子一个含项次+订单读模型的订单；可选本年销售出库记录（InventoryBatch(SalesOrderNo) + OutboundRecord(SalesOut,当前年)）</summary>
+    /// <summary>种子一个含项次+订单读模型的订单；可选本年销售出库记录（InventoryBatch(SalesOrderNo) + OutboundRecord(SalesOut,当前年)）。
+    /// <paramref name="outDate"/> 可显式指定出库日期（供「发货区间」用例验证按 OutboundDate 落窗口），默认当年 6/20。</summary>
     private static async Task SeedOrderWithStatsAsync(AppDbContext ctx,
         string salesman, string endCustomer, int signYear, int stage,
         SettlementMethod method, decimal contractWeight, decimal amount,
-        decimal inbound, decimal stock, decimal outboundTotal, decimal outCurrentYear)
+        decimal inbound, decimal stock, decimal outboundTotal, decimal outCurrentYear,
+        DateTime? outDate = null)
     {
         var orderNo = "SO-" + Guid.NewGuid().ToString("N")[..10];
         var signDate = new DateTime(signYear, 1, 15);
@@ -485,7 +487,7 @@ public class CustomerServiceTests : TestBase
                 OutboundType = OutboundType.SalesOut,
                 OutboundQuantity = 1,
                 OutboundWeight = outCurrentYear,
-                OutboundDate = new DateTime(year, 6, 20)
+                OutboundDate = outDate ?? new DateTime(year, 6, 20)
             });
         }
         await ctx.SaveChangesAsync();
@@ -734,5 +736,421 @@ public class CustomerServiceTests : TestBase
         var dto = result.Items[0];
         dto.TotalOrderCount.Should().Be(0);
         dto.TotalOrderAmount.Should().Be(0m);
+    }
+
+    // ========== 接单区间模式（SignDateFrom/SignDateTo：仅客户管理使用，2026-09-14） ==========
+
+    [Fact]
+    public async Task GetPagedAsync_接单区间_命中区间_当期桶按区间计数且累计保持全时段()
+    {
+        var ctx = CreateDbContext();
+        // 签约日固定为 signYear-01-15（非当前年）
+        await SeedCustomerAsync(ctx, salesman: "张三");
+        ctx.CustomerProfiles.First().EndCustomer = "客户A";
+        await ctx.SaveChangesAsync();
+        await SeedOrderWithStatsAsync(ctx, "张三", "客户A", signYear: 2024, stage: 1,
+            SettlementMethod.Theoretical, 1000m, 100000m, inbound: 1000m, stock: 0m, outboundTotal: 1000m, outCurrentYear: 0m);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            SignDateFrom = new DateTime(2024, 1, 1),
+            SignDateTo = new DateTime(2024, 12, 31)
+        });
+
+        var dto = result.Items[0];
+        // 累计接单恒为全时段（前端在区间模式下该列渲染「—」，值本身不变）
+        dto.TotalOrderCount.Should().Be(1);
+        dto.TotalOrderWeight.Should().Be(1000m);
+        dto.TotalOrderAmount.Should().Be(100000m);
+        // 当期桶 = 区间接单（签约日落区间）
+        dto.YearOrderCount.Should().Be(1);
+        dto.YearOrderWeight.Should().Be(1000m);
+        dto.YearOrderAmount.Should().Be(100000m);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_接单区间_未命中区间_该客户被行过滤剔除()
+    {
+        var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, salesman: "张三");
+        ctx.CustomerProfiles.First().EndCustomer = "客户A";
+        await ctx.SaveChangesAsync();
+        await SeedOrderWithStatsAsync(ctx, "张三", "客户A", signYear: 2024, stage: 1,
+            SettlementMethod.Theoretical, 1000m, 100000m, inbound: 1000m, stock: 0m, outboundTotal: 1000m, outCurrentYear: 0m);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            SignDateFrom = new DateTime(2025, 1, 1),
+            SignDateTo = new DateTime(2025, 12, 31)
+        });
+
+        // 唯一客户在「区间接单」上无数据 → 行被过滤（与报表卡行过滤同口径），TotalCount 同步为 0
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_接单区间_仅传起始端_按开区间上不封顶过滤()
+    {
+        var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, salesman: "张三");
+        ctx.CustomerProfiles.First().EndCustomer = "客户A";
+        await ctx.SaveChangesAsync();
+        await SeedOrderWithStatsAsync(ctx, "张三", "客户A", signYear: 2024, stage: 1,
+            SettlementMethod.Theoretical, 1000m, 100000m, inbound: 1000m, stock: 0m, outboundTotal: 1000m, outCurrentYear: 0m);
+        var svc = CreateService(ctx);
+
+        // 只有起始端（2023-01-01 起）→ 2024-01-15 应命中；结束端缺省表示不设上限
+        var hit = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            SignDateFrom = new DateTime(2023, 1, 1)
+        });
+        hit.Items[0].YearOrderCount.Should().Be(1);
+
+        // 起始端晚于签约日 → 不命中（行随之被过滤）
+        var miss = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            SignDateFrom = new DateTime(2025, 1, 1)
+        });
+        miss.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_接单区间_不驱动已发货窗口_后者仍按自然年()
+    {
+        var ctx = CreateDbContext();
+        var nowYear = DateTime.Now.Year;
+        await SeedCustomerAsync(ctx, salesman: "张三");
+        ctx.CustomerProfiles.First().EndCustomer = "客户A";
+        await ctx.SaveChangesAsync();
+        // 签约日 2024-01-15；出库日 = 当前年 6/20（见 SeedOrderWithStatsAsync 默认值）
+        await SeedOrderWithStatsAsync(ctx, "张三", "客户A", signYear: 2024, stage: 1,
+            SettlementMethod.Theoretical, 1000m, 100000m, inbound: 1000m, stock: 0m, outboundTotal: 1000m, outCurrentYear: 1000m);
+        var svc = CreateService(ctx);
+
+        // 接单区间 = 2024：接单命中；发货维度不受接单区间影响 → 仍按自然年（出库当前年）有值
+        var sign2024 = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            SignDateFrom = new DateTime(2024, 1, 1),
+            SignDateTo = new DateTime(2024, 12, 31)
+        });
+        sign2024.Items[0].YearOrderCount.Should().Be(1);
+        sign2024.Items[0].ShippedCompletedWeight.Should().Be(1000m);
+        sign2024.Items[0].ShippedCompletedAmount.Should().Be(100000m);
+        sign2024.Items[0].ShippedCompletedCount.Should().Be(1);
+
+        // 接单区间 = 当前年：接单（2024）不命中 → 该客户在「区间接单」上无数据，行被过滤
+        var signNow = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            SignDateFrom = new DateTime(nowYear, 1, 1),
+            SignDateTo = new DateTime(nowYear, 12, 31)
+        });
+        signNow.Items.Should().BeEmpty();
+        signNow.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_接单区间_待发货与待在产属存量口径不受区间影响()
+    {
+        var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, salesman: "张三");
+        ctx.CustomerProfiles.First().EndCustomer = "客户A";
+        await ctx.SaveChangesAsync();
+        // 签约日 2024-01-15；主号未完成(阶段3)：入库300(库存在库未发)、欠产700
+        await SeedOrderWithStatsAsync(ctx, "张三", "客户A", signYear: 2024, stage: 3,
+            SettlementMethod.Weighing, 1000m, 100000m, inbound: 300m, stock: 300m, outboundTotal: 0m, outCurrentYear: 0m);
+        var svc = CreateService(ctx);
+
+        // 区间命中签约日（2024 年）→ 行保留；此时存量列仍照常统计（前端才把它们渲染为「—」）
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1, PageSize = 20,
+            SignDateFrom = new DateTime(2024, 1, 1),
+            SignDateTo = new DateTime(2024, 12, 31)
+        });
+
+        var dto = result.Items[0];
+        dto.YearOrderCount.Should().Be(1);
+        // ⚠️ 关键：待发货/待在产是当前存量（无日期语义），任何区间都不改变其取值
+        dto.StockOtherWeight.Should().Be(300m);
+        dto.StockOtherAmount.Should().Be(30000m);
+        dto.StockOtherCount.Should().Be(1);
+        dto.WipPartialWeight.Should().Be(700m);
+        dto.WipPartialAmount.Should().Be(70000m);
+        dto.WipPartialCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_未传接单区间_口径与既有自然年行为一致()
+    {
+        var ctx = CreateDbContext();
+        var year = DateTime.Now.Year;
+        await SeedCustomerAsync(ctx, salesman: "张三");
+        ctx.CustomerProfiles.First().EndCustomer = "客户A";
+        await ctx.SaveChangesAsync();
+        await SeedOrderWithStatsAsync(ctx, "张三", "客户A", signYear: year, stage: 1,
+            SettlementMethod.Theoretical, 1000m, 100000m, inbound: 1000m, stock: 0m, outboundTotal: 1000m, outCurrentYear: 1000m);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        var dto = result.Items[0];
+        // 区间两端皆空 → 完全沿用「累计 + 本年」口径（回归保护）
+        dto.TotalOrderCount.Should().Be(1);
+        dto.YearOrderCount.Should().Be(1);
+        dto.YearOrderWeight.Should().Be(1000m);
+        dto.ShippedCompletedWeight.Should().Be(1000m);
+        dto.ShippedCompletedCount.Should().Be(1);
+    }
+
+    // ========== 发货区间模式（ShipDateFrom/ShipDateTo：与接单区间互相独立、可叠加，2026-09-14） ==========
+
+    [Fact]
+    public async Task GetPagedAsync_发货区间_命中区间_已发货桶按出库日期重算且接单桶不受影响()
+    {
+        var ctx = CreateDbContext();
+        var year = DateTime.Now.Year;
+        await SeedCustomerAsync(ctx, salesman: "张三");
+        ctx.CustomerProfiles.First().EndCustomer = "客户A";
+        await ctx.SaveChangesAsync();
+        // 签约日 = 当年 1/15；出库日显式 = 当年 8/10
+        await SeedOrderWithStatsAsync(ctx, "张三", "客户A", signYear: year, stage: 1,
+            SettlementMethod.Theoretical, 1000m, 100000m, inbound: 1000m, stock: 0m, outboundTotal: 1000m, outCurrentYear: 1000m,
+            outDate: new DateTime(year, 8, 10));
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            ShipDateFrom = new DateTime(year, 8, 1),
+            ShipDateTo = new DateTime(year, 8, 31)
+        });
+
+        var dto = result.Items[0];
+        dto.ShippedCompletedWeight.Should().Be(1000m);
+        dto.ShippedCompletedCount.Should().Be(1);
+        // 发货区间不触碰接单维度：仍按自然年 → 当年签约命中
+        dto.YearOrderCount.Should().Be(1);
+        dto.YearOrderWeight.Should().Be(1000m);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_发货区间_未命中区间_已发货为零但接单仍按自然年()
+    {
+        var ctx = CreateDbContext();
+        var year = DateTime.Now.Year;
+        await SeedCustomerAsync(ctx, salesman: "张三");
+        ctx.CustomerProfiles.First().EndCustomer = "客户A";
+        await ctx.SaveChangesAsync();
+        await SeedOrderWithStatsAsync(ctx, "张三", "客户A", signYear: year, stage: 1,
+            SettlementMethod.Theoretical, 1000m, 100000m, inbound: 1000m, stock: 0m, outboundTotal: 1000m, outCurrentYear: 1000m,
+            outDate: new DateTime(year, 8, 10));
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            ShipDateFrom = new DateTime(year, 9, 1),
+            ShipDateTo = new DateTime(year, 9, 30)
+        });
+
+        // 该客户在「区间已发货」上无数据 → 行被过滤（接单维度本身不受影响，但行不再列出）
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_双区间叠加_各管各的维度互不干扰()
+    {
+        var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, salesman: "张三");
+        ctx.CustomerProfiles.First().EndCustomer = "客户A";
+        await ctx.SaveChangesAsync();
+        // 签约 2024/1/15；出库 2025/3/10
+        await SeedOrderWithStatsAsync(ctx, "张三", "客户A", signYear: 2024, stage: 1,
+            SettlementMethod.Theoretical, 1000m, 100000m, inbound: 1000m, stock: 0m, outboundTotal: 1000m, outCurrentYear: 1000m,
+            outDate: new DateTime(2025, 3, 10));
+        var svc = CreateService(ctx);
+
+        // 接单区间 = 2024 年（命中签约日）、发货区间 = 2025 年（命中出库日）→ 两桶同时有值
+        var both = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            SignDateFrom = new DateTime(2024, 1, 1),
+            SignDateTo = new DateTime(2024, 12, 31),
+            ShipDateFrom = new DateTime(2025, 1, 1),
+            ShipDateTo = new DateTime(2025, 12, 31)
+        });
+        var dto = both.Items[0];
+        dto.YearOrderCount.Should().Be(1);
+        dto.ShippedCompletedWeight.Should().Be(1000m);
+
+        // 接单区间 = 2024（命中）、发货区间 = 2024（出库在 2025 → 不命中）→ 仅接单桶有值
+        var onlySign = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            SignDateFrom = new DateTime(2024, 1, 1),
+            SignDateTo = new DateTime(2024, 12, 31),
+            ShipDateFrom = new DateTime(2024, 1, 1),
+            ShipDateTo = new DateTime(2024, 12, 31)
+        });
+        var dto2 = onlySign.Items[0];
+        dto2.YearOrderCount.Should().Be(1);
+        dto2.ShippedCompletedWeight.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_发货区间_待发货与待在产属存量口径不受影响()
+    {
+        var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, salesman: "张三");
+        ctx.CustomerProfiles.First().EndCustomer = "客户A";
+        await ctx.SaveChangesAsync();
+        // 未完成订单：入库 300 / 库存 200 / 出库 100（出库日 2025/3/10，发货区间命中该日 → 行保留）
+        await SeedOrderWithStatsAsync(ctx, "张三", "客户A", signYear: 2024, stage: 3,
+            SettlementMethod.Theoretical, 1000m, 100000m, inbound: 300m, stock: 200m, outboundTotal: 1000m, outCurrentYear: 100m,
+            outDate: new DateTime(2025, 3, 10));
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            ShipDateFrom = new DateTime(2025, 3, 1),
+            ShipDateTo = new DateTime(2025, 3, 31)
+        });
+
+        var dto = result.Items[0];
+        // 发货维度按区间重算（出库 100 落区间）
+        dto.ShippedOtherWeight.Should().Be(100m);
+        // 存量列不受区间影响（前端才把它们渲染为「—」）
+        dto.StockOtherWeight.Should().Be(200m);
+        dto.StockOtherCount.Should().Be(1);
+        dto.WipPartialWeight.Should().Be(700m);
+        dto.WipPartialCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_未传发货区间_口径与既有自然年行为一致()
+    {
+        var ctx = CreateDbContext();
+        var year = DateTime.Now.Year;
+        await SeedCustomerAsync(ctx, salesman: "张三");
+        ctx.CustomerProfiles.First().EndCustomer = "客户A";
+        await ctx.SaveChangesAsync();
+        await SeedOrderWithStatsAsync(ctx, "张三", "客户A", signYear: year, stage: 1,
+            SettlementMethod.Theoretical, 1000m, 100000m, inbound: 1000m, stock: 0m, outboundTotal: 1000m, outCurrentYear: 1000m);
+        var svc = CreateService(ctx);
+
+        var result = await svc.GetPagedAsync(new QueryParams { PageIndex = 1, PageSize = 20 });
+
+        var dto = result.Items[0];
+        // 发货区间两端皆空 → 沿用自然年口径（回归保护）
+        dto.ShippedCompletedWeight.Should().Be(1000m);
+        dto.ShippedCompletedCount.Should().Be(1);
+    }
+
+    // ========== 区间模式行过滤（只保留「激活列有数据」的客户行，与报表卡同口径，2026-09-14） ==========
+
+    /// <summary>种子三个客户：A 签约 2024 + 出库 2025-03-10；B 签约 2025 + 出库 2025-03-10；C 无任何订单</summary>
+    private async Task SeedThreeCustomersAsync(AppDbContext ctx)
+    {
+        await SeedCustomerAsync(ctx, code: "C001", unit: "客户单位A", salesman: "张三");
+        await SeedCustomerAsync(ctx, code: "C002", unit: "客户单位B", salesman: "张三");
+        await SeedCustomerAsync(ctx, code: "C003", unit: "无单客户", salesman: "李四");
+
+        ctx.CustomerProfiles.First(c => c.CustomerCode == "C001").EndCustomer = "客户A";
+        ctx.CustomerProfiles.First(c => c.CustomerCode == "C002").EndCustomer = "客户B";
+        await ctx.SaveChangesAsync();
+
+        await SeedOrderWithStatsAsync(ctx, "张三", "客户A", signYear: 2024, stage: 1,
+            SettlementMethod.Theoretical, 1000m, 100000m, inbound: 1000m, stock: 0m, outboundTotal: 1000m, outCurrentYear: 1000m,
+            outDate: new DateTime(2025, 3, 10));
+        await SeedOrderWithStatsAsync(ctx, "张三", "客户B", signYear: 2025, stage: 1,
+            SettlementMethod.Theoretical, 500m, 50000m, inbound: 500m, stock: 0m, outboundTotal: 500m, outCurrentYear: 500m,
+            outDate: new DateTime(2025, 3, 10));
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_区间模式行过滤_只保留激活列有数据的客户行()
+    {
+        var ctx = CreateDbContext();
+        await SeedThreeCustomersAsync(ctx);
+        var svc = CreateService(ctx);
+
+        // 接单区间 = 2024：仅 A 命中；B（2025 签约）与无单 C 被过滤
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            SignDateFrom = new DateTime(2024, 1, 1),
+            SignDateTo = new DateTime(2024, 12, 31)
+        });
+
+        result.TotalCount.Should().Be(1);
+        result.Items.Select(i => i.CustomerCode).Should().BeEquivalentTo(new[] { "C001" });
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_区间模式行过滤_双区间叠加时命中任一区间的客户均保留()
+    {
+        var ctx = CreateDbContext();
+        await SeedThreeCustomersAsync(ctx);
+        var svc = CreateService(ctx);
+
+        // 接单区间 2024（命中 A）+ 发货区间 2025（A、B 出库均在 2025）→ A、B 保留，无单 C 仍被过滤
+        var result = await svc.GetPagedAsync(new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 20,
+            SignDateFrom = new DateTime(2024, 1, 1),
+            SignDateTo = new DateTime(2024, 12, 31),
+            ShipDateFrom = new DateTime(2025, 1, 1),
+            ShipDateTo = new DateTime(2025, 12, 31)
+        });
+
+        result.TotalCount.Should().Be(2);
+        result.Items.Select(i => i.CustomerCode).Should().BeEquivalentTo(new[] { "C001", "C002" });
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_区间模式行过滤_分页发生在过滤之后()
+    {
+        var ctx = CreateDbContext();
+        await SeedThreeCustomersAsync(ctx);
+        var svc = CreateService(ctx);
+
+        var query = new QueryParams
+        {
+            PageIndex = 1,
+            PageSize = 1,
+            SignDateFrom = new DateTime(2024, 1, 1),
+            SignDateTo = new DateTime(2024, 12, 31),
+            ShipDateFrom = new DateTime(2025, 1, 1),
+            ShipDateTo = new DateTime(2025, 12, 31)
+        };
+
+        // 过滤后 2 条 → 页大小 1：两页各 1 条、TotalCount 恒为 2（「共 N 条」与过滤口径一致）
+        var page1 = await svc.GetPagedAsync(query);
+        page1.TotalCount.Should().Be(2);
+        page1.Items.Should().HaveCount(1);
+
+        query.PageIndex = 2;
+        var page2 = await svc.GetPagedAsync(query);
+        page2.TotalCount.Should().Be(2);
+        page2.Items.Should().HaveCount(1);
+        page2.Items[0].CustomerCode.Should().NotBe(page1.Items[0].CustomerCode);
     }
 }

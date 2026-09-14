@@ -23,7 +23,7 @@ public class OverviewRowDto
     public string Category { get; set; } = null!;
     public string Section { get; set; } = null!;
 
-    /// <summary>大类序号（1原料/2生产/3成检；0=总估算不编号）</summary>
+    /// <summary>大类序号（1原料锁定/2投料-在产/3投料-成检；0=总估算不编号）</summary>
     public int CategoryNo { get; set; }
 
     /// <summary>大类内明细行序号（汇总行/总估算行不使用）</summary>

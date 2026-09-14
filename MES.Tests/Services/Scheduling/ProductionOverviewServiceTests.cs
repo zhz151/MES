@@ -17,9 +17,9 @@ using Moq;
 namespace MES.Tests.Services.Scheduling;
 
 /// <summary>
-/// 订单负荷总量（原「负载总览」）测试：行重排（完善计划/执行计划/外购成品/原料汇总/生产工段/生产汇总/成检/成检汇总/整体完工预计）、
-/// 完善计划与执行计划 = 原锁计划「待投料量汇总」中 D完善计划（ImprovePlan）/ C执行计划（ExecutePlan）行的合计待投料重量、
-/// 外购成品 = 成购缺口、待产量列删除、
+/// 订单负荷总量（原「负载总览」）测试：行重排（原料锁定-完善用料-原料类/执行用料-原料类/执行用料-成购类/原料锁定汇总/生产工段/生产汇总/成检/成检汇总/整体完工预计）、
+/// 完善用料-原料类与执行用料-原料类 = 原锁计划「待投料量汇总」中 D完善计划（ImprovePlan）/ C执行计划（ExecutePlan）行的合计待投料重量、
+/// 执行用料-成购类 = 仅 ExecutePlan 工单的成购缺口（2026-09-10 收窄口径）、待产量列删除、
 /// 类别汇总行（原料/生产/成检小计）：生产汇总按批次去重（未产+在产），区别于工段行按节点匹配的重复统计。
 /// </summary>
 public class ProductionOverviewServiceTests : TestBase
@@ -57,10 +57,13 @@ public class ProductionOverviewServiceTests : TestBase
         decimal finishPlanWeight = 0m, decimal finishInWeight = 0m,
         decimal inputWeight = 0m, decimal flowOutputRatio = 0m,
         string? rawMaterialLockRemark = null,
-        DateTime? deliveryDate = null, DateTime? estimatedProcessCompletionDate = null)
+        DateTime? deliveryDate = null, DateTime? estimatedProcessCompletionDate = null,
+        // 非 0 即表示「非单一成品采购」工单（不被待投料口径排除）；默认 0 = 模拟纯成品外购单
+        decimal piercingPlanWeight = 0m)
     {
         var s = new WorkOrderExecutionSummary
         {
+            PiercingPlanWeight = piercingPlanWeight,
             WorkOrderNo = workOrderNo,
             Salesman = "业务员",
             CustomerName = "客户",
@@ -158,27 +161,27 @@ public class ProductionOverviewServiceTests : TestBase
         var result = await svc.GetOverviewAsync();
 
         result.Rows.Should().HaveCount(16);
-        // 行 1: 完善计划（序号 1-1）
+        // 行 1: 完善用料-原料类（序号 1-1）
         result.Rows[0].Seq.Should().Be(1);
-        result.Rows[0].Category.Should().Be("原料");
-        result.Rows[0].Section.Should().Be("完善用料计划");
+        result.Rows[0].Category.Should().Be("原料锁定");
+        result.Rows[0].Section.Should().Be("完善用料-原料类");
         result.Rows[0].CategoryNo.Should().Be(1);
         result.Rows[0].RowNo.Should().Be(1);
-        // 行 2: 执行计划（序号 1-2）
+        // 行 2: 执行用料-原料类（序号 1-2）
         result.Rows[1].Seq.Should().Be(2);
-        result.Rows[1].Category.Should().Be("原料");
-        result.Rows[1].Section.Should().Be("执行用料计划");
+        result.Rows[1].Category.Should().Be("原料锁定");
+        result.Rows[1].Section.Should().Be("执行用料-原料类");
         result.Rows[1].CategoryNo.Should().Be(1);
         result.Rows[1].RowNo.Should().Be(2);
-        // 行 3: 外购成品（序号 1-3）
+        // 行 3: 执行用料-成购类（序号 1-3）
         result.Rows[2].Seq.Should().Be(3);
-        result.Rows[2].Category.Should().Be("原料");
-        result.Rows[2].Section.Should().Be("外购成品");
+        result.Rows[2].Category.Should().Be("原料锁定");
+        result.Rows[2].Section.Should().Be("执行用料-成购类");
         result.Rows[2].CategoryNo.Should().Be(1);
         result.Rows[2].RowNo.Should().Be(3);
-        // 行 4: 原料汇总（序号留空）
+        // 行 4: 原料锁定汇总（序号留空）
         result.Rows[3].Seq.Should().Be(4);
-        result.Rows[3].Category.Should().Be("原料");
+        result.Rows[3].Category.Should().Be("原料锁定");
         result.Rows[3].Section.Should().Be("汇总");
         result.Rows[3].IsSummary.Should().BeTrue();
         // 行 5-9: 生产工段（序号 2-1~2-5）
@@ -243,8 +246,9 @@ public class ProductionOverviewServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // D完善计划两单：待投料 = 7800 + 5000 = 12800kg → 13 吨
+        // 注：piercingPlanWeight>0 → 非「单一成品采购」，待投料口径不排除（否则整单不计）
         SeedSummary(ctx, "WO-D1", 2, totalWeight: 10000m, finishPlanWeight: 2000m, finishInWeight: 0m,
-            inputWeight: 1000m, rawMaterialLockRemark: RawMaterialLockRemarkKeys.ImprovePlan);
+            inputWeight: 1000m, rawMaterialLockRemark: RawMaterialLockRemarkKeys.ImprovePlan, piercingPlanWeight: 5000m);
         SeedSummary(ctx, "WO-D2", 2, totalWeight: 5000m, finishPlanWeight: 0m, finishInWeight: 0m,
             inputWeight: 500m, rawMaterialLockRemark: RawMaterialLockRemarkKeys.ImprovePlan);
         // A质量补料不计入待计划量
@@ -270,20 +274,48 @@ public class ProductionOverviewServiceTests : TestBase
             inputWeight: 1000m, rawMaterialLockRemark: RawMaterialLockRemarkKeys.ExecutePlan);
         SeedSummary(ctx, "WO-C2", 2, totalWeight: 4000m, finishPlanWeight: 0m, finishInWeight: 0m,
             inputWeight: 500m, rawMaterialLockRemark: RawMaterialLockRemarkKeys.ExecutePlan);
-        // 完善计划（WO-D1）不计入执行计划行
+        // 执行计划 + 成品外购 3000、已到 1000 → 成购缺口 2000kg → 2 吨；待投料按扣成购后计 (5000−2000)×1.1 = 3300kg
+        SeedSummary(ctx, "WO-C3", 2, totalWeight: 5000m, finishPlanWeight: 3000m, finishInWeight: 1000m,
+            inputWeight: 0m, rawMaterialLockRemark: RawMaterialLockRemarkKeys.ExecutePlan, piercingPlanWeight: 5000m);
+        // 完善计划（WO-D1）：待投料 7800kg → 8 吨；其成品外购 2000kg 不计入成购行（成购仅 ExecutePlan，2026-09-10）
         SeedSummary(ctx, "WO-D1", 2, totalWeight: 10000m, finishPlanWeight: 2000m, finishInWeight: 0m,
-            inputWeight: 1000m, rawMaterialLockRemark: RawMaterialLockRemarkKeys.ImprovePlan);
+            inputWeight: 1000m, rawMaterialLockRemark: RawMaterialLockRemarkKeys.ImprovePlan, piercingPlanWeight: 5000m);
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
         var result = await svc.GetOverviewAsync();
 
-        // 执行计划行 = C执行计划待投料 10 吨
-        result.Rows[1].PendingPlanTons.Should().Be(10m);
+        // 执行计划行：数值由「待落实量」列承载（2026-09-10 用户决策搬列），待投原料 = 9500+3300 = 12800kg → 13 吨
+        result.Rows[1].PendingPlanTons.Should().BeNull();
+        result.Rows[1].InProcurementTons.Should().Be(13m);
         // 完善计划行 = D完善计划待投料 = 7800kg → 8 吨（与执行计划互不串行）
         result.Rows[0].PendingPlanTons.Should().Be(8m);
-        // 外购成品行 = ΣMax(0, 成品计划量-已到货)（仅 stage2）= 2000kg → 2 吨
+        // 成购行 = 仅 ExecutePlan 工单成购缺口 = WO-C3 的 2000kg → 2 吨（WO-D1 的 2000kg 不计入）
         result.Rows[2].InProcurementTons.Should().Be(2m);
+    }
+
+    [Fact]
+    public async Task GetOverviewAsync_单一成品采购单_不进原料类_只进成购行()
+    {
+        using var ctx = CreateDbContext();
+        // 纯成购单（其余 6 类计划量全 ≤0）→ 待投料口径整单排除，不计入 1-1/1-2，只计入 1-3
+        // 待投料若计入会是 (4000−3000)×1.1 = 1100kg → 1 吨，本用例断言其**不出现**
+        SeedSummary(ctx, "WO-P1", 2, totalWeight: 4000m, finishPlanWeight: 3000m, finishInWeight: 0m,
+            inputWeight: 0m, rawMaterialLockRemark: RawMaterialLockRemarkKeys.ExecutePlan);
+        // 普通执行计划单（有穿孔计划量 → 非单一成品采购）→ 待投料 5000×1.1−0 = 5500kg → 6 吨
+        SeedSummary(ctx, "WO-C1", 2, totalWeight: 5000m, finishPlanWeight: 0m, finishInWeight: 0m,
+            inputWeight: 0m, rawMaterialLockRemark: RawMaterialLockRemarkKeys.ExecutePlan, piercingPlanWeight: 5000m);
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        var result = await svc.GetOverviewAsync();
+
+        // 1-2 执行用料-原料类 = 仅普通单 5500kg → 6 吨（纯成购单的 1100kg 已被排除）
+        result.Rows[1].InProcurementTons.Should().Be(6m);
+        // 1-3 执行用料-成购类 = 纯成购单缺口 3000kg → 3 吨
+        result.Rows[2].InProcurementTons.Should().Be(3m);
+        // 汇总待落实量 = 6 + 3 = 9 吨（两行互斥不重复）
+        result.Rows[3].InProcurementTons.Should().Be(9m);
     }
 
     [Fact]
@@ -293,7 +325,7 @@ public class ProductionOverviewServiceTests : TestBase
         // WO-D1：D完善计划，交期今天 → 桶1（7800kg → 8 吨）
         SeedSummary(ctx, "WO-D1", 2, deliveryDate: DateTime.Today,
             totalWeight: 10000m, finishPlanWeight: 2000m, finishInWeight: 0m, inputWeight: 1000m,
-            rawMaterialLockRemark: RawMaterialLockRemarkKeys.ImprovePlan);
+            rawMaterialLockRemark: RawMaterialLockRemarkKeys.ImprovePlan, piercingPlanWeight: 5000m);
         // WO-D2：D完善计划，交期 20 天后 → 桶3（16~30 天，5000kg → 5 吨）
         SeedSummary(ctx, "WO-D2", 2, deliveryDate: DateTime.Today.AddDays(20),
             totalWeight: 5000m, finishPlanWeight: 0m, finishInWeight: 0m, inputWeight: 500m,
@@ -323,7 +355,7 @@ public class ProductionOverviewServiceTests : TestBase
         // D完善计划：WO-D1 今日（7800kg → 8 吨）、WO-D2 20 天后（5000kg → 5 吨），合计 13 吨
         SeedSummary(ctx, "WO-D1", 2, deliveryDate: DateTime.Today,
             totalWeight: 10000m, finishPlanWeight: 2000m, finishInWeight: 0m, inputWeight: 1000m,
-            rawMaterialLockRemark: RawMaterialLockRemarkKeys.ImprovePlan);
+            rawMaterialLockRemark: RawMaterialLockRemarkKeys.ImprovePlan, piercingPlanWeight: 5000m);
         SeedSummary(ctx, "WO-D2", 2, deliveryDate: DateTime.Today.AddDays(20),
             totalWeight: 5000m, finishPlanWeight: 0m, finishInWeight: 0m, inputWeight: 500m,
             rawMaterialLockRemark: RawMaterialLockRemarkKeys.ImprovePlan);
@@ -342,17 +374,17 @@ public class ProductionOverviewServiceTests : TestBase
         var raw = result.Rows[3];
 
         raw.IsSummary.Should().BeTrue();
-        // 待计划量 = 完善计划 + 执行计划 = 13 + 6 = 19 吨
-        raw.PendingPlanTons.Should().Be(19m);
-        raw.PendingPlanTons.Should().Be((result.Rows[0].PendingPlanTons ?? 0) + (result.Rows[1].PendingPlanTons ?? 0));
-        // 在购量 = 外购成品（成购缺口）= WO-D1 的 2000kg → 2 吨
-        raw.InProcurementTons.Should().Be(2m);
-        raw.InProcurementTons.Should().Be(result.Rows[2].InProcurementTons);
-        // 待产量列不参与原料汇总
+        // 未编制计划 = 完善用料-原料类 = 13 吨（2026-09-10 用户决策：执行用料-原料类改由「待落实量」列承载）
+        raw.PendingPlanTons.Should().Be(13m);
+        raw.PendingPlanTons.Should().Be(result.Rows[0].PendingPlanTons);
+        // 待落实量 = 执行用料-原料类 + 执行用料-成购类 = 6 + 0 = 6 吨（成购仅 ExecutePlan 且有成品计划，本用例无）
+        raw.InProcurementTons.Should().Be(6m);
+        raw.InProcurementTons.Should().Be((result.Rows[1].InProcurementTons ?? 0) + (result.Rows[2].InProcurementTons ?? 0));
+        // 待产量列不参与原料锁定汇总
         raw.TotalRemainingTons.Should().BeNull();
         raw.EstDays.Should().BeNull();
         raw.EstDeadline.Should().BeNull();
-        // 日期桶 = 完善计划 + 执行计划 + 外购成品 对应桶求和
+        // 日期桶 = 完善用料-原料类 + 执行用料-原料类 + 执行用料-成购类 对应桶求和
         for (int i = 0; i < result.DateBuckets.Count; i++)
         {
             var expected = result.Rows[0].DateBucketTons[i]
@@ -360,8 +392,8 @@ public class ProductionOverviewServiceTests : TestBase
                 + result.Rows[2].DateBucketTons[i];
             raw.DateBucketTons[i].Should().Be(expected);
         }
-        // 桶内合计校验：桶1（交期截止-今日）= 完善 8 + 外购 2 = 10；桶4（今日+16~+30）= 完善 5 + 执行 6 = 11
-        raw.DateBucketTons[0].Should().Be(10m);
+        // 桶内合计校验：桶1（交期截止-今日）= 完善 8；桶4（今日+16~+30）= 完善 5 + 执行 6 = 11
+        raw.DateBucketTons[0].Should().Be(8m);
         raw.DateBucketTons[3].Should().Be(11m);
     }
 

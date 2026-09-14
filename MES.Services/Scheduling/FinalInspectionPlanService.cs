@@ -256,11 +256,13 @@ public class FinalInspectionPlanService : IFinalInspectionPlanService
                 .GroupBy(fi => fi.InspectionItem)
                 .Max(g => (int?)g.Sum(fi => fi.Quantity ?? 0)) ?? 0;
             dto.DefectReworkQuantity = matching.Sum(fi => fi.DefectReworkQuantity ?? 0);
+            dto.DefectInProcessWarehouseQuantity = matching.Sum(fi => fi.DefectInProcessWarehouseQuantity ?? 0);
             dto.DefectWarehouseQuantity = matching.Sum(fi => fi.DefectWarehouseQuantity ?? 0);
             dto.DefectScrapQuantity = matching.Sum(fi => fi.DefectScrapQuantity ?? 0);
-            // 理论合格支：检验支数 - 三个次品汇总（负值归零，防御跨项目重复计数；与成检追踪口径一致）
+            dto.DefectReturnQuantity = matching.Sum(fi => fi.DefectReturnQuantity ?? 0);
+            // 理论合格支：检验支数 - 五个次品汇总（负值归零，防御跨项目重复计数；与成检追踪口径一致）
             dto.QualifiedQuantity = Math.Max(0,
-                dto.TotalQuantity - dto.DefectReworkQuantity - dto.DefectWarehouseQuantity - dto.DefectScrapQuantity);
+                dto.TotalQuantity - dto.DefectReworkQuantity - dto.DefectInProcessWarehouseQuantity - dto.DefectWarehouseQuantity - dto.DefectScrapQuantity - dto.DefectReturnQuantity);
         }
     }
 

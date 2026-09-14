@@ -1,0 +1,34 @@
+@using MES.Blazor.Shared
+@* 扫码报工照片选择器：客户端压缩 + Blob 预览 + 本地移除（既有附件交回父组件落库删除） *@
+
+<MudText Typo="Typo.subtitle2" Class="mt-2 mb-1">
+    @Title
+    <MudText Typo="Typo.caption" Class="ml-2 text-secondary">
+        （最多 @MaxCount 张，支持 jpg/png/webp/gif/bmp，上传前自动压缩）
+    </MudText>
+</MudText>
+<div class="d-flex flex-wrap align-center" style="gap:12px;">
+    @foreach (var photo in Photos)
+    {
+        <div class="attachment-thumb">
+            <img src="@photo.PreviewUrl" alt="@photo.FileName" />
+            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                           Color="Color.Error" Class="attachment-remove"
+                           Title="删除照片"
+                           Disabled="@Disabled"
+                           OnClick="() => RemoveAsync(photo)" />
+        </div>
+    }
+    @if (AllowAdd && Photos.Count < MaxCount)
+    {
+        <div>
+            <input type="file" accept="image/*" multiple @ref="_fileInput"
+                   style="display:none" @onchange="OnFilesSelected" />
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.AddAPhoto"
+                       OnClick="OpenFilePicker" Disabled="@(Disabled || _isReading)">
+                添加照片
+            </MudButton>
+        </div>
+    }
+</div>

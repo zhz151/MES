@@ -52,6 +52,9 @@ public interface IFinalInspectionService
     /// <summary>批量打印选中记录</summary>
     Task<byte[]> PrintBatchAsync(int[] ids, List<PrintColumnDef> columns);
 
+    /// <summary>单据式打印选中记录（A4 竖版每条一页，含检验照片）</summary>
+    Task<byte[]> PrintSelectedDocAsync(int[] ids);
+
     /// <summary>
     /// 实时健康汇总（按当前筛选条件统计成检类型与成检到料不符的生产编号）
     /// </summary>
@@ -72,4 +75,25 @@ public interface IFinalInspectionService
     /// 供批次编辑（LengthStatus/工单号等上游字段变更）后级联调用，保持派生列一致
     /// </summary>
     Task<int> RecomputeCutLengthMatchByBatchAsync(int batchId);
+
+    // ---------- 照片附件 ----------
+
+    /// <summary>单条记录照片上限（张，前端预校验用）</summary>
+    int MaxAttachmentCount { get; }
+
+    /// <summary>单张照片大小上限（字节，前端预校验用）</summary>
+    long MaxAttachmentSizeBytes { get; }
+
+    /// <summary>查询某条成品检验记录的照片列表</summary>
+    Task<List<FinalInspectionAttachmentDto>> GetAttachmentsAsync(int id);
+
+    /// <summary>上传照片（超上限抛 BusinessException）</summary>
+    Task<FinalInspectionAttachmentDto> AddAttachmentAsync(
+        int id, Stream content, string fileName, string contentType);
+
+    /// <summary>读取照片内容（返回 null 表示记录或文件不存在）</summary>
+    Task<AttachmentContent?> GetAttachmentContentAsync(int id, int attachmentId);
+
+    /// <summary>删除照片（同时删除磁盘文件）</summary>
+    Task DeleteAttachmentAsync(int id, int attachmentId);
 }

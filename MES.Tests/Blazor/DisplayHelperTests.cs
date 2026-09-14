@@ -39,4 +39,14 @@ public class DisplayHelperTests
     {
         DisplayHelper.FormatPersonName(full).Should().Be(full);
     }
+
+    [Theory]
+    [InlineData("张燕平(YG045)、赵路陈", "张燕平、赵路陈")]
+    [InlineData("张燕平(YG045)、赵路陈(YG002)", "张燕平、赵路陈")]
+    [InlineData("钱利(YG001),薛立(YG005)", "钱利,薛立")]
+    [InlineData("殷海红(YG044) 张三(夜班)", "殷海红 张三(夜班)")]
+    public void FormatPersonName_多段串逐段剥离工号(string full, string expected)
+    {
+        DisplayHelper.FormatPersonName(full).Should().Be(expected);
+    }
 }

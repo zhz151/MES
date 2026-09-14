@@ -144,20 +144,32 @@ public class FinalInspectionDto
     /// <summary>次品返整支数</summary>
     public int? DefectReworkQuantity { get; set; }
 
-    /// <summary>次品入库支数</summary>
+    /// <summary>次品入在制库支数（2026-09-11 新增第 5 档）</summary>
+    public int? DefectInProcessWarehouseQuantity { get; set; }
+
+    /// <summary>次品可入备库支数（原「次品入库」，2026-09-11 更名）</summary>
     public int? DefectWarehouseQuantity { get; set; }
 
-    /// <summary>次品报废支数</summary>
+    /// <summary>次品入次品库支数（原「次品报废」，2026-09-11 更名）</summary>
     public int? DefectScrapQuantity { get; set; }
 
-    /// <summary>次品返整重量</summary>
+    /// <summary>次品退货支数（2026-09-11 新增第 4 档）</summary>
+    public int? DefectReturnQuantity { get; set; }
+
+    /// <summary>理论返整重</summary>
     public int? DefectReworkWeight { get; set; }
 
-    /// <summary>次品入库重量</summary>
+    /// <summary>理论入在制重</summary>
+    public int? DefectInProcessWarehouseWeight { get; set; }
+
+    /// <summary>理论可入备库重</summary>
     public int? DefectWarehouseWeight { get; set; }
 
-    /// <summary>次品报废重量</summary>
+    /// <summary>理论入次库重</summary>
     public int? DefectScrapWeight { get; set; }
+
+    /// <summary>理论退货重</summary>
+    public int? DefectReturnWeight { get; set; }
 
     /// <summary>次品情况描述</summary>
     public string? DefectDescription { get; set; }
@@ -219,6 +231,30 @@ public class FinalInspectionDto
 
     /// <summary>数据来源（SCAN=扫码报工，MANUAL=手动录入）</summary>
     public string? DataSource { get; set; }
+
+    /// <summary>检验照片附件张数（列表页展示「照片(N)」）</summary>
+    public int AttachmentCount { get; set; }
+}
+
+/// <summary>
+/// 成品检验记录附件 DTO
+/// </summary>
+public class FinalInspectionAttachmentDto
+{
+    public int Id { get; set; }
+
+    /// <summary>原始文件名</summary>
+    public string FileName { get; set; } = null!;
+
+    /// <summary>内容类型</summary>
+    public string ContentType { get; set; } = null!;
+
+    /// <summary>文件大小（字节）</summary>
+    public long SizeBytes { get; set; }
+
+    public int SortOrder { get; set; }
+
+    public DateTimeOffset CreatedTime { get; set; }
 }
 
 /// <summary>
@@ -353,11 +389,15 @@ public class CreateFinalInspectionRequest
     [MaxLength(500)]
     public string? ConcessionRemark { get; set; }
     public int? DefectReworkQuantity { get; set; }
+    public int? DefectInProcessWarehouseQuantity { get; set; }
     public int? DefectWarehouseQuantity { get; set; }
     public int? DefectScrapQuantity { get; set; }
+    public int? DefectReturnQuantity { get; set; }
     public int? DefectReworkWeight { get; set; }
+    public int? DefectInProcessWarehouseWeight { get; set; }
     public int? DefectWarehouseWeight { get; set; }
     public int? DefectScrapWeight { get; set; }
+    public int? DefectReturnWeight { get; set; }
     [MaxLength(500)]
     public string? DefectDescription { get; set; }
     [MaxLength(100)]
@@ -443,11 +483,15 @@ public class UpdateFinalInspectionRequest
     [MaxLength(500)]
     public string? ConcessionRemark { get; set; }
     public int? DefectReworkQuantity { get; set; }
+    public int? DefectInProcessWarehouseQuantity { get; set; }
     public int? DefectWarehouseQuantity { get; set; }
     public int? DefectScrapQuantity { get; set; }
+    public int? DefectReturnQuantity { get; set; }
     public int? DefectReworkWeight { get; set; }
+    public int? DefectInProcessWarehouseWeight { get; set; }
     public int? DefectWarehouseWeight { get; set; }
     public int? DefectScrapWeight { get; set; }
+    public int? DefectReturnWeight { get; set; }
     [MaxLength(500)]
     public string? DefectDescription { get; set; }
     [MaxLength(100)]

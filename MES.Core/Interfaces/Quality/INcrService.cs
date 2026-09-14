@@ -32,6 +32,9 @@ public interface INcrService
     /// </summary>
     Task<NcrLookupResultDto?> LookupBatchAsync(string batchNo);
 
+    /// <summary>取不合格报告来源关联的照片（主动来源传 feedbackId；被动来源传 groupKey，同 Ncr.SourceGroupKey）</summary>
+    Task<List<NcrSourcePhotoGroupDto>> GetSourcePhotosAsync(string? groupKey, int? feedbackId);
+
     /// <summary>获取筛选上下文</summary>
     Task<Dictionary<string, List<string>>> GetFilterContextsAsync();
 

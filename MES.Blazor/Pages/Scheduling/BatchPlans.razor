@@ -17,6 +17,8 @@
 @inject PageStateService PageState
 @inject ColumnPrefsService ColumnPrefs
 @inject HttpClient Http
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthProvider
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <!-- 页面顶部工具栏 -->
@@ -230,7 +232,7 @@
                             打印
                         </MudButton>
                     </div>
-                    <MudTable T="SectionParagraphFlowAnalysisDto" Items="@_paragraphRows"
+                    <MudTable Breakpoint="Breakpoint.None" T="SectionParagraphFlowAnalysisDto" Items="@_paragraphRows"
                               Dense="true" Hover="true" Elevation="0" Class="auto-table">
                         <HeaderContent>
                             <MudTh><div class="col-header-cell"><span class="th-label">生产段落</span></div></MudTh>
@@ -328,7 +330,7 @@
                     }
                 </div>
             </div>
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="BatchPlanDto"
                       Items="@_filteredItems"
                       Dense="true"

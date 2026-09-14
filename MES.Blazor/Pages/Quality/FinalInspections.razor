@@ -10,6 +10,7 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthProvider
 @inject ColumnPrefsService ColumnPrefs
 @inject PageStateService PageState
 @inject HttpClient Http
@@ -233,6 +234,14 @@
                                OnClick="PrintSelected">
                         打印选中 (@selectedIds.Count)
                     </MudButton>
+                    <MudButton Variant="Variant.Text"
+                               Size="Size.Small"
+                               Color="Color.Default"
+                               StartIcon="@Icons.Material.Filled.Description"
+                               Disabled="@(!selectedIds.Any())"
+                               OnClick="PrintSelectedDoc" Class="ml-2">
+                        打印选中单据
+                    </MudButton>
                     <MudText Typo="Typo.body2" Class="ml-4">
                         共 @_totalCount 条记录
                     </MudText>
@@ -249,7 +258,7 @@
                     }
                 </div>
             </div>
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="FinalInspectionDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"

@@ -55,7 +55,7 @@ public class DataExchangeEnumRoundTripTests
         (typeof(RepairOrderStatus), "Pending", "待维修"),
         (typeof(EquipmentTaskStatus), "NotApplicable", "不适用"),
         (typeof(InspectionItem), "PMIInspection", "PMI检验"),
-        (typeof(DisposalMethod), "Rework", "返整"),
+        (typeof(FlowDirection), "Rework", "返整"),
         (typeof(NcrStatus), "Pending", "待处理"),
         (typeof(PicklingStatus), "Soaking", "浸泡中"),
         (typeof(SeverityLevel), "Critical", "严重"),

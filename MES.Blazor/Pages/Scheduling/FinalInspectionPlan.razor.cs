@@ -3,6 +3,7 @@ using Microsoft.JSInterop;
 using MudBlazor;
 using MES.Blazor.Components;
 using MES.Blazor.Helpers;
+using MES.Blazor.Shared;
 using MES.Blazor.Models;
 using MES.Core.Enums;
 using MES.Core.Constants;
@@ -66,8 +67,10 @@ public partial class FinalInspectionPlan
         "TotalQuantity",
         "QualifiedQuantity",
         "DefectReworkQuantity",
+        "DefectInProcessWarehouseQuantity",
         "DefectWarehouseQuantity",
-        "DefectScrapQuantity"
+        "DefectScrapQuantity",
+        "DefectReturnQuantity"
     };
     private int _lastSummedPage = -1;
     private int _lastSummedCount = -1;
@@ -211,8 +214,10 @@ public partial class FinalInspectionPlan
             new() { Key = "TotalQuantity",         Label = "检验支数",   SortKey = "TotalQuantity",         Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
             new() { Key = "QualifiedQuantity",      Label = "理论合格支", SortKey = "QualifiedQuantity",      Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
             new() { Key = "DefectReworkQuantity",   Label = "返整支数",   SortKey = "DefectReworkQuantity",   Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
-            new() { Key = "DefectWarehouseQuantity",Label = "不合格入库", SortKey = "DefectWarehouseQuantity",Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
-            new() { Key = "DefectScrapQuantity",    Label = "报废支数",   SortKey = "DefectScrapQuantity",    Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
+            new() { Key = "DefectInProcessWarehouseQuantity", Label = "入在制库支", SortKey = "DefectInProcessWarehouseQuantity", Width = "90", GroupKey = 6, GroupName = "检验的数量信息" },
+            new() { Key = "DefectScrapQuantity",    Label = "入次品库支", SortKey = "DefectScrapQuantity",    Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
+            new() { Key = "DefectReturnQuantity",   Label = "退货支数",   SortKey = "DefectReturnQuantity",   Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
+            new() { Key = "DefectWarehouseQuantity",Label = "可入备库支", SortKey = "DefectWarehouseQuantity",Width = "80",  GroupKey = 6, GroupName = "检验的数量信息" },
         };
 
         // G5/G6 默认隐藏（2026-09-08 调整）：各项检验的日期 + 检验的数量信息 两组整组默认隐藏（列选择器可随时打开）
@@ -363,7 +368,40 @@ public partial class FinalInspectionPlan
             }
         }
 
+        // 「生产编号」是否可点开「批次执行进度」弹窗：追踪端点策略为 BatchView，本页页级为 SchedulingView，
+        // 两策略不对称 → 按角色降级：无批次查看权限的用户保持纯文本，不出现可点样式。
+        // ⚠️ Policies.BatchView 是逗号分隔多角色串，ClaimsPrincipal.IsInRole 只认单个角色名 → 必须逐个展开判定。
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        _canViewBatchProgress = Roles.Policies.BatchView
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(authState.User.IsInRole);
+
         await LoadDataAsync();
+    }
+
+    // ========== 批次执行进度弹窗 ==========
+
+    /// <summary>当前用户是否有权查看批次执行进度（决定「生产编号」是否为可点链接）</summary>
+    private bool _canViewBatchProgress;
+
+    /// <summary>点「生产编号」弹「批次执行进度」卡片（不跳转批次详情页）</summary>
+    private async Task OpenBatchProgressAsync(int batchId, string? batchNo)
+    {
+        if (batchId <= 0) return;
+        var parameters = new DialogParameters
+        {
+            { nameof(BatchProgressDialog.BatchId), batchId },
+            { nameof(BatchProgressDialog.BatchNo), batchNo }
+        };
+        var options = new DialogOptions
+        {
+            // ⚠️ MudBlazor 6.19 的 MaxWidth.ExtraLarge = max-width:1920px，再叠 FullWidth( width:calc(100% - 64px) )
+            // 会几乎满屏、而卡片是 inline-flex 定宽卡 → 右侧大片留白。
+            // 降到 Large(1280px) 且**不开 FullWidth**，让弹窗按内容自适应收缩。
+            MaxWidth = MaxWidth.Large,
+            CloseOnEscapeKey = true
+        };
+        await DialogService.ShowAsync<BatchProgressDialog>("批次执行进度", parameters, options);
     }
 
     private void OnRowsPerPageChanged(int size)
@@ -622,8 +660,10 @@ public partial class FinalInspectionPlan
             "totalquantity" => items.OrderBy(x => x.TotalQuantity),
             "qualifiedquantity" => items.OrderBy(x => x.QualifiedQuantity),
             "defectreworkquantity" => items.OrderBy(x => x.DefectReworkQuantity),
+            "defectinprocesswarehousequantity" => items.OrderBy(x => x.DefectInProcessWarehouseQuantity),
             "defectwarehousequantity" => items.OrderBy(x => x.DefectWarehouseQuantity),
             "defectscrapquantity" => items.OrderBy(x => x.DefectScrapQuantity),
+            "defectreturnquantity" => items.OrderBy(x => x.DefectReturnQuantity),
             _ => items.OrderBy(x => x.BatchNo ?? "")
         };
         return desc ? query.Reverse().ToList() : query.ToList();
@@ -731,7 +771,7 @@ public partial class FinalInspectionPlan
     private static string GetAlignClass(ColumnDef col) => col.Key switch
     {
         "ProductionCutQuantity" or "ProductionWeight" or "ReqCount" or "InspectionCount" or
-        "TotalQuantity" or "QualifiedQuantity" or "DefectReworkQuantity" or "DefectWarehouseQuantity" or "DefectScrapQuantity" => "text-center",
+        "TotalQuantity" or "QualifiedQuantity" or "DefectReworkQuantity" or "DefectInProcessWarehouseQuantity" or "DefectWarehouseQuantity" or "DefectScrapQuantity" or "DefectReturnQuantity" => "text-center",
         _ => ""
     };
 
@@ -810,7 +850,21 @@ public partial class FinalInspectionPlan
         switch (col.Key)
         {
             case "BatchNo":
-                builder.AddContent(0, item.BatchNo ?? "-");
+                if (_canViewBatchProgress && item.ProductionBatchId > 0)
+                {
+                    // 可点：弹「批次执行进度」卡片（不跳转批次详情页）
+                    builder.OpenElement(1, "span");
+                    builder.AddAttribute(2, "class", "cell-link");
+                    builder.AddAttribute(3, "title", "查看批次执行进度");
+                    builder.AddAttribute(4, "onclick", EventCallback.Factory.Create(this,
+                        () => OpenBatchProgressAsync(item.ProductionBatchId, item.BatchNo)));
+                    builder.AddContent(5, item.BatchNo ?? "-");
+                    builder.CloseElement();
+                }
+                else
+                {
+                    builder.AddContent(0, item.BatchNo ?? "-");
+                }
                 break;
             case "InspectionType":
                 builder.AddContent(0, item.InspectionTypeDisplay ?? "-");
@@ -995,11 +1049,17 @@ public partial class FinalInspectionPlan
             case "DefectReworkQuantity":
                 builder.AddContent(0, item.DefectReworkQuantity.ToString());
                 break;
+            case "DefectInProcessWarehouseQuantity":
+                builder.AddContent(0, item.DefectInProcessWarehouseQuantity.ToString());
+                break;
             case "DefectWarehouseQuantity":
                 builder.AddContent(0, item.DefectWarehouseQuantity.ToString());
                 break;
             case "DefectScrapQuantity":
                 builder.AddContent(0, item.DefectScrapQuantity.ToString());
+                break;
+            case "DefectReturnQuantity":
+                builder.AddContent(0, item.DefectReturnQuantity.ToString());
                 break;
             default:
                 builder.AddContent(0, "-");
@@ -1220,8 +1280,10 @@ public partial class FinalInspectionPlan
         "TotalQuantity" => item.TotalQuantity,
         "QualifiedQuantity" => item.QualifiedQuantity,
         "DefectReworkQuantity" => item.DefectReworkQuantity,
+        "DefectInProcessWarehouseQuantity" => item.DefectInProcessWarehouseQuantity,
         "DefectWarehouseQuantity" => item.DefectWarehouseQuantity,
         "DefectScrapQuantity" => item.DefectScrapQuantity,
+        "DefectReturnQuantity" => item.DefectReturnQuantity,
         _ => ""
     };
 }

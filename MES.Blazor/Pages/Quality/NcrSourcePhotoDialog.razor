@@ -1,0 +1,170 @@
+@* NCR 建单/编辑页「生产编号」旁的来源照片弹窗（只读）：
+   按来源定位（过程检验/成品检验传 GroupKey；不合格反馈传 FeedbackId）取该来源记录已上传的照片。
+   无照片时不显示入口（由 NcrForm 先查询判定），本弹窗只查看、点击缩略图放大。 *@
+@using MES.Blazor.Services
+@using MES.Core.DTOs.Quality
+@using MES.Core.Enums
+@using MES.Core.Helpers
+@inject NcrService NcrService
+@inject ProcessInspectionService ProcessService
+@inject FinalInspectionService FinalService
+@inject NonconformingFeedbackService FeedbackService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center flex-wrap" Style="gap:6px;">
+            <MudIcon Icon="@Icons.Material.Filled.PhotoLibrary" Size="Size.Small" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">来源照片</MudText>
+            @if (!string.IsNullOrWhiteSpace(BatchNo))
+            {
+                <MudText Typo="Typo.body2" Color="Color.Primary" Class="font-weight-bold">@BatchNo</MudText>
+            }
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @if (_isLoading)
+        {
+            <div class="d-flex justify-center ma-4">
+                <MudProgressCircular Indeterminate Size="Size.Small" />
+            </div>
+        }
+        else if (_groups.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">该来源记录未上传照片</MudText>
+        }
+        else
+        {
+            @foreach (var group in _groups)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">
+                    @group.Title
+                    <MudText Typo="Typo.caption" Class="ml-2 text-secondary">
+                        （共 @group.Photos.Count 张，点击缩略图查看大图）
+                    </MudText>
+                </MudText>
+                <div class="d-flex flex-wrap align-center" Style="gap:12px;">
+                    @foreach (var photo in group.Photos)
+                    {
+                        <div class="attachment-thumb view-thumb" @onclick="() => ZoomPhoto(photo)">
+                            <img src="@photo.PreviewUrl" alt="@photo.FileName" />
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Close">关闭</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@if (!string.IsNullOrEmpty(_zoomUrl))
+{
+    <div style="position:fixed; inset:0; z-index:1400; background:rgba(0,0,0,.85); display:flex; align-items:center; justify-content:center; cursor:zoom-out;"
+         @onclick="() => _zoomUrl = null">
+        <img src="@_zoomUrl" alt="照片大图" style="max-width:95vw; max-height:95vh; object-fit:contain;" />
+    </div>
+}
+
+@code {
+    [CascadingParameter] private MudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>来源待处理组定位键（过程检验/成品检验来源必传，同 Ncr.SourceGroupKey）</summary>
+    [Parameter] public string? GroupKey { get; set; }
+
+    /// <summary>来源不合格反馈单 Id（不合格反馈来源传，优先于 GroupKey）</summary>
+    [Parameter] public int? FeedbackId { get; set; }
+
+    /// <summary>生产编号（仅标题展示用）</summary>
+    [Parameter] public string? BatchNo { get; set; }
+
+    private const string StaleClientHint = "页面脚本未加载（页面版本过旧），请关闭本页重新打开，或按 Ctrl+Shift+R 强制刷新后再试";
+
+    private bool _isLoading = true;
+    private string? _zoomUrl;
+
+    private readonly List<ViewGroup> _groups = new();
+
+    private class ViewGroup
+    {
+        public string Title { get; set; } = "";
+        public List<ViewPhoto> Photos { get; } = new();
+    }
+
+    private class ViewPhoto
+    {
+        public string FileName { get; set; } = "";
+        public string PreviewUrl { get; set; } = "";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await NcrService.GetSourcePhotosAsync(GroupKey, FeedbackId);
+        if (!response.Success || response.Data == null)
+        {
+            Snackbar.Add($"获取来源照片失败: {response.Message}", Severity.Error);
+            _isLoading = false;
+            return;
+        }
+
+        foreach (var group in response.Data)
+        {
+            var viewGroup = new ViewGroup { Title = BuildGroupTitle(group) };
+            foreach (var photo in group.Photos)
+            {
+                var bytes = await GetPhotoBytesAsync(group.Kind, group.RecordId, photo.AttachmentId);
+                if (bytes == null) continue;
+
+                string? url;
+                try
+                {
+                    url = await JS.InvokeAsync<string?>("MES.base64ToObjectUrl", Convert.ToBase64String(bytes), photo.ContentType);
+                }
+                catch (JSException)
+                {
+                    Snackbar.Add(StaleClientHint, Severity.Warning);
+                    _groups.Clear();
+                    _isLoading = false;
+                    return;
+                }
+                if (string.IsNullOrEmpty(url)) continue;
+                viewGroup.Photos.Add(new ViewPhoto { FileName = photo.FileName, PreviewUrl = url });
+            }
+
+            if (viewGroup.Photos.Count > 0) _groups.Add(viewGroup);
+        }
+
+        _isLoading = false;
+    }
+
+    /// <summary>分组标题：「来源类型 · 日期 · 检验员」（不合格反馈来源无检验员）</summary>
+    private static string BuildGroupTitle(NcrSourcePhotoGroupDto group)
+    {
+        var parts = new List<string> { EnumHelper.GetDisplayName<NcrPendingSourceType>(group.Kind) };
+        if (group.RecordDate.HasValue) parts.Add(group.RecordDate.Value.ToString("yyyy-MM-dd"));
+        var inspector = OperatorNameHelper.ToNamesOnly(group.Inspector);
+        if (!string.IsNullOrWhiteSpace(inspector)) parts.Add(inspector);
+        return string.Join(" · ", parts);
+    }
+
+    /// <summary>按来源类型分派到对应模块的附件下载接口</summary>
+    private async Task<byte[]?> GetPhotoBytesAsync(string kind, int recordId, int attachmentId) => kind switch
+    {
+        nameof(NcrPendingSourceType.ProcessInspection) => await ProcessService.GetAttachmentBytesAsync(recordId, attachmentId),
+        nameof(NcrPendingSourceType.FinalInspection) => await FinalService.GetAttachmentBytesAsync(recordId, attachmentId),
+        nameof(NcrPendingSourceType.NonconformingFeedback) => await FeedbackService.GetAttachmentBytesAsync(recordId, attachmentId),
+        _ => null
+    };
+
+    private void ZoomPhoto(ViewPhoto photo) => _zoomUrl = photo.PreviewUrl;
+
+    private void Close() => MudDialog.Close();
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("MES.revokeAllObjectUrls"); } catch { }
+    }
+}

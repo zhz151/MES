@@ -34,11 +34,27 @@ public class ProcessInspectionDto
     public string? ConcessionRemark { get; set; }
 
     public int? DefectReworkQuantity { get; set; }
+
+    /// <summary>不合格入在制库支数（原「入库」，2026-09-11 更名）</summary>
     public int? DefectWarehouseQuantity { get; set; }
+
+    /// <summary>不合格入次品库支数（原「报废」，2026-09-11 更名）</summary>
     public int? DefectScrapQuantity { get; set; }
+
+    /// <summary>不合格退货支数（2026-09-11 新增第 4 档）</summary>
+    public int? DefectReturnQuantity { get; set; }
+
     public int? TheoreticalReworkWeight { get; set; }
+
+    /// <summary>理论入在制重(kg)</summary>
     public int? TheoreticalWarehouseWeight { get; set; }
+
+    /// <summary>理论入次库重(kg)</summary>
     public int? TheoreticalScrapWeight { get; set; }
+
+    /// <summary>理论退货重(kg)</summary>
+    public int? TheoreticalReturnWeight { get; set; }
+
     public string? DefectDescription { get; set; }
     public string? SourceUnit { get; set; }
     public string? TagNo { get; set; }
@@ -68,6 +84,30 @@ public class ProcessInspectionDto
 
     /// <summary>产类（荒管/在制/成品）</summary>
     public string? ProductStatus { get; set; }
+
+    /// <summary>检验照片附件张数（列表页展示「照片(N)」）</summary>
+    public int AttachmentCount { get; set; }
+}
+
+/// <summary>
+/// 过程检验记录附件 DTO
+/// </summary>
+public class ProcessInspectionAttachmentDto
+{
+    public int Id { get; set; }
+
+    /// <summary>原始文件名</summary>
+    public string FileName { get; set; } = null!;
+
+    /// <summary>内容类型</summary>
+    public string ContentType { get; set; } = null!;
+
+    /// <summary>文件大小（字节）</summary>
+    public long SizeBytes { get; set; }
+
+    public int SortOrder { get; set; }
+
+    public DateTimeOffset CreatedTime { get; set; }
 }
 
 /// <summary>
@@ -132,8 +172,15 @@ public class CreateProcessInspectionRequest
     public string? ConcessionRemark { get; set; }
 
     public int? DefectReworkQuantity { get; set; }
+
+    /// <summary>不合格入在制库支数</summary>
     public int? DefectWarehouseQuantity { get; set; }
+
+    /// <summary>不合格入次品库支数</summary>
     public int? DefectScrapQuantity { get; set; }
+
+    /// <summary>不合格退货支数</summary>
+    public int? DefectReturnQuantity { get; set; }
 
     [MaxLength(500)]
     public string? DefectDescription { get; set; }
@@ -185,8 +232,15 @@ public class UpdateProcessInspectionRequest
     public string? ConcessionRemark { get; set; }
 
     public int? DefectReworkQuantity { get; set; }
+
+    /// <summary>不合格入在制库支数</summary>
     public int? DefectWarehouseQuantity { get; set; }
+
+    /// <summary>不合格入次品库支数</summary>
     public int? DefectScrapQuantity { get; set; }
+
+    /// <summary>不合格退货支数</summary>
+    public int? DefectReturnQuantity { get; set; }
 
     [MaxLength(500)]
     public string? DefectDescription { get; set; }

@@ -51,7 +51,7 @@
 
             <!-- 数据表格 -->
             <div id="inspection-records-list-table">
-            <MudTable @ref="table"
+            <MudTable Breakpoint="Breakpoint.None" @ref="table"
                       T="InspectionRecordListDto"
                       ServerData="@LoadDataFromServer"
                       Dense="true"

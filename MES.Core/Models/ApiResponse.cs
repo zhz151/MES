@@ -60,21 +60,13 @@ public class ApiResponse<T>
         };
     }
 
-    /// <summary>
-    /// 创建无数据成功响应
-    /// </summary>
-    /// <param name="message">成功消息</param>
-    /// <returns>成功响应对象</returns>
-    public static ApiResponse<T> Ok(string message = "操作成功")
-    {
-        return new ApiResponse<T>
-        {
-            Success = true,
-            Code = 200,
-            Message = message,
-            Data = default
-        };
-    }
+    // ⚠️ 禁止再新增「只收 message」的 Ok(string message = "操作成功") 重载：
+    // 它与 Ok(T data, string message = "操作成功") 在 T=string 时构成重载歧义，按 C# 决议规则
+    // （所有参数都有实参者优于需补默认参数者）会绑定到 message-only 版本 ——
+    // 于是 ApiResponse<string>.Ok("张三") 把值写进 Message、Data 留 null，且**编译期毫无提示**。
+    // 历史事故（2026-09-14）：扫码链「当前巡检人」端点因此返回 data=null，前端取不到实名，
+    // 提交时被后端 [Required] 拦成「巡检人不能为空 / 反馈人不能为空」。
+    // 需要自定义消息请给两个实参：Ok(data, "消息")。
 }
 
 /// <summary>

@@ -67,14 +67,19 @@ public static class AppMenu
             new() { Label = "工艺卡打印", Href = "/process-card-print" },
         ] },
 
-        // ─── 质量管理（含两级嵌套子组：炉号/化学、理化检测）───
+        // ─── 质量管理（含三级子组：不合格处置、炉号/化学、理化检测）───
         new() { Label = "质量管理", Policy = Roles.Policies.QualityMenu, Children =
         [
+            new() { Label = "巡检", Href = "/quality/inspection-patrol" },
             new() { Label = "过程检验", Href = "/quality/process-inspection" },
             new() { Label = "成检到料", Href = "/quality/material-receive-checks" },
             new() { Label = "成品检验", Href = "/quality/final-inspection" },
             new() { Label = "成检追踪", Href = "/quality/process-tracking" },
-            new() { Label = "不合格报告", Href = "/quality/ncr" },
+            new() { Label = "不合格处置", Children =
+            [
+                new() { Label = "不合格反馈", Href = "/quality/nonconforming-feedback" },
+                new() { Label = "不合格报告", Href = "/quality/ncr" },
+            ] },
             new() { Label = "炉号/化学", Children =
             [
                 new() { Label = "炉号登记", Href = "/quality/furnace" },
@@ -142,7 +147,9 @@ public static class AppMenu
         // ─── 扫码管理（整组仅需登录；工位/员工单独 ScanView 档）───
         new() { Label = "扫码管理", Children =
         [
-            new() { Label = "扫码报工", Href = "/mobile-report" },
+            new() { Label = "报工扫码", Href = "/mobile-report" },
+            new() { Label = "巡检扫码", Href = "/mobile-quality/patrol" },
+            new() { Label = "不合格反馈扫码", Href = "/mobile-quality/feedback" },
             new() { Label = "设备扫码", Href = "/equipment-scan" },
             new() { Label = "工位管理", Href = "/workstations", Policy = Roles.Policies.ScanView },
             new() { Label = "员工管理", Href = "/employees", Policy = Roles.Policies.ScanView },

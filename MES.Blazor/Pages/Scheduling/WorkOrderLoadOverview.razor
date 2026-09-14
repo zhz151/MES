@@ -44,7 +44,7 @@
                 </div>
             </div>
             <div id="workorder-overview-table">
-            <MudTable Items="@OverviewRows"
+            <MudTable Breakpoint="Breakpoint.None" Items="@OverviewRows"
                      Dense="true"
                      Hover="true"
                      Bordered="true"
@@ -52,12 +52,12 @@
                      Class="auto-table mt-0">
                 <HeaderContent>
                     <MudTh Class="text-center" Style="min-width:40px;width:40px;">序号</MudTh>
-                    <MudTh>类别</MudTh>
-                    <MudTh Class="col-g100">负荷节点</MudTh>
-                    <MudTh Class="text-right col-g100">待计划量(吨)</MudTh>
-                    <MudTh Class="text-right col-g100">在购量(等)(吨)</MudTh>
-                    <MudTh Class="text-right col-g100">待产量(吨)</MudTh>
-                    <MudTh Class="text-right col-g100">预计天数</MudTh>
+                    <MudTh Class="text-center">类别</MudTh>
+                    <MudTh Class="text-center col-g100">负荷节点</MudTh>
+                    <MudTh Class="text-center col-g100">未编制计划(吨)</MudTh>
+                    <MudTh Class="text-center col-g100">待落实量(吨)</MudTh>
+                    <MudTh Class="text-center col-g100">待产量(吨)</MudTh>
+                    <MudTh Class="text-center col-g100">预计天数</MudTh>
                     <MudTh Class="text-center col-g100">预计完成</MudTh>
                     @foreach (var bucket in _data.DateBuckets)
                     {
@@ -73,8 +73,8 @@
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd Class="@CellClass(context, "text-center")">@DisplaySeq(context)</MudTd>
-                    <MudTd Class="@CellClass(context, "")">@context.Category</MudTd>
-                    <MudTd Class="@CellClass(context, "")">@context.Section</MudTd>
+                    <MudTd Class="@CellClass(context, "text-center")">@context.Category</MudTd>
+                    <MudTd Class="@CellClass(context, "text-center")">@context.Section</MudTd>
                     <MudTd Class="@CellClass(context, "text-center")">@FormatTons(context.PendingPlanTons)</MudTd>
                     <MudTd Class="@CellClass(context, "text-center")">@FormatTons(context.InProcurementTons)</MudTd>
                     <MudTd Class="@CellClass(context, "text-center")">@FormatRemainingTons(context, context.TotalRemainingTons)</MudTd>
