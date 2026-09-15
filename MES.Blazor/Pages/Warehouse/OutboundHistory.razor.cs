@@ -120,7 +120,7 @@ public partial class OutboundHistory
         new() { Key = "UpdatedTime",      Label = "更新时间", SortKey = "updatedtime", FilterType = "string", Width = "130", Visible = false },
     };
 
-    private static void ApplyWarehouseDefaults(List<ColumnDef> cols, string whCode)
+    private static void ApplyWarehouseDefaults(List<ColumnDef> cols)
     {
         foreach (var c in cols)
         {
@@ -153,7 +153,7 @@ public partial class OutboundHistory
     private async Task ResetColumnDisplay()
     {
         _allColumns = GetAllColumnDefs();
-        ApplyWarehouseDefaults(_allColumns, Code?.ToUpperInvariant() ?? "");
+        ApplyWarehouseDefaults(_allColumns);
         await SaveColumnPrefs();
         if (_table != null) await _table.ReloadServerData();
     }
@@ -695,7 +695,7 @@ public partial class OutboundHistory
 
         // 列定义
         _allColumns = GetAllColumnDefs();
-        ApplyWarehouseDefaults(_allColumns, whCode);
+        ApplyWarehouseDefaults(_allColumns);
 
         // 加载用户偏好
         var saved = await ColumnPrefs.LoadAsync("outbound_history", whCode);
@@ -730,26 +730,6 @@ public partial class OutboundHistory
     }
 
     // ========== 单元格原始值/显示值 ==========
-
-    private string? GetCellRawValue(OutboundRecordDto item, string key) => key switch
-    {
-        "BatchNo" => item.BatchNo,
-        "OutboundDate" => item.OutboundDate.ToString("yyyy-MM-dd"),
-        "OutboundType" => DisplayHelper.GetOutboundTypeText(item.OutboundType),
-        "WorkOrderNo" => item.WorkOrderNo,
-        "ReturnSourceBatchNo" => item.ReturnSourceBatchNo,
-        "SourceOrderNo" => item.SourceOrderNo,
-        "TargetCompany" => item.TargetCompany,
-        "OutboundQuantity" => item.OutboundQuantity.ToString("G29"),
-        "OutboundWeight" => item.OutboundWeight.ToString("G29"),
-        "OutboundMeters" => item.OutboundMeters?.ToString("G29"),
-        "Remark" => item.Remark,
-        "CreatedBy" => item.CreatedBy,
-        "CreatedTime" => item.CreatedTime == default ? "" : item.CreatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
-        "UpdatedBy" => item.UpdatedBy,
-        "UpdatedTime" => item.UpdatedTime == default ? "" : item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
-        _ => null
-    };
 
     // ========== 行保存 ==========
 

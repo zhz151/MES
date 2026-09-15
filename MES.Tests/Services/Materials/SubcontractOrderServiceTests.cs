@@ -504,7 +504,7 @@ public class SubcontractOrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var sid = await SeedSupplierAsync(ctx);
-        var order = await SeedOrderAsync(ctx, sid);
+        await SeedOrderAsync(ctx, sid);
         var svc = CreateService(ctx);
 
         var result = await svc.GetReturnItemListAsync(new QueryParams { PageIndex = 1, PageSize = 10 });

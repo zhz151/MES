@@ -1226,7 +1226,7 @@ public class ProductionRecordService : IProductionRecordService
             .ToListAsync();
 
         // 3h. 解析该批次必检成品检验项（订单技术要求 ProductRequirement；无要求记录时兜底 PMI+表检+尺寸）
-        var (finalRequiredItems, preRequiredItems) = await ResolveBatchInspectionRequirementsAsync(batch);
+        var (finalRequiredItems, _) = await ResolveBatchInspectionRequirementsAsync(batch);
 
         // 4. 构建查询字典
         var recordByKey = allRecords
@@ -1577,7 +1577,7 @@ public class ProductionRecordService : IProductionRecordService
                     .FirstOrDefault();
 
         // 5d. 成品检验 9 项卡片（正式成检为主、预检仅角标；必检=订单技术要求）
-        var finalInspectionItems = BuildFinalInspectionItemDtos(allFinalInspections, finalRequiredItems, preRequiredItems);
+        var finalInspectionItems = BuildFinalInspectionItemDtos(allFinalInspections, finalRequiredItems);
 
         return new BatchTrackingVisualDto
         {
@@ -1626,8 +1626,7 @@ public class ProductionRecordService : IProductionRecordService
     /// </summary>
     private static List<FinalInspectionItemVisualDto> BuildFinalInspectionItemDtos(
         List<FinalInspection> inspections,
-        HashSet<InspectionItem> finalRequired,
-        HashSet<InspectionItem> preRequired)
+        HashSet<InspectionItem> finalRequired)
     {
         var result = new List<FinalInspectionItemVisualDto>(9);
         foreach (var item in Enum.GetValues<InspectionItem>())
@@ -2292,7 +2291,6 @@ public class ProductionRecordService : IProductionRecordService
                     .ToList();
                 var dayMap = await _standardWorkDayService.GetStandardDaysMapAsync(b.PlantGrade);
                 b.TotalWorkDays = CalculateTotalWorkDays(
-                    b.Status,
                     allSections,
                     dayMap,
                     dsExtraDaysMap,
@@ -2744,7 +2742,6 @@ public class ProductionRecordService : IProductionRecordService
 
         // ====== 全工量计算 ======
         batch.TotalWorkDays = CalculateTotalWorkDays(
-            batch.Status,
             sectionTuples,
             dayMap,
             dsExtraDaysMap,
@@ -3499,7 +3496,6 @@ public class ProductionRecordService : IProductionRecordService
     /// 计算批次全工量（天）：从组内序号1开始，累加所有工段的标准天数
     /// </summary>
     private static int CalculateTotalWorkDays(
-        BatchStatus status,
         List<(string SectionName, int Sequence)> allSections,
         Dictionary<string, double> dayMap,
         Dictionary<string, double> deliveryStateExtraDays,

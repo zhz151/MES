@@ -192,6 +192,14 @@ public class DataExchangeServiceTests : TestBase
     }
 
     [Fact]
+    public void Registry_BatchPlanSchedule_显示名与菜单正名同步()
+    {
+        // 2026-09-15：计划排程「批次计划」更名「生产计划」→ DataTool 实体显示名同步；
+        // ⚠️ 仅 DisplayName，实体 Key「BatchPlanSchedule」与表名不变（导入识别按 Key + 列头名，已下发模板无需重下）
+        DataExchangeRegistry.Registry["BatchPlanSchedule"].DisplayName.Should().Be("批次-生产计划");
+    }
+
+    [Fact]
     public void Registry_CertificateItem_含质保书外键列()
     {
         var def = DataExchangeRegistry.Registry["CertificateItem"];

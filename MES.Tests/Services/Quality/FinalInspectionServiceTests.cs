@@ -910,7 +910,7 @@ public class FinalInspectionServiceTests : TestBase
         var i1 = await SeedInspectionAsync(ctx, batchNo: "BATCH001");
         // 等待短暂时间再创建第二条，确保 UpdatedTime 不同
         await Task.Delay(100);
-        var i2 = await SeedInspectionAsync(ctx, batchNo: "BATCH002");
+        await SeedInspectionAsync(ctx, batchNo: "BATCH002");
         var svc = CreateService(ctx);
 
         // 降序：最新的在前

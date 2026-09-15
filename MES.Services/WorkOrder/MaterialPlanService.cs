@@ -3194,7 +3194,7 @@ public class MaterialPlanService : IMaterialPlanService
 
         if (regularInventory.Any())
         {
-            var status = CalculateInventoryPlanStatus(workOrder, regularInventory, isRework: false,
+            var status = CalculateInventoryPlanStatus(workOrder, regularInventory,
                 fixedSatisfied: fixedSatisfied, nonFixedSatisfied: nonFixedSatisfied);
             dto.Items.Add(new MaterialPlanItemDto
             {
@@ -3208,7 +3208,7 @@ public class MaterialPlanService : IMaterialPlanService
 
         if (reworkPlans.Any())
         {
-            var status = CalculateInventoryPlanStatus(workOrder, reworkPlans, isRework: true,
+            var status = CalculateInventoryPlanStatus(workOrder, reworkPlans,
                 fixedSatisfied: fixedSatisfied, nonFixedSatisfied: nonFixedSatisfied);
             dto.Items.Add(new MaterialPlanItemDto
             {
@@ -3351,7 +3351,7 @@ public class MaterialPlanService : IMaterialPlanService
 
             if (hasInventory)
             {
-                var s = CalculateInventoryPlanStatus(workOrder, regularInventory, isRework: false,
+                var s = CalculateInventoryPlanStatus(workOrder, regularInventory,
                     fixedSatisfied: fixedSatisfied, nonFixedSatisfied: nonFixedSatisfied);
                 statuses.Add(s);
                 rates.Add(CalculateInventoryPlanRate(workOrder, regularInventory));
@@ -3359,7 +3359,7 @@ public class MaterialPlanService : IMaterialPlanService
 
             if (hasRework)
             {
-                var s = CalculateInventoryPlanStatus(workOrder, reworkPlans, isRework: true,
+                var s = CalculateInventoryPlanStatus(workOrder, reworkPlans,
                     fixedSatisfied: fixedSatisfied, nonFixedSatisfied: nonFixedSatisfied);
                 statuses.Add(s);
                 rates.Add(CalculateInventoryPlanRate(workOrder, reworkPlans));
@@ -3549,7 +3549,7 @@ public class MaterialPlanService : IMaterialPlanService
     /// 计算库存使用计划状态（工单级，满足率<100%=部分；100%~上限=满足；超出=超量）
     /// </summary>
     private MaterialPlanStatus CalculateInventoryPlanStatus(WoEntity workOrder,
-        IReadOnlyCollection<InventoryPlan> plans, bool isRework = false,
+        IReadOnlyCollection<InventoryPlan> plans,
         decimal fixedSatisfied = 110m, decimal nonFixedSatisfied = 120m)
     {
         var rate = CalculateInventoryPlanRate(workOrder, plans);

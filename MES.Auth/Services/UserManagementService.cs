@@ -12,16 +12,13 @@ namespace MES.Auth.Services;
 public class UserManagementService : IUserManagementService
 {
     private readonly UserManager<AppUser> _userManager;
-    private readonly RoleManager<IdentityRole> _roleManager;
     private readonly AppDbContext _context;
 
     public UserManagementService(
         UserManager<AppUser> userManager,
-        RoleManager<IdentityRole> roleManager,
         AppDbContext context)
     {
         _userManager = userManager;
-        _roleManager = roleManager;
         _context = context;
     }
 

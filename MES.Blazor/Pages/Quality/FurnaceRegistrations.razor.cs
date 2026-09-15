@@ -599,38 +599,6 @@ public partial class FurnaceRegistrations
 
     // ========== 单元格原始值/显示值 ==========
 
-    private string? GetCellRawValue(FurnaceRegistrationDto item, string key) => key switch
-    {
-        "IncomingDate" => item.IncomingDate.ToString("yyyy-MM-dd"),
-        "RawMaterialUnit" => item.RawMaterialUnit,
-        "RawMaterialType" => DisplayHelper.GetMaterialTypeText(item.RawMaterialType),
-        "RegisteredGrade" => item.RegisteredGrade,
-        "RelatedPlantGrade" => item.RelatedPlantGrade,
-        "FurnaceNumber" => item.FurnaceNumber,
-        "Specification" => item.Specification,
-        "Quantity" => item.Quantity?.ToString(),
-        "Weight" => DisplayHelper.FormatNullableDecimalAsInt(item.Weight),
-        "Carbon" => item.Carbon?.ToString("G29"),
-        "Silicon" => item.Silicon?.ToString("G29"),
-        "Manganese" => item.Manganese?.ToString("G29"),
-        "Phosphorus" => item.Phosphorus?.ToString("G29"),
-        "Sulfur" => item.Sulfur?.ToString("G29"),
-        "Nickel" => item.Nickel?.ToString("G29"),
-        "Chromium" => item.Chromium?.ToString("G29"),
-        "Molybdenum" => item.Molybdenum?.ToString("G29"),
-        "Copper" => item.Copper?.ToString("G29"),
-        "Nitrogen" => item.Nitrogen?.ToString("G29"),
-        "Niobium" => item.Niobium?.ToString("G29"),
-        "Titanium" => item.Titanium?.ToString("G29"),
-        "Iron" => item.Iron?.ToString("G29"),
-        "Aluminum" => item.Aluminum?.ToString("G29"),
-        "Tungsten" => item.Tungsten?.ToString("G29"),
-        "PREN" => item.PREN?.ToString("G29"),
-        "Remark" => item.Remark,
-        "UpdatedTime" => item.UpdatedTime.LocalDateTime.ToString("yyyy-MM-dd HH:mm"),
-        _ => null
-    };
-
     // ========== 持久化 ==========
 
     private async Task SavePageStateAsync()

@@ -45,7 +45,7 @@ public static class AppMenu
             new() { Label = "订单负荷总量", Href = "/plan-overview" },
             new() { Label = "工单排程", Href = "/scheduling-plans" },
             new() { Label = "冷轧排程", Href = "/cold-roll-plans" },
-            new() { Label = "批次计划", Href = "/batch-plans" },
+            new() { Label = "生产计划", Href = "/batch-plans" },
             new() { Label = "成检计划", Href = "/final-inspection-plan" },
         ] },
 
@@ -125,8 +125,8 @@ public static class AppMenu
             new() { Label = "点检记录", Href = "/inspection-records" },
         ] },
 
-        // ─── 生产标准 ───
-        new() { Label = "生产标准", Policy = Roles.Policies.StandardView, Children =
+        // ─── 产品标准（2026-09-15 用户决策：原「生产标准」更名；角色代码 StandardViewer/Editor/Full 保持不改）───
+        new() { Label = "产品标准", Policy = Roles.Policies.StandardView, Children =
         [
             new() { Label = "标准号列表", Href = "/standard-registers" },
             new() { Label = "标准号检验项要求", Href = "/standard-inspection-requirements" },

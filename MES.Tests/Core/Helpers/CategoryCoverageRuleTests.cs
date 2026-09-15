@@ -12,7 +12,6 @@ public class CategoryCoverageRuleTests
 {
     private static readonly HashSet<string> Rough = new([ProductStatuses.RoughTube], StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> InProg = new([ProductStatuses.InProgress], StringComparer.OrdinalIgnoreCase);
-    private static readonly HashSet<string> Finished = new([ProductStatuses.Finished], StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> InProgFinished = new([ProductStatuses.InProgress, ProductStatuses.Finished], StringComparer.OrdinalIgnoreCase);
 
     private static HashSet<string> Set(params string[] keys)

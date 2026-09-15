@@ -7,7 +7,6 @@ namespace MES.Blazor.Pages.StandardRegister;
 
 public partial class FactoryInspectionRequirementCreate
 {
-    private MudForm? _form;
     private bool _isSaving;
     private readonly CreateFactoryInspectionRequirementRequest _model = new()
     {

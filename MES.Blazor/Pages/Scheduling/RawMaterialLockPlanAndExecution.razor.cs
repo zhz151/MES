@@ -68,7 +68,6 @@ public partial class RawMaterialLockPlanAndExecution
     // 汇总数据
     private bool _showSummaryCard;          // 汇总卡片显隐（默认折叠）
     private int _totalOrderCount;
-    private decimal _totalWeight;
     private decimal _pendingWeight;
     private int _purchaseCount;             // 成购（外购成品）单数：成品计划量>成品到货量 的行数
     private decimal _purchaseWeight;        // 成购重量 = Σ(成品计划量 − 成品到货量)
@@ -451,7 +450,6 @@ public partial class RawMaterialLockPlanAndExecution
         //   待投料（单数/总重/待投料量）排除「单一成品采购」工单（FinishPlanWeight>0 且其余 6 类计划量全部 ≤ 0）；
         //   成购（外购成品）2026-09-10 用户决策收紧为「仅执行用料计划工单」，重量=缺口（成品计划量−成品到货量）。
         _totalOrderCount = 0;
-        _totalWeight = 0m;
         _purchaseCount = 0;
         _purchaseWeight = 0m;
         _pendingWeight = 0m;
@@ -467,7 +465,6 @@ public partial class RawMaterialLockPlanAndExecution
             if (IsSingleFinishPurchase(item)) continue;
 
             _totalOrderCount++;
-            _totalWeight += item.TotalWeight;
             _pendingWeight += PendingCalc(item);
         }
 

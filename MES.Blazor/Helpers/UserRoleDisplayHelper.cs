@@ -49,7 +49,7 @@ public static class UserRoleDisplayHelper
         new("Material", "物料管理"),
         new("Warehouse", "仓库管理"),
         new("Equipment", "设备管理"),
-        new("Standard", "生产标准"),
+        new("Standard", "产品标准"),   // 2026-09-15 原「生产标准」更名；角色代码前缀仍是 Standard，勿改
         new("Report", "报表系统"),
         new("DataTool", "数据工具"),
         new("Scan", "扫码管理"),

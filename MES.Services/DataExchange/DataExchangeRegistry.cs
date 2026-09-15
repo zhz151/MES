@@ -1491,7 +1491,7 @@ public static class DataExchangeRegistry
             new("用途说明", "Remark", typeof(string), isRequired: false),
         }, compositeKeyColumns: new[] { "Category", "ParamKey" }),
 
-        // === 标准号（生产标准上下文） ===
+        // === 标准号（产品标准上下文，2026-09-15 原「生产标准」更名） ===
         ["StandardRegister"] = new EntityDef("标准-标准号", "标准-标准号", typeof(MES.Data.Entities.StandardRegister.StandardRegister), 1, "StandardNo", new List<ColumnDef>
         {
             new("标准号", "StandardNo"),
@@ -1949,8 +1949,8 @@ public static class DataExchangeRegistry
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        // 批次上下文：批次计划薄表（计划员手工编辑，一个批次一条）
-        ["BatchPlanSchedule"] = new EntityDef("批次-批次计划", "批次-批次计划", typeof(MES.Data.Entities.Scheduling.BatchPlanSchedule), 8, null, new List<ColumnDef>
+        // 批次上下文：批次计划薄表（计划员手工编辑，一个批次一条；2026-09-15 显示名更名为「批次-生产计划」，实体 Key/表名不变）
+        ["BatchPlanSchedule"] = new EntityDef("批次-生产计划", "批次-生产计划", typeof(MES.Data.Entities.Scheduling.BatchPlanSchedule), 8, null, new List<ColumnDef>
         {
             new("批次号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "BatchId" },
             new("暂停", "IsPaused", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),

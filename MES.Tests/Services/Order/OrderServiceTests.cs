@@ -121,7 +121,7 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var sr = await SeedRegisterAsync(ctx);
+        await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
@@ -147,7 +147,7 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var sr = await SeedRegisterAsync(ctx);
+        await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
@@ -243,7 +243,7 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var sr = await SeedRegisterAsync(ctx);
+        await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
@@ -272,7 +272,7 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var sr = await SeedRegisterAsync(ctx);
+        await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
@@ -311,7 +311,7 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var sr = await SeedRegisterAsync(ctx);
+        await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 
@@ -353,7 +353,7 @@ public class OrderServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var cust = await SeedCustomerAsync(ctx);
-        var sr = await SeedRegisterAsync(ctx);
+        await SeedRegisterAsync(ctx);
         var gm = await SeedGradeMappingAsync(ctx);
         var svc = CreateService(ctx);
 

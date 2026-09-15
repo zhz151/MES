@@ -7,7 +7,6 @@ namespace MES.Blazor.Pages.Configuration;
 
 public partial class SectionParagraphConfigSettings
 {
-    private MudTable<SectionParagraphConfigDto>? table;
     private List<SectionParagraphConfigDto> _items = new();
     private bool _isLoading;
     private bool _isSaving;

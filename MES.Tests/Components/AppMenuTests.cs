@@ -27,14 +27,19 @@ public class AppMenuTests
     }
 
     [Fact]
-    public void 牌号对照_仅存在于生产标准组()
+    public void 牌号对照_仅存在于产品标准组()
     {
-        var standard = Node("生产标准");
+        // 2026-09-15 用户决策：一级菜单「生产标准」更名「产品标准」（组内 9 项均为产品标准数据）；
+        // 角色代码 StandardViewer/Editor/Full 未改。
+        var standard = Node("产品标准");
         standard.Policy.Should().Be(Roles.Policies.StandardView);
         standard.Children.Should().ContainSingle(n => n.Label == "牌号对照" && n.Href == "/grade-mappings");
 
         // 全树「牌号对照」只能出现这一次
         AppMenu.AllLeaves().Count(n => n.Label == "牌号对照").Should().Be(1);
+
+        // 旧一级菜单名「生产标准」全树（含非叶节点）不得残留；角色代码/Policy 仍 Standard*
+        AppMenu.Find("生产标准").Should().BeNull();
     }
 
     [Fact]
@@ -122,6 +127,26 @@ public class AppMenuTests
     }
 
     [Fact]
+    public void 计划排程_五项并列二级_生产计划取代批次计划()
+    {
+        // 2026-09-15 用户决策：计划排程下「批次计划」更名「生产计划」（避免与一级「生产执行」两处都叫「批次」；
+        // 页面路由 /batch-plans、接口 api/batch-plan/*、实体 BatchPlanSchedule 全部不变）
+        var scheduling = Node("计划排程");
+        scheduling.IsLeaf.Should().BeFalse();
+        scheduling.Policy.Should().Be(Roles.Policies.SchedulingMenu);
+        scheduling.Children.Select(n => (n.Label, n.Href)).Should().Equal(
+            ("订单负荷总量", "/plan-overview"),
+            ("工单排程", "/scheduling-plans"),
+            ("冷轧排程", "/cold-roll-plans"),
+            ("生产计划", "/batch-plans"),
+            ("成检计划", "/final-inspection-plan"));
+
+        // 旧菜单名「批次计划」全树（含非叶节点）不得残留
+        AppMenu.Find("批次计划").Should().BeNull();
+        AppMenu.AllLeaves().Count(n => n.Href == "/batch-plans").Should().Be(1);
+    }
+
+    [Fact]
     public void 手机曾缺失的模块_均在树内()
     {
         // 首页（精确匹配 /）
@@ -171,7 +196,7 @@ public class AppMenuTests
     {
         AppMenu.Root.Select(n => n.Label).Should().Equal(
             "首页", "报表总览", "订单管理", "工单管理", "计划排程", "生产执行", "质量管理",
-            "物料管理", "仓库管理", "设备管理", "生产标准", "扫码管理",
+            "物料管理", "仓库管理", "设备管理", "产品标准", "扫码管理",
             "工资结算", "参数表", "数据工具", "用户管理");
     }
 

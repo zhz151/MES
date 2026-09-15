@@ -326,7 +326,7 @@ public partial class Users
             CloseButton = true
         });
         var result = await dialog.Result;
-        if (!result.Canceled && result.Data is string userId)
+        if (!result.Canceled && result.Data is string)
         {
             // 密码重置在 Dialog 内已处理，成功则刷新
             if (table != null) await table.ReloadServerData();

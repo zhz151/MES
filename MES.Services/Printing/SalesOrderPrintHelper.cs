@@ -452,9 +452,4 @@ public static class SalesOrderPrintHelper
     /// 金额打印收敛：四舍五入保留 ≤2 位小数并去尾零（与前端 DisplayHelper.FormatMoney2 一致）
     /// </summary>
     private static string FormatMoney2(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero).ToString("G29");
-
-    /// <summary>
-    /// 金额打印收敛（可空版），空值或 0 显示 "-"
-    /// </summary>
-    private static string FormatMoney2(decimal? value) => value.HasValue && value.Value != 0 ? FormatMoney2(value.Value) : "-";
 }

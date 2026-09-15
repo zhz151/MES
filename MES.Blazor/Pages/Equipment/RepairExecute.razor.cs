@@ -227,11 +227,6 @@ public partial class RepairExecute : IDisposable
         _otherPersonInput = string.Empty;
     }
 
-    private void RemoveOtherPerson(string person)
-    {
-        _otherRepairPersons.Remove(person);
-    }
-
     private void ToggleCategory(string category)
     {
         _repairCategory = _repairCategory == category ? null : category;

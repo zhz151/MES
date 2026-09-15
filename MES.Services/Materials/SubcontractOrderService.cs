@@ -1854,27 +1854,6 @@ public async Task UpdateStatusAsync(int id, UpdateOrderStatusRequest request)
         return (unit, unitPrice, total);
     }
 
-    private static void FillWorkOrderFields(SubcontractOrderDto dto, WoEntity wo)
-    {
-        dto.WoSalesOrderNo = wo.SalesOrderNo;
-        dto.WoProductionMainNo = wo.ProductionMainNo;
-        dto.WoProductionSubNo = wo.ProductionSubNo;
-        dto.WoSignDate = wo.SignDate;
-        dto.WoSalesman = wo.Salesman;
-        dto.WoEndCustomer = wo.EndCustomer;
-        dto.WoDeliveryDate = wo.DeliveryDate;
-        dto.WoDelayPenalty = wo.DelayPenalty;
-        dto.WoSettlementMethod = wo.SettlementMethod;
-        dto.WoPlantGrade = wo.PlantGrade;
-        dto.WoSpecification = wo.Specification;
-        dto.WoLengthStatus = wo.LengthStatus;
-        dto.WoMaxLength = wo.MaxLength;
-        dto.WoTotalQuantity = wo.TotalQuantity;
-        dto.WoTotalWeight = wo.TotalWeight;
-        dto.WoDeliveryState = wo.DeliveryState;
-        dto.WoTotalItemCount = wo.TotalItemCount;
-    }
-
     private static void FillWorkOrderFields(SubcontractReturnItemDto dto, WoEntity wo)
     {
         dto.WoSalesOrderNo = wo.SalesOrderNo;

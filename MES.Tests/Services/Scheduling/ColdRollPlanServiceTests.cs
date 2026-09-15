@@ -73,7 +73,7 @@ public class ColdRollPlanServiceTests : TestBase
     }
 
     private ProductionBatch CreateBatch(AppDbContext ctx, string batchNo, string workOrderNo,
-        string processName, int seqNumber, bool isFinished,
+        string processName, int seqNumber,
         int weight = 1000,
         string? currentGroupName = null,
         string? currentSectionName = null,
@@ -182,7 +182,7 @@ public class ColdRollPlanServiceTests : TestBase
     public async Task GetPlanAsync_冷轧批次聚合为正确时间桶()
     {
         using var ctx = CreateDbContext();
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: null, currentSectionName: null, weight: 2000);
         await ctx.SaveChangesAsync();
 
@@ -251,7 +251,7 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 批次当前正在做 60冷轧 的 冷轧拔 且未完成
-        var batch = CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        var batch = CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60,
             currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false,
@@ -270,8 +270,8 @@ public class ColdRollPlanServiceTests : TestBase
     public async Task GetPlanAsync_工段筛选()
     {
         using var ctx = CreateDbContext();
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 1000);
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll50, 1, isFinished: false, weight: 2000);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, weight: 1000);
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll50, 1, weight: 2000);
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
@@ -296,7 +296,7 @@ public class ColdRollPlanServiceTests : TestBase
     public async Task GetPlanAsync_已完成批次被排除()
     {
         using var ctx = CreateDbContext();
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, status: BatchStatus.Completed);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, status: BatchStatus.Completed);
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
@@ -309,7 +309,7 @@ public class ColdRollPlanServiceTests : TestBase
     public async Task GetPlanAsync_急件标记()
     {
         using var ctx = CreateDbContext();
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: null, currentSectionName: null, weight: 2000);
         SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
             productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
@@ -424,7 +424,7 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 在轧急+批次（60冷轧）：正常流转、关注=当前冷轧，排程行 CrOnly → 在轧要求在档
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: true, weight: 3000,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, weight: 3000,
             currentGroupName: ProcessKeys.ColdRoll60,
             currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false);
@@ -458,7 +458,7 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 在轧批次存在但排程行档位为 None（无排程计划）→ 「在轧要求」留空
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: true, weight: 3000,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, weight: 3000,
             currentGroupName: ProcessKeys.ColdRoll60,
             currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false);
@@ -505,7 +505,7 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 批次正在 60冷轧 做冷轧拔未完成 → 在轧(positionDiff=0)；A+急+正常+关注冷轧 → 特急
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60,
             currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false,
@@ -535,7 +535,7 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 在轧 + A+急+正常+关注非冷轧(荒管处理) → 特急-（正常流转∧关注≠当前冷轧）
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60,
             currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false,
@@ -561,7 +561,7 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 在轧 + 无紧急度 → 特急/特急-/急 均为 0，余量 = 在轧总量
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60,
             currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false,
@@ -586,11 +586,11 @@ public class ColdRollPlanServiceTests : TestBase
         using var ctx = CreateDbContext();
         // 未投产 → 今日待轧(positionDiff=1)
         // B001：A+急+正常+关注冷轧(60冷轧) → 待轧(特急)；B002：关注非冷轧(荒管) → 待轧(特急-)
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: null, currentSectionName: null, weight: 1000);
         SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
             productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1,
             currentGroupName: null, currentSectionName: null, weight: 2000);
         SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
             productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.RoughTubeProcessing);
@@ -680,7 +680,7 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 批次在轧 60冷轧，但排程设置中无该规格记录 → 汇总不显示该行
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60,
             currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false,
@@ -698,7 +698,7 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 排程设置中存在该规格行但 CompletionType 与 RollType 均 None（明确不排程）→ 不计入汇总
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60,
             currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false,
@@ -718,14 +718,14 @@ public class ColdRollPlanServiceTests : TestBase
         using var ctx = CreateDbContext();
         // 同规格两在轧批次：B001 特急(关注冷轧)、B002 特急-(关注荒管)
         // 在轧要求=CrOnly(特急严格档) → 仅 B001 计入，B002(特急-)被严格档过滤
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60,
             currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false,
             weight: 500);
         SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
             productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60,
             currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false,
@@ -753,14 +753,14 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 同上两批次（特急500 + 特急-300），在轧要求=Partial2(特急-急档) → 两者都计入
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60,
             currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false,
             weight: 500);
         SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
             productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60,
             currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false,
@@ -788,7 +788,7 @@ public class ColdRollPlanServiceTests : TestBase
         using var ctx = CreateDbContext();
         // 在轧批次，排程设置 CompletionType=None(在轧要求未排)、RollType=All(仅待轧侧排程)
         // → 在轧侧不统计，汇总为空
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60,
             currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false,
@@ -861,9 +861,9 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 15000kg / (5000×6) = 0.5；3000kg / (5000×6) = 0.1；合计 0.6 → AwayFromZero 四舍五入 = 1
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 15000);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, weight: 15000);
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll50, 1, isFinished: false, weight: 3000);
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll50, 1, weight: 3000);
         SeedSchedule(ctx, ProcessKeys.ColdRoll50, "", "219*8", isFinished: true, dailyOutput: 5000m);
         await ctx.SaveChangesAsync();
 
@@ -879,7 +879,7 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 批次无排程设置记录 → 各轧机类型行均为 0
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 3000);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, weight: 3000);
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
@@ -895,7 +895,7 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 有排程记录但单机单日量为空 → 流转量计入，但机台需求不计入该规格
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 12000);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, weight: 12000);
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true);
         await ctx.SaveChangesAsync();
 
@@ -912,7 +912,7 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 小表 4000，参数表 12000；批次 48000kg → 参数表:48000/12000/6=0.67→1；若误读小表:48000/4000/6=2→2
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 48000);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, weight: 48000);
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 4000m);
         ctx.ColdRollCapacities.Add(new ColdRollCapacity
         {
@@ -939,7 +939,7 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 参数表无该规格 → 用小表 5000；批次 60000 → 60000/5000/6=2 → 2
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 60000);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, weight: 60000);
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
         await ctx.SaveChangesAsync();
 
@@ -956,7 +956,7 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 参数表有该维度但单机单日量为空 → 回退小表 5000；批次 30000 → 30000/5000/6=1 → 1
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 30000);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, weight: 30000);
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
         ctx.ColdRollCapacities.Add(new ColdRollCapacity
         {
@@ -984,7 +984,7 @@ public class ColdRollPlanServiceTests : TestBase
         // 在制 156000/(10000×6)=2.6 → Round=3；成品 78000/(5000×6)=2.6 → Round=3 → 3+3=6
         // （整组一次取整 Round(2.6+2.6)=Round(5.2)=5，两处会不一致——本次修正为拆档）
         CreateBatch60Chain(ctx, "B001", "WO001", "219*8", ProcessKeys.ColdRoll30, "180*8", weight: 156000);
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 78000, spec: "273*8");
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, weight: 78000, spec: "273*8");
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: false, dailyOutput: 10000m);
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "273*8", isFinished: true, dailyOutput: 5000m);
         await ctx.SaveChangesAsync();
@@ -1106,11 +1106,11 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // B001：急+批次（A急/正常/关注=60冷轧）待轧 spec 219*8 → 无配置默认「急+/急/急-」，急+行标记锁定
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 3000);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, weight: 3000);
         SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
             productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
         // B002：普通批次 spec 273*8 → 无急+不标记锁定
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 2000, spec: "273*8");
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, weight: 2000, spec: "273*8");
         await ctx.SaveChangesAsync();
 
         var svc = CreateService(ctx);
@@ -1152,10 +1152,10 @@ public class ColdRollPlanServiceTests : TestBase
         using var ctx = CreateDbContext();
         // 有排程行（现有行）无急+：产能平衡放宽到 All（min1 max3），全部批次命中 → 建议 All/All
         // B001 在轧（spec 219*8）、B002 待轧（spec 273*8），均非急非锁定 → 现有 OK 行
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 30000,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, weight: 30000,
             currentGroupName: ProcessKeys.ColdRoll60, currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false);
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 6000, spec: "273*8");
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, weight: 6000, spec: "273*8");
         // 单工序组批次 allocation IsFinished=true；产能档案 5000/日（机台数计算依赖排程日产量）
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "273*8", isFinished: true, dailyOutput: 5000m);
@@ -1193,12 +1193,12 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // B001：急+ spec 219*8，现有排程 None/None → 无配置默认档 Partial2（覆盖）
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 3000);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, weight: 3000);
         SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
             productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, completionType: "", rollType: "");
         // B002：急+ spec 273*8，现有排程 Urgent/Urgent → 自动分配覆盖为 Partial2（不考虑人工已设档位）
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 3000, spec: "273*8");
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, weight: 3000, spec: "273*8");
         SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
             productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "273*8", isFinished: true, completionType: "Urgent", rollType: "Urgent");
@@ -1222,12 +1222,12 @@ public class ColdRollPlanServiceTests : TestBase
         using var ctx = CreateDbContext();
         // 冷轧30 min=3 max=4；三批各 30000/(5000×6)=1 台
         // B001 急(正常∧关注≠30) → 命中 Urgent 起；B002 急-(非正常) → 命中 Partial2 起；B003 普通 → 仅 All
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll30, 1, weight: 30000);
         SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
             productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000, spec: "273*8");
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1, weight: 30000, spec: "273*8");
         SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent);
-        CreateBatch(ctx, "B003", "WO003", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000, spec: "325*8");
+        CreateBatch(ctx, "B003", "WO003", ProcessKeys.ColdRoll30, 1, weight: 30000, spec: "325*8");
         SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "219*8", isFinished: true, completionType: "CrOnly", rollType: "CrOnly", dailyOutput: 5000m);
         SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "273*8", isFinished: true, completionType: "CrOnly", rollType: "CrOnly", dailyOutput: 5000m);
         SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "325*8", isFinished: true, completionType: "CrOnly", rollType: "CrOnly", dailyOutput: 5000m);
@@ -1250,7 +1250,7 @@ public class ColdRollPlanServiceTests : TestBase
     public async Task GetScheduleSuggestionAsync_现状达标_保持现档()
     {
         using var ctx = CreateDbContext();
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60, currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false, weight: 30000);
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
@@ -1273,16 +1273,16 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 60/50/30/20 各一在轧 30000，配置各 min1 max3
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60, currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false, weight: 30000);
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll50, 1, isFinished: false,
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll50, 1,
             currentGroupName: ProcessKeys.ColdRoll50, currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false, weight: 30000, spec: "273*8");
-        CreateBatch(ctx, "B003", "WO003", ProcessKeys.ColdRoll30, 1, isFinished: false,
+        CreateBatch(ctx, "B003", "WO003", ProcessKeys.ColdRoll30, 1,
             currentGroupName: ProcessKeys.ColdRoll30, currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false, weight: 30000, spec: "180*8");
-        CreateBatch(ctx, "B004", "WO004", ProcessKeys.ColdRoll20, 1, isFinished: false,
+        CreateBatch(ctx, "B004", "WO004", ProcessKeys.ColdRoll20, 1,
             currentGroupName: ProcessKeys.ColdRoll20, currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false, weight: 30000, spec: "356*8");
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
@@ -1327,7 +1327,7 @@ public class ColdRollPlanServiceTests : TestBase
             DailyOutput = 5000m,
         });
         // B002：2030 本组在制 60000/(5000×6)=2 台
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1, isFinished: false,
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1,
             currentGroupName: ProcessKeys.ColdRoll30, currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false, weight: 60000, spec: "180*8");
         SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "180*8", isFinished: true, dailyOutput: 5000m);
@@ -1412,7 +1412,7 @@ public class ColdRollPlanServiceTests : TestBase
     public async Task GetScheduleSuggestionAsync_矛盾A_全量仍不足最小机台数()
     {
         using var ctx = CreateDbContext();
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60, currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false, weight: 30000);
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
@@ -1432,12 +1432,12 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // 两急+批次在轧，各 60000/(5000×6)=2 台 → CrOnly=4 台 > 最大 1 台
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60, currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false, weight: 60000);
         SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
             productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60, currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false, weight: 60000, spec: "273*8");
         SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
@@ -1472,7 +1472,7 @@ public class ColdRollPlanServiceTests : TestBase
             DailyOutput = 5000m,
         });
         // B002：2030 本组在制 30000/(5000×6)=1 台 → 现状 1 < 最小 3 → 矛盾A；流转 1 < 最小 3 → 叠加矛盾B
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1, isFinished: false,
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1,
             currentGroupName: ProcessKeys.ColdRoll30, currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false, weight: 30000, spec: "180*8");
         SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "180*8", isFinished: true, dailyOutput: 5000m);
@@ -1496,11 +1496,11 @@ public class ColdRollPlanServiceTests : TestBase
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: true, dailyOutput: 5000m);
         // 现有行 C + 批次：325*8
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "325*8", isFinished: true, dailyOutput: 5000m);
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1,
             currentGroupName: ProcessKeys.ColdRoll60, currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false, weight: 30000, spec: "325*8");
         // 新增行：273*8 有批次无排程
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 6000, spec: "273*8");
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, weight: 6000, spec: "273*8");
         SeedMachineConfig(ctx, ProcessKeys.ColdRoll60, ownedCount: 2, minMachines: 1, maxMachines: 3);
         await ctx.SaveChangesAsync();
 
@@ -1532,12 +1532,12 @@ public class ColdRollPlanServiceTests : TestBase
         using var ctx = CreateDbContext();
         // B001 急+（正常∧关注=30）、B002/B003 急-（非正常）各在轧 30000
         // cPartial2=3 > max2 → 向窄收 Urgent：仅急+命中 → 1 ∈ [1,2] → 「急+/急」
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll30, 1, weight: 30000);
         SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
             productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll30);
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000, spec: "273*8");
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1, weight: 30000, spec: "273*8");
         SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent);
-        CreateBatch(ctx, "B003", "WO003", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000, spec: "325*8");
+        CreateBatch(ctx, "B003", "WO003", ProcessKeys.ColdRoll30, 1, weight: 30000, spec: "325*8");
         SeedSummary(ctx, "WO003", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent);
         SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "219*8", isFinished: true, dailyOutput: 5000m);
         SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "273*8", isFinished: true, dailyOutput: 5000m);
@@ -1562,9 +1562,9 @@ public class ColdRollPlanServiceTests : TestBase
     {
         using var ctx = CreateDbContext();
         // B001/B002 急-（非正常）各在轧 30000 → cPartial2=2 ∈ [1,3] → 保持「急+/急/急-」原始档
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll30, 1, weight: 30000);
         SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent);
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1, isFinished: false, weight: 30000, spec: "273*8");
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1, weight: 30000, spec: "273*8");
         SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent);
         SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "219*8", isFinished: true, dailyOutput: 5000m);
         SeedSchedule(ctx, ProcessKeys.ColdRoll30, "", "273*8", isFinished: true, dailyOutput: 5000m);
@@ -1587,7 +1587,7 @@ public class ColdRollPlanServiceTests : TestBase
         using var ctx = CreateDbContext();
         // 统一产能平衡（2026-08-29）：三辊普通批次在轧 30000，配了机台数上限（min3 max5）也走产能平衡——
         // cPartial2=0（普通批次不命中急+/急/急-）< min3 → 放宽 Partial3/All，All 仍仅 1 台 < 3 → 矛盾 A「全量排程仍不足机台需求」
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ThreeRollColdRoll, 1, isFinished: false, weight: 30000);
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ThreeRollColdRoll, 1, weight: 30000);
         SeedSchedule(ctx, ProcessKeys.ThreeRollColdRoll, "", "219*8", isFinished: true, dailyOutput: 5000m);
         SeedMachineConfig(ctx, ProcessKeys.ThreeRollColdRoll, ownedCount: 4, minMachines: 3, maxMachines: 5);
         await ctx.SaveChangesAsync();
@@ -1614,7 +1614,7 @@ public class ColdRollPlanServiceTests : TestBase
         ctx.ColdRollMachineGroupConfigs.Single(g => g.GroupKey == ColdRollMachineGroupKeys.Roll5060).SupplyTargetGroupKey = null;
         SeedMachineConfig(ctx, ProcessKeys.ColdRoll50, ownedCount: 1, minMachines: 1, maxMachines: 1);
         SeedMachineConfig(ctx, ProcessKeys.ColdRoll60, ownedCount: 1, minMachines: 1, maxMachines: 1);
-        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 90000,
+        CreateBatch(ctx, "B001", "WO001", ProcessKeys.ColdRoll60, 1, weight: 90000,
             currentGroupName: ProcessKeys.ColdRoll60, currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false);
         SeedSummary(ctx, "WO001", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
@@ -1660,7 +1660,7 @@ public class ColdRollPlanServiceTests : TestBase
             DailyOutput = 5000m,
         });
         // B003：60成品(IsFinished=true) 30000 急+ spec 273*8 → 阶段2未触发（总负荷未超上限），成品保持组档不压缩
-        CreateBatch(ctx, "B003", "WO003", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 30000, spec: "273*8");
+        CreateBatch(ctx, "B003", "WO003", ProcessKeys.ColdRoll60, 1, weight: 30000, spec: "273*8");
         SeedSummary(ctx, "WO003", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
             productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
         // 5060 本组产能档案（组机台总量约束用 5060 daily）：在制行 daily=10000、成品行 daily=5000
@@ -1707,7 +1707,7 @@ public class ColdRollPlanServiceTests : TestBase
             DailyOutput = 5000m,
         });
         // B002：60成品(IsFinished=true) 30000 急+ → 在制供给已够 2030，急+成品也不被无脑压 CrOnly
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 30000, spec: "273*8");
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll60, 1, weight: 30000, spec: "273*8");
         SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
             productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll60);
         SeedSchedule(ctx, ProcessKeys.ColdRoll60, "", "219*8", isFinished: false, dailyOutput: 10000m);
@@ -1756,7 +1756,7 @@ public class ColdRollPlanServiceTests : TestBase
             DailyOutput = 5000m,
         });
         // B003：60成品(IsFinished=true) 60000 急+ spec 273*8，关注工序=30≠60 → CrOnly 档不命中，压缩至 CrOnly 让位
-        CreateBatch(ctx, "B003", "WO003", ProcessKeys.ColdRoll60, 1, isFinished: false, weight: 60000, spec: "273*8");
+        CreateBatch(ctx, "B003", "WO003", ProcessKeys.ColdRoll60, 1, weight: 60000, spec: "273*8");
         SeedSummary(ctx, "WO003", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.AUrgent,
             productionFlowProperty: ProductionFlowKeys.Normal, mainNoAttentionProcess: ProcessKeys.ColdRoll30);
         // 5060 本组产能档案（组机台总量约束用 5060 daily）：在制行 daily=10000、成品行 daily=5000
@@ -1863,7 +1863,7 @@ public class ColdRollPlanServiceTests : TestBase
             DailyOutput = 5000m,
         });
         // 部分一：2030 本组在制 30000 普通（CSlow）→ 30 行档位 CrOnly（仅急+命中）不命中 → 本次未定流转计入 1 台
-        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1, isFinished: false,
+        CreateBatch(ctx, "B002", "WO002", ProcessKeys.ColdRoll30, 1,
             currentGroupName: ProcessKeys.ColdRoll30, currentSectionName: SectionKeys.ColdRollDraw,
             currentSectionCompleted: false, weight: 30000, spec: "180*8");
         SeedSummary(ctx, "WO002", scheduleStage: 2, urgencyLevel: UrgencyLevelKeys.CSlow,

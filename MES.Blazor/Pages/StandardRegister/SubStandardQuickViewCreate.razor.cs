@@ -7,7 +7,6 @@ namespace MES.Blazor.Pages.StandardRegister;
 
 public partial class SubStandardQuickViewCreate
 {
-    private MudForm? _form;
     private bool _isSaving;
     private readonly CreateSubStandardQuickViewRequest _model = new();
 

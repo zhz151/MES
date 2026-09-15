@@ -849,43 +849,11 @@ public partial class NcrForm
     private static string GetFlowDirectionText(FlowDirection? direction)
         => direction.HasValue ? DisplayHelper.GetFlowDirectionText(direction.Value) : "";
 
-    /// <summary>处置方式中文（字典 NcrDisposalKey，含用户自定义档；优先取下拉选项显示名）</summary>
-    private string GetDisposalText(string? disposal)
-        => string.IsNullOrEmpty(disposal)
-            ? ""
-            : (_disposalOptions.FirstOrDefault(o => string.Equals(o.Value, disposal, StringComparison.OrdinalIgnoreCase))?.DisplayName
-               ?? NcrDisposalKeys.ToChinese(disposal)
-               ?? disposal);
-
     private static Color GetWarningColor() => Color.Warning;
 
     private static Color GetSourceTypeColor(string sourceType)
         => sourceType == nameof(NcrPendingSourceType.ProcessInspection) ? Color.Info
          : sourceType == nameof(NcrPendingSourceType.NonconformingFeedback) ? Color.Warning
          : Color.Primary;
-
-    private static Color GetFlowDirectionChipColor(FlowDirection? direction) => direction switch
-    {
-        FlowDirection.Rework => Color.Warning,
-        FlowDirection.InProcessWarehouse => Color.Info,
-        FlowDirection.FinishedWarehouse => Color.Primary,
-        FlowDirection.Scrap => Color.Error,
-        FlowDirection.Return => Color.Secondary,
-        _ => Color.Default
-    };
-
-    /// <summary>处置方式 chip 配色（字典 8 档内置键；自定义档回退 Default）</summary>
-    private static Color GetDisposalChipColor(string? disposal) => disposal switch
-    {
-        NcrDisposalKeys.Concession => Color.Success,
-        NcrDisposalKeys.Reprocess => Color.Warning,
-        NcrDisposalKeys.Rework => Color.Warning,
-        NcrDisposalKeys.InProcessWarehouse => Color.Info,
-        NcrDisposalKeys.FinishedWarehouse => Color.Primary,
-        NcrDisposalKeys.ScrapCorrection => Color.Error,
-        NcrDisposalKeys.Scrap => Color.Error,
-        NcrDisposalKeys.Return => Color.Secondary,
-        _ => Color.Default
-    };
 
 }

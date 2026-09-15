@@ -113,8 +113,6 @@ public partial class MiscWorkMonthly
         _employees = resp.Success && resp.Data != null ? resp.Data : new();
     }
 
-    private string EmployeeLabel(EmployeeDto e) => $"{e.Name}({e.Code})";
-
     private async Task LoadMonthAsync()
     {
         var seq = ++_loadSeq;

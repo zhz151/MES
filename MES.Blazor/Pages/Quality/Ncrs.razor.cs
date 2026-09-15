@@ -627,33 +627,6 @@ public partial class Ncrs
         }
     }
 
-    private async Task UpdateStatus(int id, NcrStatus status)
-    {
-        var statusText = status switch
-        {
-            NcrStatus.Processing => "处理中",
-            NcrStatus.Closed => "已关闭",
-            _ => ""
-        };
-        if (string.IsNullOrEmpty(statusText)) return;
-
-        var dialog = await DialogService.ShowAsync<ConfirmDialog>("确认状态变更",
-            new DialogParameters { ["ContentText"] = $"确定要将状态变更为「{statusText}」吗？" });
-        var result = await dialog.Result;
-        if (result.Canceled) return;
-
-        var response = await NcrService.UpdateStatusAsync(id, status.ToString());
-        if (response.Success)
-        {
-            Snackbar.Add($"状态已变更为: {statusText}", Severity.Success);
-            if (table != null) await table.ReloadServerData();
-        }
-        else
-        {
-            Snackbar.Add($"状态变更失败: {response.Message}", Severity.Error);
-        }
-    }
-
     // ========== 列选择器 ==========
 
     private async Task OnColumnToggle(ColumnDef col)

@@ -157,7 +157,7 @@ public partial class WarehouseInventory
                 SetNotApplicable(cols, "SalesOrderNo");
                 SetNotApplicable(cols, "ProductionMainNo");
                 SetNotApplicable(cols, "OrderItemIds");
-                AssignGroups(cols, whCode);
+                AssignGroups(cols);
                 break;
             case "FG":
                 {
@@ -170,7 +170,7 @@ public partial class WarehouseInventory
                     SetNotApplicable(cols, "OrderItemIds");
                     var fgMainNo = cols.FirstOrDefault(x => x.Key == "ProductionMainNo");
                     if (fgMainNo != null) fgMainNo.Visible = false;
-                    AssignGroups(cols, whCode);
+                    AssignGroups(cols);
                     break;
                 }
             case "DEFECT":
@@ -179,7 +179,7 @@ public partial class WarehouseInventory
                 SetNotApplicable(cols, "ActualSpecification");
                 // 项次序号列：成品/缺陷类型无有效项次关联，标记不适用
                 SetNotApplicable(cols, "OrderItemIds");
-                AssignGroups(cols, whCode);
+                AssignGroups(cols);
                 break;
             case "WIP":
                 SetNotApplicable(cols, "SourceName");
@@ -196,15 +196,15 @@ public partial class WarehouseInventory
                 SetNotApplicable(cols, "Meters");
                 SetNotApplicable(cols, "RemainingMeters");
                 SetNotApplicable(cols, "SourceOrderNo");
-                AssignGroups(cols, whCode);
+                AssignGroups(cols);
                 break;
             default:
-                AssignGroups(cols, whCode);
+                AssignGroups(cols);
                 break;
         }
     }
 
-    private static void AssignGroups(List<ColumnDef> cols, string whCode)
+    private static void AssignGroups(List<ColumnDef> cols)
     {
         // G1 来源信息
         SetGroup(cols, "BatchNo", 1, "来源信息");

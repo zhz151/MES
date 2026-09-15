@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using Moq;
 using MES.Api.Controllers.StandardRegister;
 using MES.Core.Models;
@@ -13,13 +12,11 @@ namespace MES.Tests.Controllers;
 public class GradeChemicalCompositionControllerTests : ControllerTestBase
 {
     private readonly Mock<IGradeChemicalCompositionService> _serviceMock;
-    private readonly Mock<ILogger<GradeChemicalCompositionController>> _loggerMock;
     private readonly GradeChemicalCompositionController _controller;
 
     public GradeChemicalCompositionControllerTests()
     {
         _serviceMock = new Mock<IGradeChemicalCompositionService>();
-        _loggerMock = CreateLoggerMock<GradeChemicalCompositionController>();
         _controller = new GradeChemicalCompositionController(_serviceMock.Object);
         _controller.ControllerContext = new ControllerContext
         {

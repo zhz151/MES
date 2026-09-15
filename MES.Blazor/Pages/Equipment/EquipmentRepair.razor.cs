@@ -15,7 +15,6 @@ public partial class EquipmentRepair : IDisposable
     [Inject] private ScanService ScanService { get; set; } = null!;
     [Inject] private RepairOrderService RepairOrderService { get; set; } = null!;
     [Inject] private NavigationManager Navigation { get; set; } = null!;
-    [Inject] private ISnackbar Snackbar { get; set; } = null!;
     [Inject] private IJSRuntime JS { get; set; } = null!;
 
     // 步骤

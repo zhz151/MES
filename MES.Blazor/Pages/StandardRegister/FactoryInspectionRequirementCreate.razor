@@ -21,7 +21,7 @@
         </MudCardHeader>
 
         <MudCardContent>
-            <MudForm @ref="_form" Validation="@(new Func<string?, string?>(ValidateStandardNo))">
+            <MudForm Validation="@(new Func<string?, string?>(ValidateStandardNo))">
                 <MudGrid>
                     <MudItem xs="12" md="4">
                         <MudTextField T="string"

@@ -4,7 +4,6 @@ using MES.Core.Constants;
 using MES.Core.DTOs.Payroll;
 using MES.Core.Enums;
 using MES.Core.Exceptions;
-using MES.Core.Helpers;
 using MES.Data;
 using MES.Data.Entities.Batch;
 using MES.Data.Entities.Payroll;
@@ -34,9 +33,6 @@ public class PieceRateFinalInspectionCategoryServiceTests : TestBase
             Unit = unit,
             IsActive = isActive
         };
-
-    private static string ItemCn(InspectionItem item)
-        => EnumHelper.GetDisplayName<InspectionItem>(item.ToString())!;
 
     // ==================== CRUD + 整组替换 ====================
 

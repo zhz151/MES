@@ -45,7 +45,6 @@ public partial class FinalInspectionCategories
     private int _trialTotalCount;
     private string? _trialItemFilter;
     private string _trialKeyword = string.Empty;
-    private bool _trialDataLoaded;
     private FinalInspectionPriceTrialRecordDto? _selectedRecord;
     private bool _pricingLoading;
     private bool _pricingDone;
@@ -348,16 +347,6 @@ public partial class FinalInspectionCategories
     }
 
     // ========== 模拟测算（按成检记录点选计价，2026-09-04） ==========
-
-    /// <summary>展开面板首次展开时加载候选记录</summary>
-    private async Task OnTrialExpandedChanged(bool expanded)
-    {
-        if (expanded && !_trialDataLoaded && _trialTable != null)
-        {
-            _trialDataLoaded = true;
-            await _trialTable.ReloadServerData();
-        }
-    }
 
     private async Task OnTrialItemFilterChanged(string? value)
     {

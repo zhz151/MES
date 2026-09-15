@@ -99,7 +99,7 @@ public class WorkOrderServiceTests : TestBase
     /// <summary>
     /// 种子一个已确认订单并生成工单，返回 (orderId, orderNo, workOrderIds)
     /// </summary>
-    private async Task<(int OrderId, string OrderNo, List<int> WorkOrderIds)> SeedConfirmedOrderWithWorkOrdersAsync(AppDbContext ctx, int itemCount = 1)
+    private async Task<(int OrderId, string OrderNo, List<int> WorkOrderIds)> SeedConfirmedOrderWithWorkOrdersAsync(AppDbContext ctx)
     {
         var (orderId, orderNo) = await SeedConfirmedOrderAsync(ctx);
 
@@ -158,7 +158,7 @@ public class WorkOrderServiceTests : TestBase
     public async Task GetOrderItemsForWorkOrderAsync_成功返回分组项次()
     {
         var ctx = CreateDbContext();
-        var (orderId, orderNo) = await SeedConfirmedOrderAsync(ctx);
+        var (_, orderNo) = await SeedConfirmedOrderAsync(ctx);
         var svc = CreateService(ctx);
 
         var items = await svc.GetOrderItemsForWorkOrderAsync(orderNo);

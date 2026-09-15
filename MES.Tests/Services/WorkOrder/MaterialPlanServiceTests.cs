@@ -135,7 +135,6 @@ public class MaterialPlanServiceTests : TestBase
     private async Task<InventoryBatch> SeedInventoryBatchAsync(AppDbContext ctx,
         string plantGrade = "Q345B",
         string specification = "219*8",
-        decimal od = 219m, decimal wt = 8m,
         int quantity = 100, decimal weight = 10000m,
         decimal unitWeight = 250m)
     {
@@ -1618,7 +1617,7 @@ public class MaterialPlanServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var (woId, _) = await SeedWorkOrderAsync(ctx, LengthStatus.Fixed, od: 219m, wt: 8m);
-        var batch = await SeedInventoryBatchAsync(ctx, specification: "219*8", od: 219m, wt: 8m);
+        var batch = await SeedInventoryBatchAsync(ctx, specification: "219*8");
         var svc = CreateService(ctx);
 
         var available = await svc.GetAvailableInventoryAsync(woId);
@@ -1737,7 +1736,7 @@ public class MaterialPlanServiceTests : TestBase
         var ctx = CreateDbContext();
         // 工单外径219，批次外径159——不匹配
         var (woId, _) = await SeedWorkOrderAsync(ctx, LengthStatus.Fixed, od: 219m, wt: 8m);
-        await SeedInventoryBatchAsync(ctx, specification: "159*6", od: 159m, wt: 6m);
+        await SeedInventoryBatchAsync(ctx, specification: "159*6");
         var svc = CreateService(ctx);
 
         var available = await svc.GetAvailableInventoryAsync(woId);
@@ -1750,7 +1749,7 @@ public class MaterialPlanServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var (woId, _) = await SeedWorkOrderAsync(ctx, LengthStatus.Fixed, od: 219m, wt: 8m);
-        var batch = await SeedInventoryBatchAsync(ctx, specification: "219*8", od: 219m, wt: 8m, quantity: 100, weight: 10000m);
+        var batch = await SeedInventoryBatchAsync(ctx, specification: "219*8", quantity: 100, weight: 10000m);
         var svc = CreateService(ctx);
 
         // 工单1 部分使用预留
@@ -1780,7 +1779,7 @@ public class MaterialPlanServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var (woId, _) = await SeedWorkOrderAsync(ctx, LengthStatus.Fixed, od: 219m, wt: 8m);
-        var batch = await SeedInventoryBatchAsync(ctx, specification: "250*8", od: 250m, wt: 8.2m,
+        var batch = await SeedInventoryBatchAsync(ctx, specification: "250*8",
             plantGrade: "Q345B", unitWeight: 270m);
         var svc = CreateService(ctx);
 
@@ -1815,7 +1814,7 @@ public class MaterialPlanServiceTests : TestBase
         var ctx = CreateDbContext();
         var (woId, _) = await SeedWorkOrderAsync(ctx, LengthStatus.Fixed, od: 219m, wt: 8m);
         // 空拉改制需要外径 >= 测算OD*1.05，壁厚在0.95~1.05倍之间
-        var batch = await SeedInventoryBatchAsync(ctx, specification: "250*8", od: 250m, wt: 8.2m,
+        await SeedInventoryBatchAsync(ctx, specification: "250*8",
             plantGrade: "Q345B", unitWeight: 270m);
         var svc = CreateService(ctx);
 
@@ -1829,7 +1828,7 @@ public class MaterialPlanServiceTests : TestBase
     {
         var ctx = CreateDbContext();
         var (woId, woNo) = await SeedWorkOrderAsync(ctx, LengthStatus.Fixed, od: 219m, wt: 8m);
-        var batch = await SeedInventoryBatchAsync(ctx, specification: "250*8", od: 250m, wt: 8.2m,
+        var batch = await SeedInventoryBatchAsync(ctx, specification: "250*8",
             plantGrade: "Q345B", unitWeight: 270m);
         var svc = CreateService(ctx);
 
@@ -1877,7 +1876,7 @@ public class MaterialPlanServiceTests : TestBase
         var ctx = CreateDbContext();
         var (woId, _) = await SeedWorkOrderAsync(ctx, LengthStatus.Fixed, od: 219m, wt: 8m);
         // 外径219 * 1.05 ≈ 230，批次外径200太小，壁厚保持在合适范围内以排除外径因素
-        await SeedInventoryBatchAsync(ctx, specification: "200*8", od: 200m, wt: 8m,
+        await SeedInventoryBatchAsync(ctx, specification: "200*8",
             plantGrade: "Q345B", unitWeight: 270m);
         var svc = CreateService(ctx);
 

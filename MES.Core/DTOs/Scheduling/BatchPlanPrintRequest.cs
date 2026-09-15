@@ -7,7 +7,7 @@ namespace MES.Core.DTOs.Scheduling;
 public class BatchPlanPrintRequest
 {
     /// <summary>标题</summary>
-    public string Title { get; set; } = "批次计划";
+    public string Title { get; set; } = "生产计划";
 
     /// <summary>打印数据行（字典格式，枚举字段已解析为中文显示文本）</summary>
     public List<Dictionary<string, object>> Items { get; set; } = new();

@@ -20,9 +20,6 @@ namespace MES.Blazor.Pages.Reports;
 /// </summary>
 public partial class MonthlyStock
 {
-    [Inject] private NavigationManager Navigation { get; set; } = default!;
-    [Inject] private AuthenticationStateProvider AuthProvider { get; set; } = default!;
-
     private bool _loading;
 
     /// <summary>当前报表：in=入库 / out=出库 / stock=库存 / inout=物料进出存</summary>

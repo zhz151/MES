@@ -340,7 +340,6 @@ public partial class PieceRateProductionCategories
     private int _trialTotalCount;
     private string _trialSourceKey = nameof(PieceRateProductionTrialSource.ProductionRecord);
     private string _trialKeyword = string.Empty;
-    private bool _trialDataLoaded;
     private PieceRateProductionTrialRecordDto? _selectedRecord;
     private bool _pricingLoading;
     private bool _pricingDone;
@@ -356,20 +355,9 @@ public partial class PieceRateProductionCategories
         new() { Key = nameof(PieceRateProductionTrialSource.ProcessInspection), Name = "过程检验" }
     };
 
-    /// <summary>展开面板首次展开时加载候选记录</summary>
-    private async Task OnTrialExpandedChanged(bool expanded)
-    {
-        if (expanded && !_trialDataLoaded && _trialTable != null)
-        {
-            _trialDataLoaded = true;
-            await _trialTable.ReloadServerData();
-        }
-    }
-
     private async Task OnTrialSourceChanged(string value)
     {
         _trialSourceKey = value ?? nameof(PieceRateProductionTrialSource.ProductionRecord);
-        _trialDataLoaded = true;
         if (_trialTable != null) await _trialTable.ReloadServerData();
     }
 

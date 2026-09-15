@@ -154,26 +154,15 @@ public partial class BatchPlans
     private int _lastSummedPageSize = -1;
 
     // ========== 字典下拉选项（配置表动态加载，失败兜底静态 KeyToChinese）==========
-    private List<(string Value, string Text)> _flowTargetOptions =
-        FlowTargetKeys.KeyToChinese.Select(kv => (kv.Key, kv.Value)).ToList();
-
-    // ========== 批次计划等级/冷轧类型下拉选项 ==========
-    /// <summary>薄表等级五档（存储 1~5，显示中文）</summary>
-    private static readonly List<(int Value, string Text)> PlanFlowLevelSelectOptions = new()
-    {
-        (1, "急+"), (2, "急"), (3, "急-"), (4, "一般"), (5, "略"),
-    };
-
+    // ========== 生产计划等级/冷轧类型下拉选项 ==========
     private async Task LoadDictOptionsAsync()
     {
-        var flowTarget = await DictValueDefinitionService.GetEnabledValuesAsync(DictValueDefaults.FlowTargetKey);
-        if (flowTarget.Success && flowTarget.Data is { Count: > 0 })
-            _flowTargetOptions = flowTarget.Data.Select(t => (t.Value, t.DisplayName)).ToList();
+        await DictValueDefinitionService.GetEnabledValuesAsync(DictValueDefaults.FlowTargetKey);
     }
 
     /// <summary>
     /// 永久隐藏列：冷轧排程维度列（本层/下层/下下层/实时）+ 匹配结果 + 工单需求调整 + 批次基础多余字段
-    /// （不在列显隐选择器显示，始终不显示；冷轧维度展示统一走 G11 判定结果 + G13 批次计划，2026-08-20 用户决策）
+    /// （不在列显隐选择器显示，始终不显示；冷轧维度展示统一走 G11 判定结果 + G13 生产计划，2026-08-20 用户决策）
     /// </summary>
     private static readonly HashSet<string> _permanentlyHiddenColumnKeys = new()
     {
@@ -308,20 +297,20 @@ public partial class BatchPlans
             new() { Key = "IsCompliant",         Label = "达标",       FilterType = "enum", Width = "70",  EnumOptions = new() { new("达标","达标"), new("未达标","未达标") }, GroupKey = 12, GroupName = "执行反馈", DisplayConverter = v => v as string },
         };
 
-        // G13：批次计划（持久化，内联编辑）
+        // G13：生产计划（原「批次计划」薄表字段，持久化，内联编辑）
         var g13 = new List<ColumnDef>
         {
-            new() { Key = "PlanIsFlow",              Label = "流转",       FilterType = "boolean", Width = "60",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "批次计划" },
-            new() { Key = "PlanFlowLevel",           Label = "等级",       FilterType = "enum",    Width = "60",  EnumOptions = DisplayHelper.GetPlanFlowLevelOptions(), GroupKey = 13, GroupName = "批次计划" },
-            new() { Key = "PlanFlowCRType",          Label = "目标工序",   FilterType = "string",  Width = "100", GroupKey = 13, GroupName = "批次计划" },
-            new() { Key = "PlanFlowTarget",          Label = "流转位",     FilterType = "string",  Width = "90",  GroupKey = 13, GroupName = "批次计划" },
-            new() { Key = "PlanOuterDiameterSpan",   Label = "外径跨度",   FilterType = "string",  Width = "90",  GroupKey = 13, GroupName = "批次计划" },
-            new() { Key = "PlanFlowExecSpec",        Label = "执行规格",   FilterType = "string",  Width = "120", GroupKey = 13, GroupName = "批次计划" },
-            new() { Key = "PlanExecutionSequence",   Label = "执行序",     FilterType = "number", Width = "70", GroupKey = 13, GroupName = "批次计划" },
-            new() { Key = "PlanTargetSequence",      Label = "目标序",     FilterType = "number", Width = "70", GroupKey = 13, GroupName = "批次计划" },
-            new() { Key = "PlanIsPaused",            Label = "暂停",       FilterType = "boolean", Width = "70",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "批次计划" },
-            new() { Key = "IsGrabOrder",             Label = "抢单",       FilterType = "boolean", Width = "70",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "批次计划" },
-            new() { Key = "PlanRemark",              Label = "计划备注",   FilterType = "string",  Width = "130", GroupKey = 13, GroupName = "批次计划" },
+            new() { Key = "PlanIsFlow",              Label = "流转",       FilterType = "boolean", Width = "60",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "生产计划" },
+            new() { Key = "PlanFlowLevel",           Label = "等级",       FilterType = "enum",    Width = "60",  EnumOptions = DisplayHelper.GetPlanFlowLevelOptions(), GroupKey = 13, GroupName = "生产计划" },
+            new() { Key = "PlanFlowCRType",          Label = "目标工序",   FilterType = "string",  Width = "100", GroupKey = 13, GroupName = "生产计划" },
+            new() { Key = "PlanFlowTarget",          Label = "流转位",     FilterType = "string",  Width = "90",  GroupKey = 13, GroupName = "生产计划" },
+            new() { Key = "PlanOuterDiameterSpan",   Label = "外径跨度",   FilterType = "string",  Width = "90",  GroupKey = 13, GroupName = "生产计划" },
+            new() { Key = "PlanFlowExecSpec",        Label = "执行规格",   FilterType = "string",  Width = "120", GroupKey = 13, GroupName = "生产计划" },
+            new() { Key = "PlanExecutionSequence",   Label = "执行序",     FilterType = "number", Width = "70", GroupKey = 13, GroupName = "生产计划" },
+            new() { Key = "PlanTargetSequence",      Label = "目标序",     FilterType = "number", Width = "70", GroupKey = 13, GroupName = "生产计划" },
+            new() { Key = "PlanIsPaused",            Label = "暂停",       FilterType = "boolean", Width = "70",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "生产计划" },
+            new() { Key = "IsGrabOrder",             Label = "抢单",       FilterType = "boolean", Width = "70",  BoolTrueLabel = "是", BoolFalseLabel = "否", GroupKey = 13, GroupName = "生产计划" },
+            new() { Key = "PlanRemark",              Label = "计划备注",   FilterType = "string",  Width = "130", GroupKey = 13, GroupName = "生产计划" },
         };
 
         var all = new List<ColumnDef>();
@@ -331,11 +320,11 @@ public partial class BatchPlans
         all.AddRange(g11);
         all.AddRange(g1Hidden);
         all.AddRange(g1);   // 批次基础信息
-        all.AddRange(g13);  // 批次计划（状态跟踪前）
+        all.AddRange(g13);  // 生产计划（状态跟踪前）
         all.AddRange(g3);   // 状态跟踪
         all.AddRange(g12);  // 执行反馈
 
-        // 用户决策默认隐藏（列显隐选择器仍可切换打开）：工单计划（整组）、关联冷轧排程、批次计划(执行序/目标序/暂停/抢单)、状态跟踪(现执行序)、执行反馈(原差)
+        // 用户决策默认隐藏（列显隐选择器仍可切换打开）：工单计划（整组）、关联冷轧排程、生产计划(执行序/目标序/暂停/抢单)、状态跟踪(现执行序)、执行反馈(原差)
         foreach (var c in all)
         {
             if ((c.GroupName is "工单计划") ||
@@ -458,7 +447,7 @@ public partial class BatchPlans
         var flowBatches = _allItems.Where(x => x.PlanIsFlow).ToList();
         _tabFlowBatchCount = flowBatches.Count;
         _tabFlowBatchWeight = flowBatches.Sum(x => x.CurrentValidWeight ?? 0m);
-        // 重点批次 = 批次计划等级 == 急+（PlanFlowLevel 1），与 G13 等级列口径一致
+        // 重点批次 = 生产计划等级 == 急+（PlanFlowLevel 1），与 G13 等级列口径一致
         var keyBatches = _allItems.Where(x => x.PlanFlowLevel == 1).ToList();
         _tabKeyBatchCount = keyBatches.Count;
         _tabKeyBatchWeight = keyBatches.Sum(x => x.CurrentValidWeight ?? 0m);
@@ -517,7 +506,7 @@ public partial class BatchPlans
 
     /// <summary>
     /// 委外在产单元格三值格式化（前端 /1000 显示 t，保留 1 位，0 值留空）：
-    /// 格式「总量/[流转]/[*特急]」= 总量、其中批次计划实时流转（IsFlow=是）重量、其中批次计划等级急+（特急批）重量（* 标红）。
+    /// 格式「总量/[流转]/[*特急]」= 总量、其中生产计划实时流转（IsFlow=是）重量、其中生产计划等级急+（特急批）重量（* 标红）。
     /// </summary>
     private static MarkupString FormatOutsourceCell(OutsourcePendingCellDto? cell)
     {
@@ -594,7 +583,7 @@ public partial class BatchPlans
                     Display = e.Display,
                     Count = 0
                 }).ToList();
-                // 达标列追加"空值"筛选（批次计划流转=否 → null）
+                // 达标列追加"空值"筛选（生产计划流转=否 → null）
                 if (col.Key == "IsCompliant")
                     enumOptions.Insert(0, new ExcelFilterOption { Value = FilterNull, Display = "空值", Count = 0 });
                 _filterContextOptions[col.Key] = enumOptions;
@@ -1114,7 +1103,7 @@ public partial class BatchPlans
         // 从 _allItems 中过滤
         var filtered = _allItems.ToList();
 
-        // 0. 非「全部」工段按钮：列表仅展示「批次计划」组流转=是（PlanIsFlow）的批次（顶部 Tab 汇总保持工段全量，见 UpdateTabSummary）
+        // 0. 非「全部」工段按钮：列表仅展示「生产计划」组流转=是（PlanIsFlow）的批次（顶部 Tab 汇总保持工段全量，见 UpdateTabSummary）
         if (_selectedSection != null)
             filtered = filtered.Where(x => x.PlanIsFlow).ToList();
 
@@ -1680,7 +1669,7 @@ public partial class BatchPlans
                 }
                 break;
 
-            // G13: 批次计划（只读展示：除"抢单""计划备注"外均由服务端三规则自动生成，手工编辑会被计划安排覆盖）
+            // G13: 生产计划（只读展示：除"抢单""计划备注"外均由服务端三规则自动生成，手工编辑会被计划安排覆盖）
             case "PlanIsFlow":
                 if (item.PlanIsFlow)
                 {
@@ -1963,7 +1952,7 @@ public partial class BatchPlans
 
             var request = new BatchPlanPrintRequest
             {
-                Title = "批次计划",
+                Title = "生产计划",
                 Items = printItems,
                 Columns = printColumns
             };

@@ -18,7 +18,6 @@ public partial class CertificateCreate
     [Inject] private StandardRegisterService StdRegSvc { get; set; } = null!;
     [Inject] private NavigationManager Navigation { get; set; } = null!;
     [Inject] private ISnackbar Snackbar { get; set; } = null!;
-    [Inject] private IJSRuntime JS { get; set; } = null!;
 
     // ========== Step 1：头选择表（无重复 4 字段） ==========
     private List<CertificateHeaderOptionDto> _headerOptions = new();

@@ -57,9 +57,6 @@ public class ProductionPendingNodeHelperTests
             ProcessGroups = groups.ToList(),
         };
 
-    private static decimal Total(Dictionary<string, ProductionPendingNodeHelper.NodePending> map, string key)
-        => map[key].TotalKg;
-
     // ===================== 节点表单源锁定 =====================
 
     [Fact]

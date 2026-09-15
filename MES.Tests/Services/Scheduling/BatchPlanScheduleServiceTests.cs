@@ -121,7 +121,6 @@ public class BatchPlanScheduleServiceTests : TestBase
 
     private async Task<BatchPlanSchedule> SinglePlanAsync(AppDbContext ctx)
     {
-        var plan = ctx.BatchPlanSchedules.Single();
         // EF InMemory 跟踪实体字段可能不即时，用 AsNoTracking 再读一遍保证断言准确
         return await ctx.BatchPlanSchedules.AsNoTracking().SingleAsync();
     }

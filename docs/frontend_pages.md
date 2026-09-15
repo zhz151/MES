@@ -1,8 +1,18 @@
 # MES 前端页面结构参考
 
-> 版本：V146（2026-09-15；生成 2026-08-19）
+> 版本：V147（2026-09-15；生成 2026-08-19）
 > 用途/状态：Quick Reference - 按导航菜单分组的前端页面结构参考，§1 上下文总览 / §2 各上下文页面块 / §3 列表页全量清单 / §7 生产编号链接台账。
-> 上次实质变更（V146）：**一级菜单「批次管理」更名「生产执行」**（2026-09-15，**纯 WASM；后端 / API / DTO / DB / 迁移 / 权限 / 路由零改动**）：
+> 上次实质变更（V147）：**两处菜单正名 —— ① 「计划排程 → 批次计划」更名「生产计划」；② 一级菜单「生产标准」更名「产品标准」**（2026-09-15，**纯命名；后端端点 / 路由 / 实体 / DTO / DB / 迁移 / 权限零改动**）：
+> ① **改名（用户拍板）**——`Shared/AppMenu.cs` 计划排程组第 4 项 `Label`「批次计划」→ **「生产计划」**（`Href` 仍 `/batch-plans`、`Policy` 仍继承组级 `SchedulingMenu`）。**理由**：与一级「生产执行」不再两处都叫「批次」，且与「成检计划」并列成「生产计划 → 成检计划」的工序先后关系。
+> ② **改名（用户拍板）**——`Shared/AppMenu.cs` 一级分组 `Label`「生产标准」→ **「产品标准」**（`Policy` 仍 `Roles.Policies.StandardView` 不变，组内 9 项叶子不动）。**理由**：该组维护的是**产品（牌号 / 化学成分 / 物理性能 / 标准号）本身的标准数据**，而非「生产过程的作业标准」（后者是「参数表」的工序组定义 / 工段工量天数 / 日产配置等），正名后二者边界清晰。
+> ③ **同步改（用户管理 UI）**——`Helpers/UserRoleDisplayHelper.cs` 的 `MenuTiers`：`new("Standard", "生产标准")` → **`new("Standard", "产品标准")`**（用户管理「角色分配」弹窗档位名）。`Prefix` 仍是 `Standard`，15 项与顺序不变。
+> ④ **⚠️ 有意不改（关键）**——**角色代码 `StandardViewer` / `StandardEditor` / `StandardFull` 保持原样**（`MES.Shared/Constants/Roles.cs`）：角色名存于 `AspNetRoles` 且逐次写进 JWT，改名须改库 + 全员重新登录，换来的可见差异为零。`Roles.cs` 两处注释已注明「菜单更名、角色代码不改」。**同理**：`BatchPlanSchedule` 实体 / `BatchPlanSchedules` 表 / `api/batch-plan*` 路由 / `/batch-plans` 页面路由 / `MES.Services.Scheduling.BatchPlanService` 一律不变。
+> ⑤ **页内文案（用户拍板「一并全改」）**——「批次计划」作为**页面文案**一并改为「生产计划」：G13 列组名 `GroupName`「批次计划」→「**生产计划**」（`Pages/Scheduling/BatchPlans.razor.cs`）、打印标题默认值 `BatchPlanPrintRequest.Title`、PDF 文件名（`BatchPlanController.PrintFile` → `生产计划.pdf`）、页内脚注与 `FormatOutsourceCell` 注释文案；DataExchange 实体显示名「批次-批次计划」→「**批次-生产计划**」（`DataExchangeRegistry.cs`，⚠️ **实体 Key 与表头列名不变**，导入识别不受影响）。**页面标题**（`BatchPlans.razor` 页头）与**首页常用入口**（`AppShortcuts`）同步改「生产计划」。
+> ⑥ **⚠️ 领域概念不改名（勿扩大化）**——代码与文档中「**批次计划薄表（BatchPlanSchedule）**」「**批次计划等级**（`PlanFlowLevel` / `ScheduleTier` 档位）」「批次计划流转」等**领域概念**保留原名：它们描述的是**批次粒度的计划安排数据本身**，与「菜单 / 页面叫什么」是两回事；全局替换会污染实体名、路由、DTO 与历史文档。
+> ⑦ **⚠️ 文档取舍（防误读）**——与本文件 V146 同规：**以「历史变更（Vxx）:」/「版本变更（Vxx …）:」开头的历史条目保留当时的旧名原文**（历史不可改写），**当前状态类描述**（菜单树、上下文↔角色表、§2 / §3 页面台账括注）**已全部更新**。三份上下文文档同步更名：`模块设计/产品标准上下文详细设计.md`（V1.10）/ `接口设计/产品标准上下文接口设计.md`（V2.1）/ `数据库设计/产品标准上下文数据库设计.md`（V1.9），引用它们的链接同步更新（`01_设计总纲领.md`、`订单上下文数据库设计.md`、`质量管理上下文数据库设计.md`、`订单模块详细设计.md`）。
+> ⑧ **测试**——`MES.Tests/Components/AppMenuTests.cs`：`牌号对照_仅存在于生产标准组` → **`牌号对照_仅存在于产品标准组`**（`Node("生产标准")` → `Node("产品标准")`）；`根级顺序_与电脑版历史一致` 第 11 位改 `"产品标准"`；**新增 `计划排程_五项并列二级_生产计划取代批次计划`**（逐项校验 Label + Href 顺序 + `AppMenu.Find("批次计划")` 为 null）。`AppShortcutsTests` 断言常用入口 Label 必须与菜单叶子完全一致 → `AppShortcuts` 已同步改。
+> ⑨ **零影响面**——**无需抬 `?v=` 串**（纯菜单标签 / 页面标题 / 打印标题文案，**无 CSS 变更**，`app.css?v=13` 与 `MES.Blazor.styles.css?v=6` 均保持）；**零 EF 迁移 / 零数据变更 / 零权限变更 / 零新端点**。
+> 历史变更（V146）：**一级菜单「批次管理」更名「生产执行」**（2026-09-15，**纯 WASM；后端 / API / DTO / DB / 迁移 / 权限 / 路由零改动**）：
 > ① **改名（用户拍板，二选一后选定「生产执行」）**——`Shared/AppMenu.cs` 一级分组 `Label`「批次管理」→ **「生产执行」**（`Href` 无、`Policy` 仍 `Roles.Policies.BatchMenu` 不变）。**理由**：该组 7 项叶子（生产批次 / 生产执行核查 / 生产记录 / 去油酸洗 / 工段委外 / 委外单位管理 / 工艺卡打印）**全属生产执行动作**，「批次」只是承载对象；且与「计划排程」构成 **计划 → 执行** 的先后关系；另避免与「计划排程 → 批次计划」两处都叫「批次」。**未选「生产管理」**：一级已有 工单管理 / 计划排程 / 生产标准，该名是其公共上位词，易被误读为「生产总入口」。
 > ② **同步改（用户管理 UI）**——`Helpers/UserRoleDisplayHelper.cs` 的 `MenuTiers`：`new("Batch", "批次管理")` → **`new("Batch", "生产执行")`**（用户管理「角色分配」弹窗里的档位名）。`Prefix` 仍是 `Batch`。
 > ③ **⚠️ 有意不改（关键）**——**角色代码 `BatchViewer` / `BatchEditor` / `BatchFull` 保持原样**（`MES.Shared/Constants/Roles.cs`）：46 个角色存于 `AspNetRoles` 且逐次写进 JWT，改名须改库 + 全员重新登录，换来的可见差异为零（用户只看到 ② 那个中文档位名）。`Roles.cs` 两处注释已注明「菜单更名、角色代码不改」。
@@ -369,7 +379,7 @@
 | 物料 | 物料管理 | MaterialViewer/Editor/Full + Admin | 9 | 4 |
 | 仓库 | 仓库管理 | WarehouseViewer/Editor/Full + Admin | 7 | 4 |
 | 设备 | 设备管理 | EquipmentViewer/Editor/Full + Admin | 8 | 4 |
-| 生产标准 | 生产标准 | StandardViewer/Editor/Full + Admin | 18 | 9 |
+| 产品标准 | 产品标准 | StandardViewer/Editor/Full + Admin | 18 | 9 |
 | 报表系统 | 报表总览 | ReportViewer/Editor/Full + Admin | 1 | 0 |
 | 数据工具 | (独立按钮) | DataToolViewer/Editor/Full + Admin | 2 | 0 |
 | 报工扫码 | (独立按钮) | 所有（仅登录） | 1 | 0 |
@@ -457,7 +467,7 @@
 
 ```
 路由前缀: /plan-overview, /raw-material-lock-plan, /scheduling-plans, /cold-roll-plans, /batch-plans, /final-inspection-plan
-菜单: 计划排程 → [负载总览, 原锁计划, 工单排程, 冷轧排程, 批次计划, 成检计划]
+菜单: 计划排程 → [负载总览, 原锁计划, 工单排程, 冷轧排程, 生产计划, 成检计划]
 
 ┌─ 计划排程 ─────────────────────────────────────────────┐
 │                                                           │
@@ -472,10 +482,10 @@
 │          WorkOrderSchedules, ColdRollPlans, BatchPlans,   │
 │          FinalInspectionPlan                              │
 │  只读聚合: PlanOverview（MudTable 客户端模式，无分页/排序/筛选）│
-│  ※ 批次计划/成检计划「生产编号」可点开弹窗：              │
+│  ※ 生产计划/成检计划「生产编号」可点开弹窗：              │
 │     Shared/BatchProgressDialog（批次执行进度卡片，        │
 │     不跳转详情页；需 BatchView 角色，无权限显纯文本）     │
-│  ※ 已删除独立页面（数据改经批次计划页内嵌折叠与报表总览消费， │
+│  ※ 已删除独立页面（数据改经生产计划页内嵌折叠与报表总览消费， │
 │     后端接口保留）：                                       │
 │     SectionProductionStatus, SectionParagraphFlowAnalysis │
 └───────────────────────────────────────────────────────────┘
@@ -755,13 +765,13 @@
 └───────────────────────────────────────────────────────────┘
 ```
 
-### 2.9 生产标准上下文
+### 2.9 产品标准上下文
 
 ```
 路由前缀: /standard-registers, /grade-mappings, /grade-chemical-compositions, /grade-physical-properties, /sub-standard-quick-views, /standard-inspection-requirements, /factory-inspection-requirements, /chemical-composition, /chemical-validate
-菜单: 生产标准 → [标准号列表, 标准号检验项要求, 工厂检验项要求, 牌号对照, 标准牌号化学成分, 工厂牌号化学成分, 工厂牌号化分验证, 牌号物理性能, 子标准速览]
+菜单: 产品标准 → [标准号列表, 标准号检验项要求, 工厂检验项要求, 牌号对照, 标准牌号化学成分, 工厂牌号化学成分, 工厂牌号化分验证, 牌号物理性能, 子标准速览]
 
-┌─ 生产标准 ───────────────────────────────────────────────┐
+┌─ 产品标准 ───────────────────────────────────────────────┐
 │                                                           │
 │  StandardRegisters.razor          /standard-registers          [列表页]     │
 │  StandardRegisterDetail.razor     /standard-registers/create   [创建页]    │
@@ -803,7 +813,7 @@
 │  ※ GradeChemicalCompositions/GradePhysicalProperties 为     │
 │     2026-06-21 新增，按 StandardGrade+Category 纯逻辑关联   │
 │  ※ ChemicalCompositions/ChemicalValidationRules 原属质量上下文，│
-│     已迁移至生产标准上下文，路由同步更新为生产标准前缀        │
+│     已迁移至产品标准上下文，路由同步更新为产品标准前缀        │
 │  ※ StandardInspectionRequirements/SubStandardQuickViews      │
 │     2026-07-15 全列筛选支持（23 列 ExcelFilter）             │
 │  ※ GradeChemicalCompositions/GradePhysicalProperties         │
@@ -902,7 +912,7 @@
 │ ▸ 订单管理 → 订单列表 / 客户管理 / 订单在库成品
 │ ▸ 工单管理 → 工单生成 / 需求调整 / 工单用料 / 用投料核查 / 查询工单执行 / 查询定尺工单
 │            （V144 六项并列二级，原「工单操作 / 工单查询」分组取消）
-│ ▸ 计划排程 → 订单负荷总量 / 工单排程 / 冷轧排程 / 批次计划 / 成检计划
+│ ▸ 计划排程 → 订单负荷总量 / 工单排程 / 冷轧排程 / 生产计划 / 成检计划
 │ ▸ 生产执行 → 生产批次 / 生产执行核查 / 生产记录 / 去油酸洗 / 工段委外 / 委外单位管理 / 工艺卡打印
 │            （V146 原「批次管理」更名；组内 7 项全属生产执行动作，与「计划排程」构成 计划→执行）
 │ ▾ 质量管理（3 级嵌套）
@@ -914,7 +924,7 @@
 │ ▸ 物料管理 → 采购订单 / 圆棒穿孔（圆棒穿孔 / 子项查询）/ 供应商管理
 │ ▸ 仓库管理 → 原料库 / 成品库 / 在制品库 / 次品库 / 物料进出存报表
 │ ▸ 设备管理 → 设备台账 / 维修工单 / 保养工单 / 点检记录
-│ ▸ 生产标准 → 标准号列表 / 标准号检验项要求 / 子标准速览 / 牌号对照 /
+│ ▸ 产品标准 → 标准号列表 / 标准号检验项要求 / 子标准速览 / 牌号对照 /
 │              标准牌号化学成分 / 牌号物理性能 / 工厂检验项要求 /
 │              工厂牌号化学成分 / 工厂牌号化分验证
 │ ▸ 扫码管理 → 报工扫码 / 巡检扫码 / 不合格反馈扫码 / 设备扫码 / 工位管理(ScanView) / 员工管理(ScanView)
@@ -942,7 +952,7 @@
 |---|---------|------|-------|---------|------|
 | 1 | Orders.razor | /orders | 订单 | ✅ | B23 列分组3组(基本信息/订单确认/订单执行)；「基本信息」=原基本信息+合同交付合并，默认仅显示订单号/签订日期/业务员/客户名称/交期截止/订单总重量/含项次数，余(最终客户/交期起始/延期罚款等)默认隐藏 + ExcelFilter + B23分组标题栏 + 搜索栏3组(模糊搜索+签订日期+交货日期) + 工具栏「完成预估及延期风险」折叠卡片（仅两张交期预估小表：订单(整单)完成预估 / 风险-已延期订单(整单)，单元格 `z单/x吨/y万` 三色（蓝单/绿吨/万橙，2026-09-09 加金额、不再显示延期罚款 `[*a/b]`），逐格联动筛选订单列表、各表可打印；原「接单-出库及现负荷」5指标×12月小表已删除）+ 工具栏「投料产出总况」折叠卡片（行=订单完成月，10 列 `完成月/订单数/生产投料/订单成品入库/余库料入库/次品入库/备料成品/投料产出率/产出成品比/退货`，默认近 12 个月（V126 起可改用「完成日期起/止 + 应用 + 清除」按完成日期区间取数，**V130 修正：服务端按订单真实完成日落入闭区间过滤、不受 12 个月限制**），重量四舍五入取整、比率分母 ≤0 显示 —，口径下拉可切全部/纯生产/单一生产类型 4 档，「订单数」= 该口径下真实相关订单数（该月在本生产类型范围内有生产批次的订单数，非该月完成订单总数；该口径下无相关订单的月整行隐藏），2026-09-14 新增），页面标题=订单列表） |
 | 2 | Customers.razor | /customers | 订单 | ✅(①组档案列内联) | B23 列分组 2 组 + 底部合计 + 完整打印：① 基本信息（默认仅显 业务员/最终用户/状态，客户编码/客户单位/联系人/电话/地址/备注默认隐藏，内联编辑）；② 往来信息（8 业务统计只读列，服务层按「业务员+最终用户」聚合实时注入，仅 GetPagedAsync 回填；8 列均按「X单/吨/万」三位一体显示（单数=落入该状态桶的订单张数，可跨阶段并列），吨/万保留 1 位小数；金额按结算分治：过磅=实际公斤不封顶、理算/过磅-负=封顶合同额发货→库存→在产阶梯认领；待在产两桶仅统计主号未完成(阶段≠1)订单（已完成单欠产/未入库不计在产）；统计列不可排序/筛选（SortKey=null 标记）；底部合计仿订单=②组数值列页内合计；打印选中=Mode A 列表 PDF 按可见列含统计列完整打印 → print-list-file；ColumnPrefsVersion=v2） |
-| 3 | GradeMappings.razor | /grade-mappings | 生产标准 | | |
+| 3 | GradeMappings.razor | /grade-mappings | 产品标准 | | |
 | 4 | WorkOrders.razor | /workorders | 工单 | ✅ | 2026-09-08 默认隐藏 次号/最终客户/钢管制造（列偏好键升 col_prefs_workorders_v1） |
 | 5 | MaterialPlanOverview.razor | /material-plan-overview | 工单 | | |
 | 6 | **Batches.razor** | /batches | 批次 | | ✅ 已过规范检查 |
@@ -952,8 +962,8 @@
 | 10 | PicklingInRecords.razor | /pickling-in-records | 批次 | | 去油/酸洗入缸记录（入缸报工）；2026-09-09 默认列显隐收敛 + 移除 table-min-width，2026-09-09 二调（列偏好键 v1→v2）：G1 默认仅显 登记日期/生产编号/挂牌号/订单号/主号/工序名称/工段名称/工厂牌号/制造规格/生产支数/生产重量/产类（工单号/执行序号/设备名称/班次/操作人/备注/数据来源/更新时间 隐）；G2 状态/完工日期 默认显示、完工班次/完工操作人 默认隐藏（由整组隐改回，col_prefs_pickling-in-records_v2） |
 | 11 | PicklingOutRecords.razor | /pickling-out-records | 批次 | | 去油/酸洗完工记录；2026-09-09 默认隐 备注/数据来源/更新时间 + 移除 table-min-width，2026-09-09 二调（列偏好键 v1→v2）：入缸信息 增隐 设备名称（col_prefs_pickling-out-records_v2） |
 | 12 | FurnaceRegistrations.razor | /quality/furnace | 质量 | | 2026-09-09 更新日期 默认隐藏（首并列偏好键 col_prefs_furnace-registration_v1） |
-| 13 | ChemicalCompositions.razor | /chemical-composition | 生产标准 | | 原属质量上下文，已迁移 |
-| 14 | ChemicalValidationRules.razor | /chemical-validate | 生产标准 | | 原属质量上下文，已迁移 |
+| 13 | ChemicalCompositions.razor | /chemical-composition | 产品标准 | | 原属质量上下文，已迁移 |
+| 14 | ChemicalValidationRules.razor | /chemical-validate | 产品标准 | | 原属质量上下文，已迁移 |
 | 15 | ProcessInspections.razor | /quality/process-inspection | 质量 | | 2026-09-09 默认列显隐收敛（默认显24列）：G1 隐 执行序号、G4 隐 理论返整重/理论入库重/理论报废重/次品情况描述、G5辅助信息整组隐 + 移除 table-min-width（列偏好键 col_prefs_process-inspection_v1）；2026-09-09 二调（列偏好键 v1→v2）：隐 工单号/设备名称/班次（col_prefs_process-inspection_v2）；**2026-09-11 V94 不合格处理四档化**（列偏好键 v2→**v3** `col_prefs_process-inspection_v3`）：G4 改 9 列（返整支/入在制库支/入次品库支/退货支/理论返整重/理论入在制重/理论入次库重/理论退货重/次品情况描述），新建页面同步；**2026-09-11 V96 组名更名**：G4「不合格处理」→「不合格品去向」（仍 4 档 9 列，列偏好键保持 v3）；**2026-09-12 V104 检验照片 + 单据式打印**（列偏好键 v3→**v4** `col_prefs_process-inspection_v4`）：新增「照片(N)」列（点击开 `InspectionPhotoDialog`，每条上限 3 张），工具栏新增「打印选中单据」（A4 竖版每条一页 + 照片，单次 ≤20 条）
 | 16 | MaterialReceiveChecks.razor | /quality/material-receive-checks | 质量 | | 2026-09-09 默认列显隐收敛（首并列偏好键 col_prefs_material-receive-checks_v1）：隐 执行序/班次/数据来源/更新时间 |
 | 17 | FinalInspections.razor | /quality/final-inspection | 质量 | | 2026-09-09 默认列显隐收敛（63列默认显33列）：G1 隐 资格等级、G2 隐 生产类型/制造物品/制造状态/交货状态/最终用户/来料单位/长度状态、G3 隐 非定尺长度范围、G4不合格处理全显；G5尺寸值/G6压力值/G7涡流超声波/G8辅助信息整组隐 + 移除 table-min-width（列偏好键 col_prefs_final-inspection_v1）；2026-09-09 二调（列偏好键 v1→v2）：隐 设备名称/班次/工单号（更新时间已于 G8 默认隐）（col_prefs_final-inspection_v2）；**2026-09-11 V94 不合格处理四档化**（列偏好键 v2→**v3** `col_prefs_final-inspection_v3`）：G4 改 9 列（返整支/可入备库支/入次品库支/退货支/理论返整重/理论可入备库重/理论入次库重/理论退货重/次品情况描述），新建页面同步；**2026-09-11 V96 不合格品去向五档化**（列偏好键 v3→**v4** `col_prefs_final-inspection_v4`，须重排新列位置）：G4 改 11 列（返整支/入在制库支/入次品库支/退货支/可入备库支/理论返整重/理论入在制重/理论入次库重/理论退货重/理论可入备库重/次品情况描述），组名「不合格处理」→「不合格品去向」，新建页 G4 同步 11 列；**2026-09-12 V104 检验照片 + 单据式打印**（列偏好键 v4→**v5** `col_prefs_final-inspection_v5`）：新增「照片(N)」列（点击开 `InspectionPhotoDialog`，每条上限 3 张），工具栏新增「打印选中单据」（A4 竖版每条一页 + 照片 + 按检验项目条件渲染专用参数，单次 ≤20 条） |
@@ -982,14 +992,14 @@
 | 42 | Workstations.razor | /workstations | 配置 | ✅ | 查改一体表 |
 | 43 | Employees.razor | /employees | 配置 | ✅ | 查改一体表（列偏好 v5，2026-09-03 靠工计件六期：「靠工系数」前新增**靠工岗位**多选列 AttendancePositions，候选=计件活岗 GET api/employee/piece-positions，保存岗位英文 Key 逗号串，显示逐项中文） |
 | 44 | ColdRollPlans.razor | /cold-roll-plans | 计划排程 | | 冷轧按规格维度聚合时间桶分布计划 + 简化/明细视图切换 + 打印功能 + 排程编辑模式（在轧要求/待轧要求/待轧序/待轧设备号/单机单日量）+ **右上角排机估算折叠表（4行×5列，懒加载，可打印）** + **排程建议折叠卡片（半自动：三步决策 特急锁定→流转保底→产能平衡，组级+行级明细表，「一键采用建议」走 save-all 全量同步）** + 搜索栏+ExcelFilter列筛选 |
-| 45 | BatchPlans.razor | /batch-plans | 计划排程 | | 全量加载 Items 模式 + **工段筛选 Tab 配置驱动**（`GET api/batch-plan/section-tab-options`：冷轧/冷拔=工序组定义启用冷轧拔工序逐工序、普通工段=工段工量天数启用工段扣除冷轧拔/检验/入库且内抛/内修磨独立、末尾固定荒管检/在制检，2026-08-30 起新增工序自动出现）+ 列分组标题栏 + 列显隐（永久隐藏 22 列：冷轧排程 5 组 + 工单需求调整 + 批次基础信息多余字段）+ 客户端排序/筛选 + 6 项 Tab 汇总（批次数/总重量/计划流转批次/重量/计划重点批次/重量，重点按 PlanFlowLevel==1 急+）+ 汇总重量单位吨(t) + G13 批次计划组只读（仅抢单/计划备注内联编辑） + 2026-09-08 批次基础信息组默认显隐（v2→v3）：制造状态换源默认显示、交货状态/长度状态默认隐藏、重量(kg)→重量 + **「生产编号」可点开「批次执行进度」弹窗**（`BatchProgressDialog`，不跳转批次详情页；需 `BatchView` 角色，无权限者保持纯文本） |
+| 45 | BatchPlans.razor | /batch-plans | 计划排程 | | 全量加载 Items 模式 + **工段筛选 Tab 配置驱动**（`GET api/batch-plan/section-tab-options`：冷轧/冷拔=工序组定义启用冷轧拔工序逐工序、普通工段=工段工量天数启用工段扣除冷轧拔/检验/入库且内抛/内修磨独立、末尾固定荒管检/在制检，2026-08-30 起新增工序自动出现）+ 列分组标题栏 + 列显隐（永久隐藏 22 列：冷轧排程 5 组 + 工单需求调整 + 批次基础信息多余字段）+ 客户端排序/筛选 + 6 项 Tab 汇总（批次数/总重量/计划流转批次/重量/计划重点批次/重量，重点按 PlanFlowLevel==1 急+）+ 汇总重量单位吨(t) + G13 生产计划组只读（仅抢单/计划备注内联编辑） + 2026-09-08 批次基础信息组默认显隐（v2→v3）：制造状态换源默认显示、交货状态/长度状态默认隐藏、重量(kg)→重量 + **「生产编号」可点开「批次执行进度」弹窗**（`BatchProgressDialog`，不跳转批次详情页；需 `BatchView` 角色，无权限者保持纯文本） |
 | 46 | FinalInspectionPlan.razor | /final-inspection-plan | 计划排程 | | 全量加载 Items 模式 + 五档Tab(全部/待到料/待检验/检验中/完成检验待入库) + 待检批支重汇总卡片（行=检验项，列=检验项/待到料/待检验+检验中/汇总数据，0值显"-"，可打印）+ 客户排序/筛选 + 列分组 G1-G6（G1批次/G2排程/G3成检状态/G4技术要求检验项/G5各项检验日期/G6数量）+ 紧急程度 MudChip 颜色渲染；默认列显隐收敛（V56）：G1 批次仅显 生产编号/生产类型/制造状态/工厂牌号/规格/长度状态/支数/重量/订单号/主号/业务员，G3 成检状态仅显 成检阶段/到料日期，G5 各项检验日期+G6 数量整组默认隐藏，余默认隐藏（可经列选择器打开）+ **「生产编号」可点开「批次执行进度」弹窗**（`BatchProgressDialog`，不跳转批次详情页；需 `BatchView` 角色，无权限者保持纯文本） |
-| 47 | StandardRegisters.razor | /standard-registers | 生产标准 | | ExcelFilter 列筛选 + RenderCell 模板 + FooterContent 分页汇总 + 导航至详情页；Save/SaveItem 返回 Id 防 SeqNo 重复 |
-| 48 | GradeChemicalCompositions.razor | /grade-chemical-compositions | 生产标准 | ✅ | 15元素内联编辑 + 全列ExcelFilter(17列) + 列显隐 |
-| 49 | GradePhysicalProperties.razor | /grade-physical-properties | 生产标准 | ✅ | 12物理性能字段内联编辑 + 全列ExcelFilter(12列) + 列显隐 |
-| 50 | SubStandardQuickViews.razor | /sub-standard-quick-views | 生产标准 | | 全列ExcelFilter(23列)，按标准号快速查看24项检验项目引用标准 |
-| 51 | StandardInspectionRequirements.razor | /standard-inspection-requirements | 生产标准 | ✅ | 全列ExcelFilter(23列)，标准号检验项要求+内联编辑 |
-| 52 | FactoryInspectionRequirements.razor | /factory-inspection-requirements | 生产标准 | ✅ | 工厂检验项要求，全列ExcelFilter(30列)，29检验字段内联编辑 + 打印（选中+全部） |
+| 47 | StandardRegisters.razor | /standard-registers | 产品标准 | | ExcelFilter 列筛选 + RenderCell 模板 + FooterContent 分页汇总 + 导航至详情页；Save/SaveItem 返回 Id 防 SeqNo 重复 |
+| 48 | GradeChemicalCompositions.razor | /grade-chemical-compositions | 产品标准 | ✅ | 15元素内联编辑 + 全列ExcelFilter(17列) + 列显隐 |
+| 49 | GradePhysicalProperties.razor | /grade-physical-properties | 产品标准 | ✅ | 12物理性能字段内联编辑 + 全列ExcelFilter(12列) + 列显隐 |
+| 50 | SubStandardQuickViews.razor | /sub-standard-quick-views | 产品标准 | | 全列ExcelFilter(23列)，按标准号快速查看24项检验项目引用标准 |
+| 51 | StandardInspectionRequirements.razor | /standard-inspection-requirements | 产品标准 | ✅ | 全列ExcelFilter(23列)，标准号检验项要求+内联编辑 |
+| 52 | FactoryInspectionRequirements.razor | /factory-inspection-requirements | 产品标准 | ✅ | 工厂检验项要求，全列ExcelFilter(30列)，29检验字段内联编辑 + 打印（选中+全部） |
 | 53 | ChemicalAnalyses.razor | /quality/chemical-analysis | 质量 | | 理化检测-化学分析；2026-09-09 更新日期 默认隐藏（首并列偏好键 col_prefs_chemical-analysis_v1） |
 | 54 | HardnessTests.razor | /quality/hardness-test | 质量 | | 理化检测-硬度检验；2026-09-09 更新日期 默认隐藏（首并列偏好键 col_prefs_hardness-test_v1） |
 | 55 | GrainSizeTests.razor | /quality/grain-size-test | 质量 | | 理化检测-晶粒度检验；2026-09-09 更新日期 默认隐藏（首并列偏好键 col_prefs_grain-size-test_v1） |
@@ -1106,7 +1116,7 @@
 
 | 页面 | 路由 | 权限策略 | 备注 |
 |------|------|---------|------|
-| 批次计划 | `/batch-plans` | SchedulingView | 走 `Shared/BatchProgressDialog.razor`；SchedulingView ⊄ BatchView → 按角色降级 |
+| 生产计划 | `/batch-plans` | SchedulingView | 走 `Shared/BatchProgressDialog.razor`；SchedulingView ⊄ BatchView → 按角色降级 |
 | 成检计划 | `/final-inspection-plan` | SchedulingView | 同上 |
 | NCR 建单/编辑页 | `/quality/ncr/create`、`/quality/ncr/{id}` | QualityView | **2026-09-13 新增**；「生产编号」为输入控件，**在字段右侧另加 `Timeline` 图标按钮**作为入口（非点击字段本身）；QualityView ⊄ BatchView → **按角色降级**；批次主键来自 `NcrLookupResultDto.ProductionBatchId`（后端 V8.33 回带） |
 | 订单进度树（`Shared/OrderProgressTree.razor`） | `/orders/progress` + 首页「订单进度查询」卡 | **仅登录（无页级策略）** | **2026-09-15 V143 新增**；叶子「生产批次名单」展开后批号可点（在产 / 在途分段，检验叶单段）；**无需权限降级**——`api/batch/{id}/tracking` 已于 2026-09-14 放宽为 `[Authorize]` 仅需登录（首页放开），点批号不会 403 |

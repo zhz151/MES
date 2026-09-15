@@ -100,7 +100,7 @@ public class BatchPlanController : ControllerBase
     public async Task<IActionResult> PrintFile([FromBody] BatchPlanPrintRequest request)
     {
         var pdfBytes = await _service.PrintFileAsync(request.Title, request.Items, request.Columns);
-        return File(pdfBytes, "application/pdf", "批次计划.pdf");
+        return File(pdfBytes, "application/pdf", "生产计划.pdf");
     }
 
 }

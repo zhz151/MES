@@ -52,7 +52,7 @@ builder.Services.AddScoped<OrderDemandAdjustmentService>();
 builder.Services.AddScoped<PendingDeliveryService>();
 builder.Services.AddScoped<OrderProgressService>();
 
-// ========== 生产标准上下文 ==========
+// ========== 产品标准上下文 ==========
 builder.Services.AddScoped<GradeMappingService>();
 builder.Services.AddScoped<GradeChemicalCompositionService>();
 builder.Services.AddScoped<GradePhysicalPropertyService>();

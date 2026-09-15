@@ -1186,7 +1186,7 @@ public class OrderService : IOrderService
                     var normalizedWtPos = NormalizeDecimalValue(updateReq.WallThicknessPositive);
                     var normalizedCw = NormalizeDecimalValue(updateReq.ContractWeight);
 
-                    var meters = CalculateMeters(updateReq.LengthStatus, updateReq.MinLength, updateReq.MaxLength, updateReq.Quantity, updateReq.Meters);
+                    var meters = CalculateMeters(updateReq.LengthStatus, updateReq.MaxLength, updateReq.Quantity, updateReq.Meters);
                     var metersValue = meters ?? 0m;
                     var theoreticalWeight = CalculateTheoreticalWeight(
                         gradeMapping.Density, normalizedOd, normalizedWt,
@@ -1237,7 +1237,7 @@ public class OrderService : IOrderService
                     var normalizedWtPos = NormalizeDecimalValue(newReq.WallThicknessPositive);
                     var normalizedCw = NormalizeDecimalValue(newReq.ContractWeight);
 
-                    var meters = CalculateMeters(newReq.LengthStatus, newReq.MinLength, newReq.MaxLength, newReq.Quantity, newReq.Meters);
+                    var meters = CalculateMeters(newReq.LengthStatus, newReq.MaxLength, newReq.Quantity, newReq.Meters);
                     var metersValue = meters ?? 0m;
                     var theoreticalWeight = CalculateTheoreticalWeight(
                         gradeMapping.Density, normalizedOd, normalizedWt,
@@ -1620,7 +1620,7 @@ public class OrderService : IOrderService
         var normalizedWallThicknessPositive = NormalizeDecimalValue(request.WallThicknessPositive);
         var normalizedContractWeight = NormalizeDecimalValue(request.ContractWeight);
 
-        var meters = CalculateMeters(request.LengthStatus, request.MinLength, request.MaxLength, request.Quantity, request.Meters);
+        var meters = CalculateMeters(request.LengthStatus, request.MaxLength, request.Quantity, request.Meters);
         var metersValue = meters ?? 0m;
         var theoreticalWeight = CalculateTheoreticalWeight(
             gradeMapping.Density,
@@ -1714,7 +1714,7 @@ public class OrderService : IOrderService
         }
     }
 
-    private static decimal? CalculateMeters(LengthStatus lengthStatus, decimal? minLength, decimal? maxLength, int? quantity, decimal? meters)
+    private static decimal? CalculateMeters(LengthStatus lengthStatus, decimal? maxLength, int? quantity, decimal? meters)
     {
         switch (lengthStatus)
         {

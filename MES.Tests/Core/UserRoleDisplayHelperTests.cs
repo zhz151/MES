@@ -50,6 +50,18 @@ public class UserRoleDisplayHelperTests
     }
 
     [Fact]
+    public void MenuTiers_显示名与一级菜单同步_无旧名残留()
+    {
+        // 防漂移护栏：MenuTiers.DisplayName 是「用户管理 → 角色分配弹窗」与角色列的唯一出口，
+        // 一级菜单改名若漏改此处 → 菜单叫新名、用户管理仍显示旧名（Salary 曾因漏加档位致弹窗授不了权）。
+        UserRoleDisplayHelper.MenuTiers.Single(m => m.Prefix == "Standard").DisplayName.Should().Be("产品标准"); // 2026-09-15 原「生产标准」
+        UserRoleDisplayHelper.MenuTiers.Single(m => m.Prefix == "Batch").DisplayName.Should().Be("生产执行");    // 2026-09-15 原「批次管理」
+
+        UserRoleDisplayHelper.MenuTiers.Should().NotContain(m => m.DisplayName == "生产标准");
+        UserRoleDisplayHelper.MenuTiers.Should().NotContain(m => m.DisplayName == "批次管理");
+    }
+
+    [Fact]
     public void MenuTiers_顺序与Roles一致_工资结算在Scan与Configuration之间()
     {
         var prefixes = UserRoleDisplayHelper.MenuTiers.Select(m => m.Prefix).ToList();
@@ -119,6 +131,7 @@ public class UserRoleDisplayHelperTests
         UserRoleDisplayHelper.GetRoleDisplayName("WarehouseFull").Should().Be("仓库管理-查增改删");
         UserRoleDisplayHelper.GetRoleDisplayName("OrderViewer").Should().Be("订单管理-查");
         UserRoleDisplayHelper.GetRoleDisplayName("SalaryViewer").Should().Be("工资结算-查");
+        UserRoleDisplayHelper.GetRoleDisplayName("StandardViewer").Should().Be("产品标准-查"); // 2026-09-15 原「生产标准-查」
         UserRoleDisplayHelper.GetRoleDisplayName("Admin").Should().Be("超级管理员");
         UserRoleDisplayHelper.GetRoleDisplayName("UnknownRole").Should().Be("UnknownRole");
     }

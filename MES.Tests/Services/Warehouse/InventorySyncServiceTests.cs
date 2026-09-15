@@ -218,7 +218,7 @@ public class InventorySyncServiceTests : TestBase
     {
         // 场景：采购单 SourceWorkOrderNo 已清空（工单被删后手工清空/待重选），批次残留旧工单号 → 判「已取消」
         var ctx = CreateDbContext();
-        var order = await SeedPurchaseOrderAsync(ctx, "CG_CANCEL001", PurchaseOrderStatus.Open, quantity: 100);
+        await SeedPurchaseOrderAsync(ctx, "CG_CANCEL001", PurchaseOrderStatus.Open, quantity: 100);
         // 不设置 SourceWorkOrderNo → purchaseMap 中为 null（空）
 
         await SeedInboundBatchAsync(ctx, "CK260209077", "CG_CANCEL001", null,

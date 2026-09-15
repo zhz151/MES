@@ -387,7 +387,7 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
                         return Math.Round(total, 3);
                     });
 
-            await ComputeMainNoLevelFieldsAsync(summaryRows, allFinishPlans, completedOutputByMainNo, scheduleStageByMainNo);
+            await ComputeMainNoLevelFieldsAsync(summaryRows, completedOutputByMainNo, scheduleStageByMainNo);
 
             // 7. 全量刷新：删除该订单的所有已有行，重新插入（避免 SetValues 修改主键的 EF Core 异常）
             var existingRows = await _context.Set<WorkOrderListSummary>()
@@ -718,7 +718,6 @@ public class WorkOrderListSummaryRefreshService : IWorkOrderListSummaryRefreshSe
     /// </summary>
     private async Task ComputeMainNoLevelFieldsAsync(
         List<WorkOrderListSummary> rows,
-        List<PurchaseFinishedPlan> allFinishPlans,
         Dictionary<(string SalesOrderNo, string ProductionMainNo), decimal> completedOutputByMainNo,
         Dictionary<(string SalesOrderNo, string ProductionMainNo), int> scheduleStageByMainNo)
     {

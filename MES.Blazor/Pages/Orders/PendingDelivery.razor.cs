@@ -20,8 +20,6 @@ namespace MES.Blazor.Pages.Orders;
 
 public partial class PendingDelivery
 {
-    [Inject] private AuthenticationStateProvider AuthProvider { get; set; } = default!;
-
     private MudTable<PendingDeliveryItemDto>? table;
     private List<PendingDeliveryItemDto> _pageItems = new();
     private int _totalCount;

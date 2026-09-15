@@ -597,9 +597,6 @@ public partial class MaterialInputConsistency
         }
     }
 
-    /// <summary>「错误-用料计划及其执行」卡片重量列显示（kg，G29 去零；0 不显示防视觉污染）</summary>
-    private static string FormatStageDoubtWeight(decimal v) => v == 0 ? string.Empty : ((int)v).ToString("G29");
-
     /// <summary>卡片数据值显示：例「25单/8500Kg」；无数据 → "-"</summary>
     private static string FormatStageDoubtCell(int count, decimal weight) =>
         count > 0 ? $"{count}单/{((int)weight).ToString("G29")}Kg" : "-";

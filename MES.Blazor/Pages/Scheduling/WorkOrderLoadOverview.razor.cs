@@ -15,7 +15,6 @@ public partial class WorkOrderLoadOverview : ComponentBase
     private ProductionOverviewDto? _data;
     private bool _loading;
     private string? _errorMessage;
-    private DateTime _lastRefresh;
 
     /// <summary>
     /// 「交期截止负荷量」日期桶列组是否展开（2026-09-15 用户决策：**默认折叠**，交由页头按钮开关）。
@@ -42,7 +41,6 @@ public partial class WorkOrderLoadOverview : ComponentBase
             if (response.Success && response.Data != null)
             {
                 _data = response.Data;
-                _lastRefresh = response.Data.GeneratedTime;
             }
             else
             {

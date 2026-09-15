@@ -48,7 +48,7 @@ public static class Roles
         public const string EquipmentViewer = "EquipmentViewer";
         public const string EquipmentEditor = "EquipmentEditor";
         public const string EquipmentFull = "EquipmentFull";
-        // 生产标准
+        // 产品标准（2026-09-15 菜单更名，角色代码沿用 Standard 前缀不改 → 无需改库/重登）
         public const string StandardViewer = "StandardViewer";
         public const string StandardEditor = "StandardEditor";
         public const string StandardFull = "StandardFull";
@@ -199,7 +199,7 @@ public static class Roles
             Menus.WarehouseViewer, Menus.WarehouseEditor, Menus.WarehouseFull,
             // 设备管理
             Menus.EquipmentViewer, Menus.EquipmentEditor, Menus.EquipmentFull,
-            // 生产标准
+            // 产品标准
             Menus.StandardViewer, Menus.StandardEditor, Menus.StandardFull,
             // 报表系统
             Menus.ReportViewer, Menus.ReportEditor, Menus.ReportFull,
