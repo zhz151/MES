@@ -139,7 +139,8 @@
                     <MudText Typo="Typo.body2" Color="Color.Secondary" Class="ml-2">(共 @_items.Count 项)</MudText>
                 </div>
 
-                <MudTable Items="@_items"
+                <MudTable Breakpoint="Breakpoint.None"
+                          Items="@_items"
                           Dense="true"
                           Hover="true"
                           Elevation="0"
@@ -258,7 +259,7 @@
                 <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-3">
                     <MudIcon Icon="@Icons.Material.Filled.Science" Size="Size.Small" Class="mr-1" />化学成分
                 </MudText>
-                <MudTable Items="@_items" Dense="true" Hover="true" Elevation="0" Class="auto-table" Striped="true">
+                <MudTable Breakpoint="Breakpoint.None" Items="@_items" Dense="true" Hover="true" Elevation="0" Class="auto-table" Striped="true">
                     <HeaderContent>
                         <MudTh Style="width:40px;">#</MudTh>
                         <MudTh>C</MudTh><MudTh>Si</MudTh><MudTh>Mn</MudTh><MudTh>P</MudTh><MudTh>S</MudTh>
@@ -291,7 +292,7 @@
                 <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-3">
                     <MudIcon Icon="@Icons.Material.Filled.FactCheck" Size="Size.Small" Class="mr-1" />成品检验
                 </MudText>
-                <MudTable Items="@_items" Dense="true" Hover="true" Elevation="0" Class="auto-table" Striped="true">
+                <MudTable Breakpoint="Breakpoint.None" Items="@_items" Dense="true" Hover="true" Elevation="0" Class="auto-table" Striped="true">
                     <HeaderContent>
                         <MudTh Style="width:40px;">#</MudTh>
                         <MudTh>PMI</MudTh><MudTh>表检</MudTh><MudTh>尺寸</MudTh><MudTh>内窥</MudTh>
@@ -316,7 +317,7 @@
                 <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-3">
                     <MudIcon Icon="@Icons.Material.Filled.Biotech" Size="Size.Small" Class="mr-1" />理化检测
                 </MudText>
-                <MudTable Items="@_items" Dense="true" Hover="true" Elevation="0" Class="auto-table" Striped="true">
+                <MudTable Breakpoint="Breakpoint.None" Items="@_items" Dense="true" Hover="true" Elevation="0" Class="auto-table" Striped="true">
                     <HeaderContent>
                         <MudTh Style="width:40px;">#</MudTh>
                         <MudTh>抗拉强度₁</MudTh><MudTh>抗拉强度₂</MudTh>

@@ -24,6 +24,8 @@ public static class DataExchangeValueHelper
             "Module" => value switch { "Order" => "订单", "Batch" => "批次", "WorkOrder" => "工单", _ => null },
             "InspectionItems" => ConvertInspectionItems(value, toKey: false),
             "SourceInspectionItem" => ConvertInspectionItems(value, toKey: false),
+            "CompletionType" => ConvertColdRollScheduleType(value, toKey: false),
+            "RollType" => ConvertColdRollScheduleType(value, toKey: false),
             _ => null
         };
     }
@@ -40,8 +42,26 @@ public static class DataExchangeValueHelper
             "Module" => value switch { "订单" => "Order", "批次" => "Batch", "工单" => "WorkOrder", _ => null },
             "InspectionItems" => ConvertInspectionItems(value, toKey: true),
             "SourceInspectionItem" => ConvertInspectionItems(value, toKey: true),
+            "CompletionType" => ConvertColdRollScheduleType(value, toKey: true),
+            "RollType" => ConvertColdRollScheduleType(value, toKey: true),
             _ => null
         };
+    }
+
+    /// <summary>冷轧排程「完工要求 / 排程类型」档位：英文枚举名 ↔ 中文档位（与前端 DisplayHelper 选项一致）</summary>
+    private static string? ConvertColdRollScheduleType(string value, bool toKey)
+    {
+        var map = new (string Key, string Display)[]
+        {
+            ("CrOnly", "急+"), ("Urgent", "急+/急"), ("Partial2", "急+/急/急-"),
+            ("Partial3", "急+/急/急-/顺"), ("All", "全量"), ("None", "-"),
+        };
+        foreach (var (key, display) in map)
+        {
+            if (toKey ? value == display : value == key)
+                return toKey ? key : display;
+        }
+        return null;
     }
 
     /// <summary>逗号分隔的 InspectionItem 枚举名串 ↔ 中文串；无法识别的单项原样保留</summary>

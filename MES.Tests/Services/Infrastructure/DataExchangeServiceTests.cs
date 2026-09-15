@@ -49,9 +49,9 @@ public class DataExchangeServiceTests : TestBase
     // ========== Registry 验证 ==========
 
     [Fact]
-    public void Registry_包含所有84个实体()
+    public void Registry_包含所有91个实体()
     {
-        DataExchangeRegistry.Registry.Should().HaveCount(84);
+        DataExchangeRegistry.Registry.Should().HaveCount(91);
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public class DataExchangeServiceTests : TestBase
     public void GetEntities_按上下文顺序排序()
     {
         var entities = DataExchangeRegistry.GetEntities();
-        entities.Should().HaveCount(84);
+        entities.Should().HaveCount(91);
 
         // 上下文分组出现顺序须与 ContextOrder 完全一致（组内按名称升序）
         var actual = entities.Select(e => e.Context).ToList();
@@ -177,6 +177,71 @@ public class DataExchangeServiceTests : TestBase
         def.Columns.First(c => c.Header == "回收重量(kg)").IsSystem.Should().BeTrue();
         def.Columns.First(c => c.Header == "加工状态").IsSystem.Should().BeTrue();
         def.Columns.First(c => c.Header == "强制完成").IsSystem.Should().BeFalse("强制完成是用户可设置的字段，应允许导入");
+    }
+
+    [Fact]
+    public void Registry_质保书与排程薄表_均已注册()
+    {
+        // 2026-09-15 补齐的 7 个业务实体（此前未注册 → 无法导出/导入）
+        DataExchangeRegistry.Registry.Keys.Should().Contain(new[]
+        {
+            "Certificate", "CertificateItem",
+            "WorkOrderPlan", "RawMaterialLockPreExecution", "InMainWorkOrderPlan",
+            "BatchPlanSchedule", "ColdRollSpecSchedule",
+        });
+    }
+
+    [Fact]
+    public void Registry_CertificateItem_含质保书外键列()
+    {
+        var def = DataExchangeRegistry.Registry["CertificateItem"];
+        var fkCol = def.Columns.First(c => c.FkEntityKey == "Certificate");
+
+        fkCol.IsFkColumn.Should().BeTrue();
+        fkCol.FkLookupProperty.Should().Be("CertificateNo");
+        fkCol.FkTargetProperty.Should().Be("CertificateId");
+    }
+
+    [Fact]
+    public void Registry_Ncr_含来源不合格反馈单外键列()
+    {
+        var def = DataExchangeRegistry.Registry["Ncr"];
+        var fkCol = def.Columns.First(c => c.FkEntityKey == "NonconformingFeedback");
+
+        fkCol.IsFkColumn.Should().BeTrue();
+        fkCol.FkLookupProperty.Should().Be("Id");
+        fkCol.FkTargetProperty.Should().Be("NonconformingFeedbackId");
+    }
+
+    [Fact]
+    public void Registry_工段委外_含计价三字段()
+    {
+        var def = DataExchangeRegistry.Registry["SectionOutsource"];
+        var headers = def.Columns.Select(c => c.Header).ToList();
+
+        headers.Should().Contain("计价单位");
+        headers.Should().Contain("单价");
+        headers.Should().Contain("总金额");
+    }
+
+    [Fact]
+    public void Registry_不合格反馈与巡检_产类标记为IsSystem()
+    {
+        // 产类由服务端按批次自动计算（非用户录入）→ 仅可导出，导入不得覆盖
+        foreach (var key in new[] { "NonconformingFeedback", "InspectionPatrol" })
+        {
+            var def = DataExchangeRegistry.Registry[key];
+            def.Columns.FirstOrDefault(c => c.Property == "ProductStatus")
+                ?.IsSystem.Should().BeTrue($"实体 {key} 的产类由服务端计算，应标记为系统列");
+        }
+    }
+
+    [Fact]
+    public void Registry_ColdRollSpecSchedule_含复合业务键列()
+    {
+        var def = DataExchangeRegistry.Registry["ColdRollSpecSchedule"];
+
+        def.CompositeKeyColumns.Should().BeEquivalentTo(new[] { "ProcessType", "BilletSpec", "RollingSpec" });
     }
 
     // ========== GenerateTemplateAsync ==========
@@ -464,7 +529,127 @@ public class DataExchangeServiceTests : TestBase
 
         result.SuccessCount.Should().Be(0);
         result.Errors.Should().Contain(e => e.Message.Contains("ID 为 9999"));
+        // 全部行失败 → 整体回滚（不再提交空变更），避免"先删后插"清理已删记录被固化
+        result.HasRolledBack.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ImportAsync_订单项次_先删后插_带旧ID回导不丢数据()
+    {
+        var ctx = CreateDbContext();
+        var order = new SalesOrder
+        {
+            OrderNumber = "SO001",
+            SignDate = new DateTime(2026, 1, 1),
+            Status = SalesOrderStatus.Confirmed,
+            CustomerName = "测试客户",
+            Salesman = "张三",
+        };
+        ctx.SalesOrders.Add(order);
+        await ctx.SaveChangesAsync();
+
+        ctx.OrderItems.Add(new OrderItem
+        {
+            SalesOrderId = order.Id,
+            OrderNumber = "SO001",
+            Sequence = 1,
+            DeliveryDate = new DateTime(2026, 3, 1),
+            SettlementMethod = SettlementMethod.Weighing,
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
+            StandardNo = "GB/T14976",
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            StandardGrade = "304",
+            PlantGrade = "304",
+            Density = 7.93m,
+            OuterDiameter = 89m,
+            WallThickness = 5m,
+            Specification = "89x5",
+            LengthStatus = LengthStatus.Fixed,
+            ContractWeight = 1000m,
+            TheoreticalWeight = 1000m,
+        });
+        await ctx.SaveChangesAsync();
+        var oldId = await ctx.OrderItems.Select(i => i.Id).FirstAsync();
+
+        var svc = CreateTestableService(ctx);
+
+        // 模拟"下载数据后原样回导"：ID 列填旧记录 ID。
+        // OrderItem 属"先删后插"实体，导入前会清空该订单下全部项次并登记被删 ID，
+        // 带这些 ID 的行必须按新增写入，否则会报"ID 不存在"→ 清理已落库而重建全失败 = 静默删数据。
+        var bytes = CreateTestExcel("订单项次",
+            new() { "ID", "订单号", "项次号", "交货日期", "延期罚款", "结算方式", "物料名称", "产品标准编码",
+                    "交货状态", "标准牌号", "工厂牌号", "密度(g/cm³)", "外径(mm)", "壁厚(mm)", "规格",
+                    "外径下偏差(mm)", "外径上偏差(mm)", "壁厚下偏差(mm)", "壁厚上偏差(mm)", "长度状态",
+                    "合同重量(kg)", "理算重量(kg)" },
+            new() { new() { oldId.ToString(), "SO001", "1", "2026-03-01", "否", "Weighing", "SeamlessPipe", "GB/T14976",
+                            "SolutionAnnealedAndPickled", "304", "304", "7.93", "89", "5", "89x5",
+                            "-0.5", "0.5", "-0.4", "0.4", "Fixed", "1200", "1200" } });
+
+        var result = await svc.ImportAsync("OrderItem", bytes, "test");
+
+        result.SuccessCount.Should().Be(1, "先删后插实体的带旧 ID 行应按新增写入，而非报 ID 不存在");
+        result.FailedCount.Should().Be(0);
         result.HasRolledBack.Should().BeFalse();
+
+        var items = await ctx.OrderItems.Where(i => i.SalesOrderId == order.Id).ToListAsync();
+        items.Should().HaveCount(1, "整组替换后订单下仍应有 1 条项次，不能因 ID 校验失败而清空");
+        items[0].Sequence.Should().Be(1);
+        items[0].ContractWeight.Should().Be(1200m);
+    }
+
+    [Fact]
+    public async Task ImportAsync_订单项次_先删后插_全部行失败_整体回滚()
+    {
+        var ctx = CreateDbContext();
+        var order = new SalesOrder
+        {
+            OrderNumber = "SO001",
+            SignDate = new DateTime(2026, 1, 1),
+            Status = SalesOrderStatus.Confirmed,
+            CustomerName = "测试客户",
+            Salesman = "张三",
+        };
+        ctx.SalesOrders.Add(order);
+        await ctx.SaveChangesAsync();
+
+        ctx.OrderItems.Add(new OrderItem
+        {
+            SalesOrderId = order.Id,
+            OrderNumber = "SO001",
+            Sequence = 1,
+            DeliveryDate = new DateTime(2026, 3, 1),
+            SettlementMethod = SettlementMethod.Weighing,
+            PipeManufacturingType = PipeManufacturingType.SeamlessPipe,
+            DeliveryState = DeliveryState.SolutionAnnealedAndPickled,
+            StandardGrade = "304",
+            PlantGrade = "304",
+            Density = 7.93m,
+            OuterDiameter = 89m,
+            WallThickness = 5m,
+            Specification = "89x5",
+            LengthStatus = LengthStatus.Fixed,
+            ContractWeight = 1000m,
+            TheoreticalWeight = 1000m,
+        });
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateTestableService(ctx);
+
+        // 长度状态填非法档位 → 该行必然失败；清理块已删除旧项次，全部行失败时必须整体回滚
+        var bytes = CreateTestExcel("订单项次",
+            new() { "订单号", "项次号", "交货日期", "延期罚款", "结算方式", "物料名称", "产品标准编码",
+                    "交货状态", "标准牌号", "工厂牌号", "密度(g/cm³)", "外径(mm)", "壁厚(mm)", "规格",
+                    "外径下偏差(mm)", "外径上偏差(mm)", "壁厚下偏差(mm)", "壁厚上偏差(mm)", "长度状态",
+                    "合同重量(kg)", "理算重量(kg)" },
+            new() { new() { "SO001", "1", "2026-03-01", "否", "Weighing", "SeamlessPipe", "GB/T14976",
+                            "SolutionAnnealedAndPickled", "304", "304", "7.93", "89", "5", "89x5",
+                            "-0.5", "0.5", "-0.4", "0.4", "不存在的长度档位", "1200", "1200" } });
+
+        var result = await svc.ImportAsync("OrderItem", bytes, "test");
+
+        result.SuccessCount.Should().Be(0);
+        result.FailedCount.Should().Be(1);
+        result.HasRolledBack.Should().BeTrue("全部行失败时必须整体回滚，避免'先删后插'清理已删的旧记录被提交");
     }
 
     [Fact]
@@ -723,10 +908,10 @@ public class DataExchangeServiceTests : TestBase
 
         var result = await svc.ImportAsync("MaterialReceiveCheck", bytes, "test");
 
-        // FK 解析失败 → 行级错误，SuccessCount = 0
+        // FK 解析失败 → 行级错误，SuccessCount = 0 → 全部行失败触发整体回滚
         result.SuccessCount.Should().Be(0);
         result.FailedCount.Should().Be(1);
-        result.HasRolledBack.Should().BeFalse();
+        result.HasRolledBack.Should().BeTrue();
         result.Errors.Should().ContainSingle(e =>
             e.Message.Contains("外键解析失败") && e.Message.Contains("批次号"));
 
@@ -1079,7 +1264,7 @@ public class DataExchangeServiceTests : TestBase
 
         result.SuccessCount.Should().Be(0);
         result.FailedCount.Should().Be(1);
-        result.HasRolledBack.Should().BeFalse();
+        result.HasRolledBack.Should().BeTrue();
         result.Errors.Should().Contain(e => e.Message.Contains("无法识别值") && e.Message.Contains("未知长度"));
 
         var reloaded = await ctx.ProductionBatches.AsNoTracking().FirstAsync(b => b.BatchNo == "B-POLL");
@@ -1106,7 +1291,7 @@ public class DataExchangeServiceTests : TestBase
 
         result.SuccessCount.Should().Be(0);
         result.FailedCount.Should().Be(1);
-        result.HasRolledBack.Should().BeFalse();
+        result.HasRolledBack.Should().BeTrue();
         result.Errors.Should().Contain(e => e.Message.Contains("外键解析失败") && e.Message.Contains("组内序号"));
         ctx.Set<ProductionRecord>().Count().Should().Be(0);
     }

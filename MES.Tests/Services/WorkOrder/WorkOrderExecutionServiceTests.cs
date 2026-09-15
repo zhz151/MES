@@ -29,6 +29,7 @@ using MES.Core.Interfaces.Scheduling;
 using MES.Core.Interfaces.Warehouse;
 using MES.Core.Interfaces.WorkOrder;
 using MES.Core.Models;
+using MES.Services.Helpers;
 using MES.Services.WorkOrder;
 using MES.Tests.Tests;
 using Moq;
@@ -3421,6 +3422,41 @@ public class WorkOrderExecutionServiceTests : TestBase
         var row = await ctx.Set<WorkOrderListSummary>().FirstAsync();
         // 生产执行且剩余重量≤0 → 产能工量 0（非档1 显示「0天」，与执行表一致）
         row.CapacityWorkDays.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task RefreshAllAsync_在产待量八字段_与公共计算器逐字段一致()
+    {
+        using var ctx = CreateDbContext();
+        await SeedCustomerAsync(ctx, "测试客户");
+        ctx.SalesOrders.Add(new SalesOrder { OrderNumber = "SO001", SignDate = DateTime.Today, Status = SalesOrderStatus.Confirmed, RowVersion = new byte[8], CustomerName = "测试客户", Salesman = "测试业务员" });
+        ctx.WorkOrders.Add(CreateWorkOrder("WO001", "SO001", WorkOrderStatus.Confirmed, salesman: "业务员A", mainNo: "D01"));
+        // 在产批次：当前在 60冷轧·冷轧拔（目标工段）且未完成 → 60冷轧待量 = 1000
+        ctx.ProductionBatches.Add(CreateDeformedBatch("B001", "WO001", "D01", BatchStatus.InProgress, "ColdRoll60", "ColdRollDraw", 3, null));
+        await ctx.SaveChangesAsync();
+
+        var svc = CreateService(ctx);
+        await svc.RefreshAllAsync();
+
+        // 期望值由公共计算器在同源批次上重算（护栏：ApplyTo 的字段接线错位 / 快照与实时口径分叉都会在此暴露）
+        var batches = await ctx.ProductionBatches.AsNoTracking()
+            .Include(b => b.ProcessGroups)
+            .Where(b => b.WorkOrderNo == "WO001")
+            .ToListAsync();
+        var expected = ProductionPendingNodeHelper.Compute(ProductionPendingNodeHelper.ActiveBatches(batches));
+        decimal? Exp(string key) => expected[key].TotalKg > 0 ? expected[key].TotalKg : null;
+
+        var s = await ctx.Set<WorkOrderExecutionSummary>().SingleAsync(x => x.WorkOrderNo == "WO001");
+        s.PendingSectionRoughTube.Should().Be(Exp(ProcessKeys.RoughTubeProcessing));
+        s.PendingSectionWarehouseFix.Should().Be(Exp(ProcessKeys.InProcessRepair));
+        s.PendingSection60Roll.Should().Be(Exp(ProcessKeys.ColdRoll60));
+        s.PendingSection50Roll.Should().Be(Exp(ProcessKeys.ColdRoll50));
+        s.PendingSection30Roll.Should().Be(Exp(ProcessKeys.ColdRoll30));
+        s.PendingSection20Roll.Should().Be(Exp(ProcessKeys.ColdRoll20));
+        s.PendingSectionThreeRoll.Should().Be(Exp(ProcessKeys.ThreeRollColdRoll));
+        s.PendingSectionDrawBench.Should().Be(Exp(ProcessKeys.ColdDraw));
+
+        s.PendingSection60Roll.Should().Be(1000m); // 具体值示意（防 Exp 两侧同错）
     }
 
     private ProductionBatch CreateDeformedBatch(string batchNo, string workOrderNo, string mainNo, BatchStatus status,

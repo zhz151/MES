@@ -27,10 +27,11 @@
                        Disabled="_loading">
                 查询
             </MudButton>
-            @* 取消查询：清空输入与结果，回到未查询的空态（原只能靠刷新页面，用户反馈无入口） *@
-            <MudButton Variant="Variant.Outlined"
+            @* 取消查询：清空输入与结果，回到未查询的空态（原只能靠刷新页面，用户反馈无入口）。
+               2026-09-15：去掉 ✕ 图标与 Outlined 描边，改灰色纯文字按钮 —— 手机端与实心主按钮「查询」并列时，
+               原「灰色空心框 + 叉号」与实心蓝两种风格冲突，且 ✕ 易被误读为「关闭」（用户反馈不好看）。 *@
+            <MudButton Variant="Variant.Text"
                        Color="Color.Default"
-                       StartIcon="@Icons.Material.Filled.Clear"
                        OnClick="Clear"
                        Disabled="_loading || !CanClear">
                 清除

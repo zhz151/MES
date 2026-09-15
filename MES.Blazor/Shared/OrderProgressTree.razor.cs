@@ -3,19 +3,27 @@ using MES.Core.Constants;
 using MES.Core.DTOs.Order;
 using MES.Core.Helpers;
 using MES.Blazor.Helpers;
+using MudBlazor;
 
 namespace MES.Blazor.Shared;
 
 /// <summary>
-/// 订单进度树：一级=订单号，二级=订单号+主号，三级=阶段分支，四级=叶子重量(kg)。
+/// 订单进度树：一级=订单号，二级=订单号+主号，三级=阶段分支，四级=叶子重量(kg)，
+/// 五级=叶子下的批次名单（默认折叠，点摘要行展开；生产执行叶按「在产 / 在途」两段、成品检验叶单段；
+/// 批次号可点击弹「批次执行进度」，见 <see cref="OpenBatchProgressAsync"/>）。
 /// 三级分支分两套：非完结=原料锁定/生产执行/成品检验/订单成品入库；
 /// 完结=生产投料/在制品入库/次品入库/备料成品/订单成品入库（用户拍板「投料+产出」两维度口径）。
 /// 头部信息两行化：订单头=订单号/签订/业务员/客户/交期截止/延期罚款/总重/项次数；
 /// 主号头行1=主号号(X01)+规格要素，行2=执行关注/紧急性/预计完成；二级按主号从小到大混排（含完结）。
 /// 本组件只渲染传进来的 <see cref="Tree"/>，取数与页头（打印/返回）留在使用方。
+/// ⚠️ 前提：本组件渲染于 <c>MudPaper</c>/<c>MudCard</c> 内（首页卡、/orders/progress 页），**不在任何 MudDialog 内**，
+/// 故批次号弹窗可直接弹根级对话框；若将来把本组件塞进弹窗，需重新评估嵌套弹窗行为。
 /// </summary>
 public partial class OrderProgressTree
 {
+    /// <summary>弹「批次执行进度」用（api/batch/{id}/tracking 已放宽为仅需登录，无需权限门控）</summary>
+    [Inject] private IDialogService DialogService { get; set; } = null!;
+
     /// <summary>进度树数据（使用方查询后传入；null 时本组件不渲染任何内容）</summary>
     [Parameter] public OrderProgressTreeDto? Tree { get; set; }
 
@@ -34,6 +42,13 @@ public partial class OrderProgressTree
     /// </summary>
     private OrderProgressTreeDto? _collapsedInitializedFor;
 
+    /// <summary>
+    /// 已展开的名单叶子集合（空集 = 全部折叠）。用「已展开」而非「已折叠」：
+    /// 默认空集即全折叠，换单/重查时清空自动回落折叠态，无需为新叶子预置 key。
+    /// key = LeafKey(mainNo, branchKey, leafKey)。
+    /// </summary>
+    private readonly HashSet<string> _expandedLeaves = new(StringComparer.Ordinal);
+
     protected override void OnParametersSet()
     {
         if (Tree is null || ReferenceEquals(_collapsedInitializedFor, Tree))
@@ -41,6 +56,7 @@ public partial class OrderProgressTree
 
         _collapsedInitializedFor = Tree;
         _collapsedMains.Clear();
+        _expandedLeaves.Clear();
         foreach (var main in Tree.MainNos)
         {
             if (Compact || main.IsCompleted)
@@ -54,6 +70,40 @@ public partial class OrderProgressTree
     {
         if (!_collapsedMains.Add(mainNo))
             _collapsedMains.Remove(mainNo);
+    }
+
+    /// <summary>名单叶子唯一键（主号 | 分支 Key | 叶子 Key；分支/叶子 Key 在其父级内唯一）</summary>
+    private static string LeafKey(string mainNo, string branchKey, string leafKey)
+        => $"{mainNo}|{branchKey}|{leafKey}";
+
+    private bool IsLeafExpanded(string leafKey) => _expandedLeaves.Contains(leafKey);
+
+    private void ToggleLeaf(string leafKey)
+    {
+        if (!_expandedLeaves.Add(leafKey))
+            _expandedLeaves.Remove(leafKey);
+    }
+
+    /// <summary>折叠态摘要：各段「标签 N 批」以「 · 」相连（如「在产 14 批 · 在途 41 批」）</summary>
+    private static string LeafSummary(MainProgressLeafDto leaf)
+        => string.Join(" · ", leaf.BatchSegments.Select(s => $"{s.Label} {s.BatchCount} 批"));
+
+    /// <summary>
+    /// 弹「批次执行进度」。⚠️ MudBlazor 6.19 的 MaxWidth.ExtraLarge=1920px，叠加 FullWidth 会满屏留白，
+    /// 故固定 Large 且不开 FullWidth（同 <c>FinalInspectionPlan.OpenBatchProgressAsync</c>）。
+    /// </summary>
+    private async Task OpenBatchProgressAsync(int batchId, string? batchNo)
+    {
+        if (batchId <= 0)
+            return;
+
+        var parameters = new DialogParameters
+        {
+            { nameof(BatchProgressDialog.BatchId), batchId },
+            { nameof(BatchProgressDialog.BatchNo), batchNo }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, CloseOnEscapeKey = true };
+        await DialogService.ShowAsync<BatchProgressDialog>("批次执行进度", parameters, options);
     }
 
     /// <summary>

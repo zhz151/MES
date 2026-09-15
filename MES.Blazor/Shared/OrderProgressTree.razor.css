@@ -315,7 +315,7 @@
     align-items: baseline;
     gap: 10px;
     padding: 2px 6px;
-    font-size: 15px;
+    font-size: 16px;
     position: relative;
 }
 
@@ -336,7 +336,7 @@
 
 .op-leaf-kg {
     color: #4f6476;
-    font-size: 15px;
+    font-size: 16px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
@@ -344,7 +344,126 @@
 /* 同叶退货出库量（仅次品入库叶有值；与左侧入库量并列对照） */
 .op-leaf-return {
     color: #b71c1c;
-    font-size: 15px;
+    font-size: 16px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
+}
+
+/* ===== 五级：叶子下的批次名单（默认折叠；展开后按段列出批次号胶囊，点击批号弹批次执行进度） ===== */
+/* 左缩进对齐叶子文本起点（.op-stage-children 34px margin + 10px padding），使名单明显从属于该叶 */
+.op-leaf-batches {
+    margin: 0 0 4px 44px;
+}
+
+.op-batch-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+    color: #546e7a;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.op-batch-toggle:hover .op-batch-summary {
+    color: #1565c0;
+    text-decoration: underline;
+}
+
+.op-batch-summary {
+    font-variant-numeric: tabular-nums;
+}
+
+.op-batch-segs {
+    margin: 2px 0 4px;
+}
+
+.op-batch-seg {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 2px;
+}
+
+.op-batch-seg-label {
+    flex: 0 0 auto;
+    color: #78909c;
+    font-size: 15px;
+    white-space: nowrap;
+}
+
+/* 长名单必须换行（展开后可能十余批），故 flex-wrap */
+.op-batch-list {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 10px;
+    row-gap: 2px;
+    min-width: 0;
+}
+
+.op-batch-no {
+    color: #1565c0;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+
+.op-batch-no:hover {
+    text-decoration: underline;
+}
+
+/* ===== 手机壳内防横向溢出（2026-09-15）=====
+   手机 360px 逐层实算：视口 −.mh-shell .mud-container 左右 12px = 336，−.mh-card.pa-3 12px = 卡内容 312；
+   .op-root 左右 padding 14px 并减图标 24px + gap 10px → .op-root-meta ≈ 250px；叶子列再扣缩进 44px → ≈ 256px。
+   树内三处「不可断行」内容会超过上述宽度：
+     ① .op-kv 标签+值整体 nowrap（父 .op-root-line2 只在 token 边界换行）——「订单总重量 123456.78 kg」≈266px；
+     ② .op-leaf-row 无 flex-wrap，次品入库叶「文本 + 入库量 + 退货量」三段同排 ≈365px；
+     ③ .op-spec-token 固定 height:23px/line-height:21px 且 nowrap，长规格号单 token 即越界。
+   越界后果不是被裁掉：.home-query-result 的 overflow-y:auto 按 CSS 规范把 overflow-x 计算为 auto，
+   结果区自动变成横向滚动容器（观感「宽度超出卡片」，且纵向滑列表易被横向滚动劫持）。
+   ⚠️ 只挂 .mh-shell（移动壳自身类，非 .mh-container 祖先）：桌面 /orders/progress 页宽裕，规则不命中、行为不变。 */
+.mh-shell .op-kv {
+    flex-wrap: wrap;
+    white-space: normal;
+    max-width: 100%;
+}
+
+.mh-shell .op-kv .op-kv-v {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.mh-shell .op-spec-token {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    height: auto;
+    line-height: 1.35;
+}
+
+.mh-shell .op-leaf-row {
+    flex-wrap: wrap;
+    row-gap: 2px;
+}
+
+/* 叶子列缩进 34 → 24px，给 nowrap 的重量值多留 10px 余量 */
+.mh-shell .op-stage-children {
+    margin-left: 24px;
+}
+
+/* 批次名单：缩进同步收窄；段「标签 + 批号列」在窄屏改为上下排（标签独占一行，批号列整行换行） */
+.mh-shell .op-leaf-batches {
+    margin-left: 34px;
+}
+
+.mh-shell .op-batch-seg {
+    flex-wrap: wrap;
+    row-gap: 2px;
+}
+
+.mh-shell .op-batch-summary {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }

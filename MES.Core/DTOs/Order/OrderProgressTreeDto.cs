@@ -10,8 +10,9 @@ namespace MES.Core.DTOs.Order;
 /// 「返整/委外生产/对外加工」三种生产类型、不限制造物品；「产出」全部按仓库实收 ——
 /// 在制品入库(在制品库余料)/次品入库(次品库)/备料成品(成品库备料成品)/订单成品入库(成品库订单成品，
 /// 排除订成-非交付态)，后三者经生产批号反查订单+主号；次品叶可附带同叶的退货出库量(次品库 ReturnOut 出库)。
-/// 非完结主号的原料锁定/生产执行取自 WorkOrderExecutionSummary 快照、成品检验/成品入库为实时口径；
-/// 主号头的标准牌号/产品标准与整单含项次数为 OrderItem 实时口径，其余头部字段取快照。
+/// 非完结主号的原料锁定取自 WorkOrderExecutionSummary 快照，生产执行/成品检验/成品入库为实时口径
+/// （生产执行由 ProductionPendingNodeHelper 实时重算，不再取快照 PendingSection*；叶下另带批次名单，
+/// 重量与名单同源同批）；主号头的标准牌号/产品标准与整单含项次数为 OrderItem 实时口径，其余头部字段取快照。
 /// </summary>
 public class OrderProgressTreeDto
 {
@@ -87,7 +88,10 @@ public class OrderMainProgressDto
     /// <summary>原料锁定分支（仅 ScheduleStage=2 有值，单叶 质量补料/生产返整补足/执行用料计划/完善用料计划）</summary>
     public MainProgressBranchDto? RawMaterialLock { get; set; }
 
-    /// <summary>生产执行[待产]分支（8 在产节点待量叶）</summary>
+    /// <summary>
+    /// 生产执行[待产]分支（8 节点待量叶，实时重算）。标签「待产」保持既有文案，
+    /// 实际口径 = 「尚未完成此节点」= 在产 + 在途，故每叶可带批次名单两段（在产/在途）。
+    /// </summary>
     public MainProgressBranchDto? Production { get; set; }
 
     /// <summary>成品检验分支（待到料/待检验/检验中 3 叶，成检计划实时；仅非完结主号）</summary>
@@ -140,4 +144,45 @@ public class MainProgressLeafDto
 
     /// <summary>退货出库量(kg)。仅次品入库叶填（次品库 ReturnOut 出库，与 WeightKg 同叶对照入库/退货）；其余恒 0 不渲染</summary>
     public decimal ReturnWeightKg { get; set; }
+
+    /// <summary>
+    /// 叶子下的批次名单分段（生产执行叶=在产/在途 两段；成品检验叶=单段）。
+    /// 空集合 = 无名单可展示（前端不渲染折叠控件）。各段 WeightKg 之和恒等于本叶 WeightKg。
+    /// </summary>
+    public List<LeafBatchSegmentDto> BatchSegments { get; set; } = new();
+}
+
+/// <summary>
+/// 五行：叶子下的批次名单分段。生产执行叶按「在产/在途」两段（固定序，空段不建）；
+/// 成品检验叶单段（Key=Batches，Label=检验档位）。
+/// </summary>
+public class LeafBatchSegmentDto
+{
+    /// <summary>分段英文 Key：InProgress=在产 / InTransit=在途 / Batches=单段</summary>
+    public string Key { get; set; } = null!;
+
+    /// <summary>分段中文标签（服务端拼好，前端只做拼接，不做中文判断）</summary>
+    public string Label { get; set; } = null!;
+
+    /// <summary>分段重量合计(kg) = Σ Batches.WeightKg</summary>
+    public decimal WeightKg { get; set; }
+
+    /// <summary>分段批次数 = Batches.Count</summary>
+    public int BatchCount { get; set; }
+
+    /// <summary>分段内批次（按生产编号 Ordinal 升序）</summary>
+    public List<LeafBatchItemDto> Batches { get; set; } = new();
+}
+
+/// <summary>六行：批次名单中的单条批次（点击可弹「批次执行进度」）</summary>
+public class LeafBatchItemDto
+{
+    /// <summary>生产批次 Id（= ProductionBatch.Id，与 BatchProgressDialog.BatchId / GET api/batch/{id}/tracking 同源）</summary>
+    public int BatchId { get; set; }
+
+    /// <summary>生产编号（展示 + 弹窗标题）</summary>
+    public string BatchNo { get; set; } = null!;
+
+    /// <summary>重量(kg)，仅供 tooltip 对照，不在行内渲染</summary>
+    public decimal WeightKg { get; set; }
 }

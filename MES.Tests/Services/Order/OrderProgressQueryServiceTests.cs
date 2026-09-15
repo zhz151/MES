@@ -126,6 +126,51 @@ public class OrderProgressQueryServiceTests : TestBase
             CreatedBy = "u1",
         };
 
+    /// <summary>造一条工艺卡工序组（生产执行实时重算的工段判定数据源）</summary>
+    private static ProcessGroup Pg(string processName, int seq,
+        int? coldRollDraw = null, int? outerPolish = null, int? straighten = null)
+        => new()
+        {
+            ProcessName = processName,
+            SequenceNumber = seq,
+            ColdRollDraw = coldRollDraw,
+            OuterPolish = outerPolish,
+            Straighten = straighten,
+        };
+
+    /// <summary>
+    /// 造一条「生产执行实时重算」用生产批次：状态在产、带工序组。
+    /// ⚠️ 工序组必须经批次导航集合挂载（EF InMemory 才会 fixup），否则 Include 后恒空 → 待量恒 0。
+    /// </summary>
+    private static ProductionBatch NewPendingBatch(string batchNo, string workOrderNo, string mainNo,
+        decimal? validWeight, string? currentGroup, string? currentSection, bool? sectionCompleted,
+        params ProcessGroup[] groups)
+        => new()
+        {
+            BatchNo = batchNo,
+            Status = BatchStatus.InProgress,
+            CurrentValidWeight = validWeight == null ? null : (int)validWeight.Value,
+            CurrentGroupName = currentGroup,
+            CurrentSectionName = currentSection,
+            CurrentSectionCompleted = sectionCompleted,
+            ManufacturingItem = InventoryMaterialTypes.OrderFinished,
+            WorkOrderNo = workOrderNo,
+            SalesOrderNo = SO,
+            ProductionMainNo = mainNo,
+            OrderItemIds = "1",
+            Salesman = "测试业务员",
+            MaterialName = "无缝管",
+            SettlementMethod = "电汇",
+            StandardCode = "GB/T13296-2023",
+            DeliveryState = "Fixed",
+            LengthStatus = "Fixed",
+            PlantGrade = "Q345B",
+            Specification = "219*8",
+            TechnicalRequirements = "无",
+            CreatedBy = "u1",
+            ProcessGroups = groups.ToList(),
+        };
+
     /// <summary>造一条指定仓库的入库批次（余料/备料成品共用；ProductionBatchNo 为反查订单的唯一桥）</summary>
     private static InventoryBatch NewInboundBatch(int warehouseId, string batchNo, string materialType,
         string? productionBatchNo, decimal initialWeight)
@@ -181,26 +226,35 @@ public class OrderProgressQueryServiceTests : TestBase
         finally { MaterialPlanToleranceProvider.Apply(original); }
     }
 
-    // ===================== 主号聚合：生产8节点 / 总重 / 紧急 =====================
+    // ===================== 主号聚合：生产8节点（实时）/ 总重 / 紧急 =====================
 
     [Fact]
-    public async Task GetTreeAsync_两工单一主号_生产8节点与总重按SUM聚合且取最急紧急()
+    public async Task GetTreeAsync_两工单一主号_生产8节点实时重算且总重按SUM聚合取最急紧急()
     {
         var ctx = CreateDbContext();
         var r1 = NewSummary(1, "G100", stage: 3);
         r1.TotalWeight = 1000m;
-        r1.PendingSection60Roll = 100m;
-        r1.PendingSection50Roll = 200m;
+        r1.PendingSection60Roll = 999m; // 快照旧值：应被实时口径忽略
+        r1.PendingSection50Roll = 999m;
         r1.UrgencyLevel = UrgencyLevelKeys.BOrder;
         r1.LastRefreshTime = new DateTime(2026, 9, 1, 10, 0, 0);
 
         var r2 = NewSummary(2, "G100", stage: 3);
         r2.TotalWeight = 2000m;
-        r2.PendingSection60Roll = 150m;
+        r2.PendingSection60Roll = 999m;
+        r2.PendingSection50Roll = 999m;
         r2.UrgencyLevel = UrgencyLevelKeys.APlusUrgent;
         r2.LastRefreshTime = new DateTime(2026, 9, 1, 11, 0, 0);
 
+        // 生产执行改为实时重算：数据源是该订单各工单下的生产批次（同主号并集一次算完）
         ctx.Set<WorkOrderExecutionSummary>().AddRange(r1, r2);
+        ctx.ProductionBatches.AddRange(
+            NewPendingBatch("2609-A1", "WO-001", "G100", 100m, ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, false,
+                Pg(ProcessKeys.ColdRoll60, 1, coldRollDraw: 1)),
+            NewPendingBatch("2609-A2", "WO-002", "G100", 150m, ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, false,
+                Pg(ProcessKeys.ColdRoll60, 1, coldRollDraw: 1)),
+            NewPendingBatch("2609-B1", "WO-002", "G100", 200m, ProcessKeys.ColdRoll50, SectionKeys.ColdRollDraw, false,
+                Pg(ProcessKeys.ColdRoll50, 1, coldRollDraw: 1)));
         await ctx.SaveChangesAsync();
 
         var tree = await CreateService(ctx, EmptyKanban()).GetTreeAsync(SO);
@@ -222,8 +276,102 @@ public class OrderProgressQueryServiceTests : TestBase
         main.Warehousing.Should().BeNull();
         main.Production.Should().NotBeNull();
         main.Production!.Leaves.Should().HaveCount(2);
-        LeafOf(main.Production, "ColdRoll60")!.WeightKg.Should().Be(250m); // 100+150 工单级 SUM
-        LeafOf(main.Production, "ColdRoll50")!.WeightKg.Should().Be(200m); // 单值仅取一次
+        LeafOf(main.Production, "ColdRoll60")!.WeightKg.Should().Be(250m); // 实时：100+150（快照 999 不被采用）
+        LeafOf(main.Production, "ColdRoll50")!.WeightKg.Should().Be(200m); // 实时：200（快照 999 不被采用）
+    }
+
+    [Fact]
+    public async Task GetTreeAsync_生产节点_快照有值但无即时批次_不渲染分支()
+    {
+        var ctx = CreateDbContext();
+        var r = NewSummary(1, "G100", stage: 3);
+        r.PendingSection60Roll = 500m; // 快照旧值：实时口径下无批次 → 不建叶、不建分支
+        ctx.Set<WorkOrderExecutionSummary>().Add(r);
+        await ctx.SaveChangesAsync();
+
+        var tree = await CreateService(ctx, EmptyKanban()).GetTreeAsync(SO);
+
+        tree!.MainNos.Should().ContainSingle().Subject.Production.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetTreeAsync_生产节点_带在产在途两段名单且合计等于叶重()
+    {
+        var ctx = CreateDbContext();
+        ctx.Set<WorkOrderExecutionSummary>().Add(NewSummary(1, "G100", stage: 3));
+        // 三批同挂 荒管处理(seq1，整直=3、外抛光=5) + 60冷轧(seq2，冷轧拔=1) 两个工序组：
+        //   B1/B2 当前仍在荒管处理（无当前工段 / 在整直）→ 荒管处理 在产；60冷轧 在途（尚未做到）
+        //   B3 已到 60冷轧·冷轧拔未完成 → 荒管处理已越过不计；60冷轧 在产
+        ctx.ProductionBatches.AddRange(
+            NewPendingBatch("2609-001", "WO-001", "G100", 100m, ProcessKeys.RoughTubeProcessing, null, null,
+                Pg(ProcessKeys.RoughTubeProcessing, 1, outerPolish: 5, straighten: 3),
+                Pg(ProcessKeys.ColdRoll60, 2, coldRollDraw: 1)),
+            NewPendingBatch("2609-002", "WO-001", "G100", 200m, ProcessKeys.RoughTubeProcessing, SectionKeys.Straighten, null,
+                Pg(ProcessKeys.RoughTubeProcessing, 1, outerPolish: 5, straighten: 3),
+                Pg(ProcessKeys.ColdRoll60, 2, coldRollDraw: 1)),
+            NewPendingBatch("2609-003", "WO-001", "G100", 300m, ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, false,
+                Pg(ProcessKeys.RoughTubeProcessing, 1, outerPolish: 5, straighten: 3),
+                Pg(ProcessKeys.ColdRoll60, 2, coldRollDraw: 1)));
+        await ctx.SaveChangesAsync();
+
+        var tree = await CreateService(ctx, EmptyKanban()).GetTreeAsync(SO);
+        var production = tree!.MainNos[0].Production!;
+
+        // 荒管处理：只有「在产」一段（B3 已越过 → 不计）
+        var rough = LeafOf(production, "RoughTubeProcessing")!;
+        rough.WeightKg.Should().Be(300m); // 100+200
+        var roughSeg = rough.BatchSegments.Should().ContainSingle().Subject;
+        roughSeg.Key.Should().Be("InProgress");
+        roughSeg.Label.Should().Be("在产");
+        roughSeg.Batches.Select(b => b.BatchNo).Should().Equal("2609-001", "2609-002");
+
+        // 60冷轧：两段齐全（在产 B3 / 在途 B1+B2）
+        var roll60 = LeafOf(production, "ColdRoll60")!;
+        roll60.WeightKg.Should().Be(600m); // 100+200+300
+        roll60.BatchSegments.Select(s => s.Key).Should().Equal("InProgress", "InTransit");
+        roll60.BatchSegments[0].Label.Should().Be("在产");
+        roll60.BatchSegments[0].WeightKg.Should().Be(300m);
+        roll60.BatchSegments[0].Batches.Select(b => b.BatchNo).Should().Equal("2609-003");
+        roll60.BatchSegments[1].Label.Should().Be("在途");
+        roll60.BatchSegments[1].WeightKg.Should().Be(300m);
+        roll60.BatchSegments[1].Batches.Select(b => b.BatchNo).Should().Equal("2609-001", "2609-002");
+
+        roll60.BatchSegments.Sum(s => s.WeightKg).Should().Be(roll60.WeightKg); // 分段不增不减
+        roll60.BatchSegments[1].BatchCount.Should().Be(roll60.BatchSegments[1].Batches.Count);
+    }
+
+    [Fact]
+    public async Task GetTreeAsync_生产节点_仅在产无在途时只出一段()
+    {
+        var ctx = CreateDbContext();
+        ctx.Set<WorkOrderExecutionSummary>().Add(NewSummary(1, "G100", stage: 3));
+        ctx.ProductionBatches.Add(NewPendingBatch("2609-001", "WO-001", "G100", 100m,
+            ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, false,
+            Pg(ProcessKeys.ColdRoll60, 1, coldRollDraw: 1)));
+        await ctx.SaveChangesAsync();
+
+        var tree = await CreateService(ctx, EmptyKanban()).GetTreeAsync(SO);
+
+        var leaf = LeafOf(tree!.MainNos[0].Production, "ColdRoll60")!;
+        leaf.BatchSegments.Should().ContainSingle().Which.Key.Should().Be("InProgress");
+    }
+
+    [Fact]
+    public async Task GetTreeAsync_生产节点_只取本订单工单范围批次()
+    {
+        var ctx = CreateDbContext();
+        ctx.Set<WorkOrderExecutionSummary>().Add(NewSummary(1, "G100", stage: 3));
+        // 同订单同主号，但挂在不属于本订单的工单（不在快照行范围内）→ 不计
+        var other = NewPendingBatch("2609-900", "WO-999", "G100", 777m,
+            ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, false,
+            Pg(ProcessKeys.ColdRoll60, 1, coldRollDraw: 1));
+        other.SalesOrderNo = SO;
+        ctx.ProductionBatches.Add(other);
+        await ctx.SaveChangesAsync();
+
+        var tree = await CreateService(ctx, EmptyKanban()).GetTreeAsync(SO);
+
+        tree!.MainNos.Should().ContainSingle().Subject.Production.Should().BeNull();
     }
 
     [Fact]
@@ -627,6 +775,76 @@ public class OrderProgressQueryServiceTests : TestBase
         LeafOf(main.FinalInspection, KanbanStageKeys.CompletedAwaitingInbound).Should().BeNull();
         main.Warehousing.Should().BeNull();
         main.Production.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetTreeAsync_成检叶名单_单段且沿同批去重取首行同源()
+    {
+        var ctx = CreateDbContext();
+        var r = NewSummary(1, "G100", stage: 4);
+        ctx.Set<WorkOrderExecutionSummary>().Add(r);
+        await ctx.SaveChangesAsync();
+
+        var mock = new Mock<IFinalInspectionPlanService>();
+        mock.Setup(s => s.GetKanbanAsync()).ReturnsAsync(new List<FinalInspectionPlanDto>
+        {
+            NewKanbanRow(10, "G100", KanbanStageKeys.WaitingMaterial, weight: 100m),
+            NewKanbanRow(10, "G100", KanbanStageKeys.WaitingMaterial, weight: 999m), // 同批去重：重量与名单同取首行
+            NewKanbanRow(11, "G100", KanbanStageKeys.WaitingMaterial, weight: 400m),
+        });
+
+        var tree = await CreateService(ctx, mock.Object).GetTreeAsync(SO);
+
+        var waiting = LeafOf(tree!.MainNos[0].FinalInspection, KanbanStageKeys.WaitingMaterial)!;
+        waiting.WeightKg.Should().Be(500m);
+
+        var seg = waiting.BatchSegments.Should().ContainSingle().Subject; // 单段（每批恰好落一个档）
+        seg.Key.Should().Be("Batches");
+        seg.Label.Should().Be(KanbanStageKeys.WaitingMaterial);
+        seg.WeightKg.Should().Be(waiting.WeightKg); // 段合计 == 叶重
+        seg.BatchCount.Should().Be(2);
+        seg.Batches.Select(b => b.BatchId).Should().Equal(10, 11);
+        seg.Batches[0].WeightKg.Should().Be(100m); // 同批只计首行 100，不取整组 999
+    }
+
+    [Fact]
+    public async Task GetTreeAsync_成检第4档_不入树也无名单()
+    {
+        var ctx = CreateDbContext();
+        ctx.Set<WorkOrderExecutionSummary>().Add(NewSummary(1, "G100", stage: 4));
+        await ctx.SaveChangesAsync();
+
+        var mock = new Mock<IFinalInspectionPlanService>();
+        mock.Setup(s => s.GetKanbanAsync()).ReturnsAsync(new List<FinalInspectionPlanDto>
+        {
+            NewKanbanRow(12, "G100", KanbanStageKeys.CompletedAwaitingInbound, weight: 600m),
+        });
+
+        var tree = await CreateService(ctx, mock.Object).GetTreeAsync(SO);
+
+        tree!.MainNos[0].FinalInspection.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetTreeAsync_批次名单_按生产编号Ordinal稳定序()
+    {
+        var ctx = CreateDbContext();
+        ctx.Set<WorkOrderExecutionSummary>().Add(NewSummary(1, "G100", stage: 3));
+        // 插入序打乱，断言输出按生产编号 Ordinal 升序（不依赖 ProcessGroups/GroupBy 组序）
+        ctx.ProductionBatches.AddRange(
+            NewPendingBatch("2609-300", "WO-001", "G100", 1m, ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, false,
+                Pg(ProcessKeys.ColdRoll60, 1, coldRollDraw: 1)),
+            NewPendingBatch("2609-100", "WO-001", "G100", 1m, ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, false,
+                Pg(ProcessKeys.ColdRoll60, 1, coldRollDraw: 1)),
+            NewPendingBatch("2609-200", "WO-001", "G100", 1m, ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw, false,
+                Pg(ProcessKeys.ColdRoll60, 1, coldRollDraw: 1)));
+        await ctx.SaveChangesAsync();
+
+        var tree = await CreateService(ctx, EmptyKanban()).GetTreeAsync(SO);
+
+        LeafOf(tree!.MainNos[0].Production, "ColdRoll60")!
+            .BatchSegments.Single().Batches.Select(b => b.BatchNo)
+            .Should().Equal("2609-100", "2609-200", "2609-300");
     }
 
     // ===================== 成品入库（跨批求和 / 0叶省略 / 空分支为 null） =====================

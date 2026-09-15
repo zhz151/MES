@@ -535,6 +535,10 @@ public static class DataExchangeRegistry
             new("产类", "ProductStatus", typeof(string), isRequired: false),
             new("备注", "Remark", typeof(string), isRequired: false),
             new("状态", "Status", typeof(MES.Core.Enums.SectionOutsourceStatus), isEnum: true),
+            // 计价信息（厂内 IsInternal=true 时无价，三字段均为 null）
+            new("计价单位", "PricingUnit", typeof(MES.Core.Enums.PricingUnit), isEnum: true, isRequired: false),
+            new("单价", "UnitPrice", typeof(decimal?), isRequired: false),
+            new("总金额", "TotalAmount", typeof(decimal?), isRequired: false),
             new("数据来源", "DataSource", typeof(string), isRequired: false, isSystem: true),
         }),
 
@@ -1096,7 +1100,7 @@ public static class DataExchangeRegistry
             new("备注", "Remark", typeof(string), isRequired: false),
         }),
 
-        // === NCR 不合格品报告（独立实体，无外部FK依赖）===
+        // === NCR 不合格品报告（来源不合格反馈单为可空外键）===
         ["Ncr"] = new EntityDef("质量-不合格报告", "质量-不合格报告", typeof(MES.Data.Entities.Quality.Ncr), 1, null, new List<ColumnDef>
         {
             // G1: 问题反馈
@@ -1115,6 +1119,8 @@ public static class DataExchangeRegistry
             new("让步放行支数", "ConcessionQuantity", typeof(int?), isRequired: false),
             new("让步放行重量", "ConcessionWeight", typeof(int?), isRequired: false),
             new("让步说明", "ConcessionRemark", typeof(string), isRequired: false),
+            // 来源不合格反馈单（闭环溯源：Ncr.NonconformingFeedbackId ↔ NonconformingFeedback.Id）
+            new("来源反馈单ID", null!) { IsFkColumn = true, FkEntityKey = "NonconformingFeedback", FkLookupProperty = "Id", FkTargetProperty = "NonconformingFeedbackId" },
             new("来源待处理组键", "SourceGroupKey", typeof(string), isRequired: false),
             new("次品流向", "FlowDirection", typeof(MES.Core.Enums.FlowDirection?), isEnum: true, isRequired: false),
             // G2: 不合格品处置（处置方式走字典 NcrDisposalKey，非枚举）
@@ -1784,7 +1790,8 @@ public static class DataExchangeRegistry
             new("工段名称", "SectionName", typeof(string), isRequired: false),
             new("执行序号", "SequenceNumber", typeof(int?), isRequired: false),
             new("检验项目", "InspectionItem", typeof(MES.Core.Enums.InspectionItem?), isEnum: true, isRequired: false),
-            new("产类", "ProductStatus", typeof(string), isRequired: false),
+            // 产类由服务端按批次自动计算（非用户录入）→ 仅导出，导入不可覆盖
+            new("产类", "ProductStatus", typeof(string), isRequired: false, isSystem: true),
             new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
             new("来料支数", "IncomingQuantity", typeof(int?), isRequired: false),
             new("来料重量(kg)", "IncomingWeight", typeof(decimal?), isRequired: false),
@@ -1806,7 +1813,8 @@ public static class DataExchangeRegistry
             new("制造规格", "ManufacturingSpec", typeof(string), isRequired: false),
             new("工段名称", "SectionName"),
             new("执行序号", "SequenceNumber", typeof(int), isRequired: false),
-            new("产类", "ProductStatus", typeof(string), isRequired: false),
+            // 产类由服务端按批次自动计算（非用户录入）→ 仅导出，导入不可覆盖
+            new("产类", "ProductStatus", typeof(string), isRequired: false, isSystem: true),
             new("工厂牌号", "PlantGrade", typeof(string), isRequired: false),
             new("在产单位车间", "ProductionUnit", typeof(string), isRequired: false),
             new("在产设备名", "EquipmentName", typeof(string), isRequired: false),
@@ -1828,6 +1836,150 @@ public static class DataExchangeRegistry
             new("备注", "Remark", typeof(string), isRequired: false),
             new("排序", "SortOrder", typeof(int), isRequired: false),
         }),
+
+        // ==================== 2026-09-15 补注册：排程计划薄表 + 质量证明书 ====================
+        // 判据：实体已有 Service/Controller/前端录入页面（用户有独立维护入口）但数据工具无 import/export 端点
+
+        // 质量上下文：质量证明书主表（业务键 CertificateNo = 订单号-01/-02...）
+        ["Certificate"] = new EntityDef("质量-质量证明书", "质量-质量证明书", typeof(MES.Data.Entities.Quality.Certificate), 1, "CertificateNo", new List<ColumnDef>
+        {
+            new("证明书编号", "CertificateNo"),
+            new("签发日期", "IssueDate", typeof(DateTime)),
+            new("客户名称", "CustomerName", typeof(string), isRequired: false),
+            new("产品标准", "ProductStandard", typeof(string), isRequired: false),
+            new("产品名称", "ProductName", typeof(string), isRequired: false),
+            new("交货状态", "DeliveryStatus", typeof(MES.Core.Enums.DeliveryState), isEnum: true, isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }),
+
+        // 质量上下文：质量证明书附表（子项，按证明书编号关联主表）
+        ["CertificateItem"] = new EntityDef("质量-质量证明书附表", "质量-质量证明书附表", typeof(MES.Data.Entities.Quality.CertificateItem), 2, null, new List<ColumnDef>
+        {
+            new("证明书编号", null!) { IsFkColumn = true, FkEntityKey = "Certificate", FkLookupProperty = "CertificateNo", FkTargetProperty = "CertificateId" },
+            new("序号", "SeqNo", typeof(int)),
+            // 第1类：仓库信息
+            new("库存批次号", "InventoryBatchNo", typeof(string), isRequired: false),
+            new("生产批次号", "ProductionBatchNo", typeof(string), isRequired: false),
+            new("炉号", "HeatNo", typeof(string), isRequired: false),
+            new("钢牌号", "SteelGrade", typeof(string), isRequired: false),
+            new("规格", "Specification", typeof(string), isRequired: false),
+            new("长度描述", "LengthDesc", typeof(string), isRequired: false),
+            new("支数", "Quantity", typeof(int?), isRequired: false),
+            new("米数", "Meters", typeof(decimal?), isRequired: false),
+            new("重量(kg)", "Weight", typeof(decimal?), isRequired: false),
+            // 第2类：化学成分（实测值）
+            new("化学C", "ChemC", typeof(decimal?), isRequired: false),
+            new("化学Si", "ChemSi", typeof(decimal?), isRequired: false),
+            new("化学Mn", "ChemMn", typeof(decimal?), isRequired: false),
+            new("化学P", "ChemP", typeof(decimal?), isRequired: false),
+            new("化学S", "ChemS", typeof(decimal?), isRequired: false),
+            new("化学Ni", "ChemNi", typeof(decimal?), isRequired: false),
+            new("化学Cr", "ChemCr", typeof(decimal?), isRequired: false),
+            new("化学Mo", "ChemMo", typeof(decimal?), isRequired: false),
+            new("化学Cu", "ChemCu", typeof(decimal?), isRequired: false),
+            new("化学N", "ChemN", typeof(decimal?), isRequired: false),
+            new("化学Nb", "ChemNb", typeof(decimal?), isRequired: false),
+            new("化学Ti", "ChemTi", typeof(decimal?), isRequired: false),
+            new("化学Fe", "ChemFe", typeof(decimal?), isRequired: false),
+            new("化学Al", "ChemAl", typeof(decimal?), isRequired: false),
+            new("化学W", "ChemW", typeof(decimal?), isRequired: false),
+            new("化学PREN", "ChemPREN", typeof(decimal?), isRequired: false),
+            // 第3类：成品检验结果
+            new("PMI检测", "InspPMI", typeof(string), isRequired: false),
+            new("表检", "InspVisual", typeof(string), isRequired: false),
+            new("尺寸", "InspDimension", typeof(string), isRequired: false),
+            new("内窥", "InspEndoscopy", typeof(string), isRequired: false),
+            new("水压", "InspHydro", typeof(string), isRequired: false),
+            new("水下气压", "InspUnderwaterPneumatic", typeof(string), isRequired: false),
+            new("涡流", "InspEddyCurrent", typeof(string), isRequired: false),
+            new("超声波", "InspUltrasonic", typeof(string), isRequired: false),
+            new("端口着色", "InspPortDye", typeof(string), isRequired: false),
+            // 第4类：理化检测结果（样1/样2）
+            new("抗拉强度_1", "TensileStrength_1", typeof(decimal?), isRequired: false),
+            new("抗拉强度_2", "TensileStrength_2", typeof(decimal?), isRequired: false),
+            new("屈服Rp0.2_1", "YieldRp02_1", typeof(decimal?), isRequired: false),
+            new("屈服Rp0.2_2", "YieldRp02_2", typeof(decimal?), isRequired: false),
+            new("屈服Rp1.0_1", "YieldRp10_1", typeof(decimal?), isRequired: false),
+            new("屈服Rp1.0_2", "YieldRp10_2", typeof(decimal?), isRequired: false),
+            new("延伸率_1", "Elongation_1", typeof(decimal?), isRequired: false),
+            new("延伸率_2", "Elongation_2", typeof(decimal?), isRequired: false),
+            new("硬度_1", "Hardness_1", typeof(string), isRequired: false),
+            new("硬度_2", "Hardness_2", typeof(string), isRequired: false),
+            new("晶粒度_1", "GrainSize_1", typeof(string), isRequired: false),
+            new("晶粒度_2", "GrainSize_2", typeof(string), isRequired: false),
+            new("铁素体含量_1", "FerriteContent_1", typeof(decimal?), isRequired: false),
+            new("铁素体含量_2", "FerriteContent_2", typeof(decimal?), isRequired: false),
+            new("扩口结果", "FlaringResult", typeof(string), isRequired: false),
+            new("压扁结果", "FlatteningResult", typeof(string), isRequired: false),
+            new("晶间腐蚀结果", "IntergranularResult", typeof(string), isRequired: false),
+            new("点腐蚀结果", "PittingResult", typeof(string), isRequired: false),
+        }),
+
+        // 工单上下文：工单计划薄表（手工覆盖系统计算值，一个工单一条）
+        ["WorkOrderPlan"] = new EntityDef("工单-工单计划", "工单-工单计划", typeof(MES.Data.Entities.Scheduling.WorkOrderPlan), 9, null, new List<ColumnDef>
+        {
+            new("工单号", null!) { IsFkColumn = true, FkEntityKey = "WorkOrder", FkLookupProperty = "WorkOrderNo", FkTargetProperty = "WorkOrderId" },
+            new("工单状态覆盖", "ScheduleStage", typeof(int?), isRequired: false),
+            new("紧急性覆盖", "UrgencyLevel", typeof(string), isRequired: false),
+            new("生产关注工序覆盖", "ProductionAttentionProcess", typeof(string), isRequired: false),
+            new("生产流转性覆盖", "ProductionFlowProperty", typeof(string), isRequired: false),
+        }),
+
+        // 工单上下文：原锁预执行（用户手工标记，一个工单一条）
+        ["RawMaterialLockPreExecution"] = new EntityDef("工单-原锁预执行", "工单-原锁预执行", typeof(MES.Data.Entities.Scheduling.RawMaterialLockPreExecution), 9, null, new List<ColumnDef>
+        {
+            new("工单号", null!) { IsFkColumn = true, FkEntityKey = "WorkOrder", FkLookupProperty = "WorkOrderNo", FkTargetProperty = "WorkOrderId" },
+            new("执行", "IsPreInput", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("预算投料日", "BudgetInputDate", typeof(DateTime?), isRequired: false),
+        }),
+
+        // 工单上下文：在产主工单计划（分工单用料需求合入主工单批次）
+        ["InMainWorkOrderPlan"] = new EntityDef("工单-在产主工单计划", "工单-在产主工单计划", typeof(MES.Data.Entities.WorkOrder.InMainWorkOrderPlan), 9, null, new List<ColumnDef>
+        {
+            new("工单号", null!) { IsFkColumn = true, FkEntityKey = "WorkOrder", FkLookupProperty = "WorkOrderNo", FkTargetProperty = "WorkOrderId" },
+            new("批次号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "ProductionBatchId" },
+            new("计划日期", "PlanDate", typeof(DateTime)),
+            new("主工单号", "MainWorkOrderNo"),
+            new("分配重量(kg)", "AllocatedWeight", typeof(decimal)),
+            new("分配支数", "AllocatedQuantity", typeof(int?), isRequired: false),
+            new("制成倍数", "ProductionRatio", typeof(int)),
+            new("工艺周期(天)", "StandardCycle", typeof(int)),
+            new("要求到位日期", "RequiredDate", typeof(DateTime?), isRequired: false),
+            new("计划状态", "PlanStatus", typeof(MES.Core.Enums.InventoryPlanStatus), isEnum: true),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }),
+
+        // 批次上下文：批次计划薄表（计划员手工编辑，一个批次一条）
+        ["BatchPlanSchedule"] = new EntityDef("批次-批次计划", "批次-批次计划", typeof(MES.Data.Entities.Scheduling.BatchPlanSchedule), 8, null, new List<ColumnDef>
+        {
+            new("批次号", null!) { IsFkColumn = true, FkEntityKey = "ProductionBatch", FkLookupProperty = "BatchNo", FkTargetProperty = "BatchId" },
+            new("暂停", "IsPaused", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("流转", "IsFlow", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("等级(1-5)", "FlowLevel", typeof(int)),
+            new("流转目标", "FlowTarget", typeof(string), isRequired: false),
+            new("冷轧类型", "FlowCRType", typeof(string), isRequired: false),
+            new("外径跨度", "PlanOuterDiameterSpan", typeof(string), isRequired: false),
+            new("执行规格", "FlowExecSpec", typeof(string), isRequired: false),
+            new("目标序", "TargetSequence", typeof(int?), isRequired: false),
+            new("执行序", "ExecutionSequence", typeof(int?), isRequired: false),
+            new("抢单", "IsGrabOrder", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("计划备注", "PlanRemark", typeof(string), isRequired: false),
+        }),
+
+        // 批次上下文：冷轧规格排程（复合键 冷轧类型+轧坯规格+轧制规格，与冷轧产能档案同值域）
+        ["ColdRollSpecSchedule"] = new EntityDef("批次-冷轧规格排程", "批次-冷轧规格排程", typeof(MES.Data.Entities.Scheduling.ColdRollSpecSchedule), 8, null, new List<ColumnDef>
+        {
+            new("冷轧类型(ProcessKeys)", "ProcessType"),
+            new("轧坯规格", "BilletSpec"),
+            new("轧制规格", "RollingSpec"),
+            new("是否成品", "IsFinished", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
+            new("轧机设备号(分号分隔)", "MachineNo", typeof(string), isRequired: false),
+            new("单机单日量(kg)", "DailyOutput", typeof(decimal?), isRequired: false),
+            new("完工要求", "CompletionType"),
+            new("排程类型", "RollType"),
+            new("合并显示文本", "MergeDisplay", typeof(string), isRequired: false),
+            new("备注", "Remark", typeof(string), isRequired: false),
+        }, compositeKeyColumns: new[] { "ProcessType", "BilletSpec", "RollingSpec" }),
     };
 
     public static readonly List<string> EntityOrder = new()
@@ -1835,10 +1987,12 @@ public static class DataExchangeRegistry
         "Warehouse", "StandardGradeMapping", "CustomerProfile", "SupplierProfile",
         "FurnaceRegistration", "ChemicalComposition", "ChemicalValidationRule", "Ncr",
         "NonconformingFeedback", "InspectionPatrol", "InspectionPatrolItem",
+        "Certificate", "CertificateItem",
         "SalesOrder",
         "OrderItem", "ProductRequirement",
-        "WorkOrder", "OrderDemandAdjustment",
+        "WorkOrder", "OrderDemandAdjustment", "WorkOrderPlan", "RawMaterialLockPreExecution", "InMainWorkOrderPlan",
         "PurchaseOrder", "SubcontractOrder", "SubcontractReturnItem", "ProductionBatch",
+        "BatchPlanSchedule", "ColdRollSpecSchedule",
         "ProcessGroup", "ProductionRecord", "SectionOutsource", "OutsourceRecovery", "OutsourceVendorProfile", "MaterialReceiveCheck", "ProcessInspection", "FinalInspection", "ChemicalAnalysis", "HardnessTest", "GrainSizeTest", "PittingCorrosionTest", "IntergranularCorrosionTest", "TensileTest", "MetallographicTest", "FlatteningTest", "FlaringTest", "PicklingInRecord", "PicklingOutRecord", "OperationLog", "InventoryBatch", "OutboundRecord",
         "Equipment", "RepairOrder", "MaintenanceOrder", "InspectionRecord",
         "InventoryPlan", "PurchaseSemiPlan", "PurchaseFinishedPlan", "RoundBarPiercingPlan", "InProcessReworkPlan",

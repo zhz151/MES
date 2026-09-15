@@ -150,6 +150,7 @@
                         <div class="op-stage-children">
                             @foreach (var leaf in branch.Leaves)
                             {
+                                var leafKey = LeafKey(main.ProductionMainNo, branch.Key, leaf.Key);
                                 @* ===== 四级：叶子（左=入库重量，右=同叶退货出库重量，整数显示） ===== *@
                                 <div class="op-leaf-row">
                                     <span class="op-leaf-text">@leaf.Text</span>
@@ -162,6 +163,37 @@
                                         <span class="op-leaf-return">退货 @FmtKg(leaf.ReturnWeightKg) kg</span>
                                     }
                                 </div>
+                                @* ===== 五级：叶子下的批次名单（默认折叠；展开后各段一行批次号胶囊，批号可点击弹批次执行进度） ===== *@
+                                @if (leaf.BatchSegments.Count > 0)
+                                {
+                                    <div class="op-leaf-batches">
+                                        <span class="op-batch-toggle" @onclick="() => ToggleLeaf(leafKey)">
+                                            <MudIcon Icon="@(IsLeafExpanded(leafKey) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                                                     Size="Size.Small" Class="op-batch-chevron" />
+                                            <span class="op-batch-summary">【@LeafSummary(leaf)】</span>
+                                        </span>
+                                        @if (IsLeafExpanded(leafKey))
+                                        {
+                                            <div class="op-batch-segs">
+                                                @foreach (var seg in leaf.BatchSegments)
+                                                {
+                                                    <div class="op-batch-seg">
+                                                        <span class="op-batch-seg-label">@seg.Label @seg.BatchCount 批：</span>
+                                                        <div class="op-batch-list">
+                                                            @foreach (var b in seg.Batches)
+                                                            {
+                                                                <span class="op-batch-no"
+                                                                      title="@($"{b.BatchNo} · {FmtKg(b.WeightKg)} kg")"
+                                                                      @onclick="() => OpenBatchProgressAsync(b.BatchId, b.BatchNo)"
+                                                                      @onclick:stopPropagation="true">@b.BatchNo</span>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
                             }
                         </div>
                     }

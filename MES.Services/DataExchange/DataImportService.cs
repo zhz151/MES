@@ -276,6 +276,11 @@ public class DataImportService : IDataImportService
                     .Where(c => c.IsSystem && c.Property != null && DataExchangeRegistry.CodePrefixMap.ContainsKey(c.Property))
                     .ToDictionary(c => c.Property!, _ => new HashSet<string>());
 
+                // "先删后插"类型实体（工序组/订单项次/技术要求/委外子项/成检到料）在下方清理块中删除旧记录。
+                // 被删记录的 ID 在此登记：导入文件中带这些 ID 的行表示"原记录将被整组替换重建"，
+                // 应按新增写入，而不是报"ID 不存在"（否则清理已落库、重建全失败 → 静默删数据）。
+                var replacedIds = new HashSet<int>();
+
                 // ProcessGroup 特殊处理：有子记录引用的工序组原地更新（保留ID），无引用的安全删除
                 // 避免 FK 约束冲突（FK_ProductionRecord_ProcessGroup_ProcessGroupId 等）
                 if (entityKey == "ProcessGroup")
@@ -333,6 +338,7 @@ public class DataImportService : IDataImportService
                             {
                                 _context.Set<ProcessGroup>().RemoveRange(unreferencedPgs);
                                 await _context.SaveChangesAsync();
+                                replacedIds.UnionWith(RemoveFromExistingCache(existingCache, def, unreferencedPgs));
                                 _logger.LogInformation("已清理 {Count} 个无引用的旧工序组记录", unreferencedPgs.Count);
                             }
 
@@ -427,8 +433,8 @@ public class DataImportService : IDataImportService
                             }
                             _context.Set<OrderItem>().RemoveRange(existing);
                             await _context.SaveChangesAsync();
-                            // 清空缓存，避免 ImportRowAsync 使用已删除（Detached）的实体
-                            existingCache.Clear();
+                            // 从缓存精确移除被删记录（保留其它订单的条目），并登记为"整组替换"ID
+                            replacedIds.UnionWith(RemoveFromExistingCache(existingCache, def, existing));
                             _logger.LogInformation("已清理 {Count} 个旧的订单项次记录", existing.Count);
                         }
                     }
@@ -463,8 +469,7 @@ public class DataImportService : IDataImportService
                         {
                             _context.Set<ProductRequirement>().RemoveRange(existing);
                             await _context.SaveChangesAsync();
-                            // 清空缓存，避免 ImportRowAsync 使用已删除（Detached）的实体
-                            existingCache.Clear();
+                            replacedIds.UnionWith(RemoveFromExistingCache(existingCache, def, existing));
                             _logger.LogInformation("已清理 {Count} 个旧的技术要求记录", existing.Count);
                         }
                     }
@@ -494,8 +499,7 @@ public class DataImportService : IDataImportService
                         {
                             _context.Set<SubcontractReturnItem>().RemoveRange(existing);
                             await _context.SaveChangesAsync();
-                            // 清空缓存，避免 ImportRowAsync 使用已删除（Detached）的实体
-                            existingCache.Clear();
+                            replacedIds.UnionWith(RemoveFromExistingCache(existingCache, def, existing));
                             _logger.LogInformation("已清理 {Count} 个旧的委外退货项记录", existing.Count);
                         }
                     }
@@ -524,8 +528,7 @@ public class DataImportService : IDataImportService
                         {
                             _context.Set<MaterialReceiveCheck>().RemoveRange(existing);
                             await _context.SaveChangesAsync();
-                            // 清空缓存，避免 ImportRowAsync 使用已删除（Detached）的实体
-                            existingCache.Clear();
+                            replacedIds.UnionWith(RemoveFromExistingCache(existingCache, def, existing));
                             _logger.LogInformation("已清理 {Count} 个旧的检验到料记录", existing.Count);
                         }
                     }
@@ -535,7 +538,7 @@ public class DataImportService : IDataImportService
                 {
                     try
                     {
-                        var processed = await ImportRowAsync(def, row, fkCache, userName, existingCache, pendingCodes);
+                        var processed = await ImportRowAsync(def, row, fkCache, userName, existingCache, pendingCodes, replacedIds);
                         if (processed)
                             result.SuccessCount++;
                     }
@@ -549,6 +552,11 @@ public class DataImportService : IDataImportService
                         });
                     }
                 }
+
+                // 安全网：全部行失败时回滚而不提交。
+                // 否则"先删后插"清理块已删除的旧记录会被一并提交，造成静默丢失数据。
+                if (result.SuccessCount == 0 && result.FailedCount > 0)
+                    throw new BusinessException($"共 {result.TotalRows} 行全部导入失败，已回滚，数据库中的数据保持不变");
 
                 // 3. 批量保存所有累积的变更
                 await _context.SaveChangesAsync();
@@ -922,7 +930,38 @@ public class DataImportService : IDataImportService
         return cache;
     }
 
-    private List<PropertyInfo> GetKeyProperties(EntityDef def)
+    /// <summary>
+    /// 从已存在记录缓存中精确移除被删除的记录（主键 ID 键 + 业务键），
+    /// 保留缓存中其它记录的条目。用于"先删后插"类型的实体清理。
+    /// </summary>
+    private static HashSet<int> RemoveFromExistingCache(Dictionary<string, object> cache, EntityDef def, IEnumerable<object> removed)
+    {
+        var idProp = def.Type.GetProperty("Id");
+        var keyProps = GetKeyProperties(def);
+        var removedIds = new HashSet<int>();
+
+        foreach (var item in removed)
+        {
+            if (idProp != null)
+            {
+                var idVal = idProp.GetValue(item);
+                if (idVal is int id)
+                {
+                    removedIds.Add(id);
+                    cache.Remove("__ID__:" + id);
+                }
+            }
+            if (keyProps.Count > 0)
+            {
+                var key = BuildEntityKey(item, keyProps);
+                if (key != null)
+                    cache.Remove(key);
+            }
+        }
+        return removedIds;
+    }
+
+    private static List<PropertyInfo> GetKeyProperties(EntityDef def)
     {
         var props = new List<PropertyInfo>();
         if (def.KeyColumn != null)
@@ -1020,7 +1059,8 @@ public class DataImportService : IDataImportService
     private async Task<bool> ImportRowAsync(EntityDef def, ImportRowData row,
         Dictionary<string, Dictionary<string, int>> fkCache, string? userName,
         Dictionary<string, object> existingCache,
-        Dictionary<string, HashSet<string>> pendingCodes)
+        Dictionary<string, HashSet<string>> pendingCodes,
+        HashSet<int> replacedIds)
     {
         var entityType = def.Type;
         var dbSet = _context.GetType().GetMethod("Set", Type.EmptyTypes)!
@@ -1037,8 +1077,13 @@ public class DataImportService : IDataImportService
         }
 
         // 带 ID 但库中不存在该记录 → 报错（防止静默变新增导致重复）
+        // 例外：该 ID 属于本次"先删后插"清理块删除的旧记录 → 整组替换语义，按新增写入
         if (existingEntity == null && rowKey != null && rowKey.StartsWith("__ID__:"))
-            throw new BusinessException($"ID 为 {rowKey[7..]} 的记录在数据库中不存在，无法覆盖");
+        {
+            if (!int.TryParse(rowKey[7..], out var existedId) || !replacedIds.Contains(existedId))
+                throw new BusinessException($"ID 为 {rowKey[7..]} 的记录在数据库中不存在，无法覆盖");
+            rowKey = null;
+        }
 
         var isOverwrite = existingEntity != null;
 

@@ -6,14 +6,19 @@ using MES.Core.Helpers;
 using MES.Core.Interfaces.Order;
 using MES.Core.Interfaces.Scheduling;
 using MES.Data;
+using MES.Data.Entities.Batch;
 using MES.Data.Entities.WorkOrder;
+using MES.Services.Helpers;
 
 namespace MES.Services.Order;
 
 /// <summary>
 /// 订单进度树查询服务（只读）。聚合口径全部复用既有计算：
-/// 1) 主号枚举 / 完结判定(ScheduleStage==1) / 原料锁定备注 / 生产8节点待量 / 头部签订交货延期等字段：取 WorkOrderExecutionSummary 快照
+/// 1) 主号枚举 / 完结判定(ScheduleStage==1) / 原料锁定备注 / 头部签订交货延期等字段：取 WorkOrderExecutionSummary 快照
 ///    （该表需经工单执行页「即时更新」刷新，故属快照口径）；
+/// 1b) 生产执行 8 节点待量：**实时重算**（ProductionPendingNodeHelper，按该订单各工单下的生产批次），
+///    不再取快照 PendingSection*；叶下带批次名单（在产 = 已在本节点工序组 / 在途 = 尚未做到），重量与名单同源。
+///    注意与工单执行页「生产关注工序」「变形工序完成」仍是快照口径 —— 两处会长期分叉（有意为之）；
 /// 2) 主号头的标准牌号/产品标准与整单含项次数：实时 join OrderItem（按 OrderItemIds=Sequence 逗号分隔），规格/长度/交货/支数/重量仍取快照；
 /// 3) 成品检验 3 档：复用 IFinalInspectionPlanService.GetKanbanAsync（看板前 3 档，按 ProductionBatchId 去重
 ///    取首行，口径同工单执行看板 Stage3；第 4 档「完成检验待入库」不放入树）；
@@ -36,19 +41,6 @@ public class OrderProgressQueryService : IOrderProgressQueryService
         _finalInspectionPlan = finalInspectionPlan;
     }
 
-    /// <summary>生产执行分支 8 在产节点：叶子 Key/中文标签/实体待量字段取值</summary>
-    private static readonly (string Key, string Label, Func<WorkOrderExecutionSummary, decimal?> Value)[] ProductionNodeDefs =
-    [
-        ("RoughTubeProcessing", "荒管处理", r => r.PendingSectionRoughTube),
-        ("InProcessRepair", "在制修检", r => r.PendingSectionWarehouseFix),
-        ("ColdRoll60", "60冷轧", r => r.PendingSection60Roll),
-        ("ColdRoll50", "50冷轧", r => r.PendingSection50Roll),
-        ("ColdRoll30", "30冷轧", r => r.PendingSection30Roll),
-        ("ColdRoll20", "20冷轧", r => r.PendingSection20Roll),
-        ("ThreeRollColdRoll", "三辊冷轧", r => r.PendingSectionThreeRoll),
-        ("ColdDraw", "冷拔", r => r.PendingSectionDrawBench),
-    ];
-
     public async Task<OrderProgressTreeDto?> GetTreeAsync(string salesOrderNo)
     {
         if (string.IsNullOrWhiteSpace(salesOrderNo))
@@ -64,6 +56,9 @@ public class OrderProgressQueryService : IOrderProgressQueryService
 
         // 2. 成品检验实时源（看板前 3 档），按主号预分桶
         var inspectionByMain = await BuildInspectionByMainAsync(salesOrderNo);
+
+        // 2b. 生产执行实时源：该订单各工单下批次，按主号→节点计算待量与在产/在途名单
+        var productionByMain = await BuildProductionPendingByMainAsync(rows.Select(r => r.WorkOrderNo));
 
         // 3. 成品入库实时源（OrderFinished 可交付成品 + SalesOut 出库），按主号预分桶
         var warehousing = await BuildWarehousingByMainAsync(salesOrderNo);
@@ -123,8 +118,8 @@ public class OrderProgressQueryService : IOrderProgressQueryService
                 if (rep.ScheduleStage == 2 && RawMaterialLockRemarkKeys.IsKey(rep.RawMaterialLockRemark))
                     node.RawMaterialLock = BuildLockBranch(items, rep.RawMaterialLockRemark!);
 
-                // 生产执行：8 节点待量 SUM，>0 才建叶
-                node.Production = BuildProductionBranch(items);
+                // 生产执行：8 节点待量实时重算（不再取快照 PendingSection*），>0 才建叶
+                node.Production = BuildProductionBranch(productionByMain.GetValueOrDefault(group.Key));
 
                 // 成品检验：实时 3 档
                 node.FinalInspection = BuildInspectionBranch(inspectionByMain, group.Key);
@@ -153,9 +148,13 @@ public class OrderProgressQueryService : IOrderProgressQueryService
     }
 
     // ===================== 成品检验（实时） =====================
-    private async Task<Dictionary<string, Dictionary<string, decimal>>> BuildInspectionByMainAsync(string salesOrderNo)
+
+    /// <summary>成品检验分桶：某主号某档位的重量 + 该档位批次名单</summary>
+    private sealed record InspectionBucket(decimal Weight, List<LeafBatchItemDto> Batches);
+
+    private async Task<Dictionary<string, Dictionary<string, InspectionBucket>>> BuildInspectionByMainAsync(string salesOrderNo)
     {
-        var result = new Dictionary<string, Dictionary<string, decimal>>(StringComparer.Ordinal);
+        var result = new Dictionary<string, Dictionary<string, InspectionBucket>>(StringComparer.Ordinal);
         var activeStages = new HashSet<string>(new[]
         {
             KanbanStageKeys.WaitingMaterial, KanbanStageKeys.WaitingInspection, KanbanStageKeys.Inspecting
@@ -166,22 +165,30 @@ public class OrderProgressQueryService : IOrderProgressQueryService
             .ToList();
 
         // 同批预/正式成检两行去重（GroupBy ProductionBatchId 取首行，口径同工单执行看板 Stage3）
+        // ⚠️ 重量与名单必须同取第一行 first，不许一条走 first、一条走整组，否则静默错位
         foreach (var group in kanban.GroupBy(k => k.ProductionBatchId))
         {
             var first = group.First();
             var main = first.ProductionMainNo ?? "";
             if (!result.TryGetValue(main, out var bucket))
             {
-                bucket = new Dictionary<string, decimal>(StringComparer.Ordinal);
+                bucket = new Dictionary<string, InspectionBucket>(StringComparer.Ordinal);
                 result[main] = bucket;
             }
-            bucket[first.KanbanStage] = bucket.GetValueOrDefault(first.KanbanStage) + (first.ProductionWeight ?? 0m);
+            var cur = bucket.GetValueOrDefault(first.KanbanStage) ?? new InspectionBucket(0m, new List<LeafBatchItemDto>());
+            cur.Batches.Add(new LeafBatchItemDto
+            {
+                BatchId = first.ProductionBatchId,
+                BatchNo = first.BatchNo ?? "",
+                WeightKg = first.ProductionWeight ?? 0m,
+            });
+            bucket[first.KanbanStage] = cur with { Weight = cur.Weight + (first.ProductionWeight ?? 0m) };
         }
         return result;
     }
 
     private static MainProgressBranchDto? BuildInspectionBranch(
-        Dictionary<string, Dictionary<string, decimal>> byMain, string productionMainNo)
+        Dictionary<string, Dictionary<string, InspectionBucket>> byMain, string productionMainNo)
     {
         if (!byMain.TryGetValue(productionMainNo, out var bucket))
             return null;
@@ -189,9 +196,28 @@ public class OrderProgressQueryService : IOrderProgressQueryService
         var leaves = new List<MainProgressLeafDto>();
         foreach (var stage in KanbanStageKeys.All) // 前3档按看板序，第4档已过滤不入
         {
-            if (!bucket.TryGetValue(stage, out var weight) || weight <= 0m)
+            if (!bucket.TryGetValue(stage, out var info) || info.Weight <= 0m)
                 continue;
-            leaves.Add(new MainProgressLeafDto { Key = stage, Text = stage, WeightKg = weight });
+
+            // 检验叶单段（每批恰好落一个档，无「在途」概念）
+            var batches = info.Batches.OrderBy(b => b.BatchNo, StringComparer.Ordinal).ToList();
+            leaves.Add(new MainProgressLeafDto
+            {
+                Key = stage,
+                Text = stage,
+                WeightKg = info.Weight,
+                BatchSegments =
+                [
+                    new LeafBatchSegmentDto
+                    {
+                        Key = "Batches",
+                        Label = stage,
+                        WeightKg = info.Weight,
+                        BatchCount = batches.Count,
+                        Batches = batches,
+                    }
+                ],
+            });
         }
         return leaves.Count > 0
             ? new MainProgressBranchDto { Key = "FinalInspection", Title = "成品检验", Leaves = leaves }
@@ -464,19 +490,84 @@ public class OrderProgressQueryService : IOrderProgressQueryService
         };
     }
 
-    // ===================== 生产执行（快照） =====================
-    private static MainProgressBranchDto? BuildProductionBranch(List<WorkOrderExecutionSummary> items)
+    // ===================== 生产执行（实时重算） =====================
+
+    /// <summary>
+    /// 按主号计算生产执行 8 节点待量与在产/在途名单（实时口径，取代快照 PendingSection*）。
+    /// 取数范围 = 该订单各工单（<paramref name="workOrderNos"/>）下的生产批次，与工单执行读模型刷新范围对齐
+    /// （仅按订单号取会多算不相干批次）；同主号全部工单的批次并集一次算完（逐批可加，勿逐工单算再相加）。
+    /// ⚠️ 必须 Include(ProcessGroups)，否则待量恒 0（静默无异常）。
+    /// </summary>
+    private async Task<Dictionary<string, Dictionary<string, ProductionPendingNodeHelper.NodePending>>> BuildProductionPendingByMainAsync(
+        IEnumerable<string> workOrderNos)
     {
+        var result = new Dictionary<string, Dictionary<string, ProductionPendingNodeHelper.NodePending>>(StringComparer.OrdinalIgnoreCase);
+        var orderNos = workOrderNos.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (orderNos.Count == 0)
+            return result;
+
+        var batches = await _context.ProductionBatches.AsNoTracking()
+            .Include(b => b.ProcessGroups)
+            .Where(b => orderNos.Contains(b.WorkOrderNo))
+            .ToListAsync();
+
+        foreach (var group in batches.GroupBy(b => b.ProductionMainNo ?? "", StringComparer.OrdinalIgnoreCase))
+            result[group.Key] = ProductionPendingNodeHelper.Compute(ProductionPendingNodeHelper.ActiveBatches(group));
+
+        return result;
+    }
+
+    /// <summary>
+    /// 生产执行[待产]分支：8 节点实时待量叶（&gt; 0 才建叶）。
+    /// 每叶带批次名单分段 —— 在产段（有才加）+ 在途段，固定「在产 → 在途」序；
+    /// 段合计恒等于叶重量（分段只是对同一命中集合分区）。
+    /// ⚠️ 标签【待产】保持既有文案：其实际语义为「尚未完成此节点」= 在产 + 在途。
+    /// </summary>
+    private static MainProgressBranchDto? BuildProductionBranch(Dictionary<string, ProductionPendingNodeHelper.NodePending>? pending)
+    {
+        if (pending == null)
+            return null;
+
         var leaves = new List<MainProgressLeafDto>();
-        foreach (var (key, label, value) in ProductionNodeDefs)
+        foreach (var (key, label, _, _) in ProductionPendingNodeHelper.NodeDefs)
         {
-            var sum = items.Sum(r => value(r) ?? 0m);
-            if (sum > 0m)
-                leaves.Add(new MainProgressLeafDto { Key = key, Text = label, WeightKg = sum });
+            if (!pending.TryGetValue(key, out var node) || node.TotalKg <= 0m)
+                continue;
+
+            var segments = new List<LeafBatchSegmentDto>();
+            if (node.InProgress.Count > 0)
+                segments.Add(BuildBatchSegment("InProgress", "在产", node.InProgress));
+            if (node.InTransit.Count > 0)
+                segments.Add(BuildBatchSegment("InTransit", "在途", node.InTransit));
+
+            leaves.Add(new MainProgressLeafDto
+            {
+                Key = key,
+                Text = label,
+                WeightKg = node.TotalKg,
+                BatchSegments = segments,
+            });
         }
         return leaves.Count > 0
             ? new MainProgressBranchDto { Key = "Production", Title = "生产执行[待产]", Leaves = leaves }
             : null;
+    }
+
+    /// <summary>名单分段（段重 = Σ 段内批次重，批次数 = 段内条数）</summary>
+    private static LeafBatchSegmentDto BuildBatchSegment(
+        string key, string label, IReadOnlyList<ProductionPendingNodeHelper.BatchRef> refs)
+    {
+        var batches = refs
+            .Select(r => new LeafBatchItemDto { BatchId = r.BatchId, BatchNo = r.BatchNo, WeightKg = r.WeightKg })
+            .ToList();
+        return new LeafBatchSegmentDto
+        {
+            Key = key,
+            Label = label,
+            WeightKg = batches.Sum(b => b.WeightKg),
+            BatchCount = batches.Count,
+            Batches = batches,
+        };
     }
 
     // ===================== 原料锁定（快照，按类取现成字段） =====================

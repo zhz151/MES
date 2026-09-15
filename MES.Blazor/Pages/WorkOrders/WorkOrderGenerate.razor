@@ -108,7 +108,8 @@
 
                     <!-- 表格区域：固定高度400px，表头固定，关闭分页 -->
                     <div style="max-height: 400px; overflow-y: auto; border-radius: 4px;">
-                        <MudTable T="OrderItemForWorkOrderDto"
+                        <MudTable Breakpoint="Breakpoint.None"
+                                  T="OrderItemForWorkOrderDto"
                                   Items="@orderItems"
                                   Dense="true"
                                   Hover="true"

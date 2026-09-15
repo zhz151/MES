@@ -41,6 +41,7 @@ using MES.Data.Entities.Auth;
 using MES.Data.Entities.Order;
 using MES.Data.Entities.Scheduling;
 using MES.Data.Entities.WorkOrder;
+using MES.Services.Extensions;
 using MES.Services.Helpers;
 using MES.Services.Printing;
 using WoEntity = MES.Data.Entities.WorkOrder.WorkOrder;
@@ -1940,130 +1941,18 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
             : 0;
 
         // ========== Group 17: 在产节点待量 ==========
-        // 8个固定节点定义：(工序组名称, 工段名称)
-        var nodeDefs = new (string ProcessName, string SectionName)[]
-        {
-            (ProcessKeys.RoughTubeProcessing, SectionKeys.OuterPolish),
-            (ProcessKeys.InProcessRepair, SectionKeys.Inspection),
-            (ProcessKeys.ColdRoll60, SectionKeys.ColdRollDraw),
-            (ProcessKeys.ColdRoll50, SectionKeys.ColdRollDraw),
-            (ProcessKeys.ColdRoll30, SectionKeys.ColdRollDraw),
-            (ProcessKeys.ColdRoll20, SectionKeys.ColdRollDraw),
-            (ProcessKeys.ThreeRollColdRoll, SectionKeys.ColdRollDraw),
-            (ProcessKeys.ColdDraw, SectionKeys.ColdRollDraw),
-        };
+        // 8 个固定节点定义改由 ProductionPendingNodeHelper.NodeDefs 单源提供（工序组名称, 工段名称）
+        var nodeDefs = ProductionPendingNodeHelper.NodeDefs;
 
         // 使用所有非完成/成检批次（含正常 + 返整）
-        var group14Batches = batches.Where(b => b.Status != BatchStatus.InFinalInspection && b.Status != BatchStatus.Completed).ToList();
+        var group14Batches = ProductionPendingNodeHelper.ActiveBatches(batches);
 
-        // 预置 pending 字段容器
-        var pendingValues = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (pn, _) in nodeDefs)
-            pendingValues[pn] = 0m;
+        // 待量计算（批次粒度，顺带产出各节点在产/在途名单）
+        var pendingNodes = ProductionPendingNodeHelper.Compute(group14Batches);
+        var pendingValues = ProductionPendingNodeHelper.Totals(pendingNodes);
 
-        foreach (var batch in group14Batches)
-        {
-            if (batch.ProcessGroups == null || batch.ProcessGroups.Count == 0)
-                continue;
-
-            // 已完成的批次视为到达所有节点
-            if (batch.Status == BatchStatus.Completed)
-                continue;
-
-            // 构建本批次 ProcessName → SequenceNumber 映射
-            var pgMap = batch.ProcessGroups
-                .Where(pg => !string.IsNullOrEmpty(pg.ProcessName))
-                .ToDictionary(pg => pg.ProcessName, pg => pg.SequenceNumber, StringComparer.OrdinalIgnoreCase);
-
-            // 获取批次当前工序的 SequenceNumber（未投产 = 0）
-            int batchCurrentSeq = 0;
-            if (!string.IsNullOrEmpty(batch.CurrentGroupName))
-            {
-                var currentSeqOpt = batch.ProcessGroups
-                    .Where(pg => pg.ProcessName.Equals(batch.CurrentGroupName, StringComparison.OrdinalIgnoreCase))
-                    .Select(pg => pg.SequenceNumber)
-                    .Cast<int?>()
-                    .FirstOrDefault();
-                batchCurrentSeq = currentSeqOpt ?? 0;
-            }
-
-            var batchWeight = batch.CurrentValidWeight ?? 0m;
-
-            foreach (var (pn, sn) in nodeDefs)
-            {
-                // 该批次无此工序组 → 节点不适用
-                if (!pgMap.TryGetValue(pn, out var targetSeq))
-                    continue;
-
-                if (batchCurrentSeq < targetSeq)
-                {
-                    // 批次未到达此工序组 → 检查该工序组是否确实包含目标工段
-                    // 仅当该工序组定义了目标工段时才计入待量
-                    var targetPg = batch.ProcessGroups
-                        .FirstOrDefault(pg => pg.ProcessName.Equals(pn, StringComparison.OrdinalIgnoreCase));
-                    if (targetPg == null) continue;
-
-                    var targetSectionSeq = GetSectionSequence(targetPg, sn);
-                    if (targetSectionSeq == null) continue; // 该工序组不含此工段
-
-                    pendingValues[pn] += batchWeight;
-                }
-                else if (batchCurrentSeq == targetSeq)
-                {
-                    // === 1. 工段级到达检查：荒管处理·外抛光、在制修检·检验 ===
-                    // 批次已到达此工序组但尚未到达指定工段时，仍需计入待量
-                    if (pn is ProcessKeys.RoughTubeProcessing or ProcessKeys.InProcessRepair)
-                    {
-                        var targetPg = batch.ProcessGroups
-                            .FirstOrDefault(pg => pg.ProcessName.Equals(pn, StringComparison.OrdinalIgnoreCase));
-                        if (targetPg == null) continue;
-
-                        // 获取目标工段在该工序组中的执行序号（如 OuterPolish=5）
-                        var targetSectionSeq = GetSectionSequence(targetPg, sn);
-                        if (targetSectionSeq == null) continue; // 该工序组不含此工段
-
-                        // 批次无当前工段 → 在工序组内但未开始任何工段 → 计入待量
-                        if (string.IsNullOrEmpty(batch.CurrentSectionName))
-                        {
-                            pendingValues[pn] += batchWeight;
-                            continue;
-                        }
-
-                        // 批次当前不在该工序组 → 已越过（例如已到后续工序）→ 不计
-                        if (batch.CurrentGroupName == null ||
-                            !batch.CurrentGroupName.Equals(pn, StringComparison.OrdinalIgnoreCase))
-                            continue;
-
-                        // 均在同一工序组内，比较工段执行序号
-                        var currentSectionSeq = GetSectionSequence(targetPg, batch.CurrentSectionName);
-                        if (currentSectionSeq == null || currentSectionSeq.Value < targetSectionSeq.Value)
-                        {
-                            // 当前工段序号 < 目标工段序号 → 尚未到达目标工段 → 计入待量
-                            pendingValues[pn] += batchWeight;
-                        }
-                        continue;
-                    }
-
-                    // === 3. 冷轧/冷拔系列 — 检查批次是否正在做指定工段且未完成 ===
-                    var isAtSection = batch.CurrentGroupName != null
-                        && batch.CurrentGroupName.Equals(pn, StringComparison.OrdinalIgnoreCase)
-                        && batch.CurrentSectionName == sn;
-
-                    if (isAtSection && batch.CurrentSectionCompleted != true)
-                        pendingValues[pn] += batchWeight;
-                }
-            }
-        }
-
-        // 将 pendingValues 赋值到 summary 字段
-        summary.PendingSectionRoughTube = pendingValues[ProcessKeys.RoughTubeProcessing] > 0 ? pendingValues[ProcessKeys.RoughTubeProcessing] : null;
-        summary.PendingSectionWarehouseFix = pendingValues[ProcessKeys.InProcessRepair] > 0 ? pendingValues[ProcessKeys.InProcessRepair] : null;
-        summary.PendingSection60Roll = pendingValues[ProcessKeys.ColdRoll60] > 0 ? pendingValues[ProcessKeys.ColdRoll60] : null;
-        summary.PendingSection50Roll = pendingValues[ProcessKeys.ColdRoll50] > 0 ? pendingValues[ProcessKeys.ColdRoll50] : null;
-        summary.PendingSection30Roll = pendingValues[ProcessKeys.ColdRoll30] > 0 ? pendingValues[ProcessKeys.ColdRoll30] : null;
-        summary.PendingSection20Roll = pendingValues[ProcessKeys.ColdRoll20] > 0 ? pendingValues[ProcessKeys.ColdRoll20] : null;
-        summary.PendingSectionThreeRoll = pendingValues[ProcessKeys.ThreeRollColdRoll] > 0 ? pendingValues[ProcessKeys.ThreeRollColdRoll] : null;
-        summary.PendingSectionDrawBench = pendingValues[ProcessKeys.ColdDraw] > 0 ? pendingValues[ProcessKeys.ColdDraw] : null;
+        // 将待量赋值到 summary 的 8 个 PendingSection* 字段
+        ProductionPendingNodeHelper.ApplyTo(summary, pendingNodes);
 
         // ========== 变形工序完成三档 + 生产关注工序（先判变形工序完成，再生成关注工序） ==========
         // 「无在产批次」= 没投料（无批次）或 生产编号既不在产也未产（批次全成检/完成）→ group14Batches 为空
@@ -3765,46 +3654,6 @@ public class WorkOrderExecutionService : IWorkOrderExecutionService
         if (parts.Length > 0 && decimal.TryParse(parts[0].Trim(), out var od))
             return od;
         return null;
-    }
-
-    /// <summary>
-    /// 获取指定工段在工序组中的执行序号（用于工段级到达判断）
-    /// 对应 ProductionOverviewService.ProcessGroupInfo.GetSectionSequence
-    /// </summary>
-    private static int? GetSectionSequence(ProcessGroup pg, string? sectionName)
-    {
-        var key = SectionKeys.ToKey(sectionName);
-        if (key == null) return null;
-        return key switch
-        {
-            SectionKeys.ColdRollDraw => pg.ColdRollDraw,
-            SectionKeys.OilPipeCut => pg.OilPipeCut,
-            SectionKeys.Degrease => pg.Degrease,
-            SectionKeys.EmulsionWash => pg.EmulsionWash,
-            SectionKeys.UltrasonicWash => pg.UltrasonicWash,
-            SectionKeys.ClothPolish => pg.ClothPolish,
-            SectionKeys.BrightAnnealing => pg.BrightAnnealing,
-            SectionKeys.Solution => pg.Solution,
-            SectionKeys.Straighten => pg.Straighten,
-            SectionKeys.Cut => pg.Cut,
-            SectionKeys.ThicknessMeasure => pg.ThicknessMeasure,
-            SectionKeys.Pickle => pg.Pickle,
-            SectionKeys.OuterPolish => pg.OuterPolish,
-            SectionKeys.InnerPolish => pg.InnerPolish,
-            SectionKeys.InnerGrinding => pg.InnerGrinding,
-            SectionKeys.OuterSpotGrinding => pg.OuterSpotGrinding,
-            SectionKeys.SandBlasting => pg.SandBlasting,
-            SectionKeys.ShotBlasting => pg.ShotBlasting,
-            SectionKeys.Inspection => pg.Inspection,
-            SectionKeys.WeldingHead => pg.WeldingHead,
-            SectionKeys.Welding => pg.Welding,
-            SectionKeys.Lubrication => pg.Lubrication,
-            SectionKeys.Packing => pg.Packing,
-            SectionKeys.Warehouse => pg.Warehouse,
-            SectionKeys.Extra1 => pg.Extra1,
-            SectionKeys.Extra2 => pg.Extra2,
-            _ => null
-        };
     }
 
     // ========== 打印 ==========

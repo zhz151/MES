@@ -354,6 +354,9 @@
     private bool canRepair;
     private bool canPreview;
     private MES.Core.Models.DataFixReport? fixReport;
+    // 记录当前预览结果对应的文件与实体，导入前校验，防止用旧文件的预览统计导入新文件
+    private IBrowserFile? previewedFile;
+    private string? previewedEntity;
 
     protected override async Task OnInitializedAsync()
     {
@@ -441,6 +444,11 @@
     private void OnFileSelected(IBrowserFile file)
     {
         selectedFile = file;
+        // 换文件后清空旧预览结果，避免沿用上一个文件的"覆盖/新增"统计执行本次导入
+        previewResult = null;
+        importResult = null;
+        previewedFile = null;
+        previewedEntity = null;
         UpdateCanPreview();
     }
 
@@ -452,6 +460,8 @@
         previewResult = null;
         importResult = null;
         fixReport = null;
+        previewedFile = null;
+        previewedEntity = null;
         UpdateCanPreview();
     }
 
@@ -473,19 +483,30 @@
         previewResult = null;
         importResult = null;
 
+        // 捕获本次请求的文件与数据类型，返回时校验是否已被切换（防止过期结果覆盖当前上下文）
+        var requestFile = selectedFile!;
+        var requestEntity = selectedEntity!;
+
         try
         {
             byte[] fileData;
             using (var ms = new MemoryStream())
             {
-                await selectedFile!.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(ms);
+                await requestFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(ms);
                 fileData = ms.ToArray();
             }
 
-            var result = await DataExchangeSvc.PreviewAsync(selectedEntity!, fileData, selectedFile.Name);
+            var result = await DataExchangeSvc.PreviewAsync(requestEntity, fileData, requestFile.Name);
+            if (requestEntity != selectedEntity || !ReferenceEquals(requestFile, selectedFile))
+            {
+                Snackbar.Add("预览期间已切换数据类型或文件，本次预览结果已作废，请重新预览", Severity.Info);
+                return;
+            }
             if (result.Success && result.Data != null)
             {
                 previewResult = result.Data;
+                previewedFile = requestFile;
+                previewedEntity = requestEntity;
                 Snackbar.Add("预览完成", Severity.Info);
             }
             else
@@ -507,6 +528,13 @@
     private async Task ConfirmImport()
     {
         if (selectedFile == null || string.IsNullOrEmpty(selectedEntity) || previewResult == null) return;
+
+        // 预览结果必须与当前选中的文件/数据类型一致，否则"将覆盖/将新增"的统计与实际导入内容不符
+        if (!ReferenceEquals(previewedFile, selectedFile) || previewedEntity != selectedEntity)
+        {
+            Snackbar.Add("文件或数据类型已变更，请重新预览后再导入", Severity.Warning);
+            return;
+        }
 
         // 覆盖导入（空白清空字段）为批量写操作，先确认影响范围
         var confirm = await DialogService.ShowAsync<ConfirmDialog>("确认导入", new DialogParameters
