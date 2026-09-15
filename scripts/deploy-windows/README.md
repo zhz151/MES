@@ -212,5 +212,4 @@ powershell -ExecutionPolicy Bypass -File .\06-verify.ps1
 | `08-restore-db.ps1` | **服务器**：从 `.bak` 整库恢复（灾难恢复用，会覆盖现有库） |
 | `09-apply-deploy.ps1` | **服务器**：增量发布（校验包体 + 路由门禁 + 备份回滚 + 起服务探活） |
 | `backup-mes.ps1` | 被计划任务调用：每日压缩备份 + 清理 5 天前（日志 `C:\mes\logs\backup.log`） |
-| `07-backup-job.sql` | 仅当以后升级 Standard/Developer（默认实例 + SQL Agent）时用；**Express 不适用** |
 | `nginx-mes.conf.template` | nginx 配置模板 |
