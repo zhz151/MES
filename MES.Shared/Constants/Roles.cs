@@ -28,7 +28,7 @@ public static class Roles
         public const string SchedulingViewer = "SchedulingViewer";
         public const string SchedulingEditor = "SchedulingEditor";
         public const string SchedulingFull = "SchedulingFull";
-        // 批次管理
+        // 生产执行（2026-09-15 菜单更名，角色代码沿用 Batch 前缀不改 → 无需改库/重登）
         public const string BatchViewer = "BatchViewer";
         public const string BatchEditor = "BatchEditor";
         public const string BatchFull = "BatchFull";
@@ -189,7 +189,7 @@ public static class Roles
             Menus.WorkOrderViewer, Menus.WorkOrderEditor, Menus.WorkOrderFull,
             // 计划排程
             Menus.SchedulingViewer, Menus.SchedulingEditor, Menus.SchedulingFull,
-            // 批次管理
+            // 生产执行
             Menus.BatchViewer, Menus.BatchEditor, Menus.BatchFull,
             // 质量管理
             Menus.QualityViewer, Menus.QualityEditor, Menus.QualityFull,

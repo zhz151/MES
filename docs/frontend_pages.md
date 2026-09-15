@@ -1,8 +1,15 @@
 # MES 前端页面结构参考
 
-> 版本：V145（2026-09-15；生成 2026-08-19）
+> 版本：V146（2026-09-15；生成 2026-08-19）
 > 用途/状态：Quick Reference - 按导航菜单分组的前端页面结构参考，§1 上下文总览 / §2 各上下文页面块 / §3 列表页全量清单 / §7 生产编号链接台账。
-> 上次实质变更（V145）：**「订单负荷总量」页：交期截止负荷量列组默认折叠 + 日期表头两行强化层次**（2026-09-15，**纯 WASM（`Pages/Scheduling/WorkOrderLoadOverview.razor(.cs)`，样式写在页内 `<style>`）；后端 / DTO / DB / 迁移 / 权限 / 路由零改动**）：
+> 上次实质变更（V146）：**一级菜单「批次管理」更名「生产执行」**（2026-09-15，**纯 WASM；后端 / API / DTO / DB / 迁移 / 权限 / 路由零改动**）：
+> ① **改名（用户拍板，二选一后选定「生产执行」）**——`Shared/AppMenu.cs` 一级分组 `Label`「批次管理」→ **「生产执行」**（`Href` 无、`Policy` 仍 `Roles.Policies.BatchMenu` 不变）。**理由**：该组 7 项叶子（生产批次 / 生产执行核查 / 生产记录 / 去油酸洗 / 工段委外 / 委外单位管理 / 工艺卡打印）**全属生产执行动作**，「批次」只是承载对象；且与「计划排程」构成 **计划 → 执行** 的先后关系；另避免与「计划排程 → 批次计划」两处都叫「批次」。**未选「生产管理」**：一级已有 工单管理 / 计划排程 / 生产标准，该名是其公共上位词，易被误读为「生产总入口」。
+> ② **同步改（用户管理 UI）**——`Helpers/UserRoleDisplayHelper.cs` 的 `MenuTiers`：`new("Batch", "批次管理")` → **`new("Batch", "生产执行")`**（用户管理「角色分配」弹窗里的档位名）。`Prefix` 仍是 `Batch`。
+> ③ **⚠️ 有意不改（关键）**——**角色代码 `BatchViewer` / `BatchEditor` / `BatchFull` 保持原样**（`MES.Shared/Constants/Roles.cs`）：46 个角色存于 `AspNetRoles` 且逐次写进 JWT，改名须改库 + 全员重新登录，换来的可见差异为零（用户只看到 ② 那个中文档位名）。`Roles.cs` 两处注释已注明「菜单更名、角色代码不改」。
+> ④ **测试**——`MES.Tests/Components/AppMenuTests.cs`：`批次管理组_生产批次与生产执行核查并列` → **`生产执行组_生产批次与生产执行核查并列`**，`Node("批次管理")` → `Node("生产执行")`；`根级顺序_与电脑版历史一致` 第 6 位由 `"批次管理"` 改 `"生产执行"`。`UserRoleDisplayHelperTests` 只断言 `Prefix` / 条数 / 顺序、**不断言中文名 → 不受影响**。
+> ⑤ **⚠️ 文档取舍（防误读）**——本文件与各模块文档中，**以「历史变更（Vxx）:」/「版本变更（Vxx …）:」开头的历史条目保留当时的「批次管理」原文**（历史不可改写）；**当前状态类描述**（菜单树 §2.4 / §6.1、上下文↔角色表 §4、页面清单括注、入口描述）**已全部更新为「生产执行」**。⚠️ 另注：`docs/01_设计总纲领.md` / `02_架构设计.md` / `12_商业MES差距分析.md` 中的「批次管理」指**仓库上下文的库存批次管理**（另一回事），**本次未动**。
+> ⑥ **无需抬 `?v=` 串**——纯菜单标签 + 用户管理弹窗文案，**无 CSS 变更**（`app.css?v=13` / `MES.Blazor.styles.css?v=6` 均保持）。**零 EF 迁移 / 零数据变更 / 零权限变更**。
+> 历史变更（V145）：**「订单负荷总量」页：交期截止负荷量列组默认折叠 + 日期表头两行强化层次**（2026-09-15，**纯 WASM（`Pages/Scheduling/WorkOrderLoadOverview.razor(.cs)`，样式写在页内 `<style>`）；后端 / DTO / DB / 迁移 / 权限 / 路由零改动**）：
 > ① **列组折叠（用户拍板「默认不显示」）**——`col-g101` 交期截止负荷量（7 个日期桶列）**默认折叠**，页头右侧「打印」旁新增切换按钮（`ExpandMore`/`ExpandLess`，文案「展开/收起交期截止负荷量」）；折叠后表格 8 列、不再横向滚动。**这是「表不上眼」的根源**。
 > ② **⚠️ 三处必须成对增减**（缺一整组错位，已写入代码注释）——① 分组标题栏的 `col-g101` 徽章 item、② `HeaderContent` 的 7 个 `MudTh`、③ `RowTemplate` 的 7 个 `MudTd`：`wwwroot/js/table-nav.js` 的 `initGroupHeaders` **按 th 的 `col-gN` 顺序、按索引**给 `headerBar.querySelectorAll('.col-group-header-item')[i]` 写宽度（`table-nav.js:264-287`），只藏一边会整体串位。折叠/展开后 `OnAfterRenderAsync` 每次渲染都调 `initGroupHeaders`（非首次走 `requestAnimationFrame(syncGroupWidths)` 分支）+ thead 的 `MutationObserver` 亦会触发重测，无需额外 JS。
 > ③ **打印=所见即所得（用户拍板）**——`PrintTable` 直接抓 `#workorder-overview-table` 的 DOM，**不做自动展开**：折叠状态下打印即少 7 列。分组标题栏本就不打印（既有决策），故本次对打印件零影响。
@@ -97,7 +104,7 @@
 > ⑤ **验证** `dotnet build MES.sln --no-incremental` **9 项目 0 错 0 警** + 定向单测 **9 过**（`HomeQueryCardsTests` 由 3 → **5** 例：新增「订单卡点清除 → 结果清空、且再点查询不发起请求」「批次卡点清除 → 提示消失、进度卡不渲染」；`HomeQueryEndpointAuthorizationTests` 4 例不变）。
 > 历史变更（V132）：**首页新增两张「卡内查询」卡（订单进度 / 生产批次进度）+ 三个数据源端点放宽为仅登录 + 订单进度树抽为共享组件**（2026-09-14，**后端 3 端点授权 + 前端；无 EF 迁移 / 无数据变更**）：
 > ① **需求（用户拍板）**——首页建立 2 个查询：「订单进度」的查询结果＝**订单进度树**、「生产批次进度」的查询结果＝**批次执行进度卡片**，两者都**只在首页就地渲染、不是链接**（不跳 `/orders/progress`、不跳批次详情页）；取数口径＝**卡内查询框**（输入订单号 / 生产编号，回车或点「查询」）；订单进度树在首页走**折叠态摘要**（**全部主号默认折叠**，点主号才展开分支与重量叶）。
-> ② **权限（用户拍板「首页人人可查」）**——首页 `Index.razor` 只有 `[Authorize]`（仅登录），故三个数据源端点**去掉业务角色档、改为仅需登录**：`GET api/order/progress`（原 `OrderView`）、`GET api/batch/by-batch-no/{batchNo}`（原 `BatchView`）、`GET api/batch/{id}/tracking`（原 `BatchView`）。⚠️ **副作用**：`by-batch-no` 返回 `ProductionBatchDetailDto` 全量，放宽后全体登录用户可读批次主数据（菜单门控不变——「批次管理」整页仍按 `BatchMenu` 隐藏）；⚠️ **按 Id 取详情 `GET api/batch/{id}` 保持 `BatchView` 档**（仍属批次管理页职责，未被顺手放开，有测试护栏）。
+> ② **权限（用户拍板「首页人人可查」）**——首页 `Index.razor` 只有 `[Authorize]`（仅登录），故三个数据源端点**去掉业务角色档、改为仅需登录**：`GET api/order/progress`（原 `OrderView`）、`GET api/batch/by-batch-no/{batchNo}`（原 `BatchView`）、`GET api/batch/{id}/tracking`（原 `BatchView`）。⚠️ **副作用**：`by-batch-no` 返回 `ProductionBatchDetailDto` 全量，放宽后全体登录用户可读批次主数据（菜单门控不变——「生产执行」整页仍按 `BatchMenu` 隐藏）；⚠️ **按 Id 取详情 `GET api/batch/{id}` 保持 `BatchView` 档**（仍属「生产执行」页职责，未被顺手放开，有测试护栏）。
 > ③ **组件抽取（⚠️ Blazor scoped CSS 不能跨组件）**——`Pages/Orders/OrderProgress.razor(.cs)` 的树本体抽为 **`Shared/OrderProgressTree.razor` + `.razor.cs` + `.razor.css`**（64 条 `.op-*` 规则**整文件 `git mv`** 自 `Pages/Orders/OrderProgress.razor.css`；页面级打印 `<style>` 块留在原页 —— `.op-main-node` / `.op-print-footer` / `.op-print-hide` 是普通类选择器、不带 scoped 属性，仍能命中）。组件新增 `[Parameter] bool Compact`：`false`（`/orders/progress`）＝**原行为**（非完结主号默认展开、完结主号默认折叠）；`true`（首页卡）＝**全部主号默认折叠**。默认折叠态初始化由 `OnInitializedAsync` 移到 `OnParametersSet`，并以**树实例引用比较**（`_collapsedInitializedFor`）守卫 —— 否则父组件每次重渲染都会把用户手动展开的主号重置回默认折叠。`/orders/progress` 页行为零变化（改为渲染 `<OrderProgressTree Tree="_tree" />`，打印 / 返回 / 页脚 / 打印样式块全部保留）。
 > ④ **新增两卡**——`Shared/OrderProgressQueryCard.razor(.cs)`（订单号 → `OrderProgressService.GetAsync` → `<OrderProgressTree Tree Compact="true" />`）与 `Shared/BatchProgressQueryCard.razor(.cs)`（生产编号 → `BatchService.GetByBatchNoAsync` 取 `Id` → 内嵌既有 `Shared/BatchProgressCard`，即「批次执行进度」组件）。两卡自带 `[CascadingParameter(Name="IsMobile")]` → 手机端外壳 `mh-card pa-3` / 桌面端 `home-stack-card`（半屏宽居中，与首页其它卡一致），故 `Index.razor` 桌面 / 手机**两分支各只写两行组件标签**（不复制标记）。结果区 `.home-query-result` 限高 `420px` 纵向滚动（手机端不限高、随页面滚动），查询条 `.home-query-bar`（手机端改纵向堆叠）。查不到时给 `MudAlert` 业务提示且不渲染结果。
 > ⑤ **静态资源版本串（同提交抬串，见 V131 教训）**——`app.css` 新增 `.home-query-bar` / `.home-query-result` / `.mh-container .home-query-*` 规则、`MES.Blazor.styles.css` 因 scoped CSS 迁移而变动 → `index.html`：`css/app.css?v=3` → **`?v=4`**、`MES.Blazor.styles.css?v=1` → **`?v=2`**。
@@ -357,7 +364,7 @@
 | 订单 | 订单管理 | OrderViewer/Editor/Full + Admin | 8 | 3 |
 | 工单 | 工单管理 | WorkOrderViewer/Editor/Full + Admin | 18 | 6 |
 | 计划排程 | 计划排程 | SchedulingViewer/Editor/Full + Admin | 6 | 5 |
-| 批次 | 批次管理 | BatchViewer/Editor/Full + Admin | 17 | 8 |
+| 生产执行 | 生产执行 | BatchViewer/Editor/Full + Admin | 17 | 8 |
 | 质量 | 质量管理 | QualityViewer/Editor/Full + Admin | 32 | 16 |
 | 物料 | 物料管理 | MaterialViewer/Editor/Full + Admin | 9 | 4 |
 | 仓库 | 仓库管理 | WarehouseViewer/Editor/Full + Admin | 7 | 4 |
@@ -480,9 +487,9 @@
 路由前缀: /batches, /production-execution-check, /production-records, /section-outsources,
          /outsource-vendors, /outsource-recoveries, /pickling-in-records, /pickling-out-records,
          /process-card-print
-菜单: 批次管理 → [生产批次, 生产执行核查, 生产记录, 去油酸洗, 工段委外, 委外单位管理, 工艺卡打印]
+菜单: 生产执行 → [生产批次, 生产执行核查, 生产记录, 去油酸洗, 工段委外, 委外单位管理, 工艺卡打印]
 
-┌─ 批次管理 ───────────────────────────────────────────────┐
+┌─ 生产执行 ───────────────────────────────────────────────┐
 │                                                           │
 │  Batches.razor              /batches           [列表页]     │
 │  BatchCreate.razor          /batches/create    [创建页]     │
@@ -896,7 +903,8 @@
 │ ▸ 工单管理 → 工单生成 / 需求调整 / 工单用料 / 用投料核查 / 查询工单执行 / 查询定尺工单
 │            （V144 六项并列二级，原「工单操作 / 工单查询」分组取消）
 │ ▸ 计划排程 → 订单负荷总量 / 工单排程 / 冷轧排程 / 批次计划 / 成检计划
-│ ▸ 批次管理 → 生产批次 / 生产执行核查 / 生产记录 / 去油酸洗 / 工段委外 / 委外单位管理 / 工艺卡打印
+│ ▸ 生产执行 → 生产批次 / 生产执行核查 / 生产记录 / 去油酸洗 / 工段委外 / 委外单位管理 / 工艺卡打印
+│            （V146 原「批次管理」更名；组内 7 项全属生产执行动作，与「计划排程」构成 计划→执行）
 │ ▾ 质量管理（3 级嵌套）
 │    巡检 / 过程检验 / 成检到料 / 成品检验 / 成检追踪
 │    ▾ 不合格处置 → 不合格反馈 / 不合格报告
@@ -1014,7 +1022,7 @@
 | 84 | AllowanceMonthly.razor | /payroll/allowance | 工资结算 | ✅ | 津贴与处罚月度网格页：月度金额录入，行=员工、列=固定 9 金额项目（满勤奖/工龄奖/夜班津贴/岗位补贴/高温费/工伤补贴/带班费/处罚/代缴社保，参考 Excel《津贴与处罚.xlsx》），宽表每人每月一行（EmployeeId+Year+Month 唯一）；金额强制整元（RoundYuan AwayFromZero、空/0=null、禁负数，OnCellChanged 即时规约与后端 NormalizeAmount 同口径）；员工月历 = IsActive 在册 ∪ 当月已有记录（停用员工当月行浅灰回显可改）；考勤同款 attendance-grid 宽表（attendance-scroll/grid 类 + 原生 input 每格失焦提交 + enableAttendanceKeyNav 方向键导航复用；sticky-left 工号/姓名/岗位类别/岗位列，岗位中文经 DictValueDisplayHelper）+ tfoot 各列整月合计 + 页内关键词筛选（工号/姓名/岗位，客户端，合计不变）+ @foreach 渲染防闭包 + OverrideMap 事件订阅重渲染；顶部「清空本月」(ConfirmDialog Error，提交空 Rows)「保存本月」(Snackbar 计数) SalaryEdit 门控 |
 | 85 | MonthlySummary.razor | /payroll/monthly-summary | 工资结算 | ✅ | 月工资津贴汇总页：员工某结算月「完整应发/实发」汇总表（参考 Excel《工资条及打印.xlsx》17 列：工号/姓名/月份常量/出勤天数/本月基础工资/本月杂辅工资 + 岗位补贴·工龄奖·满勤奖·带班费·夜班津贴·高温费·工伤补贴 7 正津贴 + 处罚·代缴社保(存负)/应发/实发）；基础工资按各子页「已保存金额」归口（Fixed=Employee.MonthlyWage、PieceCollective→集体月结快照、PieceAttendance→靠工月结快照、Hourly/Daily/PieceIndividual→每日工资当月Σ），出勤天数=当月考勤去重日期数；应发=基础+杂辅+7 正津贴，实发=应发+处罚+代缴（后两列存负）；行集=IsActive 在册 ∪ 当月任一来源有行（停用行灰显），工号升序 + 页内关键词（工号/姓名）+ 金额 0 网格留空 + tfoot 列合计；顶部年/月导航 + 已保存/未保存徽标 +「保存本月」(SalaryEdit，整月重算替换快照 PayrollMonthlySummaryRecord 每人每月一行 UK)+「全部打印」A4 横向整表 +「个人打印」每员工一条带表头工资条（两打印读已保存快照、未保存禁用提示「先保存本月」）；写操作 SalaryEdit 门控 |
 | 86 | MaterialInputConsistency.razor | /material-input-consistency | 工单 | | 用料投料核查页（2026-09-08 拆分两页之一，独立终态视图）：列组=基础数据 / 实时关注（3 字段主号级）/ 用料及投料（7 列 2026-09-08 拆出：分类用料/分类到料/原料未至/到料未投/生产投料量/投料比/投料状态，除投料状态外不支持排序筛选），默认隐藏 最终用户/最大长度，投料状态超量=chip-dark 深底白字区分满足绿色；**无**待投料汇总卡、**无**计划类型勾选、**无**用料计划列组；两张异常卡「错疑-用料投料不一致」(ErrorDoubt，原料锁定档位) +「错误-用料计划及其执行」(InProductionInspection，主号完成/生产执行/成品检验 三档已过投料期，标题旁附注「以下执行状态无需再投料」) 卡↔主表 ScheduleStage/待料联动筛选（自原用料计划页迁入）；错疑卡重量三列表头=工单重量/计划投料重量/到料重量（到货量口径）；错误卡聚合行首列表头=工单执行状态，聚合列=原料未至/到料未投；仅显示投影，数据层/读模型零改动；列偏好 key `materialInputConsistency_v4`、页面状态 key `materialInputConsistency` |
-| 87 | ProductionExecutionCheck.razor | /production-execution-check | 批次 | | 生产执行核查页（2026-09-08 批次管理拆分两入口之一）：承载「错疑-生产批次执行」聚合卡（即原「批次-错疑执行」，2026-09-09 改名；4 类错疑 匹配工单/工段流转/有效投料/成品切割 批次数+领料重量合计，**默认折叠、点开才懒加载**，BatchCount>0 可点选联动筛下列表，可取消筛选；列头错疑列手动筛选同样可用）+ 页内自足精简批次列表（服务端分页，列组=批次与工单（批次与执行及关联工单合并，生产编号/状态/工单号/工单关注 + 挂牌号/次号隐藏；V61 裁剪 当前工序/当前工段/截止执行日/工段完工/订单号/主号 六列）/ 执行核查（**4 灯** 匹配工单/工段流转/投料需调整/成切存疑 必显；V62 成切存疑由投料组回归）/ 理论产出对照（**错疑缘由数据对照**：过程检理论成支·现理论成支/理论成品重·成切需求/执行/支数；V64 取消 过程检成重 列；V63 组名「投料与有效量」改名点题 + 过程检列前移到 现理论成支 前 + 列名精简（过程检理论成品支→过程检理论成支、理论成品支→现理论成支，理论成品重列名保持）；V62 裁 领料支数/领料重量/现有效原料支数/现有效原料重量/缺陷-返整量/缺陷-纯次品量 六列，页底合计）；只读仅「查看详情」跳 /batches/{id}，无删除/编辑，无通知轮询/无打印全部）；**顶部无搜索栏**（2026-09-09 模糊搜索+登记日期整行删除，定位靠错疑卡联动+列头筛选））；列偏好 key `batchExecutionCheck_v6`、页面状态 key `batchExecutionCheck`（排序/列筛选） |
+| 87 | ProductionExecutionCheck.razor | /production-execution-check | 批次 | | 生产执行核查页（2026-09-08 生产执行拆分两入口之一，当时组名「批次管理」，2026-09-15 更名）：承载「错疑-生产批次执行」聚合卡（即原「批次-错疑执行」，2026-09-09 改名；4 类错疑 匹配工单/工段流转/有效投料/成品切割 批次数+领料重量合计，**默认折叠、点开才懒加载**，BatchCount>0 可点选联动筛下列表，可取消筛选；列头错疑列手动筛选同样可用）+ 页内自足精简批次列表（服务端分页，列组=批次与工单（批次与执行及关联工单合并，生产编号/状态/工单号/工单关注 + 挂牌号/次号隐藏；V61 裁剪 当前工序/当前工段/截止执行日/工段完工/订单号/主号 六列）/ 执行核查（**4 灯** 匹配工单/工段流转/投料需调整/成切存疑 必显；V62 成切存疑由投料组回归）/ 理论产出对照（**错疑缘由数据对照**：过程检理论成支·现理论成支/理论成品重·成切需求/执行/支数；V64 取消 过程检成重 列；V63 组名「投料与有效量」改名点题 + 过程检列前移到 现理论成支 前 + 列名精简（过程检理论成品支→过程检理论成支、理论成品支→现理论成支，理论成品重列名保持）；V62 裁 领料支数/领料重量/现有效原料支数/现有效原料重量/缺陷-返整量/缺陷-纯次品量 六列，页底合计）；只读仅「查看详情」跳 /batches/{id}，无删除/编辑，无通知轮询/无打印全部）；**顶部无搜索栏**（2026-09-09 模糊搜索+登记日期整行删除，定位靠错疑卡联动+列头筛选））；列偏好 key `batchExecutionCheck_v6`、页面状态 key `batchExecutionCheck`（排序/列筛选） |
 | 88 | **OutsourceVendors.razor** | /outsource-vendors | 批次 | ✅ | 委外单位档案主档页（V72 新增，2026-09-09）：委外单位×委外工段 主档，行键 VendorName+SectionName 唯一（英文字段名大小写不敏感）、编码 VendorCode WV+4 位（新增自动，列表列默认隐藏）；8 列=编码(默认隐)/委外单位名/委外工段(工段枚举下拉)/本厂外协(IsWorkshop MudSwitch，勾选本厂车间→工段锁定冷轧拔)/联系人/联系电话/备注/状态(启用·停用 MudChip)，内联编辑 + ConfirmDialog 删除；服务端分页 + ExcelFilter + 列头排序 + 模糊搜索（委外单位名/联系人）+ 默认按编码降序 + 方向键导航；列偏好键 `col_prefs_outsource-vendors_v1`；新建入口 → 独立创建页 OutsourceVendorCreate.razor `/outsource-vendors/create`（本厂车间 IsWorkshop 仅冷轧拔可选）；本档供工段委外新建/行内编辑/扫码 按行工段过滤取数（`GetActiveAsync` active 全量），未建档委外单位工段委外不可选（先建档） |
 
 ---
@@ -1081,7 +1089,7 @@
 
 | 页面 | 路由 | 权限策略 | 备注 |
 |------|------|---------|------|
-| 批次管理 | `/batches` | BatchView | 详情列 `ViewDetail` |
+| 生产批次 | `/batches` | BatchView | 详情列 `ViewDetail` |
 | 生产记录 | `/production-records` | BatchView | |
 | 生产执行检查 | `/production-execution-check` | BatchView | |
 | 工艺卡打印 | `/process-card-print` | BatchView | |

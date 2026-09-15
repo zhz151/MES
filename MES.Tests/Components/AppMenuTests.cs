@@ -98,9 +98,11 @@ public class AppMenuTests
     }
 
     [Fact]
-    public void 批次管理组_生产批次与生产执行核查并列()
+    public void 生产执行组_生产批次与生产执行核查并列()
     {
-        var batch = Node("批次管理");
+        // 2026-09-15 用户决策：原「批次管理」更名「生产执行」（组内 7 项全属生产执行动作，
+        // 且与「计划排程」构成 计划→执行 关系）；角色代码 BatchViewer/Editor/Full 未改。
+        var batch = Node("生产执行");
         batch.IsLeaf.Should().BeFalse();
         batch.Policy.Should().Be(Roles.Policies.BatchMenu);
         batch.Children.Select(n => (n.Label, n.Href)).Should().Equal(
@@ -168,7 +170,7 @@ public class AppMenuTests
     public void 根级顺序_与电脑版历史一致()
     {
         AppMenu.Root.Select(n => n.Label).Should().Equal(
-            "首页", "报表总览", "订单管理", "工单管理", "计划排程", "批次管理", "质量管理",
+            "首页", "报表总览", "订单管理", "工单管理", "计划排程", "生产执行", "质量管理",
             "物料管理", "仓库管理", "设备管理", "生产标准", "扫码管理",
             "工资结算", "参数表", "数据工具", "用户管理");
     }

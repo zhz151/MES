@@ -49,8 +49,9 @@ public static class AppMenu
             new() { Label = "成检计划", Href = "/final-inspection-plan" },
         ] },
 
-        // ─── 批次管理 ───
-        new() { Label = "批次管理", Policy = Roles.Policies.BatchMenu, Children =
+        // ─── 生产执行（2026-09-15 用户决策：原「批次管理」更名，组内 7 项全属生产执行动作，
+        //     且与「计划排程」构成 计划→执行 关系；角色代码 BatchViewer/Editor/Full 保持不改）───
+        new() { Label = "生产执行", Policy = Roles.Policies.BatchMenu, Children =
         [
             new() { Label = "生产批次", Href = "/batches" },
             new() { Label = "生产执行核查", Href = "/production-execution-check" },

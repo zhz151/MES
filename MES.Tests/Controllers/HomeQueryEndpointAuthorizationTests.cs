@@ -16,7 +16,7 @@ namespace MES.Tests.Controllers;
 ///   · <c>GET api/batch/{id}/tracking</c>（原 BatchView）
 /// 本测试是这条决策的护栏：谁把它们改回角色档，首页卡就会对无对应权限的用户 403（静默失效）。
 ///
-/// ⚠️ 同时守住「别顺手放宽」：按 Id 取批次详情 <c>GET api/batch/{id}</c> 仍属批次管理页职责，保持 BatchView。
+/// ⚠️ 同时守住「别顺手放宽」：按 Id 取批次详情 <c>GET api/batch/{id}</c> 仍属「生产执行」页职责，保持 BatchView。
 /// </summary>
 public class HomeQueryEndpointAuthorizationTests
 {
@@ -50,6 +50,6 @@ public class HomeQueryEndpointAuthorizationTests
     public void 按Id取批次详情_仍保持BatchView档_不得被顺手放宽()
     {
         RequiresRole(Method(typeof(BatchController), nameof(BatchController.GetById))).Should().BeTrue(
-            "本次只放开「按生产编号取批次」与「执行进度」两个首页入口；按 Id 取详情仍是批次管理页职责");
+            "本次只放开「按生产编号取批次」与「执行进度」两个首页入口；按 Id 取详情仍是「生产执行」页职责");
     }
 }

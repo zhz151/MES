@@ -44,7 +44,7 @@ public static class UserRoleDisplayHelper
         new("Order", "订单管理"),
         new("WorkOrder", "工单管理"),
         new("Scheduling", "计划排程"),
-        new("Batch", "批次管理"),
+        new("Batch", "生产执行"),   // 2026-09-15 原「批次管理」更名；角色代码前缀仍是 Batch，勿改
         new("Quality", "质量管理"),
         new("Material", "物料管理"),
         new("Warehouse", "仓库管理"),

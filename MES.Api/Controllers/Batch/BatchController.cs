@@ -250,7 +250,7 @@ public class BatchController : ControllerBase
 
     /// <summary>
     /// 批次执行进度（⚠️ 仅需登录、不带批次角色档，2026-09-14）：首页「生产批次进度查询」卡对所有登录用户开放。
-    /// 页面侧入口仍受菜单门控（批次管理分组）约束。
+    /// 页面侧入口仍受菜单门控（「生产执行」分组，2026-09-15 前名「批次管理」）约束。
     /// </summary>
     [HttpGet("{id}/tracking")]
     [Authorize]
