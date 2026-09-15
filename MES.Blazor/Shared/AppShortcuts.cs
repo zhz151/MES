@@ -54,7 +54,7 @@ public static class AppShortcuts
     [
         new() { Label = "报表总览", Href = "/reports/overview", Policy = Roles.Policies.ReportView, Icon = Icons.Material.Filled.Assessment, Accent = "#00897B" },
         new() { Label = "订单列表", Href = "/orders", Policy = Roles.Policies.OrderMenu, Icon = Icons.Material.Filled.List, Accent = "#1976D2" },
-        new() { Label = "用料计划", Href = "/material-plan-overview", Policy = Roles.Policies.WorkOrderMenu, Icon = Icons.Material.Filled.FactCheck, Accent = "#5E35B1" },
+        new() { Label = "工单用料", Href = "/material-plan-overview", Policy = Roles.Policies.WorkOrderMenu, Icon = Icons.Material.Filled.FactCheck, Accent = "#5E35B1" },
         new() { Label = "批次计划", Href = "/batch-plans", Policy = Roles.Policies.SchedulingMenu, Icon = Icons.Material.Filled.CalendarMonth, Accent = "#3949AB" },
         new() { Label = "成检计划", Href = "/final-inspection-plan", Policy = Roles.Policies.SchedulingMenu, Icon = Icons.Material.Filled.Science, Accent = "#00838F" },
         new() { Label = "不合格报告", Href = "/quality/ncr", Policy = Roles.Policies.QualityMenu, Icon = Icons.Material.Filled.WarningAmber, Accent = "#E53935" },

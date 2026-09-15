@@ -76,25 +76,25 @@ public class AppMenuTests
     }
 
     [Fact]
-    public void 工单管理_二级分组_操作与查询()
+    public void 工单管理_六项并列二级_无子分组()
     {
         var wo = Node("工单管理");
         wo.IsLeaf.Should().BeFalse();
         wo.Policy.Should().Be(Roles.Policies.WorkOrderMenu);
 
-        var operate = wo.Children.Single(n => n.Label == "工单操作");
-        operate.IsLeaf.Should().BeFalse();
-        operate.Children.Select(n => (n.Label, n.Href)).Should().Equal(
+        // 2026-09-15 拍平：原「工单操作 / 工单查询」两个三级分组取消，6 项直接为二级叶子
+        wo.Children.Select(n => (n.Label, n.Href)).Should().Equal(
             ("工单生成", "/workorders"),
-            ("用料计划", "/material-plan-overview"),
-            ("用料投料核查", "/material-input-consistency"),
-            ("工单需求调整", "/workorders-demand-adjustment"));
+            ("需求调整", "/workorders-demand-adjustment"),
+            ("工单用料", "/material-plan-overview"),
+            ("用投料核查", "/material-input-consistency"),
+            ("查询工单执行", "/workorder-execution"),
+            ("查询定尺工单", "/fixed-length-work-order-view"));
 
-        var query = wo.Children.Single(n => n.Label == "工单查询");
-        query.IsLeaf.Should().BeFalse();
-        query.Children.Select(n => (n.Label, n.Href)).Should().Equal(
-            ("工单执行状况", "/workorder-execution"),
-            ("定尺工单定尺", "/fixed-length-work-order-view"));
+        wo.Children.Should().OnlyContain(n => n.IsLeaf);
+        // 旧分组名全树（含非叶节点）不得残留
+        AppMenu.Find("工单操作").Should().BeNull();
+        AppMenu.Find("工单查询").Should().BeNull();
     }
 
     [Fact]

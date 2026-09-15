@@ -11,11 +11,29 @@
 
     /* 序号 4-0「整体完工预计」整行底色（2026-09-10 用户决策） */
     #workorder-load-overview-list-table .row-overall { background: #FFF8E1; }
+
+    /* 交期截止负荷量表头两行（2026-09-15 用户决策，最终版）：
+       首行=起始日（**浅色弱化**）、次行=「～ 结束日」（**深色加深，主信息**）。
+       ≤/≥ 单端桶**下移到次行**与「～ 结束日」对齐，首行写 &nbsp; 占位 → 7 个表头等高、基线齐平。 */
+    #workorder-load-overview-list-table .date-bucket-th {
+        line-height: 1.25; white-space: nowrap;
+    }
+    #workorder-load-overview-list-table .date-bucket-th .db-start {
+        font-size: 0.8em; font-weight: 400; color: #90A4AE;
+    }
+    #workorder-load-overview-list-table .date-bucket-th .db-end {
+        font-size: 0.95em; font-weight: 700; color: #37474F;
+    }
 </style>
 <MudContainer MaxWidth="MaxWidth.False">
     <div class="d-flex align-center mt-4 mb-4">
         <MudText Typo="Typo.h5">@Title</MudText>
         <div class="d-flex align-center" style="margin-left:auto;">
+            <MudButton Variant="Variant.Text" Color="Color.Default"
+                       StartIcon="@(_showDateBuckets ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                       OnClick="@ToggleDateBuckets" Size="Size.Small" Class="mr-2">
+                @(_showDateBuckets ? "收起交期截止负荷量" : "展开交期截止负荷量")
+            </MudButton>
             <MudButton Variant="Variant.Text" Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Print"
                        OnClick="@PrintTable" Size="Size.Small">
@@ -36,11 +54,16 @@
     {
         <div id="workorder-load-overview-list-table">
             @* 分组标题栏：负荷总况（负荷节点~预计完成）/ 交期截止负荷量（日期桶） *@
+            @* ⚠️「交期截止负荷量」徽章必须与下方 7 个日期桶列成对增减：
+               initGroupHeaders 按 th 的 col-gN 顺序**按索引**给标题栏 item 分配宽度，只藏一边会整体错位 *@
             <div class="col-group-header-scroll">
                 <div class="col-group-header-bar">
                     <div class="col-group-header-item"><span class="col-group-badge"></span></div>
                     <div class="col-group-header-item col-g100"><span class="col-group-badge">负荷总况</span></div>
-                    <div class="col-group-header-item col-g101"><span class="col-group-badge">交期截止负荷量</span></div>
+                    @if (_showDateBuckets)
+                    {
+                        <div class="col-group-header-item col-g101"><span class="col-group-badge">交期截止负荷量</span></div>
+                    }
                 </div>
             </div>
             <div id="workorder-overview-table">
@@ -59,16 +82,16 @@
                     <MudTh Class="text-center col-g100">待产量(吨)</MudTh>
                     <MudTh Class="text-center col-g100">预计天数</MudTh>
                     <MudTh Class="text-center col-g100">预计完成</MudTh>
-                    @foreach (var bucket in _data.DateBuckets)
+                    @if (_showDateBuckets)
                     {
-                        var (headerLine1, headerLine2) = FormatBucketHeader(bucket);
-                        <MudTh Class="text-center col-g101" Style="min-width:90px;">
-                            <div Style="font-size:0.9em;line-height:1.2;white-space:nowrap;">@headerLine1</div>
-                            @if (!string.IsNullOrEmpty(headerLine2))
-                            {
-                                <div Style="font-size:0.9em;line-height:1.2;white-space:nowrap;">@headerLine2</div>
-                            }
-                        </MudTh>
+                        @foreach (var bucket in _data.DateBuckets)
+                        {
+                            var (headerStart, headerEnd) = FormatBucketHeader(bucket);
+                            <MudTh Class="text-center col-g101 date-bucket-th" Style="min-width:90px;">
+                                <div class="db-start">@headerStart</div>
+                                <div class="db-end">@headerEnd</div>
+                            </MudTh>
+                        }
                     }
                 </HeaderContent>
                 <RowTemplate>
@@ -80,11 +103,14 @@
                     <MudTd Class="@CellClass(context, "text-center")">@FormatRemainingTons(context, context.TotalRemainingTons)</MudTd>
                     <MudTd Class="@CellClass(context, "text-center")">@FormatDays(context.EstDays)</MudTd>
                     <MudTd Class="@CellClass(context, "text-center")">@FormatDate(context.EstDeadline)</MudTd>
-                    @for (int i = 0; i < _data.DateBuckets.Count; i++)
+                    @if (_showDateBuckets)
                     {
-                        var tons = context.DateBucketTons.Count > i ? context.DateBucketTons[i] : 0;
-                        var sub = context.DateBucketSubTons.Count > i ? context.DateBucketSubTons[i] : (decimal?)null;
-                        <MudTd Class="@CellClass(context, "text-center")">@(new MarkupString(context.IsSummary ? "-" : FormatBucketTons(tons, sub, context.SubValuePrefix, context.SubValueParenFormat, context.DateBucketSubOnly)))</MudTd>
+                        @for (int i = 0; i < _data.DateBuckets.Count; i++)
+                        {
+                            var tons = context.DateBucketTons.Count > i ? context.DateBucketTons[i] : 0;
+                            var sub = context.DateBucketSubTons.Count > i ? context.DateBucketSubTons[i] : (decimal?)null;
+                            <MudTd Class="@CellClass(context, "text-center")">@(new MarkupString(context.IsSummary ? "-" : FormatBucketTons(tons, sub, context.SubValuePrefix, context.SubValueParenFormat, context.DateBucketSubOnly)))</MudTd>
+                        }
                     }
                 </RowTemplate>
             </MudTable>

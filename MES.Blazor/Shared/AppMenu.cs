@@ -28,21 +28,15 @@ public static class AppMenu
             new() { Label = "订单在库成品", Href = "/orders/pending-delivery" },
         ] },
 
-        // ─── 工单管理（二级分组：工单操作 / 工单查询）───
+        // ─── 工单管理（2026-09-15 拍平：原「工单操作 / 工单查询」两个二级分组取消，6 项并列二级）───
         new() { Label = "工单管理", Policy = Roles.Policies.WorkOrderMenu, Children =
         [
-            new() { Label = "工单操作", Children =
-            [
-                new() { Label = "工单生成", Href = "/workorders" },
-                new() { Label = "用料计划", Href = "/material-plan-overview" },
-                new() { Label = "用料投料核查", Href = "/material-input-consistency" },
-                new() { Label = "工单需求调整", Href = "/workorders-demand-adjustment" },
-            ] },
-            new() { Label = "工单查询", Children =
-            [
-                new() { Label = "工单执行状况", Href = "/workorder-execution" },
-                new() { Label = "定尺工单定尺", Href = "/fixed-length-work-order-view" },
-            ] },
+            new() { Label = "工单生成", Href = "/workorders" },
+            new() { Label = "需求调整", Href = "/workorders-demand-adjustment" },
+            new() { Label = "工单用料", Href = "/material-plan-overview" },
+            new() { Label = "用投料核查", Href = "/material-input-consistency" },
+            new() { Label = "查询工单执行", Href = "/workorder-execution" },
+            new() { Label = "查询定尺工单", Href = "/fixed-length-work-order-view" },
         ] },
 
         // ─── 计划排程 ───

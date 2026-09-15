@@ -1,8 +1,21 @@
 # MES 前端页面结构参考
 
-> 版本：V143（2026-09-15；生成 2026-08-19）
+> 版本：V145（2026-09-15；生成 2026-08-19）
 > 用途/状态：Quick Reference - 按导航菜单分组的前端页面结构参考，§1 上下文总览 / §2 各上下文页面块 / §3 列表页全量清单 / §7 生产编号链接台账。
-> 上次实质变更（V143）：**订单进度树叶子下沉「生产批次名单」（在产 / 在途分段 + 默认折叠 + 点击批号弹「批次执行进度」）**（2026-09-15，**全栈：`OrderProgressTree.razor(.cs/.css)` + `index.html` 抬串 + 后端 5 文件 + DTO 3 类；无 EF 迁移 / 无数据变更 / 无权限变更 / 零新端点**）：
+> 上次实质变更（V145）：**「订单负荷总量」页：交期截止负荷量列组默认折叠 + 日期表头两行强化层次**（2026-09-15，**纯 WASM（`Pages/Scheduling/WorkOrderLoadOverview.razor(.cs)`，样式写在页内 `<style>`）；后端 / DTO / DB / 迁移 / 权限 / 路由零改动**）：
+> ① **列组折叠（用户拍板「默认不显示」）**——`col-g101` 交期截止负荷量（7 个日期桶列）**默认折叠**，页头右侧「打印」旁新增切换按钮（`ExpandMore`/`ExpandLess`，文案「展开/收起交期截止负荷量」）；折叠后表格 8 列、不再横向滚动。**这是「表不上眼」的根源**。
+> ② **⚠️ 三处必须成对增减**（缺一整组错位，已写入代码注释）——① 分组标题栏的 `col-g101` 徽章 item、② `HeaderContent` 的 7 个 `MudTh`、③ `RowTemplate` 的 7 个 `MudTd`：`wwwroot/js/table-nav.js` 的 `initGroupHeaders` **按 th 的 `col-gN` 顺序、按索引**给 `headerBar.querySelectorAll('.col-group-header-item')[i]` 写宽度（`table-nav.js:264-287`），只藏一边会整体串位。折叠/展开后 `OnAfterRenderAsync` 每次渲染都调 `initGroupHeaders`（非首次走 `requestAnimationFrame(syncGroupWidths)` 分支）+ thead 的 `MutationObserver` 亦会触发重测，无需额外 JS。
+> ③ **打印=所见即所得（用户拍板）**——`PrintTable` 直接抓 `#workorder-overview-table` 的 DOM，**不做自动展开**：折叠状态下打印即少 7 列。分组标题栏本就不打印（既有决策），故本次对打印件零影响。
+> ④ **日期表头两行 + 结束日为主信息（用户拍板，经两轮修正定稿）**——`FormatBucketHeader` 最终形态：区间桶 **首行=完整起日 `yy/M/d`（浅色弱化）**、**次行=`～ 止日`（深色加粗，主信息；跨年补年份）**；`≤`/`≥` **单端桶下移到次行**、首行返回 `\u00A0` 占位 → 与区间桶的「～ 结束日」同排对齐且 7 个表头**等高、基线齐平**（原实现单端桶占首行、与双行桶参差）。样式由页内 `<style>` 的 `.db-start`（0.8em/400/`#90A4AE`）与 `.db-end`（0.95em/700/**中性深灰 `#37474F`**）承担，**原 `MudTh` 的内联 `font-size:0.9em` 已移除**。⚠️ 中途曾误做成「起止日合成一行」，已按用户示例回退为两行（**勿再合并**）。
+> ⑤ **⚠️ 无需抬 `?v=` 串**——本页样式为**页内 `<style>` 元素**（非 `app.css` / `MES.Blazor.styles.css`），随组件渲染下发，`css/app.css?v=13` 与 `MES.Blazor.styles.css?v=6` 均保持不动。
+> ⑥ **影响面**——`WorkOrderLoadOverview` 为共享组件，**两处入口同时生效**：`/plan-overview`（计划排程 → 订单负荷总量）与**报表总览 Tab2「现订单负荷总量」**。**无单测**（该页此前即无组件测试）；`dotnet build MES.Blazor` 0 错 0 警。
+> 历史变更（V144）：**工单管理菜单拍平 + 6 项改名重排（纯 WASM 菜单树与页面标题，后端 / API / DB / 迁移 / 权限零改动）**（2026-09-15，**用户拍板**）：
+> ① **结构：原「工单操作 / 工单查询」两个三级分组取消**，其下 6 项**上提为二级菜单**直接挂在「工单管理」之下（`Shared/AppMenu.cs`）。
+> ② **改名**（**菜单名 ↔ 页面标题同步改**）：工单生成（不变）/ 用料计划 → **工单用料** / 用料投料核查 → **用投料核查** / 工单需求调整 → **需求调整** / 工单执行状况 → **查询工单执行** / 定尺工单定尺 → **查询定尺工单**。
+> ③ **重排**（新顺序）：**工单生成 → 需求调整 → 工单用料 → 用投料核查 → 查询工单执行 → 查询定尺工单**（操作在前、查询在后，与用户给定顺序逐字一致）。
+> ④ **同步改动**——`Shared/AppShortcuts.cs` 首页常用入口 Label「用料计划」→「**工单用料**」（`AppShortcutsTests` 断言常用入口 Label / 有效策略必须与菜单叶子完全一致，不改即挂）；5 个页面标题（`OrderDemandAdjustment` / `MaterialPlanOverview` / `MaterialInputConsistency` / `WorkOrderExecution` / `FixedLengthWorkOrderView`）同步新名。**路由与权限零变更**（6 项 Policy 仍继承分组 `WorkOrderMenu`）。**未改**：`WorkOrderMaterialPlan.razor` 独立详情页「工单用料计划」（另一页，非菜单项）及其跳转图标提示 `Title="工单用料计划"`。
+> ⑤ **测试**——`MES.Tests/Components/AppMenuTests.cs` 断言由「二级分组_操作与查询」改为「**六项并列二级_无子分组**」（逐项校验 Label + Href 顺序 + `OnlyContain(IsLeaf)` + `AppMenu.Find("工单操作")/("工单查询")` 为 null 防漂移）；`AppMenuTests` + `AppShortcutsTests` **14 例全过**。**无 CSS 变更 → 不抬 `index.html` 版本串**。
+> 历史变更（V143）：**订单进度树叶子下沉「生产批次名单」（在产 / 在途分段 + 默认折叠 + 点击批号弹「批次执行进度」）**（2026-09-15，**全栈：`OrderProgressTree.razor(.cs/.css)` + `index.html` 抬串 + 后端 5 文件 + DTO 3 类；无 EF 迁移 / 无数据变更 / 无权限变更 / 零新端点**）：
 > ① **来由（用户拍板）**——用户用「订单进度树」做**查询**，但树原为 4 层纯重量结构（订单 → 主号 → 阶段分支 → 重量叶），**叶上没有任何批次身份**：看到「荒管处理 19281 kg」不知是哪些批次；且**首页查询是两段式的（① 订单 → ② 生产编号）**，而第 ① 步的进度树不显示生产编号 → **查询中断**。用户核对中还发现真实口径偏差：**【待产】标签下的批次实际多是「在产」而非「待产」** —— 逐批手算确证 G17【待产】= 「**还没完成该节点**」的剩余工作量 = **在产**（批次已在本节点工序组内、目标工段未完成）+ **在途**（还没做到本节点工序组）两部分。故名单必须**分段呈现**，否则数字与名单对不上。
 > ② **用户拍板 5 条（不再变更）**——a. 生产执行分支名单**按「在产 / 在途」两段拆**；b. 名单**默认折叠**（否则页面过于啰嗦）；c. 节点标签**【待产】不改**；d. **首页查询卡也要**（打通两段式查询），批号**可点击 → 弹「批次执行进度」**；e. 生产执行分支的重量数字**改为实时重算**，与名单同源自洽。
 > ③ **口径定义**——沿用 G17 既有三分支，把被计入的批次按 `batchCurrentSeq` vs `targetSeq` 切两段：`== targetSeq` → **在产** `InProgress`；`< targetSeq` → **在途** `InTransit`；`> targetSeq` / 该批无此工序组 / 该工序组无目标工段 / `Status ∈ {Completed, InFinalInspection}` → **不计入**（与今一致）。**安全绳不变式**：`Σ在产 + Σ在途 == 原 PendingSection* 数值`（分段只是对同一集合分区，不增不减）。**成品检验分支只有一段**（每批恰好落一个档，无「在途」概念，段 Label = 该档中文阶段名）。
@@ -395,9 +408,10 @@
 ```
 路由前缀: /workorders, /material-plan-overview, /material-input-consistency,
          /workorders-demand-adjustment, /workorder-execution, /fixed-length-work-order-view
-菜单: 工单管理 → 工单操作[工单生成 /workorders, 用料计划 /material-plan-overview, 用料投料核查 /material-input-consistency,
-          工单需求调整 /workorders-demand-adjustment]
-           · 工单查询[工单执行状况 /workorder-execution, 定尺工单定尺 /fixed-length-work-order-view]
+菜单: 工单管理 → 工单生成 /workorders、需求调整 /workorders-demand-adjustment、
+          工单用料 /material-plan-overview、用投料核查 /material-input-consistency、
+          查询工单执行 /workorder-execution、查询定尺工单 /fixed-length-work-order-view
+          （V144：原「工单操作 / 工单查询」两个三级分组取消，6 项并列二级）
 
 ┌─ 工单管理 ───────────────────────────────────────────────┐
 │                                                           │
@@ -879,8 +893,8 @@
 │ 首页
 │ ▸ 报表总览（原「报表系统」单叶组拍平为一级单项，置首页下第 2 位）
 │ ▸ 订单管理 → 订单列表 / 客户管理 / 订单在库成品
-│ ▸ 工单管理（工单操作：工单生成 / 用料计划 / 用料投料核查 / 工单需求调整；
-│            工单查询：工单执行状况 / 定尺工单定尺）
+│ ▸ 工单管理 → 工单生成 / 需求调整 / 工单用料 / 用投料核查 / 查询工单执行 / 查询定尺工单
+│            （V144 六项并列二级，原「工单操作 / 工单查询」分组取消）
 │ ▸ 计划排程 → 订单负荷总量 / 工单排程 / 冷轧排程 / 批次计划 / 成检计划
 │ ▸ 批次管理 → 生产批次 / 生产执行核查 / 生产记录 / 去油酸洗 / 工段委外 / 委外单位管理 / 工艺卡打印
 │ ▾ 质量管理（3 级嵌套）

@@ -20,7 +20,8 @@ public class WorkOrderExecutionTests : TestBase
     public void Render_HasTitle()
     {
         var cut = RenderPage<WorkOrderExecution>();
-        cut.Markup.Should().Contain("工单执行状况");
+        // 2026-09-15 页面标题按菜单改名：工单执行状况 → 查询工单执行
+        cut.Markup.Should().Contain("查询工单执行");
     }
 
     [Fact]

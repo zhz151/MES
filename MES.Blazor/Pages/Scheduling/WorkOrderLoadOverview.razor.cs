@@ -17,6 +17,16 @@ public partial class WorkOrderLoadOverview : ComponentBase
     private string? _errorMessage;
     private DateTime _lastRefresh;
 
+    /// <summary>
+    /// 「交期截止负荷量」日期桶列组是否展开（2026-09-15 用户决策：**默认折叠**，交由页头按钮开关）。
+    /// ⚠️ 三处必须同增同减（标题栏徽章 / HeaderContent 的 th / RowTemplate 的 td）——
+    /// `initGroupHeaders` 按 th 的 col-gN 顺序**按索引**给标题栏 item 写宽度，只藏一边会整体错位。
+    /// 折叠后表格为 8 列，不再横向滚动。
+    /// </summary>
+    private bool _showDateBuckets;
+
+    private void ToggleDateBuckets() => _showDateBuckets = !_showDateBuckets;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadDataAsync();
@@ -111,21 +121,24 @@ public partial class WorkOrderLoadOverview : ComponentBase
     }
 
     /// <summary>
-    /// 交期截止负荷量日期桶表头两行显示（2026-09-08 用户决策）：
-    /// 区间桶 首行=完整起日(yy/M/d)、次行=止日(M/d，跨年补年份防歧义)；
-    /// ≤/≥ 单端桶 首行=原单行格式、次行留空。
+    /// 交期截止负荷量日期桶表头两行（2026-09-15 用户决策，最终形态）：
+    /// 区间桶 首行=完整起日(yy/M/d)、次行=「～ 止日」(M/d，跨年补年份防歧义)；
+    /// ≤/≥ 单端桶 首行=不换行空格占位、次行=原标签 —— **单端桶下移到次行**，
+    /// 与区间桶的「～ 结束日」同排对齐（首行占位保证 7 个表头等高、基线齐平）。
+    /// 起始日弱化（浅灰小号）、结束日为主信息（深色加粗），由页内 `&lt;style&gt;` 的
+    /// .db-start / .db-end 承担，**不要在 C# 里拼颜色**。
     /// </summary>
-    private static (string Line1, string Line2) FormatBucketHeader(DateBucketDto bucket)
+    private static (string Start, string End) FormatBucketHeader(DateBucketDto bucket)
     {
         var singleEnd = bucket.StartDate == DateTime.MinValue; // ≤ 单端桶（StartDate=MinValue）
         var singleStart = bucket.EndDate == DateTime.MaxValue;  // ≥ 单端桶（EndDate=MaxValue）
         if (singleEnd || singleStart)
-            return (bucket.Label, "");
-        var line1 = bucket.StartDate.ToString("yy/M/d");
-        var line2 = bucket.EndDate.Year == bucket.StartDate.Year
+            return ("\u00A0", bucket.Label);
+        var start = bucket.StartDate.ToString("yy/M/d");
+        var end = bucket.EndDate.Year == bucket.StartDate.Year
             ? bucket.EndDate.ToString("M/d")
             : bucket.EndDate.ToString("yy/M/d");
-        return (line1, line2);
+        return (start, $"～ {end}");
     }
 
     /// <summary>
