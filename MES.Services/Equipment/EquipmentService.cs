@@ -155,6 +155,22 @@ public class EquipmentService : IEquipmentService
             .ToListAsync();
     }
 
+    public async Task<List<EquipmentOptionDto>> GetOptionsAsync()
+    {
+        return await _context.Equipment
+            .AsNoTracking()
+            .Where(e => e.LifecycleStatus != nameof(LifecycleStatus.Scrapped))
+            .OrderBy(e => e.EquipmentCode)
+            .Select(e => new EquipmentOptionDto
+            {
+                Id = e.Id,
+                EquipmentCode = e.EquipmentCode,
+                EquipmentName = e.EquipmentName,
+                Location = e.Location
+            })
+            .ToListAsync();
+    }
+
     public async Task<EquipmentDetailDto> GetByIdAsync(int id)
     {
         var entity = await _context.Equipment

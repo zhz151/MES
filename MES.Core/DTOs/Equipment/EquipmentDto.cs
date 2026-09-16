@@ -55,6 +55,23 @@ public class EquipmentDetailDto : EquipmentListDto
 }
 
 /// <summary>
+/// 设备下拉选项 DTO（精简字段）。
+///
+/// 用途：维修工单建单页的设备选择（<c>GET api/equipment/options</c>，仅需登录）。
+/// 存在理由：「设备维修」域自 2026-09-16 起整域仅需登录，而全字段台账
+/// <c>GET api/equipment/all</c> 仍受 EquipmentView 控制 → 建单页若直连 all，
+/// 现场岗会 403 静默失效（下拉空白、无报错）。
+/// ⚠️ 只放「选设备」必需的 4 个字段，勿顺手加字段把它变成台账副本。
+/// </summary>
+public class EquipmentOptionDto
+{
+    public int Id { get; set; }
+    public string EquipmentCode { get; set; } = null!;
+    public string EquipmentName { get; set; } = null!;
+    public string Location { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// 创建设备请求
 /// </summary>
 public class CreateEquipmentRequest

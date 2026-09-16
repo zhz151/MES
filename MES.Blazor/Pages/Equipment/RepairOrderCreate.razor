@@ -11,7 +11,8 @@
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
-@attribute [Authorize(Roles = Roles.Policies.EquipmentEdit)]
+@* 2026-09-16 起「设备维修」整域仅需登录（与扫码报修共用 create 端点，两处口径必须一致） *@
+@attribute [Authorize]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
     <style>
@@ -144,9 +145,9 @@
     private bool _isArrowNavSetup;
     private string _errorMessage = string.Empty;
 
-    private List<EquipmentListDto> _allEquipment = new();
+    private List<EquipmentOptionDto> _allEquipment = new();
     private List<string> _locations = new();
-    private List<EquipmentListDto> _filteredEquipment = new();
+    private List<EquipmentOptionDto> _filteredEquipment = new();
 
     // ========== 列定义 ==========
 
@@ -238,7 +239,7 @@
 
     private async Task LoadEquipmentAsync()
     {
-        var response = await EquipmentService.GetAllAsync();
+        var response = await EquipmentService.GetOptionsAsync();
         if (response?.Data != null)
         {
             _allEquipment = response.Data;
@@ -379,24 +380,24 @@
                 var filtered = string.IsNullOrEmpty(r.SelectedLocation)
                     ? _allEquipment
                     : _allEquipment.Where(e => e.Location == r.SelectedLocation).ToList();
-                builder.OpenComponent<MudSelect<EquipmentListDto?>>(0);
+                builder.OpenComponent<MudSelect<EquipmentOptionDto?>>(0);
                 builder.AddAttribute(1, "Dense", true);
                 builder.AddAttribute(3, "Variant", Variant.Outlined);
                 builder.AddAttribute(4, "Size", Size.Small);
                 builder.AddAttribute(5, "Value", r.EquipmentId.HasValue ? _allEquipment.FirstOrDefault(e => e.Id == r.EquipmentId.Value) : null);
-                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<EquipmentListDto?>(this, v =>
+                builder.AddAttribute(6, "ValueChanged", EventCallback.Factory.Create<EquipmentOptionDto?>(this, v =>
                 {
                     r.EquipmentId = v?.Id;
                 }));
-                builder.AddAttribute(7, "ToStringFunc", new Func<EquipmentListDto?, string?>(e => e?.EquipmentName));
+                builder.AddAttribute(7, "ToStringFunc", new Func<EquipmentOptionDto?, string?>(e => e?.EquipmentName));
                 builder.AddAttribute(8, "ChildContent", (RenderFragment)(cb =>
                 {
-                    cb.OpenComponent<MudSelectItem<EquipmentListDto?>>(0);
-                    cb.AddAttribute(1, "Value", (EquipmentListDto?)null);
+                    cb.OpenComponent<MudSelectItem<EquipmentOptionDto?>>(0);
+                    cb.AddAttribute(1, "Value", (EquipmentOptionDto?)null);
                     cb.CloseComponent();
                     foreach (var eq in filtered)
                     {
-                        cb.OpenComponent<MudSelectItem<EquipmentListDto?>>(0);
+                        cb.OpenComponent<MudSelectItem<EquipmentOptionDto?>>(0);
                         cb.AddAttribute(1, "Value", eq);
                         cb.CloseComponent();
                     }

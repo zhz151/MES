@@ -24,7 +24,7 @@ public class WorkstationController : ControllerBase
     /// 分页查询
     /// </summary>
     [HttpGet("list")]
-    [Authorize(Roles = Roles.Policies.ScanView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<PagedResult<WorkstationDto>>>> GetPaged(
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20,
@@ -46,7 +46,7 @@ public class WorkstationController : ControllerBase
     /// 列头筛选上下文（ExcelFilter 下拉选项）
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = Roles.Policies.ScanView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _workstationService.GetFilterContextsAsync();
@@ -74,7 +74,7 @@ public class WorkstationController : ControllerBase
     /// 新增或更新
     /// </summary>
     [HttpPost("save")]
-    [Authorize(Roles = Roles.Policies.ScanEdit)]
+    [Authorize(Roles = Roles.Policies.BasicDataEdit)]
     public async Task<ActionResult<ApiResponse<bool>>> Save([FromBody] WorkstationDto dto)
     {
         var result = await _workstationService.SaveAsync(dto);
@@ -85,7 +85,7 @@ public class WorkstationController : ControllerBase
     /// 删除
     /// </summary>
     [HttpPost("delete/{id}")]
-    [Authorize(Roles = Roles.Policies.ScanDelete)]
+    [Authorize(Roles = Roles.Policies.BasicDataDelete)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
     {
         var result = await _workstationService.DeleteAsync(id);
@@ -95,7 +95,7 @@ public class WorkstationController : ControllerBase
     // ========== 打印 ==========
 
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = Roles.Policies.ScanView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] WorkstationPrintBatchRequest request)
     {
         if (request.Ids.Length == 0)

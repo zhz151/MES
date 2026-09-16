@@ -33,7 +33,7 @@ public class PieceRateProductionCategoryController : ControllerBase
 
     /// <summary>导出全量类别标准（Sheet「类别」+「维档」双表）</summary>
     [HttpGet("export-all")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult> ExportAll()
     {
         var bytes = await _importService.ExportAsync();
@@ -42,7 +42,7 @@ public class PieceRateProductionCategoryController : ControllerBase
 
     /// <summary>生成单 sheet 导入模板（kind=category|tier，中文表头 + 1 示例行）</summary>
     [HttpGet("import/template")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult> GetTemplate([FromQuery] string kind)
     {
         if (!PieceRateImportKinds.IsValid(kind))
@@ -55,7 +55,7 @@ public class PieceRateProductionCategoryController : ControllerBase
 
     /// <summary>解析 + 校验 + 统计（预览结果与导入同口径）</summary>
     [HttpPost("import/preview")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<ImportPreviewResult>>> PreviewImport(
         [FromQuery] string kind, IFormFile? file)
     {
@@ -71,7 +71,7 @@ public class PieceRateProductionCategoryController : ControllerBase
 
     /// <summary>事务内覆盖更新导入（任一数据行无效 → 整体拒绝）</summary>
     [HttpPost("import")]
-    [Authorize(Roles = Roles.Policies.SalaryEdit)]
+    [Authorize(Roles = Roles.Policies.BasicDataEdit)]
     public async Task<ActionResult<ApiResponse<ImportResult>>> Import(
         [FromQuery] string kind, IFormFile? file)
     {
@@ -87,7 +87,7 @@ public class PieceRateProductionCategoryController : ControllerBase
 
     /// <summary>分页查询类别（filters 为列级筛选 JSON，独立参数手动反序列化）</summary>
     [HttpGet]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<PagedResult<PieceRateProductionCategoryListItemDto>>>> GetPaged(
         [FromQuery] PieceRateProductionCategoryQueryParams query,
         [FromQuery] string? filters = null)
@@ -110,7 +110,7 @@ public class PieceRateProductionCategoryController : ControllerBase
 
     /// <summary>按 Id 获取详情（含维档全量，供编辑页）</summary>
     [HttpGet("{id:int}")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<PieceRateProductionCategoryDetailDto>>> GetById(int id)
     {
         var result = await _service.GetDetailAsync(id);
@@ -121,7 +121,7 @@ public class PieceRateProductionCategoryController : ControllerBase
 
     /// <summary>创建类别（定义 + 维档整组）</summary>
     [HttpPost]
-    [Authorize(Roles = Roles.Policies.SalaryEdit)]
+    [Authorize(Roles = Roles.Policies.BasicDataEdit)]
     public async Task<ActionResult<ApiResponse<PieceRateProductionCategoryDetailDto>>> Create(
         [FromBody] PieceRateProductionCategorySaveRequest request)
     {
@@ -131,7 +131,7 @@ public class PieceRateProductionCategoryController : ControllerBase
 
     /// <summary>更新类别（停用旧/改定义/整组替换维档）</summary>
     [HttpPut("{id:int}")]
-    [Authorize(Roles = Roles.Policies.SalaryEdit)]
+    [Authorize(Roles = Roles.Policies.BasicDataEdit)]
     public async Task<ActionResult<ApiResponse<PieceRateProductionCategoryDetailDto>>> Update(
         int id, [FromBody] PieceRateProductionCategorySaveRequest request)
     {
@@ -141,7 +141,7 @@ public class PieceRateProductionCategoryController : ControllerBase
 
     /// <summary>删除类别（级联删维档）</summary>
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = Roles.Policies.SalaryDelete)]
+    [Authorize(Roles = Roles.Policies.BasicDataDelete)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -150,7 +150,7 @@ public class PieceRateProductionCategoryController : ControllerBase
 
     /// <summary>类别编辑页选项源（工段/工序/产类/阶段/单位/状态/牌号）</summary>
     [HttpGet("options")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<PieceRateProductionCategoryOptionsDto>>> GetOptions()
     {
         var result = await _service.GetOptionsAsync();
@@ -159,7 +159,7 @@ public class PieceRateProductionCategoryController : ControllerBase
 
     /// <summary>模拟测算候选产量记录（产量源必选 + 关键字过滤 + 分页；默认记录日期降序）</summary>
     [HttpGet("trial-records")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<PagedResult<PieceRateProductionTrialRecordDto>>>> GetTrialRecords(
         [FromQuery] PieceRateProductionTrialRecordQuery query)
     {
@@ -169,7 +169,7 @@ public class PieceRateProductionCategoryController : ControllerBase
 
     /// <summary>模拟测算：按一条真实产量记录计价（与月结采集同映射单源）；null = 未定价</summary>
     [HttpGet("trial-records/{source}/{id:int}/price")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<PieceRateProductionMatchResultDto?>>> MatchByRecord(
         string source, int id)
     {
@@ -181,7 +181,7 @@ public class PieceRateProductionCategoryController : ControllerBase
 
     /// <summary>试算匹配：一条报工 → 命中类别单价；返回 null = 未定价</summary>
     [HttpPost("match-price")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<PieceRateProductionMatchResultDto?>>> MatchPrice(
         [FromBody] PieceRateProductionMatchRequest request)
     {

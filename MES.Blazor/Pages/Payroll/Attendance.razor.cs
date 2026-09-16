@@ -8,10 +8,11 @@ using MES.Blazor.Services.Payroll;
 using MES.Core.Constants;
 using MES.Core.DTOs.Payroll;
 using MES.Core.Helpers;
+using MES.Shared.Constants;
 
 namespace MES.Blazor.Pages.Payroll;
 
-[Authorize]
+[Authorize(Roles = Roles.Policies.SalaryView)]
 public partial class Attendance : IDisposable
 {
     [Inject] private AttendanceService AttendanceSvc { get; set; } = null!;

@@ -55,6 +55,17 @@ public class EquipmentService
         catch (Exception ex) { return ApiResponse<List<EquipmentListDto>>.Fail($"网络错误: {ex.Message}"); }
     }
 
+    /// <summary>设备下拉选项（精简字段，仅需登录；供维修工单建单等页面使用，勿改用 AllAsync）</summary>
+    public async Task<ApiResponse<List<EquipmentOptionDto>>> GetOptionsAsync()
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<ApiResponse<List<EquipmentOptionDto>>>($"{BaseUrl}/options")
+                   ?? ApiResponse<List<EquipmentOptionDto>>.Fail("获取数据失败");
+        }
+        catch (Exception ex) { return ApiResponse<List<EquipmentOptionDto>>.Fail($"网络错误: {ex.Message}"); }
+    }
+
     public async Task<ApiResponse<EquipmentDetailDto>> CreateAsync(CreateEquipmentRequest request)
     {
         try

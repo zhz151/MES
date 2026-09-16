@@ -34,7 +34,7 @@ public class PieceRateFinalInspectionCategoryController : ControllerBase
 
     /// <summary>导出全量成检类别标准（Sheet「类别」+「维档」双表）</summary>
     [HttpGet("export-all")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult> ExportAll()
     {
         var bytes = await _importService.ExportAsync();
@@ -43,7 +43,7 @@ public class PieceRateFinalInspectionCategoryController : ControllerBase
 
     /// <summary>生成单 sheet 导入模板（kind=category|tier，中文表头 + 1 示例行）</summary>
     [HttpGet("import/template")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult> GetTemplate([FromQuery] string kind)
     {
         if (!PieceRateImportKinds.IsValid(kind))
@@ -56,7 +56,7 @@ public class PieceRateFinalInspectionCategoryController : ControllerBase
 
     /// <summary>解析 + 校验 + 统计（预览结果与导入同口径）</summary>
     [HttpPost("import/preview")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<ImportPreviewResult>>> PreviewImport(
         [FromQuery] string kind, IFormFile? file)
     {
@@ -72,7 +72,7 @@ public class PieceRateFinalInspectionCategoryController : ControllerBase
 
     /// <summary>事务内覆盖更新导入（任一数据行无效 → 整体拒绝）</summary>
     [HttpPost("import")]
-    [Authorize(Roles = Roles.Policies.SalaryEdit)]
+    [Authorize(Roles = Roles.Policies.BasicDataEdit)]
     public async Task<ActionResult<ApiResponse<ImportResult>>> Import(
         [FromQuery] string kind, IFormFile? file)
     {
@@ -88,7 +88,7 @@ public class PieceRateFinalInspectionCategoryController : ControllerBase
 
     /// <summary>分页查询类别（filters 为列级筛选 JSON，独立参数手动反序列化）</summary>
     [HttpGet]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<PagedResult<PieceRateFinalInspectionCategoryListItemDto>>>> GetPaged(
         [FromQuery] PieceRateFinalInspectionCategoryQueryParams query,
         [FromQuery] string? filters = null)
@@ -111,7 +111,7 @@ public class PieceRateFinalInspectionCategoryController : ControllerBase
 
     /// <summary>按 Id 获取详情（含维档全量，供编辑页）</summary>
     [HttpGet("{id:int}")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<PieceRateFinalInspectionCategoryDetailDto>>> GetById(int id)
     {
         var result = await _service.GetDetailAsync(id);
@@ -122,7 +122,7 @@ public class PieceRateFinalInspectionCategoryController : ControllerBase
 
     /// <summary>创建类别（定义 + 维档整组）</summary>
     [HttpPost]
-    [Authorize(Roles = Roles.Policies.SalaryEdit)]
+    [Authorize(Roles = Roles.Policies.BasicDataEdit)]
     public async Task<ActionResult<ApiResponse<PieceRateFinalInspectionCategoryDetailDto>>> Create(
         [FromBody] PieceRateFinalInspectionCategorySaveRequest request)
     {
@@ -132,7 +132,7 @@ public class PieceRateFinalInspectionCategoryController : ControllerBase
 
     /// <summary>更新类别（改定义/整组替换维档；同成检项目启用唯一）</summary>
     [HttpPut("{id:int}")]
-    [Authorize(Roles = Roles.Policies.SalaryEdit)]
+    [Authorize(Roles = Roles.Policies.BasicDataEdit)]
     public async Task<ActionResult<ApiResponse<PieceRateFinalInspectionCategoryDetailDto>>> Update(
         int id, [FromBody] PieceRateFinalInspectionCategorySaveRequest request)
     {
@@ -142,7 +142,7 @@ public class PieceRateFinalInspectionCategoryController : ControllerBase
 
     /// <summary>删除类别（级联删维档）</summary>
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = Roles.Policies.SalaryDelete)]
+    [Authorize(Roles = Roles.Policies.BasicDataDelete)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
     {
         await _service.DeleteAsync(id);
@@ -151,7 +151,7 @@ public class PieceRateFinalInspectionCategoryController : ControllerBase
 
     /// <summary>类别编辑页选项源（成检项目/单位/长度状态/特殊状态/工厂牌号）</summary>
     [HttpGet("options")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<PieceRateFinalInspectionCategoryOptionsDto>>> GetOptions()
     {
         var result = await _service.GetOptionsAsync();
@@ -160,7 +160,7 @@ public class PieceRateFinalInspectionCategoryController : ControllerBase
 
     /// <summary>试算匹配：一条成检 → 命中类别单价；返回 null = 未定价</summary>
     [HttpPost("match-price")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<PieceRateFinalInspectionMatchResultDto?>>> MatchPrice(
         [FromBody] PieceRateFinalInspectionMatchRequest request)
     {
@@ -170,7 +170,7 @@ public class PieceRateFinalInspectionCategoryController : ControllerBase
 
     /// <summary>模拟测算候选成检记录（全局任意记录：成检项目/关键字过滤 + 服务端分页，默认检验日期降序）</summary>
     [HttpGet("trial-records")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<PagedResult<FinalInspectionPriceTrialRecordDto>>>> GetTrialRecords(
         [FromQuery] FinalInspectionPriceTrialRecordQuery query)
     {
@@ -180,7 +180,7 @@ public class PieceRateFinalInspectionCategoryController : ControllerBase
 
     /// <summary>模拟测算：按一条真实成检记录计价（与月结采集同 FinalInspectionMatchRequestMapper 单源映射）；返回 null = 未定价</summary>
     [HttpGet("trial-records/{id:int}/price")]
-    [Authorize(Roles = Roles.Policies.SalaryView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<PieceRateFinalInspectionMatchResultDto?>>> MatchByRecord(int id)
     {
         var result = await _service.MatchFinalInspectionRecordAsync(id);

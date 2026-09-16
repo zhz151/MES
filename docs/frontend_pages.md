@@ -1,8 +1,47 @@
 # MES 前端页面结构参考
 
-> 版本：V147（2026-09-15；生成 2026-08-19）
+> 版本：V153（2026-09-16；生成 2026-08-19）
 > 用途/状态：Quick Reference - 按导航菜单分组的前端页面结构参考，§1 上下文总览 / §2 各上下文页面块 / §3 列表页全量清单 / §7 生产编号链接台账。
-> 上次实质变更（V147）：**两处菜单正名 —— ① 「计划排程 → 批次计划」更名「生产计划」；② 一级菜单「生产标准」更名「产品标准」**（2026-09-15，**纯命名；后端端点 / 路由 / 实体 / DTO / DB / 迁移 / 权限零改动**）：
+> 上次实质变更（V153，2026-09-16）：**手机端「工单用料」域 16 张明细表由竖排改横排**（纯 WASM：8 个 `.razor` 页面共 16 处 `<MudTable>` 各加 `Breakpoint="Breakpoint.None"`；零路由 / 零权限 / 零 EF 迁移 / 零数据变更；无 CSS 变更 → 不抬 `?v=` 串）：
+> ① **来由（用户报障）**——用户原话「发现在手机版中，涉及工单『用料』，用料的明细展示中，列表不正常，即展示的模式是纵向的，需要改横向」；追问后举例「展示可用库存。打开的列表中的每行数据，在手机版中是 1 个 1 个纵向排布」。
+> ② **根因**（同 V137 真根因）——MudBlazor 6.19 `MudTable` 的 `Breakpoint` **默认即 `Breakpoint.Xs`** → 手机竖屏（<600px）外层 div 带 `mud-xs-table`，`MudBlazor.min.css` 的 `@media(max-width:600px)` 内**隐藏整条表头** + 每格 `display:flex` + `:before{content:attr(data-label)}` → 一条记录被拆成 N 行「列名—值」竖排（在产主工单页 21 列 = 每条记录 21 行）。
+> ③ **为何 V137（127 处）与 V141（补漏 8 处）两批均未覆盖**——V137 按「`ReadOnly="true"` 字面量」与「`Class` 含 `edit-table`」归档；V141 判据收敛为「**文件名（`*Create` / `*Edit`）+ `Class` 是否含 `edit-table`**」。本批 16 张表**所在文件名全带 `Create` / `Edit`（故按文件名被判为「录入页」），但表本身 `Class` 是 `auto-table`（展示 / 选择型，无 `edit-table`）** → 两次扫描均落到「未命中」一侧，属**按文件名归档造成的误判**。**判据建议更正：今后归类只看 `Class`**（`edit-table` = 录入型、保持竖排；`auto-table` 且以展示 / 选择为主 = 补 `Breakpoint="Breakpoint.None"`），**不再看文件名**。
+> ④ **范围（用户 2026-09-16 选定「工单用料域全 16 张」）**——`Pages/WorkOrders/` 8 文件：`WorkOrderInventoryPlanCreate`（可用库存列表）、`WorkOrderReworkPlanCreate`（待处理工序组 + 可用库存列表）、`WorkOrderInProcessReworkPlanCreate`（待处理工序组 + 可用库存列表）、`WorkOrderInMainWorkOrderPlanCreate`（可用库存列表）、`WorkOrderFinishPlanCreate`（成品采购明细）、`WorkOrderMaterialPlanCreate` / `WorkOrderPiercingPlanCreate` / `WorkOrderPiercingPlanEdit`（各含测算参数与结果 + 用料明细 + 工序组明细）= **1+2+2+1+1+3+3+3 = 16 处**。**含录入型表在内**，模块内口径统一、不留「同页有的横有的竖」的割裂；**域外其余模块的 `*Create` 录入表（约 40 张）本次未动**，仍保持竖排。改法仅加参数（不动列、不动结构、`DataLabel` 原样保留）。
+> ⑤ **⚠️ 据此修正 V141 的全仓复查结论**——当时记「未加 `Breakpoint` 的 **60 张全属录入 / 操作页**，有意保留竖排属预期」，**现修正为 44 张**（41 张 `*Create` / `*Edit` 录入表 + `WarehouseInbound.razor:108` + `WarehouseOutbound.razor:61` + `InspectionPatrolForm.razor:163`）；本次 16 张**不属于**「有意保留竖排」范畴。V141 条目正文保留原样，仅在 §① 末尾加补注指向本条。
+> ⑥ **验证与发布**——`dotnet build MES.Blazor` **3 项目 0 错 0 警**；逐处 Edit（未用任何行级批量脚本）并复核 8 文件首行 `@page` 完好；计数复核 `<MudTable` 16 处 vs `Breakpoint="Breakpoint.None"` **16** 处一一对应。**零后端 / 零 API / 零迁移 / 零数据 / 零权限 / 零路由 / 零 CSS** → 只推 WASM、**不抬 `?v=` 串**、存量用户无需重登。⚠️ **手机真机复核待用户执行**（F12 模拟 `mud-xs-table` 分支与真机走的路径可能不同）。
+> 历史变更（V152，2026-09-16）：**「设备维修」域整体放开为仅需登录**（纯授权口径变更；零路由 / 零 EF 迁移 / 零数据变更；无 CSS 变更 → 不抬 `?v=` 串）：
+> ① **后端** `api/repair-order` 全部 11 个端点由 EquipmentView/Edit/Delete 改为 `[Authorize]`（仅需登录）。
+> ② **页面级** `/repair-orders`（原 EquipmentView）、`/repair-orders/create`（原 EquipmentEdit）改为 `[Authorize]`；`/equipment-scan`、`/equipment-repair`、`/repair-execute` 原即 `[Authorize]` 不变。
+> ③ **新增** `GET api/equipment/options`（仅登录、精简 `EquipmentOptionDto`）+ 前端 `EquipmentService.GetOptionsAsync`，维修建单页设备下拉由 `GetAllAsync` 改调它；`GET api/equipment/all` 保持 `EquipmentView` **不放宽**。
+> ④ **理由**：维修域是「设备扫码」链路的落地形态（扫码 → 报修 / 维修 / 工单列表），现场一线岗位账号只配 Scan 档，挂设备档会出现「进得了扫码页却干不了活」的 403 静默失效。操作人身份由页面内实名选择约束。
+> ⑤ **仍受控**：设备台账 / 点检记录 / 保养工单页面与端点保持 EquipmentView/Edit/Delete。护栏测试 `MES.Tests/Controllers/EquipmentRepairAuthorizationTests.cs`。
+> 历史变更（V151，2026-09-16）：**一级菜单「扫码管理」更名「扫码操作」并下沉至「系统参数」之后**（**纯显示名 + 菜单顺序；零路由 / 零权限 / 零 EF 迁移 / 零数据变更；无 CSS 变更 → 不抬 `?v=` 串**）：
+> ① **改名 + 移位**——`Shared/AppMenu.cs` 组 `Label`「扫码管理」→「**扫码操作**」，整组由「产品标准」之后移至「系统参数」之后（「数据工具」之前）。理由（用户 2026-09-16 决策）：该组 4 项全是一线现场操作入口、**无管理功能**，桌面端低频（现场岗走手机端菜单 + 首页「常用入口」磁贴直达），不宜占据侧栏前列。定稿一级序：`首页, 报表总览, 订单管理, 工单管理, 计划排程, 生产执行, 质量管理, 物料管理, 仓库管理, 设备管理, 产品标准, 工资结算, 基础资料, 系统参数, 扫码操作, 数据工具, 用户管理`。
+> ② **⚠️ 有意不改（关键）**——**角色代码 `ScanViewer` / `ScanEditor` / `ScanFull` 保持原样**（`MES.Shared/Constants/Roles.cs`）：角色名存于 `AspNetRoles` 且逐次写进 JWT，改名须改库 + 全员重新登录，换来的可见差异为零。**同理**：组 `Policy=null`（整组仅需登录）、4 个叶子名与路由（`/mobile-report`、`/mobile-quality/patrol`、`/mobile-quality/feedback`、`/equipment-scan`）一律不变；存量用户**无需重新登录**。
+> ③ **同步改（用户管理 UI）**——`Helpers/UserRoleDisplayHelper.cs` 的 `MenuTiers`：`new("Scan", "扫码管理")` → **`new("Scan", "扫码操作")`**（用户管理「角色分配」弹窗档位名）。⚠️ 该列表顺序按**角色代码分组**排（绑 `Roles.Menus`），与侧栏展示顺序**不必相同**，本次**不动其顺序**。
+> ④ **文档同步**——本文件（§2.10 菜单行、§2.11 工资结算位置描述、§6 菜单树）、`03_安全设计.md`（V3.2）、`08_扫码执行设计.md`（V4.12）、`01_设计总纲领.md`（V4.4）、`12_商业MES差距分析.md`（V4.9）、`14_部署执行单.md`（V1.3）、`模块设计/工资结算上下文详细设计.md`（V1.28）、`模块设计/设备上下文详细设计.md`（V2.6）、`模块设计/质量管理模块详细设计.md`（V8.41）；`本机与线上发布差异待办.md` 新增「批四十二」。
+> ⑤ **测试**——`AppMenuTests`：`扫码组_整组仅登录_纯扫码作业入口` 改查「扫码操作」并加 `AppMenu.Find("扫码管理").Should().BeNull()` 防旧名残留；`根级顺序_与电脑版历史一致` 断言同步。
+> 历史变更（V150，2026-09-16）：**批四十收尾——页内标题与数据工具显示名去「扫码-」前缀**（**纯显示名；零路由 / 零权限 / 零 EF 迁移 / 零数据变更；无 CSS 变更 → 不抬 `?v=` 串**）：
+> ① **页内标题去分组前缀**——`Configuration/Workstations.razor` 页头「扫码-工位管理」→「**工位管理**」、`Configuration/Employees.razor` 页头「扫码-员工管理」→「**员工管理**」（两页 `@attribute` 已于 V149 改 `BasicDataView`）；项目内其余页头（`设备台账`/`生产计件标准` 等）本就不带分组前缀，本次为对齐。**路由 `/workstations`、`/employees` 不变**。
+> ② **数据工具显示名正名**——`MES.Services/DataExchange/DataExchangeRegistry.cs`：`Workstation` 显示名「扫码-工位管理」→「**基础资料-工位管理**」、`Employee` 显示名「扫码-员工管理」→「**基础资料-员工管理**」；`ContextOrder` 第 10 位「扫码」→「**基础资料**」（扫码组已无注册实体）→ 数据工具「选择数据类型」下拉分组随之正名。**实体 Key / 表名 / `EntityOrder` 位置 / 端点 / 权限一律不变**，旧导出文件与已下发导入模板均无需重下。
+> ③ **测试**——`DataExchangeServiceTests` 内「中文归一为英文 Key」用例的 Excel 工作表名同步改「基础资料-员工管理」；该测试类既有通用护栏（每个 `DisplayName` 前缀须在 `ContextOrder` 中）自动覆盖本次改名。
+> ④ **文档**——`10_数据导入导出规范.md`（V2.27）、`接口设计/数据工具接口设计.md`（V7.23）。
+> 历史变更（V149，2026-09-16）：**新增一级菜单「基础资料」+ 「参数表」更名「系统参数」**（**零 EF 迁移 / 零数据变更 / 零路由变更**；角色 46 → **49**（16 主菜单 × 3 档 + Admin），权限有变更）：
+> ① **新增「基础资料」主菜单**（`Shared/AppMenu.cs`，位于「工资结算」下方、「系统参数」上方）：收纳原属「扫码管理」的 **工位管理 `/workstations`**、**员工管理 `/employees`** 与原属「工资结算」的 **生产计件标准 `/payroll/piece-rate-categories`**、**成检计件标准 `/payroll/final-inspection-categories`**，**路由全部不变**。定位 = 日常可持续维护的主数据档案 + 计件单价标准（与「系统参数」分工：系统参数倾向定型后不再改动）。
+> ② **新角色三档** `BasicDataViewer/Editor/Full` + 策略 `BasicDataView/Edit/Delete`（`MES.Shared/Constants/Roles.cs`）。**无需 EF 迁移**——`Program.cs` 启动时无条件 `DbInitializer.InitializeAsync`，其中遍历 `Roles.GetAllRoles()` 用 `RoleManager.CreateAsync` 补齐缺失角色。存量用户需**重新登录**（JWT 才带最新角色）。
+> ③ **一级菜单「参数表」更名「系统参数」**——⚠️ **角色代码 `Configuration*` / 路由 / 表名全部不改**（同 V146/V147 纪律）；组名占用「系统参数」后，原同名叶子「系统参数(全局参数)」**去重名**为「**全局参数**」（`Href` 仍 `/config-parameters`）。
+> ④ **权限三处同步**——6 个页面的 `@attribute`/页内按钮 → `BasicData*`；4 个 Controller 共 **37 处 `[Authorize(Roles=…)]`** 改档（`WorkstationController`、`EmployeeController`、`PieceRateProductionCategoryController`、`PieceRateFinalInspectionCategoryController`，**控制器命名空间与文件位置不变**）；**有意保持「仅需登录」3 个端点**——`api/employee/list`、`api/employee/{code}`、`api/workstation/{code}`（扫码报工 / 生产记录 / 去油酸洗等生产侧流程按工段、检验项筛选操作工时共用 `employee/list`，收紧会打断流程）。
+> ⑤ **用户管理弹窗同步**——`Helpers/UserRoleDisplayHelper.cs` 的 `MenuTiers`：新增 `new("BasicData", "基础资料")`（Salary 与 Configuration 之间），`new("Configuration", "参数表")` → **`new("Configuration", "系统参数")`**；15 → **16 项**。`DefaultViewerMenus` 不变（基础资料=系统菜单，新建用户默认「无」）。
+> ⑥ **文档同步**——本文件 §1 上下文↔角色表（新增「基础资料」行 6 页/4 列表页；「配置」行改「系统参数」14→12；「工资结算」12→8）、§2.10 / §2.11 迁出注记 + **新增 §2.13 基础资料页块**、§3 清单 #42/#43/#76/#77/#78 上下文列、§6 菜单树；另同步 `01_设计总纲领.md` / `02_架构设计.md` / `03_安全设计.md` / `04_开发规范.md` / `05_部署与运维.md` / `12_商业MES差距分析.md` / `14_部署执行单.md` / `本机与线上发布差异待办.md`（新增「批四十」条目）/ `接口设计/配置上下文接口设计.md`（V2.5）/ `接口设计/工资结算上下文接口设计.md`（V1.26）/ `接口设计/计划排程上下文接口设计.md` / `模块设计/配置上下文详细设计.md`（V2.8）/ `模块设计/工资结算上下文详细设计.md`（V1.26）/ `模块设计/生产计件详细设计.md`（V1.9）/ `模块设计/成检计件详细设计.md`（V1.6）/ `模块设计/设备上下文详细设计.md` / `模块设计/计划排程上下文详细设计.md` / `数据库设计/配置上下文数据库设计.md`（V1.18）/ `数据库设计/计划排程上下文数据库设计.md`。
+> ⑦ **测试**——`RolesPoliciesTests`（49 角色 + `BasicData` 三档）、`UserRoleDisplayHelperTests`（16 主菜单 + 显示名断言 + 顺序断言）、`AppMenuTests`（扫码组 4 项纯登录 / 工资结算 9 项 / 新增「基础资料组_四项」/ 新增「参数表更名系统参数」/ 根级顺序）。**纯菜单标签与权限属性，无 CSS 变更 → 不抬 `?v=` 串**。
+> 历史变更（V148，2026-09-16）：**文档与代码全量对账**（**纯文档修订；零代码 / 零迁移 / 零数据变更 / 零权限变更**）。先机扫全部 `@page` 与 `AppMenu.cs` 再逐条人工核验：
+> ① **§1 上下文总览计数按实测重算**——质量 32→**36**（列表页 16→**18**）、仓库 7→**6**（列表页 4→**3**）、配置 13→**14**（列表页 13→**14**）、工资结算 11→**12**（列表页 10→**11**）、数据工具 2→**1**；**新增「巡检/不合格反馈扫码」行**（`ScanQuality.razor`，此前整行遗漏）；补「计数口径」脚注（页面数 = 归属上下文且**含 `@page` 路由**的 `.razor`，弹窗不计）。
+> ② **§2 各页块菜单树与路由更正**——§2.3 计划排程「负载总览 / 原锁计划」→ 实际 **订单负荷总量 / 工单排程 / 冷轧排程 / 生产计划 / 成检计划（5 项，无「原锁计划」）**；§2.5 质量删除不存在的 `/quality/lab-testing`、菜单补「不合格处置」子组与「理化检测」9 项明细、列表页清单补漏 `InspectionPatrols`/`NonconformingFeedbacks`；§2.6 物料菜单改「圆棒穿孔(子组)」；§2.9 产品标准 9 项改按 `AppMenu.cs` 实际顺序；§2.10 扫码管理补「巡检扫码/不合格反馈扫码」并正名「报工扫码」，列表页补漏 `ColdRollMachineGroupConfigs`，**「注: AdminOnly」更正为页级 `ConfigurationView`**（Employees 新建/同步按钮另走 `ScanEdit`）。
+> ③ **§3 列表页清单更正 5 处**——总数「88 → **85**」（编号 26/37/38/39/63/69 为历史删除留空，新增 85.1 子号）；**补漏「考勤表」`/payroll/attendance`**（§2.11 早已列为列表页，§3 却缺行）；#44 冷轧排程编辑列删除已下线的**「待轧序 `RollOrder`」**（迁移 `20260610061116` 已删该字段）；#66 委外子项 18 列 2 组 → **25 列 3 组**（补 G2「工单实时关注」整组、G1 计价单位·加工单价·加工金额、首列「序号」可排序，**加载方式由「全量加载+内存筛选」更正为服务端分页**）；#79 每日工资页「两条 `@page`」→ **单条参数化路由 `/payroll/wages/{Group?}`**。
+> ④ **§7 台账路由笔误成批更正（14 处）**——见新增 **§7.5**：`/quality-process-tracking`→`/quality/process-tracking`、`/material-receive-checks`→`/quality/material-receive-checks`、`/process-inspections`→`/quality/process-inspection`、`/quality/ncrs`→`/quality/ncr`、`/work-order-material-plan`→`/workorders/{WorkOrderId:int}/material-plan`（4 行）、`/inbound-history`→`/warehouse/inbound-history`、`/warehouse-inventory`→`/warehouse`、`/outbound-history`→`/warehouse/outbound-history`、**C 组 8 条检验页复数路由 → 单数 `/quality/xxx-test`**。
+> ⑤ **§6 关键文件路径更正**——`ResponsiveLayout` 删除「横屏切桌面」表述（V140 已删该例外）；手机壳宽表描述改为**「仅粘性表头、不冻结任何列」**（V138）+ 补 `Breakpoint="Breakpoint.None"` 前提；**「移动横屏提示条」行改写为「已删除」**（`LandscapeHintBanner.razor` / `LandscapeHintRule.cs` / 其单测三文件 V140 整文件删除，原文「组件保留不删」已失效）；各层路径更正为**按上下文分子目录**（`MES.Blazor/Services/{Context}/`、`MES.Services/{Context}/`、`MES.Core/DTOs/{Context}/`、`MES.Core/Interfaces/{Context}/`、`MES.Data/Entities/{Context}/`）。
+> ⑥ **历史条目「尚未上线」表述更正 2 处**——V143 条「⚠️ 本批尚未打包上线」→ 已于 2026-09-15 随 `mes-deploy-20260915_1539.zip` 上线；V136 条「本批改动尚未上线，真机验证需等下次发布」→ 已于 2026-09-15 随 `mes-deploy-20260915_1400.zip` 上线且真机复核通过（依据 `docs/本机与线上发布差异待办.md`「当前状态」）。**历史条目正文保留原样，仅就地补注，不改写历史**。
+> 历史变更（V147）：**两处菜单正名 —— ① 「计划排程 → 批次计划」更名「生产计划」；② 一级菜单「生产标准」更名「产品标准」**（2026-09-15，**纯命名；后端端点 / 路由 / 实体 / DTO / DB / 迁移 / 权限零改动**）：
 > ① **改名（用户拍板）**——`Shared/AppMenu.cs` 计划排程组第 4 项 `Label`「批次计划」→ **「生产计划」**（`Href` 仍 `/batch-plans`、`Policy` 仍继承组级 `SchedulingMenu`）。**理由**：与一级「生产执行」不再两处都叫「批次」，且与「成检计划」并列成「生产计划 → 成检计划」的工序先后关系。
 > ② **改名（用户拍板）**——`Shared/AppMenu.cs` 一级分组 `Label`「生产标准」→ **「产品标准」**（`Policy` 仍 `Roles.Policies.StandardView` 不变，组内 9 项叶子不动）。**理由**：该组维护的是**产品（牌号 / 化学成分 / 物理性能 / 标准号）本身的标准数据**，而非「生产过程的作业标准」（后者是「参数表」的工序组定义 / 工段工量天数 / 日产配置等），正名后二者边界清晰。
 > ③ **同步改（用户管理 UI）**——`Helpers/UserRoleDisplayHelper.cs` 的 `MenuTiers`：`new("Standard", "生产标准")` → **`new("Standard", "产品标准")`**（用户管理「角色分配」弹窗档位名）。`Prefix` 仍是 `Standard`，15 项与顺序不变。
@@ -40,7 +79,7 @@
 > ⑤ **后端**（详见订单接口设计 V2.20 / 订单模块详细设计 V1.36 / 工单模块详细设计 V7.6）——抽公共计算器 `MES.Services/Helpers/ProductionPendingNodeHelper.cs`（单源 8 节点表 + 批次粒度在产 / 在途计算器，纯内存、不依赖 DbContext）替换原 G17 内联块与 `OrderProgressQueryService.ProductionNodeDefs` **两份重复定义**；订单进度树「生产执行」分支**由快照改实时重算**（`ProductionBatches.Include(ProcessGroups)` 按 `workOrderNos` 收窄后按主号分组 `Compute`，主号级 = 该主号全部工单批次并集一次算完）；`MainProgressLeafDto` 新增 `BatchSegments`，新增 `LeafBatchSegmentDto`（`Key`/`Label`/`WeightKg`/`BatchCount`/`Batches`）与 `LeafBatchItemDto`（`BatchId`/`BatchNo`/`WeightKg`）——**英文 Key + 服务端拼中文 Label**，前端只拼接、不做中文判断。成品检验分支名单与重量**取自同一行**（`GroupBy(ProductionBatchId).First()` 去重铁律不动）。
 > ⑥ **⚠️ 口径分叉（必须在文档写明）**——生产节点叶重由快照改实时后，与「工单执行状况」页（未点「即时更新」时仍是旧快照）**可能不一致**；`DeformedProcessCompleted` / `ProductionAttentionProcess` 仍是快照 → 会长期分叉。**这是本次最大行为变更，不是 bug**。
 > ⑦ **⚠️ 静态资源版本串（本批共抬 3 次）**——`index.html`：`MES.Blazor.styles.css?v=3` → **`?v=4`**（名单块新增）；**随后按用户反馈调字号两轮**（用户原话「在产在途的字体放大，现在太小了……包括生产编号」→ 再「15px，叶子正文提到16」）：第一轮 `.op-batch-toggle` / `.op-batch-seg-label` / `.op-batch-no` 三处 13px → 14px（`?v=5`）；第二轮 **叶子正文 `.op-leaf-row` / `.op-leaf-kg` / `.op-leaf-return` 15px → 16px，名单三处 14px → 15px**（`?v=6`，最终值）。**层级关系保持：叶子 16px > 名单 15px**（均为硬编码 px、非继承，桌面与手机壳共用同值、不额外分档）。⚠️ **字号硬编码 → 改了必须抬串才下发**。`css/app.css` **本批未改、保持 `?v=13`**。
-> ⑧ **验证**——`dotnet build MES.Api` / `MES.Blazor` **各 0 错 0 警**；定向单测 `ProductionPendingNodeHelperTests`（新建 16 例）+ `OrderProgressQueryServiceTests` **21 过** + `WorkOrderExecutionServiceTests` / `ProductionPendingNodeHelperTests` 合计 **102 过**；**真库 SQL 快路径核验**（订单 `D26Z2159001` / 主号 `X03`）：荒管处理 **19281.000（14 批，名单逐字吻合 2603-302/326/327/328/329/330/332/333/335/337/338/342/343/387）**、50冷轧 **37433.000**、30冷轧 **98973.000**，与 2026-09-15 快照值一致。⚠️ **本批尚未打包上线**（登记见 `docs/本机与线上发布差异待办.md`）；**浏览器人工验证待用户执行**（首页手机 / 桌面两分支 + `/orders/progress`：默认折叠、展开名单换行不溢出、点批号弹「批次执行进度」）。
+> ⑧ **验证**——`dotnet build MES.Api` / `MES.Blazor` **各 0 错 0 警**；定向单测 `ProductionPendingNodeHelperTests`（新建 16 例）+ `OrderProgressQueryServiceTests` **21 过** + `WorkOrderExecutionServiceTests` / `ProductionPendingNodeHelperTests` 合计 **102 过**；**真库 SQL 快路径核验**（订单 `D26Z2159001` / 主号 `X03`）：荒管处理 **19281.000（14 批，名单逐字吻合 2603-302/326/327/328/329/330/332/333/335/337/338/342/343/387）**、50冷轧 **37433.000**、30冷轧 **98973.000**，与 2026-09-15 快照值一致。⚠️ **本批已于 2026-09-15 随 `mes-deploy-20260915_1539.zip` 上线**（原文为「尚未打包上线」，2026-09-16 对账补注；登记见 `docs/本机与线上发布差异待办.md`）；**浏览器人工验证待用户执行**（首页手机 / 桌面两分支 + `/orders/progress`：默认折叠、展开名单换行不溢出、点批号弹「批次执行进度」）。
 > 历史变更（V142）：**手机端首页复查：订单进度树防横向溢出 4 组 5 条 `.mh-shell` 覆盖**（2026-09-15，**纯 WASM（`Shared/OrderProgressTree.razor.css` + `index.html`）；后端 / API / DB / 迁移 / 权限零改动**）：
 > ① **来由（用户点名复查）**——「复查一下，手机端的首页，提示信息、卡片等。是否存在超出屏幕，宽度超出的问题。另外如果存在类似之前的竖排显示的问题，也需要一并解决。请你先全面检查，再输出解决方案。」复查覆盖首页整棵渲染树（`Index.razor` 手机+桌面两分支 / `MobileLayout.razor` / `ResponsiveLayout.razor` / 两张查询卡 / `OrderProgressTree` / `BatchProgressCard` / `AppShortcuts` 11 条 / `app.css` 6 段 + MudBlazor 6.19 实际取值）。
 > ② **竖排问题：首页不存在（已排除）**——Grep 全首页渲染树 `MudTable` / `MudDataGrid` / `MudSimpleTable` / `Breakpoint=` **0 命中**。竖排根因是 `MudTable` 默认 `Breakpoint=Xs` 在 <600px 隐藏表头并把每条记录拆成 N 行「列名—值」，首页两块结果区均为 `div`+flex 自绘结构，不具触发条件；`MudAlert` 提示条是 flex 行内布局，亦不竖排。
@@ -50,7 +89,7 @@
 > ⑥ **⚠️ 静态资源版本串（同提交抬串，务必）**——`index.html`：`MES.Blazor.styles.css?v=2` → **`?v=3`**（`.razor.css` 变更）；`css/app.css` **本批未改、保持 `?v=13`**。
 > ⑦ **验证与上线**——`dotnet build MES.Blazor` **0 错 0 警** + 编译产物含 5 条新规则（产物级复核）。**已随 `mes-deploy-20260915_1400.zip` 于 2026-09-15 上线**；上线核验（本机只读 curl）：首页 `http=200`、下发 `MES.Blazor.styles.css?v=3`、线上 `styles.css` 内含本批 4 组 `.mh-shell .op-*` 规则。**真机复核已通过（2026-09-15，用户确认「均正常了」）**。⚠️ 今后同类改动仍不可只靠 F12 模拟下结论（模拟与真机走的分支不同）。
 > 历史变更（V141）：**手机端可读性两项修正——① V137 批改漏网 8 处补 `Breakpoint="Breakpoint.None"`；② 首页两张查询卡「清除」按钮弱化为纯文字**（2026-09-15，**纯 WASM（`.razor` 组件属性 / 按钮变体）；⚠️ 无 CSS 变更故该批自身不抬 `?v=` 版本串（`app.css` 结束时为 `?v=13`、`MES.Blazor.styles.css` 结束时为 `?v=2`，随后由同批次的 V142 抬到 `?v=3`）；后端 / API / DB / 迁移 / 权限零改动**）：
-> ① **V137 批改漏网 8 处补齐（用户报障触发）**——用户报「生产标准上下文『标准号列表』→ 打开某个标准号，**手机端的查看不符合要求**（列表查看）」。根因＝MudBlazor 6.19 `MudTable` 的 `Breakpoint` **默认值即 `Breakpoint.Xs`** → 窄于 600px 时外层 div 带 `mud-xs-table`，`MudBlazor.min.css` 的 `@media(max-width:600px)` 内**隐藏表头** + 每格 `display:flex` + `:before{content:attr(data-label)}` → 一条记录被拆成 N 行「列名—值」竖排。2026-09-14 已批量补 127 处 / 82 文件，**本批补漏网 8 处 / 5 文件**：`Pages/StandardRegister/StandardRegisterDetail.razor:209`（子项目，即用户报障页）、`Pages/Quality/CertificateDetail.razor:142/262/295/320`（质保书明细 / 化学成分 / 成品检验 / 理化检测）、`Pages/WorkOrders/WorkOrderMaterialPlan.razor:258`（库存计划）、`Pages/Batches/OutsourceRecoveryCreate.razor:42`（委外回收明细）、`Pages/WorkOrders/WorkOrderGenerate.razor:111`（工单生成-订单项次）。**漏网成因**＝V137 脚本按「`ReadOnly="true"` 字面量」与「`edit-table`」两类归档，**混合态 `ReadOnly="@(!_isEditMode …)"`** 与**只读但无 `ReadOnly` 字面量、`Class` 仅 `auto-table`** 的表两边都不命中。**全仓复查结论（无遗漏）**：`MudTable` 共 190 张，未加 `Breakpoint` 的 60 张**全属录入 / 操作页**（57 张 `*Create.razor` / `*Edit.razor` + `WarehouseInbound.razor:108` + `WarehouseOutbound.razor:61` + `InspectionPatrolForm.razor:163`），**有意保留竖排属预期**；全仓无 `MudDataGrid`、无 `Breakpoint` 取 `None` 以外的值、`Shared/` 与 `Components/` 下无遗漏表。⚠️ **判据陷阱**：**不能**用「表内是否含 `MudTextField` / `MudNumericField`」判录入表——大量录入表行内控件由 `.razor.cs` 的 `RenderCell(...)` 以 `RenderFragment` 产出，扫描会报 `inputs=0` 全是**假阴性**；可靠判据＝**文件名（`*Create` / `*Edit`）+ `Class` 是否含 `edit-table`**。
+> ① **V137 批改漏网 8 处补齐（用户报障触发）**——用户报「生产标准上下文『标准号列表』→ 打开某个标准号，**手机端的查看不符合要求**（列表查看）」。根因＝MudBlazor 6.19 `MudTable` 的 `Breakpoint` **默认值即 `Breakpoint.Xs`** → 窄于 600px 时外层 div 带 `mud-xs-table`，`MudBlazor.min.css` 的 `@media(max-width:600px)` 内**隐藏表头** + 每格 `display:flex` + `:before{content:attr(data-label)}` → 一条记录被拆成 N 行「列名—值」竖排。2026-09-14 已批量补 127 处 / 82 文件，**本批补漏网 8 处 / 5 文件**：`Pages/StandardRegister/StandardRegisterDetail.razor:209`（子项目，即用户报障页）、`Pages/Quality/CertificateDetail.razor:142/262/295/320`（质保书明细 / 化学成分 / 成品检验 / 理化检测）、`Pages/WorkOrders/WorkOrderMaterialPlan.razor:258`（库存计划）、`Pages/Batches/OutsourceRecoveryCreate.razor:42`（委外回收明细）、`Pages/WorkOrders/WorkOrderGenerate.razor:111`（工单生成-订单项次）。**漏网成因**＝V137 脚本按「`ReadOnly="true"` 字面量」与「`edit-table`」两类归档，**混合态 `ReadOnly="@(!_isEditMode …)"`** 与**只读但无 `ReadOnly` 字面量、`Class` 仅 `auto-table`** 的表两边都不命中。**全仓复查结论（无遗漏）**：`MudTable` 共 190 张，未加 `Breakpoint` 的 60 张**全属录入 / 操作页**（57 张 `*Create.razor` / `*Edit.razor` + `WarehouseInbound.razor:108` + `WarehouseOutbound.razor:61` + `InspectionPatrolForm.razor:163`），**有意保留竖排属预期**；全仓无 `MudDataGrid`、无 `Breakpoint` 取 `None` 以外的值、`Shared/` 与 `Components/` 下无遗漏表。⚠️ **判据陷阱**：**不能**用「表内是否含 `MudTextField` / `MudNumericField`」判录入表——大量录入表行内控件由 `.razor.cs` 的 `RenderCell(...)` 以 `RenderFragment` 产出，扫描会报 `inputs=0` 全是**假阴性**；可靠判据＝**文件名（`*Create` / `*Edit`）+ `Class` 是否含 `edit-table`**。⚠️ **2026-09-16 补注（见顶部 V153）**：本条的「60 张全属录入 / 操作页」与「可靠判据＝文件名 + `edit-table`」**均已被 V153 修正**——工单用料域 16 张表的**所在文件名都带 `Create` / `Edit`，但表 `Class` 是 `auto-table`（展示 / 选择型）**，按文件名归档会被误判成「有意保留竖排」而漏改；未加 `Breakpoint` 的实为 **44 张**，判据应**只看 `Class`、不看文件名**。
 > ② **首页两张查询卡「清除」按钮弱化**（用户反馈「手机端不好看」）——`Shared/OrderProgressQueryCard.razor` 与 `Shared/BatchProgressQueryCard.razor` 两处同款：`Variant="Variant.Outlined"` → **`Variant="Variant.Text"`**、删除 `StartIcon="@Icons.Material.Filled.Clear"`（`Color="Color.Default"` 与 `Disabled="_loading || !CanClear"` 保持）。理由（已写入源码注释）：手机端与实心主按钮「查询」并列时，「**灰色空心框 + 叉号**」与实心蓝两种风格冲突，且 **✕ 易被误读为「关闭」**。**零行为变更**——`Clear()`（清空输入 + 结果 + `_searched`）与 `CanClear`（`_searched || 输入非空`）均未动；`HomeQueryCardsTests` 5 例按 `FindAll("button")[0]`=查询 / `[1]`=清除 定位，**不看 `Variant` / `StartIcon` → 不受影响**。验证：`dotnet build MES.Blazor` 0 错 0 警 + `HomeQueryCardsTests` **5 过**。
 > ③ **发布与验收**——纯 `.razor` 属性改动，**无 CSS 变更 → 本批自身不抬 `index.html` 版本串**；**无 EF 迁移 / 无数据变更 / 无权限变更**。⚠️ 属 V135–V141 手机壳体系整批（含 V142），**已随 `mes-deploy-20260915_1400.zip` 于 2026-09-15 上线**；但 **手机端样式与 `Breakpoint` 行为仍须在真机验证**（F12 模拟 `mud-xs-table` 分支有时会走另一条路径、看不出问题）。
 > 历史变更（V140）：**删除「手机横屏切电脑版」例外 + 删除「请横屏」提示条机制——手机/触屏设备一律走手机壳**（2026-09-14，**WASM（`ResponsiveLayout.razor` / `MobileLayout.razor` / `app.css` / `index.html`）+ 删除 2 个组件文件与 1 个测试类；后端 / API / DB / 迁移零改动**）：
@@ -89,7 +128,7 @@
 > ④ **不改动**——分组标题栏 `.col-group-header-scroll`（`overflow:hidden` + 固定像素宽）与表格的横向同步**已由 `table-nav.js: initGroupHeaders` 用 `transform: translateX(-scrollLeft)` 实现**（表格容器 scroll 事件 + ResizeObserver + MutationObserver），手机端无需改；横向滚动所需的 `overflow-x:auto` 已在 `.mud-table-container` 基线样式中（见 §6.29），本次**未新增**。
 > ⑤ **有意不做的两件事**——**不隐藏任何列**（用户拍板保留全列）；**不给 `WorkOrderLoadOverview` 加 `IsMobile` 分支 / 默认收起日期桶 / 逐行卡片化**（用户明确否决，见 ①）。
 > ⑥ **⚠️ 静态资源版本串（同提交抬串，务必）**——`index.html`：`css/app.css?v=7` → **`?v=8`**（`MES.Blazor.styles.css` 无 `.razor.css` 改动，保持 `?v=2`）。
-> ⑦ **验证** `dotnet build MES.Blazor` **3 项目 0 错 0 警**（纯 CSS / HTML 改动，无 `.razor` / `.cs` 变更、无单测影响）。⚠️ **本批改动尚未上线**，真机验证需等下次发布。
+> ⑦ **验证** `dotnet build MES.Blazor` **3 项目 0 错 0 警**（纯 CSS / HTML 改动，无 `.razor` / `.cs` 变更、无单测影响）。⚠️ **本批改动已于 2026-09-15 随 `mes-deploy-20260915_1400.zip` 上线**（原文为「本批改动尚未上线，真机验证需等下次发布」，2026-09-16 对账补注：其真机验证已于 2026-09-15 由用户在手机真机复核通过）。
 > 历史变更（V135）：**手机竖屏全站收敛——新增「全站手机壳」`.mh-shell` 钩子（除首页外所有页面的竖屏统一样式）+ 撤销自动弹「请横屏」提示条**（2026-09-14，**纯 WASM（`MobileLayout.razor` / `app.css` / `index.html`）；后端与 API 零改动**）：
 > ① **背景与拍板**——全仓 160+ 页面在手机上渲染的都是同一套桌面布局（**只有首页有 `IsMobile` 手机分支**），竖屏表现为「页头按钮挤成一团 / 筛选工具栏控件平铺溢出 / 宽表只能左右拖 / 内容贴边」。用户 2026-09-14 拍板**「竖屏也要可用」**，放宽 2026-09-06「除首页 + 扫码流外一律横屏查看」的策略；实现方式为**一层全局 CSS 统一收敛，不改 160+ 个页面本体**。
 > ② **⚠️ 钩子 = `MobileLayout.razor` 里真实渲染的 `<div class="mh-shell">`**（包住 `<CascadingValue IsMobile>` 与 `@ChildContent`）——**不依赖「祖先容器 + 后代选择器」的推断链**。这是 V134 教训的直接落实：上一次真机样式失效的根因正是钩子挂 `.mh-container` 在真机未命中（F12 模拟命中、真机不命中，整批规则静默回落桌面值）。桌面 `MainLayout` 不加此类 → **桌面版零影响**。
@@ -375,18 +414,24 @@
 | 工单 | 工单管理 | WorkOrderViewer/Editor/Full + Admin | 18 | 6 |
 | 计划排程 | 计划排程 | SchedulingViewer/Editor/Full + Admin | 6 | 5 |
 | 生产执行 | 生产执行 | BatchViewer/Editor/Full + Admin | 17 | 8 |
-| 质量 | 质量管理 | QualityViewer/Editor/Full + Admin | 32 | 16 |
+| 质量 | 质量管理 | QualityViewer/Editor/Full + Admin | 36 | 18 |
 | 物料 | 物料管理 | MaterialViewer/Editor/Full + Admin | 9 | 4 |
-| 仓库 | 仓库管理 | WarehouseViewer/Editor/Full + Admin | 7 | 4 |
+| 仓库 | 仓库管理 | WarehouseViewer/Editor/Full + Admin | 6 | 3 |
 | 设备 | 设备管理 | EquipmentViewer/Editor/Full + Admin | 8 | 4 |
 | 产品标准 | 产品标准 | StandardViewer/Editor/Full + Admin | 18 | 9 |
 | 报表系统 | 报表总览 | ReportViewer/Editor/Full + Admin | 1 | 0 |
-| 数据工具 | (独立按钮) | DataToolViewer/Editor/Full + Admin | 2 | 0 |
+| 数据工具 | (独立按钮) | DataToolViewer/Editor/Full + Admin | 1 | 0 |
 | 报工扫码 | (独立按钮) | 所有（仅登录） | 1 | 0 |
+| 巡检/不合格反馈扫码 | (独立按钮) | 所有（仅登录） | 1 | 0 |
 | 设备扫码 | (独立按钮) | 所有（仅登录） | 1 | 0 |
-| 配置 | 参数表 | ConfigurationViewer/Editor/Full + Admin | 13 | 13 |
-| 工资结算 | 工资结算 | SalaryViewer/Editor/Full + Admin | 11 | 10 |
+| 工资结算 | 工资结算 | SalaryViewer/Editor/Full + Admin | 8 | 9 |
+| 基础资料 | 基础资料 | BasicDataViewer/Editor/Full + Admin | 6 | 4 |
+| 系统参数 | 系统参数 | ConfigurationViewer/Editor/Full + Admin | 12 | 12 |
 | 用户管理 | (Admin按钮) | UserViewer/Editor/Full + Admin | 1 | 0 |
+
+> **计数口径（2026-09-16 对账）**：「页面数」= 归属本上下文、**含 `@page` 路由**的 `.razor` 文件数（**无路由的弹窗不计入**，弹窗在各 §2 页块内以「（无路由）」单独标注；`Login.razor` 为全站登录页、不属任何上下文，未列表内）。「列表页数」= §3 清单中归属该上下文的行数，两列合计与 §3「共 85 个列表页」一致。
+> 设备上下文 8 = 台账/新增 2 + 维修工单/新增 2 + 保养工单/新增 2 + 点检记录/新增 2；`EquipmentScan` / `EquipmentRepair` / `RepairExecute` 三张扫码页归 §2.12「其他页」。
+> 仓库 6 = `WarehouseInventory` / `WarehouseInbound` / `WarehouseOutbound` / `InboundHistory` / `OutboundHistory`（`Pages/Warehouse/`） + `MonthlyStock`（文件在 `Pages/Reports/`，菜单归「仓库管理 → 物料进出存报表」）。
 
 ---
 
@@ -467,7 +512,7 @@
 
 ```
 路由前缀: /plan-overview, /raw-material-lock-plan, /scheduling-plans, /cold-roll-plans, /batch-plans, /final-inspection-plan
-菜单: 计划排程 → [负载总览, 原锁计划, 工单排程, 冷轧排程, 生产计划, 成检计划]
+菜单: 计划排程 → [订单负荷总量, 工单排程, 冷轧排程, 生产计划, 成检计划]（共 5 项并列二级）
 
 ┌─ 计划排程 ─────────────────────────────────────────────┐
 │                                                           │
@@ -607,9 +652,11 @@
          /quality/pitting-corrosion-test, /quality/intergranular-corrosion-test,
          /quality/tensile-test, /quality/metallographic-test,
          /quality/flattening-test, /quality/flaring-test,
-         /quality/lab-testing, /quality/certificates
-菜单: 质量管理 → [巡检, 过程检验, 成检到料, 成品检验, 成检追踪, 不合格反馈, 不合格报告, 炉号/化学(子组), 理化检测, 质量证明书]
+         /quality/certificates
+菜单: 质量管理 → [巡检, 过程检验, 成检到料, 成品检验, 成检追踪, 不合格处置(子组), 炉号/化学(子组), 理化检测(子组), 质量证明书]
+      不合格处置子组: [不合格反馈, 不合格报告]（2026-09-13 新增三级子组，收纳同一闭环两端）
       炉号/化学子组: [炉号登记]
+      理化检测子组: [化学检验, 硬度检验, 晶粒度检验, 点腐蚀检验, 晶间腐蚀检验, 室温拉伸检验, 金相检验, 压扁检验, 扩口检验]
 
 ┌─ 质量管理 ───────────────────────────────────────────────┐
 │                                                           │
@@ -629,7 +676,8 @@
 │                                                           │
 │  FinalInspections.razor           /quality/final-inspection     [列表页]│
 │  FinalInspectionCreate.razor      /quality/final-inspection/create [创建页]│
-│  InspectionPhotoDialog.razor     （共用照片弹窗：过程检/成检 补拍·查看·删除，无路由）│
+│  InspectionPhotoDialog.razor     （共用照片弹窗：过程检/成检 补拍·查看·删除，无路由；│
+│                                   ⚠️ 文件在 `MES.Blazor/Shared/` 而非 `Pages/Quality/`）│
 │                                                           │
 │  QualityProcessTracking.razor     /quality/process-tracking    [列表页]│
 │                                                           │
@@ -670,9 +718,10 @@
 │  CertificateDetail.razor         /quality/certificates/{Id:int} [详情页]    │
 │  CertificatePrintSettingsDialog.razor  [打印设置对话框，无路由]│
 │                                                           │
-│  列表页: FurnaceRegistrations, ProcessInspections,           │
+│  列表页: FurnaceRegistrations, InspectionPatrols,            │
+│          ProcessInspections,                                 │
 │          MaterialReceiveChecks, FinalInspections,            │
-│          QualityProcessTracking, Ncrs,                       │
+│          QualityProcessTracking, NonconformingFeedbacks, Ncrs,│
 │          ChemicalAnalyses, HardnessTests, GrainSizeTests,    │
 │          PittingCorrosionTests, IntergranularCorrosionTests, │
 │          TensileTests, MetallographicTests,                  │
@@ -684,7 +733,8 @@
 
 ```
 路由前缀: /purchase-orders, /subcontract-orders, /subcontract-return-items, /suppliers
-菜单: 物料管理 → [采购订单, 圆棒穿孔(子项), 子项查询, 供应商管理]
+菜单: 物料管理 → [采购订单, 圆棒穿孔(子组), 供应商管理]
+      圆棒穿孔子组: [圆棒穿孔, 子项查询]
 
 ┌─ 物料管理 ───────────────────────────────────────────────┐
 │                                                           │
@@ -765,11 +815,20 @@
 └───────────────────────────────────────────────────────────┘
 ```
 
+> **⚠️ 授权口径（2026-09-16 起「设备维修」域整体仅需登录）**
+>
+> | 域 | 页面 | 页面级授权 |
+> |---|---|---|
+> | 设备管理 | `/equipment`、`/equipment/create`、`/inspection-records`、`/inspection-records/create`、`/maintenance-orders`、`/maintenance-orders/create` | 读 `EquipmentView`／写 `EquipmentEdit`／删 `EquipmentDelete`（**仍受控**） |
+> | **设备维修** | `/repair-orders`、`/repair-orders/create`（+ §2.12 的 `/equipment-scan`、`/equipment-repair`、`/repair-execute`） | **仅需登录 `[Authorize]`** |
+>
+> 后端 `api/repair-order` 11 个端点同步放开；维修建单页设备下拉改走 `GET api/equipment/options`（仅登录、精简 DTO），`GET api/equipment/all` 保持 `EquipmentView` 不放宽。详见 `docs/03_安全设计.md` §3.5「仅需登录链路边界」。
+
 ### 2.9 产品标准上下文
 
 ```
 路由前缀: /standard-registers, /grade-mappings, /grade-chemical-compositions, /grade-physical-properties, /sub-standard-quick-views, /standard-inspection-requirements, /factory-inspection-requirements, /chemical-composition, /chemical-validate
-菜单: 产品标准 → [标准号列表, 标准号检验项要求, 工厂检验项要求, 牌号对照, 标准牌号化学成分, 工厂牌号化学成分, 工厂牌号化分验证, 牌号物理性能, 子标准速览]
+菜单: 产品标准 → [标准号列表, 标准号检验项要求, 子标准速览, 牌号对照, 标准牌号化学成分, 牌号物理性能, 工厂检验项要求, 工厂牌号化学成分, 工厂牌号化分验证]（共 9 项，顺序与 `AppMenu.cs` 一致）
 
 ┌─ 产品标准 ───────────────────────────────────────────────┐
 │                                                           │
@@ -826,8 +885,8 @@
 ### 2.10 配置上下文
 
 ```
-路由前缀: /section-paragraph-config-settings, /daily-production-capacities, /daily-output-estimates, /standard-work-days, /standard-work-day-delivery-states, /process-definitions, /enum-display-definitions, /dict-value-definitions, /config-parameters, /workstations, /employees, /cold-roll-capacities, /cold-roll-machine-configs, /cold-roll-machine-group-configs
-菜单: 扫码管理 → [扫码报工, 设备扫码, 工位管理, 员工管理]；参数表 → [工序组定义(批次/工艺), 工段工量天数(排程/用料), 交货状态附加天数(排程/用料), 规格日产预估(工单执行), 冷轧产能档案(冷轧排程), 冷轧机台数配置(冷轧排程), 冷轧机台组配置(冷轧排程), 重点工段日产(生产总览), 段落日产配置(段落流转), 枚举显示配置(全局显示), 字典显示配置(全局显示), 系统参数(全局参数)]
+路由前缀: /section-paragraph-config-settings, /daily-production-capacities, /daily-output-estimates, /standard-work-days, /standard-work-day-delivery-states, /process-definitions, /enum-display-definitions, /dict-value-definitions, /config-parameters, /cold-roll-capacities, /cold-roll-machine-configs, /cold-roll-machine-group-configs（⚠️ `/workstations`、`/employees` 两页 2026-09-16 起菜单归「基础资料」，实体与端点仍在配置上下文）
+菜单: 系统参数 → [工序组定义(批次/工艺), 工段工量天数(排程/用料), 交货状态附加天数(排程/用料), 规格日产预估(工单执行), 冷轧产能档案(冷轧排程), 冷轧机台数配置(冷轧排程), 冷轧机台组配置(冷轧排程), 重点工段日产(生产总览), 段落日产配置(段落流转), 枚举显示配置(全局显示), 字典显示配置(全局显示), 全局参数]；扫码操作 → [报工扫码, 巡检扫码, 不合格反馈扫码, 设备扫码]（**整组仅登录，2026-09-16 起 4 项全部无 Policy**——工位/员工已迁出；组名 2026-09-16 由「扫码管理」更名并下沉至「系统参数」之后）
 
 ┌─ 系统配置 ───────────────────────────────────────────────┐
 │                                                           │
@@ -843,16 +902,18 @@
 │  EnumDisplayDefinitions.razor        /enum-display-definitions         [列表页+内联编辑]│
 │  DictValueDefinitions.razor          /dict-value-definitions           [列表页+内联编辑]│
 │  ConfigParameters.razor             /config-parameters                [列表页+内联编辑]│
-│  Workstations.razor                 /workstations                     [列表页+内联编辑]│
-│  Employees.razor                    /employees                        [列表页+内联编辑]│
+│                                                           │
+│  （2026-09-16 迁出 → 见 §2.13「基础资料」：Workstations.razor /workstations、 │
+│    Employees.razor /employees，页级授权改 BasicDataView）                  │
 │                                                           │
 │  列表页: SectionParagraphConfigSettings, DailyProductionCapacities,   │
 │          DailyOutputEstimates, StandardWorkDays,            │
 │          StandardWorkDayDeliveryStates, ProcessDefinitions, │
 │          ColdRollCapacities, ColdRollMachineConfigs,        │
 │          EnumDisplayDefinitions, DictValueDefinitions,      │
-│          ConfigParameters, Workstations, Employees           │
-│  注: AdminOnly，所有业务模块引用其参数参与工量/业务计算          │
+│          ConfigParameters, ColdRollMachineGroupConfigs      │
+│  注: 页级授权 = ConfigurationView（**原「AdminOnly」表述已废止**，2026 改动）；│
+│      所有业务模块引用其参数参与工量/业务计算                     │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -860,8 +921,9 @@
 
 ```
 路由前缀: /payroll
-菜单: 工资结算 → [生产计件标准, 成检计件标准, 考勤表, 杂辅工记录, 集体计件评分, 津贴与处罚, 非计件工资, 个人计件工资, 集体计件月结, 靠工计件月结, 月工资津贴汇总]
-     （独立主菜单，位于扫码管理下方、参数表上方）
+菜单: 工资结算 → [考勤表, 杂辅工记录, 集体计件评分, 津贴与处罚, 非计件工资, 个人计件工资, 集体计件月结, 靠工计件月结, 月工资津贴汇总]
+     （独立主菜单，位于产品标准下方、基础资料上方）
+     ⚠️ 原「生产计件标准 / 成检计件标准」两页 2026-09-16 迁至「基础资料」主菜单（见 §2.13）
 
 ┌─ 工资结算 ───────────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                                                                                              │
@@ -874,19 +936,46 @@
 │ MiscWorkMonthly.razor           /payroll/misc-work                  [杂辅工记录台账页]                │
 │ AllowanceMonthly.razor          /payroll/allowance                  [津贴与处罚月度网格页]            │
 │ MonthlySummary.razor            /payroll/monthly-summary            [月工资津贴汇总页]                    │
-│ PieceRateProductionCategories.razor  /payroll/piece-rate-categories  [生产计件标准列表页]                    │
-│ PieceRateProductionCategoryEdit.razor                                                                        │
-│         /payroll/piece-rate-categories/create        [创建页]                                                │
-│         /payroll/piece-rate-categories/edit/{Id:int}  [编辑页]                                               │
-│ FinalInspectionCategories.razor   /payroll/final-inspection-categories  [成检计件标准列表页]                  │
-│ FinalInspectionCategoryEdit.razor /payroll/final-inspection-categories/create、/edit/{Id:int} [成检计件标准编辑页]│
 │                                                                                                              │
-│ 列表页: Attendance, PieceRateProductionCategories                                                            │
-│  计件类别体系 = 「类别主表 + 维档子表」两表模型：类别 = 工段×工序/产类/阶段约束（空=全选；生产计件）或成检项目（成检单键）+ 基准价 + 结算单位 + 启停；
-│  结算单价 = 基准价 × 命中维档系数连乘（不配某维 = 系数 1）；同覆盖仅允许一个启用类别；
-│  编辑页 = 上区类别定义 + 下区同页整组编辑维档（区间/等值维），同维重叠/重复本地标红、跨类别覆盖冲突服务端权威校验，保存整类一次落库（删除级联删档）。
-│  各页特性明细（模拟测算按记录点选计价、每日工资引擎带出/保存快照、集体/靠工月结重算、津贴整元规约、月汇总整表打印等）见 §3 #76-#85；考勤月视图网格见本块首行 Attendance。
+│ （2026-09-16 迁出 → 见 §2.13「基础资料」：PieceRateProductionCategories + Edit、   │
+│   FinalInspectionCategories + Edit 四页，页级授权改 BasicData*）                  │
+│                                                                                                              │
+│ 列表页: Attendance                                                                                           │
+│  各页特性明细（每日工资引擎带出/保存快照、集体/靠工月结重算、津贴整元规约、月汇总整表打印等）见 §3 #76-#85；考勤月视图网格见本块首行 Attendance。
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 2.13 基础资料（2026-09-16 新增主菜单）
+
+```
+路由前缀: /workstations, /employees, /payroll/piece-rate-categories, /payroll/final-inspection-categories
+菜单: 基础资料 → [工位管理, 员工管理, 生产计件标准, 成检计件标准]
+     （独立主菜单，位于工资结算下方、系统参数上方；档位 BasicDataViewer/Editor/Full + Admin）
+     定位：日常可持续维护的主数据档案 + 计件单价标准；与「系统参数」分工 —— 系统参数倾向定型后不再改动。
+
+┌─ 基础资料 ─────────────────────────────────────────────────────────────────┐
+│  Workstations.razor                  /workstations                    [列表页+内联编辑]│
+│  Employees.razor                     /employees                       [列表页+内联编辑]│
+│  PieceRateProductionCategories.razor /payroll/piece-rate-categories   [生产计件标准列表页]│
+│  PieceRateProductionCategoryEdit.razor                                                       │
+│         /payroll/piece-rate-categories/create        [生产计件标准创建页]                    │
+│         /payroll/piece-rate-categories/edit/{Id:int}  [生产计件标准编辑页]                   │
+│  FinalInspectionCategories.razor     /payroll/final-inspection-categories [成检计件标准列表页]│
+│  FinalInspectionCategoryEdit.razor   /payroll/final-inspection-categories/create、           │
+│                                      /edit/{Id:int}   [成检计件标准编辑页]                    │
+│                                                                              │
+│ 列表页: Workstations, Employees, PieceRateProductionCategories,              │
+│         FinalInspectionCategories                                            │
+│ 注: 页级授权 = BasicDataView / 按钮 BasicDataEdit / 删除 BasicDataDelete；   │
+│     两计件页的端点仍由 PieceRate*CategoryController 提供（Payroll 命名空间），  │
+│     档位已改 BasicData*；`api/employee/list` 与 `api/employee/{code}` 有意     │
+│     保持「仅需登录」——扫码报工/生产记录等生产侧流程共用该读端点。              │
+│  计件类别体系 = 「类别主表 + 维档子表」两表模型：类别 = 工段×工序/产类/阶段约束 │
+│  （空=全选；生产计件）或成检项目（成检单键）+ 基准价 + 结算单位 + 启停；        │
+│  结算单价 = 基准价 × 命中维档系数连乘（不配某维 = 系数 1）；同覆盖仅允许一个启用类别；│
+│  编辑页 = 上区类别定义 + 下区同页整组编辑维档（区间/等值维），同维重叠/重复本地标红、│
+│  跨类别覆盖冲突服务端权威校验，保存整类一次落库（删除级联删档）。              │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 2.12 其他页
@@ -927,16 +1016,19 @@
 │ ▸ 产品标准 → 标准号列表 / 标准号检验项要求 / 子标准速览 / 牌号对照 /
 │              标准牌号化学成分 / 牌号物理性能 / 工厂检验项要求 /
 │              工厂牌号化学成分 / 工厂牌号化分验证
-│ ▸ 扫码管理 → 报工扫码 / 巡检扫码 / 不合格反馈扫码 / 设备扫码 / 工位管理(ScanView) / 员工管理(ScanView)
-│              （整组仅登录；后两项单独带 ScanView 档）
-│ ▸ 工资结算 → 生产计件标准 / 成检计件标准 / 考勤表 / 杂辅工记录 / 集体计件评分 /
+│ ▸ 工资结算 → 考勤表 / 杂辅工记录 / 集体计件评分 /
 │              津贴与处罚 / 非计件工资 / 个人计件工资 / 集体计件月结 / 靠工计件月结 /
 │              月工资津贴汇总
-│ ▸ 参数表 → 工序组定义(批次/工艺) / 工段工量天数(排程/用料) / 交货状态附加天数(排程/用料) /
+│ ▸ 基础资料 → 工位管理 / 员工管理 / 生产计件标准 / 成检计件标准
+│              （2026-09-16 新增主菜单；档位 BasicData*）
+│ ▸ 系统参数 → 工序组定义(批次/工艺) / 工段工量天数(排程/用料) / 交货状态附加天数(排程/用料) /
 │            规格日产预估(工单执行) / 冷轧产能档案(冷轧排程) / 冷轧机台数配置(冷轧排程) /
 │            冷轧机台组配置(冷轧排程) / 重点工段日产(生产总览) / 段落日产配置(段落流转) /
-│            枚举显示配置(全局显示) / 字典显示配置(全局显示) / 系统参数(全局参数)
-│ ▸ 数据工具（单项，置参数表之后、用户管理之前）
+│            枚举显示配置(全局显示) / 字典显示配置(全局显示) / 全局参数
+│            （2026-09-16 由「参数表」更名；角色代码仍 Configuration*）
+│ ▸ 扫码操作 → 报工扫码 / 巡检扫码 / 不合格反馈扫码 / 设备扫码
+│              （整组仅登录，4 项均无 Policy；2026-09-16 由「扫码管理」更名并下沉至此）
+│ ▸ 数据工具（单项，置扫码操作之后、用户管理之前）
 │ 用户管理
 │                                                           │
 └───────────────────────────────────────────────────────────┘
@@ -946,7 +1038,7 @@
 
 ## 3. 列表页完整清单（需检查加载/排序/筛选）
 
-共 **88 个列表页**，采用 `ServerData` + `ExcelFilter` 模式：
+共 **85 个列表页**（编号最大 88；26 / 37 / 38 / 39 / 63 / 69 为历史删除留空，31.1 / 31.2 / 85.1 为补录子号），采用 `ServerData` + `ExcelFilter` 模式：
 
 | # | 页面文件 | 路由 | 上下文 | 内联编辑 | 备注 |
 |---|---------|------|-------|---------|------|
@@ -989,9 +1081,9 @@
 | 36 | ConfigParameters.razor | /config-parameters | 配置 | ✅ | 查改一体表 |
 | 40 | WorkOrderSchedules.razor | /scheduling-plans | 计划排程 | | LEFT JOIN 实时查询模式（WorkOrderExecutionSummary + WorkOrderPlan 薄表），G15 内联编辑 + 计划安排按钮 + 2026-09-08 最终客户默认隐藏（列偏好键 col_prefs_workorderschedules_v1） |
 | 41 | DailyOutputEstimates.razor | /daily-output-estimates | 配置 | ✅ | 查改一体表 |
-| 42 | Workstations.razor | /workstations | 配置 | ✅ | 查改一体表 |
-| 43 | Employees.razor | /employees | 配置 | ✅ | 查改一体表（列偏好 v5，2026-09-03 靠工计件六期：「靠工系数」前新增**靠工岗位**多选列 AttendancePositions，候选=计件活岗 GET api/employee/piece-positions，保存岗位英文 Key 逗号串，显示逐项中文） |
-| 44 | ColdRollPlans.razor | /cold-roll-plans | 计划排程 | | 冷轧按规格维度聚合时间桶分布计划 + 简化/明细视图切换 + 打印功能 + 排程编辑模式（在轧要求/待轧要求/待轧序/待轧设备号/单机单日量）+ **右上角排机估算折叠表（4行×5列，懒加载，可打印）** + **排程建议折叠卡片（半自动：三步决策 特急锁定→流转保底→产能平衡，组级+行级明细表，「一键采用建议」走 save-all 全量同步）** + 搜索栏+ExcelFilter列筛选 |
+| 42 | Workstations.razor | /workstations | 基础资料 | ✅ | 查改一体表（2026-09-16 菜单自「配置」迁入「基础资料」，页级授权 `BasicDataView`） |
+| 43 | Employees.razor | /employees | 基础资料 | ✅ | 查改一体表（列偏好 v5，2026-09-03 靠工计件六期：「靠工系数」前新增**靠工岗位**多选列 AttendancePositions，候选=计件活岗 GET api/employee/piece-positions，保存岗位英文 Key 逗号串，显示逐项中文）；2026-09-16 菜单自「配置」迁入「基础资料」，页级授权 `BasicDataView`、新建/同步按钮 `BasicDataEdit` |
+| 44 | ColdRollPlans.razor | /cold-roll-plans | 计划排程 | | 冷轧按规格维度聚合时间桶分布计划 + 简化/明细视图切换 + 打印功能 + 排程编辑模式（**4 列**：在轧要求 `CompletionType` / 待轧要求 `RollType` / 待轧单位或设备 `SchedMachineNo` / 单机单日量 `DailyOutput`；**原「待轧序 `RollOrder`」已由迁移 `20260610061116_DropRollOrderFromColdRollSpecSchedule` 删除**，实体/DTO/服务/前端零引用）+ **右上角排机估算折叠表（4行×5列，懒加载，可打印）** + **排程建议折叠卡片（半自动：三步决策 特急锁定→流转保底→产能平衡，组级+行级明细表，「一键采用建议」走 save-all 全量同步）** + 搜索栏+ExcelFilter列筛选 |
 | 45 | BatchPlans.razor | /batch-plans | 计划排程 | | 全量加载 Items 模式 + **工段筛选 Tab 配置驱动**（`GET api/batch-plan/section-tab-options`：冷轧/冷拔=工序组定义启用冷轧拔工序逐工序、普通工段=工段工量天数启用工段扣除冷轧拔/检验/入库且内抛/内修磨独立、末尾固定荒管检/在制检，2026-08-30 起新增工序自动出现）+ 列分组标题栏 + 列显隐（永久隐藏 22 列：冷轧排程 5 组 + 工单需求调整 + 批次基础信息多余字段）+ 客户端排序/筛选 + 6 项 Tab 汇总（批次数/总重量/计划流转批次/重量/计划重点批次/重量，重点按 PlanFlowLevel==1 急+）+ 汇总重量单位吨(t) + G13 生产计划组只读（仅抢单/计划备注内联编辑） + 2026-09-08 批次基础信息组默认显隐（v2→v3）：制造状态换源默认显示、交货状态/长度状态默认隐藏、重量(kg)→重量 + **「生产编号」可点开「批次执行进度」弹窗**（`BatchProgressDialog`，不跳转批次详情页；需 `BatchView` 角色，无权限者保持纯文本） |
 | 46 | FinalInspectionPlan.razor | /final-inspection-plan | 计划排程 | | 全量加载 Items 模式 + 五档Tab(全部/待到料/待检验/检验中/完成检验待入库) + 待检批支重汇总卡片（行=检验项，列=检验项/待到料/待检验+检验中/汇总数据，0值显"-"，可打印）+ 客户排序/筛选 + 列分组 G1-G6（G1批次/G2排程/G3成检状态/G4技术要求检验项/G5各项检验日期/G6数量）+ 紧急程度 MudChip 颜色渲染；默认列显隐收敛（V56）：G1 批次仅显 生产编号/生产类型/制造状态/工厂牌号/规格/长度状态/支数/重量/订单号/主号/业务员，G3 成检状态仅显 成检阶段/到料日期，G5 各项检验日期+G6 数量整组默认隐藏，余默认隐藏（可经列选择器打开）+ **「生产编号」可点开「批次执行进度」弹窗**（`BatchProgressDialog`，不跳转批次详情页；需 `BatchView` 角色，无权限者保持纯文本） |
 | 47 | StandardRegisters.razor | /standard-registers | 产品标准 | | ExcelFilter 列筛选 + RenderCell 模板 + FooterContent 分页汇总 + 导航至详情页；Save/SaveItem 返回 Id 防 SeqNo 重复 |
@@ -1012,7 +1104,7 @@
 | 62 | DailyProductionCapacities.razor | /daily-production-capacities | 配置 | ✅ | 查改一体表，仿ConfigParameters模式；行键=荒管抛光固定 Polish + 冷轧机台组 GroupKey（2026-08-30 起配置表驱动下拉） |
 | 64 | Certificates.razor | /quality/certificates | 质量 | | 质量证明书列表页（打印选中/打印全部 + 打印设置对话框：打印版式/字段布局） |
 | 65 | PendingDelivery.razor | /orders/pending-delivery | 订单 | | 订单成品(实时库存)列表页（原仓库「待发货项」，2026-08-26 迁入订单上下文；订单关联组含「工单关注」列：取工单执行状况读模型主号-关注档位，按工单号关联）；默认隐藏列：工单号/最终客户/产品标准/工厂牌号/最小长度/最大长度/仓库批次/来源/来料单位/剩余米数/物料类型 |
-| 66 | SubcontractReturnItems.razor | /subcontract-return-items | 物料 | | 委外子项查询—列表页+复选框选择列+打印选中+ExcelFilter全列筛选；字段两组分组（一、委外信息12列含下单日期/要求到货日/委外备注、二、执行状态6列含退货量/属强制完成）；执行状态4档（已发出/部分收回/已完成/超量到货，MudChip与采购订单一致） |
+| 66 | SubcontractReturnItems.razor | /subcontract-return-items | 物料 | | 委外子项查询—列表页+复选框选择列+打印选中+ExcelFilter全列筛选；**共 25 列 / 3 组**（`GroupKey` 1~3）：**G1 委外信息 15 列**（委外单号/**序号**（首列，`SortKey=sequence`，**可排序**——原「当前页行号」语义已废止）/供应商/下单日期/来源工单号/牌号/规格/单重(kg)/需求支数/需求重量(kg)/**计价单位·加工单价·加工金额**（默认隐藏）/要求到货日/委外备注（默认隐藏））；**G2 工单实时关注 4 列**（工单关注/原锁执行备注/计划性/理论截止投料日（默认隐藏），取工单执行状况读模型按来源工单号关联，无记录显 `-`）；**G3 执行状态 6 列**（执行状态/截止回收日/回收支数/回收重量(kg)/退货量/**强制完成**（原「属强制完成」））；执行状态4档（已发出/部分收回/已完成/超量到货，MudChip与采购订单一致）；**加载方式=服务端分页**（`ServerData` + `ReloadServerData`，原「全量加载+内存筛选」已废止） |
 | 67 | FixedLengthWorkOrderView.razor | /fixed-length-work-order-view | 工单 | | 定尺工单联通视图，主号级按长度实时聚合 + 分组标题栏 + 分页汇总（可汇总列：G1需求支数/G3切后支数/G4到料·成切·非成切·次品·合格·合格盈缺/G5入库·入库盈缺，G6主号级聚合不参与求和）；默认隐藏：G3成品切割/G4成检数据/G5成品入库三组 + 基础数据「往来单位·订单日期」（2026-09-08，组头/列显隐可打开） |
 | 68 | SectionParagraphConfigSettings.razor | /section-paragraph-config-settings | 配置 | ✅ | 段落日产配置（3类配置驱动自动生成：冷轧拔/普通工段/检验，段落仅参数可编辑），Tab 筛选 |
 | 70 | ProcessDefinitions.razor | /process-definitions | 配置 | ✅ | 工序组定义（含默认工段 DefaultSections） |
@@ -1021,16 +1113,17 @@
 | 73 | ColdRollCapacities.razor | /cold-roll-capacities | 配置 | | 冷轧产能档案（四维 ProcessType/BilletSpec/RollingSpec/IsFinished 唯一），查改一体表；排程建议产能平衡输入 |
 | 74 | ColdRollMachineConfigs.razor | /cold-roll-machine-configs | 配置 | | 冷轧机台数配置（ProcessType 唯一），查改一体表；排程建议产能平衡输入（方式A兜底 daily） |
 | 75 | ColdRollMachineGroupConfigs.razor | /cold-roll-machine-group-configs | 配置 | | 冷轧机台组配置（GroupKey 唯一），归组配置表驱动；工序多选（仅启用的冷轧/冷拔工序，显示走 GetProcessNameText 中文）+供给目标组列（供需链显式化，组角色字段已移除；链合法性校验：凡配目标则目标存在+无环，允许多链/多级链，2030→冷拔(None) 末端合法）；保存/删除失效三引擎缓存键；工序禁用时自动从组内移除（ProcessDefinitionService） |
-| 76 | PieceRateProductionCategories.razor | /payroll/piece-rate-categories | 工资结算 | | 生产计件标准列表页（页面标题「生产计件标准（基准价 × 维档系数）」；两表模型：PieceRateProductionCategory + PieceRateProductionTier 维档子表；类别 = 工段×工序/产类/阶段约束 + 基准价 + 维档系数，结算单价 = 类别基准价 × 命中维档系数连乘，不配某维=系数1，工段×工序×产类×阶段同覆盖仅允许一个启用类别）；列：自动组合名/工段中文/基准价(G29)/单位/维档数/是否启用/备注/更新时间/创建时间 + 列显隐/排序；顶部工段下拉 + 启停下拉 + 模糊搜索（自动组合名/工段/备注）；行操作：编辑走独立页 `/payroll/piece-rate-categories/edit/{Id}`、删除弹 ConfirmDialog（级联删维档），新增走 `/payroll/piece-rate-categories/create` |
-| 77 | FinalInspectionCategories.razor | /payroll/final-inspection-categories | 工资结算 | | 成检计件标准列表页（页面标题「成检计件标准（基准价 × 维档系数）」）：主表 PieceRateFinalInspectionCategory = 成检项目 InspectionItem 单键 + 基准价 + 单位 + 启停（同项目启用唯一）+ 子表 8 维档（区间 外径/壁厚/长度/检验支数整数闭带 + 等值 长度状态/特殊牌号/特殊制造状态/特殊设备号）；列 + 行内展开「模拟测算」按**成检记录点选计价**：候选=全局任意跨期成检记录，顶部成检项目下拉 + 关键字(生产编号/设备/操作人)，服务端分页记录小表，行「试算」按 Id 计价 → 命中类别 基准价×总系数=单价 + 整行计件额(与月结同口径、未按人头均分)/缺数量灰字提示/未定价提示；手动填维度试算表单已删，match-price 端点保留）+ 专用批量导出/导入弹窗 |
-| 78 | FinalInspectionCategoryEdit.razor | /payroll/final-inspection-categories/create、/edit/{Id:int} | 工资结算 | | 成检计件标准编辑页：定义（成检项目单选 + 基准价/单位/启停/备注）+ 8 维档同页整组编辑，保存整类落库（档行整组替换） |
-| 79 | MonthlyWages.razor | /payroll/wages/non-piece、/payroll/wages/piece | 工资结算 | | 每日工资两表月视图网格页（单组件双路由）：仿考勤网格（attendance-scroll/grid + enableAttendanceKeyNav）单元格=每日工资额（原生 input 失焦提交），引擎自动带出 + 常编辑 + 显式「引擎重算」（ConfirmDialog 覆盖网格）+「保存本月」落库（Amount>0 存/空删，SalaryMode 归口快照）；非计件=Hourly 小时×时薪 / Daily 日薪×min(出勤,8)/8，个人计件=PieceIndividual 当月产量+成检按现行单价逐行折算（成检合作行按人数均分、Range/NonFixed 定尺 6000mm 兜底、PerTon/PerPiece/PerKm 换算）；顶部 年/月/«»/工号姓名搜索/岗位类别/岗位筛选 + 表头排序；员工集=归口∈组启用员工 ∪ 当月历史快照（换归口历史月仍显示）；写操作 SalaryEdit 门控 |
+| 76 | PieceRateProductionCategories.razor | /payroll/piece-rate-categories | 基础资料 | | 生产计件标准列表页（页面标题「生产计件标准（基准价 × 维档系数）」；两表模型：PieceRateProductionCategory + PieceRateProductionTier 维档子表；类别 = 工段×工序/产类/阶段约束 + 基准价 + 维档系数，结算单价 = 类别基准价 × 命中维档系数连乘，不配某维=系数1，工段×工序×产类×阶段同覆盖仅允许一个启用类别）；列：自动组合名/工段中文/基准价(G29)/单位/维档数/是否启用/备注/更新时间/创建时间 + 列显隐/排序；顶部工段下拉 + 启停下拉 + 模糊搜索（自动组合名/工段/备注）；行操作：编辑走独立页 `/payroll/piece-rate-categories/edit/{Id}`、删除弹 ConfirmDialog（级联删维档），新增走 `/payroll/piece-rate-categories/create` |
+| 77 | FinalInspectionCategories.razor | /payroll/final-inspection-categories | 基础资料 | | 成检计件标准列表页（页面标题「成检计件标准（基准价 × 维档系数）」）：主表 PieceRateFinalInspectionCategory = 成检项目 InspectionItem 单键 + 基准价 + 单位 + 启停（同项目启用唯一）+ 子表 8 维档（区间 外径/壁厚/长度/检验支数整数闭带 + 等值 长度状态/特殊牌号/特殊制造状态/特殊设备号）；列 + 行内展开「模拟测算」按**成检记录点选计价**：候选=全局任意跨期成检记录，顶部成检项目下拉 + 关键字(生产编号/设备/操作人)，服务端分页记录小表，行「试算」按 Id 计价 → 命中类别 基准价×总系数=单价 + 整行计件额(与月结同口径、未按人头均分)/缺数量灰字提示/未定价提示；手动填维度试算表单已删，match-price 端点保留）+ 专用批量导出/导入弹窗 |
+| 78 | FinalInspectionCategoryEdit.razor | /payroll/final-inspection-categories/create、/edit/{Id:int} | 基础资料 | | 成检计件标准编辑页：定义（成检项目单选 + 基准价/单位/启停/备注）+ 8 维档同页整组编辑，保存整类落库（档行整组替换） |
+| 79 | MonthlyWages.razor | `/payroll/wages/{Group?}`（实访问 `/payroll/wages/non-piece`、`/payroll/wages/piece`） | 工资结算 | | 每日工资两表月视图网格页（**单组件单条参数化路由**，`Group` 取 `non-piece`/`piece`；原文档引述的「两条 `@page`」不存在）：仿考勤网格（attendance-scroll/grid + enableAttendanceKeyNav）单元格=每日工资额（原生 input 失焦提交），引擎自动带出 + 常编辑 + 显式「引擎重算」（ConfirmDialog 覆盖网格）+「保存本月」落库（Amount>0 存/空删，SalaryMode 归口快照）；非计件=Hourly 小时×时薪 / Daily 日薪×min(出勤,8)/8，个人计件=PieceIndividual 当月产量+成检按现行单价逐行折算（成检合作行按人数均分、Range/NonFixed 定尺 6000mm 兜底、PerTon/PerPiece/PerKm 换算）；顶部 年/月/«»/工号姓名搜索/岗位类别/岗位筛选 + 表头排序；员工集=归口∈组启用员工 ∪ 当月历史快照（换归口历史月仍显示）；写操作 SalaryEdit 门控 |
 | 80 | CollectiveScores.razor | /payroll/collective-scores | 工资结算 | | 集体计件评分页：年月选择 → 员工按岗位分组卡片（工号/姓名/岗位/分值输入 1–10 一位小数如 8.5 + 已评分/新录入/未评分备注）→「保存评分」整月 upsert；只显示在册集体成员 + 当月已有评分历史员工补集；写操作 SalaryEdit 门控 |
 | 81 | CollectiveMonthly.razor | /payroll/collective-monthly | 工资结算 | | 集体计件月结页：年月选择 → 每岗位结算卡片（成员行 出勤/分值/权重只读 + 实得金额整元可改，默认 已存?Saved:引擎草稿；卡标题=岗位中文+岗位池+Σw）；顶部「引擎重算」(ConfirmDialog 覆盖在册集体成员)/「全量重算(清历史)」(双重确认 PayrollFullRecalcDialogs 清历史快照成员)/「保存本月」；写操作 SalaryEdit 门控 |
 | 82 | PieceAttendanceMonthly.razor | /payroll/attendance-monthly | 工资结算 | | 靠工计件月结页：年月选择 → 单张 auto-table 员工行（靠工无岗位池不分组）：工号/姓名/靠工岗位(中文)/出勤/靠工系数/平均时薪(G29 只读)/实得金额(整元可改，默认 已存?Saved:RoundYuan引擎草稿)/备注(历史快照·未配岗·无计件参照·无出勤)；员工集=在册靠工 ∪ 当月快照员工（停用/换模式历史月仍显示）；顶部「引擎重算」/「全量重算(清历史)」双重确认/「保存本月」；写操作 SalaryEdit 门控 |
 | 83 | MiscWorkMonthly.razor | /payroll/misc-work | 工资结算 | ✅ | 杂辅工记录台账页：杂项辅助手工登记（完整月工资 = 各类工资 + 杂辅）。MudTable 台账列表页，行=一条杂辅任务（日期/工号/姓名/内容/小时/金额 G29/备注），金额=手工录入源头保留小数不取整、同人同日可多条；行内编辑（编辑不改员工归属）+ 新增面板（员工下拉=全量启用员工）+ ConfirmDialog 删除；顶部 MudPaper 描述文字 + 月份导航（Chevron + 年月 MudSelect）+ 当月合计 chips（N 条 · Σ小时 · Σ金额，整月口径）+ 页内关键词筛选（工号/姓名/内容，客户端，合计不变）；日期 MudTextField string yyyy-MM-dd（禁 MudDatePicker）；写操作 SalaryEdit 门控 |
 | 84 | AllowanceMonthly.razor | /payroll/allowance | 工资结算 | ✅ | 津贴与处罚月度网格页：月度金额录入，行=员工、列=固定 9 金额项目（满勤奖/工龄奖/夜班津贴/岗位补贴/高温费/工伤补贴/带班费/处罚/代缴社保，参考 Excel《津贴与处罚.xlsx》），宽表每人每月一行（EmployeeId+Year+Month 唯一）；金额强制整元（RoundYuan AwayFromZero、空/0=null、禁负数，OnCellChanged 即时规约与后端 NormalizeAmount 同口径）；员工月历 = IsActive 在册 ∪ 当月已有记录（停用员工当月行浅灰回显可改）；考勤同款 attendance-grid 宽表（attendance-scroll/grid 类 + 原生 input 每格失焦提交 + enableAttendanceKeyNav 方向键导航复用；sticky-left 工号/姓名/岗位类别/岗位列，岗位中文经 DictValueDisplayHelper）+ tfoot 各列整月合计 + 页内关键词筛选（工号/姓名/岗位，客户端，合计不变）+ @foreach 渲染防闭包 + OverrideMap 事件订阅重渲染；顶部「清空本月」(ConfirmDialog Error，提交空 Rows)「保存本月」(Snackbar 计数) SalaryEdit 门控 |
 | 85 | MonthlySummary.razor | /payroll/monthly-summary | 工资结算 | ✅ | 月工资津贴汇总页：员工某结算月「完整应发/实发」汇总表（参考 Excel《工资条及打印.xlsx》17 列：工号/姓名/月份常量/出勤天数/本月基础工资/本月杂辅工资 + 岗位补贴·工龄奖·满勤奖·带班费·夜班津贴·高温费·工伤补贴 7 正津贴 + 处罚·代缴社保(存负)/应发/实发）；基础工资按各子页「已保存金额」归口（Fixed=Employee.MonthlyWage、PieceCollective→集体月结快照、PieceAttendance→靠工月结快照、Hourly/Daily/PieceIndividual→每日工资当月Σ），出勤天数=当月考勤去重日期数；应发=基础+杂辅+7 正津贴，实发=应发+处罚+代缴（后两列存负）；行集=IsActive 在册 ∪ 当月任一来源有行（停用行灰显），工号升序 + 页内关键词（工号/姓名）+ 金额 0 网格留空 + tfoot 列合计；顶部年/月导航 + 已保存/未保存徽标 +「保存本月」(SalaryEdit，整月重算替换快照 PayrollMonthlySummaryRecord 每人每月一行 UK)+「全部打印」A4 横向整表 +「个人打印」每员工一条带表头工资条（两打印读已保存快照、未保存禁用提示「先保存本月」）；写操作 SalaryEdit 门控 |
+| **85.1** | **Attendance.razor** | /payroll/attendance | 工资结算 | | **考勤表月视图网格页（2026-09-01 一期；原 §3 清单遗漏，本次补录——§2.11 早已将其列为列表页）**：行=员工、列=当月各日（**稀疏存储** `AttendanceRecord`，未填日视为 0；1440 格子）。顶部 **岗位类别 / 岗位两个筛选下拉**（`PositionCategory` / `Position` 英文 Key 存储、`OrdinalIgnoreCase` 比对，`ApplyFilterAndSort` 走内存过滤）+ **表头点击排序**（工号/姓名/岗位类别/岗位，`ToggleSort`）；网格为**原生 `<input>` + `@onchange`（失焦才提交一次）**，非 `MudNumericField`（超密集网格禁用 Mud 控件，实测加载 2.5s / 改 1 格 1s）；`sticky-left` 工号/姓名/岗位类别/岗位 + `sticky-right` 出勤天数/总小时 + 表尾「当日合计(小时)」行；岗位类别·岗位中文经 `DisplayHelper.GetPositionCategoryText` / `GetPositionText` 显示；⚠️ `@for` 内组件事件回调一律改写为 `@foreach`（闭包捕获 bug 两类变体）；无列偏好持久化键 |
 | 86 | MaterialInputConsistency.razor | /material-input-consistency | 工单 | | 用料投料核查页（2026-09-08 拆分两页之一，独立终态视图）：列组=基础数据 / 实时关注（3 字段主号级）/ 用料及投料（7 列 2026-09-08 拆出：分类用料/分类到料/原料未至/到料未投/生产投料量/投料比/投料状态，除投料状态外不支持排序筛选），默认隐藏 最终用户/最大长度，投料状态超量=chip-dark 深底白字区分满足绿色；**无**待投料汇总卡、**无**计划类型勾选、**无**用料计划列组；两张异常卡「错疑-用料投料不一致」(ErrorDoubt，原料锁定档位) +「错误-用料计划及其执行」(InProductionInspection，主号完成/生产执行/成品检验 三档已过投料期，标题旁附注「以下执行状态无需再投料」) 卡↔主表 ScheduleStage/待料联动筛选（自原用料计划页迁入）；错疑卡重量三列表头=工单重量/计划投料重量/到料重量（到货量口径）；错误卡聚合行首列表头=工单执行状态，聚合列=原料未至/到料未投；仅显示投影，数据层/读模型零改动；列偏好 key `materialInputConsistency_v4`、页面状态 key `materialInputConsistency` |
 | 87 | ProductionExecutionCheck.razor | /production-execution-check | 批次 | | 生产执行核查页（2026-09-08 生产执行拆分两入口之一，当时组名「批次管理」，2026-09-15 更名）：承载「错疑-生产批次执行」聚合卡（即原「批次-错疑执行」，2026-09-09 改名；4 类错疑 匹配工单/工段流转/有效投料/成品切割 批次数+领料重量合计，**默认折叠、点开才懒加载**，BatchCount>0 可点选联动筛下列表，可取消筛选；列头错疑列手动筛选同样可用）+ 页内自足精简批次列表（服务端分页，列组=批次与工单（批次与执行及关联工单合并，生产编号/状态/工单号/工单关注 + 挂牌号/次号隐藏；V61 裁剪 当前工序/当前工段/截止执行日/工段完工/订单号/主号 六列）/ 执行核查（**4 灯** 匹配工单/工段流转/投料需调整/成切存疑 必显；V62 成切存疑由投料组回归）/ 理论产出对照（**错疑缘由数据对照**：过程检理论成支·现理论成支/理论成品重·成切需求/执行/支数；V64 取消 过程检成重 列；V63 组名「投料与有效量」改名点题 + 过程检列前移到 现理论成支 前 + 列名精简（过程检理论成品支→过程检理论成支、理论成品支→现理论成支，理论成品重列名保持）；V62 裁 领料支数/领料重量/现有效原料支数/现有效原料重量/缺陷-返整量/缺陷-纯次品量 六列，页底合计）；只读仅「查看详情」跳 /batches/{id}，无删除/编辑，无通知轮询/无打印全部）；**顶部无搜索栏**（2026-09-09 模糊搜索+登记日期整行删除，定位靠错疑卡联动+列头筛选））；列偏好 key `batchExecutionCheck_v6`、页面状态 key `batchExecutionCheck`（排序/列筛选） |
 | 88 | **OutsourceVendors.razor** | /outsource-vendors | 批次 | ✅ | 委外单位档案主档页（V72 新增，2026-09-09）：委外单位×委外工段 主档，行键 VendorName+SectionName 唯一（英文字段名大小写不敏感）、编码 VendorCode WV+4 位（新增自动，列表列默认隐藏）；8 列=编码(默认隐)/委外单位名/委外工段(工段枚举下拉)/本厂外协(IsWorkshop MudSwitch，勾选本厂车间→工段锁定冷轧拔)/联系人/联系电话/备注/状态(启用·停用 MudChip)，内联编辑 + ConfirmDialog 删除；服务端分页 + ExcelFilter + 列头排序 + 模糊搜索（委外单位名/联系人）+ 默认按编码降序 + 方向键导航；列偏好键 `col_prefs_outsource-vendors_v1`；新建入口 → 独立创建页 OutsourceVendorCreate.razor `/outsource-vendors/create`（本厂车间 IsWorkshop 仅冷轧拔可选）；本档供工段委外新建/行内编辑/扫码 按行工段过滤取数（`GetActiveAsync` active 全量），未建档委外单位工段委外不可选（先建档） |
@@ -1062,20 +1155,20 @@
 |------|------|
 | 页面文件 | `MES.Blazor/Pages/{Subdir}/*.razor`（按模块划分子目录） |
 | Code-behind | `MES.Blazor/Pages/{Subdir}/*.razor.cs` |
-| 前端 Service | `MES.Blazor/Services/*Service.cs` |
-| 后端 Service | `MES.Services/{Module}/*Service.cs` |
-| API 控制器 | `MES.Api/Controllers/{Module}/*Controller.cs` |
-| DTO | `MES.Core/DTOs/*QueryParams.cs` |
-| 实体 | `MES.Data/Entities/*.cs` |
-| 接口 | `MES.Core/Interfaces/I*Service.cs` |
+| 前端 Service | `MES.Blazor/Services/{Context}/*Service.cs`（按上下文分子目录，共 13 个） |
+| 后端 Service | `MES.Services/{Context}/*Service.cs`（+ 跨上下文 `Helpers/`、`Printing/`、`DataExchange/`、`DataFix/`、`Infrastructure/`、`Extensions/`） |
+| API 控制器 | `MES.Api/Controllers/{Context}/*Controller.cs` |
+| DTO | `MES.Core/DTOs/{Context}/*Dto.cs` / `*QueryParams.cs`（按上下文分子目录，共 14 个，含 `Shared/`） |
+| 实体 | `MES.Data/Entities/{Context}/*.cs`（基类 `BaseEntity.cs` / `IAuditableEntity.cs` 在根） |
+| 接口 | `MES.Core/Interfaces/{Context}/I*Service.cs`（按上下文分子目录，共 14 个：Auth/Batch/Configuration/DataExchange/Equipment/Infrastructure/Materials/Order/Payroll/Quality/Scheduling/StandardRegister/Warehouse/WorkOrder） |
 | 筛选扩展 | `MES.Services/Helpers/QueryableExtensions.cs` |
 | 枚举映射 | `MES.Blazor/Helpers/DisplayHelper.cs` |
 | ExcelFilter | `MES.Blazor/Components/ExcelFilter.razor` |
 | 开发规范 | `docs/04_开发规范.md` |
 | 菜单树（单一数据源） | `MES.Blazor/Shared/AppMenu.cs` + `AppMenuNode.cs`（桌面/手机共用 `AppMenu.Root`；**改动菜单只许改这里**，回归断言 `MES.Tests/Components/AppMenuTests.cs`） |
-| 布局外壳 / 菜单渲染 | `ResponsiveLayout.razor`（移动判定 + 横屏切桌面）→ `MainLayout.razor`（桌面）/ `MobileLayout.razor`（手机）；菜单渲染 `DesktopMenuNode.razor` / `MobileMenuNode.razor` |
-| 全站手机壳 | `MobileLayout.razor` 内真实渲染的 `<div class="mh-shell">`（**手机竖屏下所有非首页页面的统一收敛钩子**，见 `wwwroot/css/app.css`「全站手机壳」段：页头按钮组独占换行 / MudGrid 子项逐行全宽 / 留白密度 / **宽表：粘性表头 + 粘性首列 + 勾选框首列时粘第 2 列 + 滚动区 `calc(100vh-140px)`** / `.list-toolbar` 换行）。⚠️ 用真实 div 做钩子，**禁止改成祖先容器 + 后代选择器**（2026-09-14 真机样式失效即此因） |
-| 移动横屏提示条 | `LandscapeHintBanner.razor`（原 MobileLayout 顶部壳级组件：竖屏宽表页提示横屏、localStorage 关闭持久、锁竖屏浏览器特制文案）+ `LandscapeHintRule.cs`（宽/窄页判定：宽页 = AppMenu.AllLeaves() − `/` − `/mobile-report`·`/equipment-scan`·`/mobile-quality/patrol`·`/mobile-quality/feedback` 窄叶，排除登录/进出货/维修点选窄页与 `/create`·`/edit` 表单路径；防漂移单测 `MES.Tests/Components/LandscapeHintRuleTests.cs`）。**⚠️ 2026-09-14 起 `MobileLayout` 不再自动渲染该组件**（用户拍板「竖屏也要可用」，V135）——组件与判定规则均保留不删，恢复只需把 `MobileLayout.razor` 里注释掉的那行调用加回 |
+| 布局外壳 / 菜单渲染 | `ResponsiveLayout.razor`（移动判定，**2026-09-14 V140 起不再看横竖屏**：原「landscape 且 innerWidth≥700 → 桌面」例外已整条删除，手机/触屏设备一律 `MobileLayout`）→ `MainLayout.razor`（桌面）/ `MobileLayout.razor`（手机）；菜单渲染 `DesktopMenuNode.razor` / `MobileMenuNode.razor` |
+| 全站手机壳 | `MobileLayout.razor` 内真实渲染的 `<div class="mh-shell">`（**手机竖屏下所有非首页页面的统一收敛钩子**，见 `wwwroot/css/app.css`「全站手机壳」段：页头按钮组独占换行 / MudGrid 子项逐行全宽 / 留白密度 / **宽表：仅粘性表头（`thead tr:last-child th`）+ 滚动区 `max(260px, calc(100dvh - 140px))`**——**2026-09-14 V138 起手机端不冻结任何列**（原粘性首列 / 勾选框场景粘第 2 列及配套 z-index 三条全部删除） / `.list-toolbar` 换行 / 工资结算 4 页 `.sticky-left`·`.sticky-right` 在壳内取消（桌面仍冻结））。⚠️ 用真实 div 做钩子，**禁止改成祖先容器 + 后代选择器**（2026-09-14 真机样式失效即此因）。⚠️ **手机竖屏宽表正常横滚的前提是各列表页 `<MudTable>` 显式加 `Breakpoint="Breakpoint.None"`**（MudBlazor 6.19 默认 `Breakpoint.Xs`，窄于 600px 会隐藏表头并把每条记录拆成「列名—值」竖排） |
+| ~~移动横屏提示条~~ | **已删除（2026-09-14 V140）**：`LandscapeHintBanner.razor`、`LandscapeHintRule.cs`、`MES.Tests/Components/LandscapeHintRuleTests.cs` **三文件整文件删除**（该机制自 V135 起已不渲染、只被自己的单测引用；随后 V140 又删掉了「手机横屏切电脑版」例外本身，横竖屏判定整体退出） |
 
 ---
 
@@ -1105,11 +1198,11 @@
 | 工艺卡打印 | `/process-card-print` | BatchView | |
 | 工段委外 | `/section-outsources` | BatchView | |
 | 去油酸洗入缸记录 | `/pickling-in-records` | BatchView | **2026-09-10 新增** |
-| 质量过程跟踪 | `/quality-process-tracking` | QualityView | 页级 QualityView ⊄ BatchView，**未做降级**（既有实现） |
-| 物料到货检验 | `/material-receive-checks` | QualityView | 同上 |
-| 生产过程检验 | `/process-inspections` | QualityView | 同上 |
+| 质量过程跟踪 | `/quality/process-tracking` | QualityView | 页级 QualityView ⊄ BatchView，**未做降级**（既有实现） |
+| 物料到货检验 | `/quality/material-receive-checks` | QualityView | 同上 |
+| 生产过程检验 | `/quality/process-inspection` | QualityView | 同上 |
 | 成品检验 | `/quality/final-inspection` | QualityView | **2026-09-10 新增**；QualityView ⊄ BatchView → **按角色降级** |
-| 不合格报告 | `/quality/ncrs` | 仅登录（无页级策略） | **2026-09-10 新增**；后端补 `ProductionBatchId`；**按角色降级** |
+| 不合格报告 | `/quality/ncr` | 仅登录（无页级策略） | **2026-09-10 新增**；后端补 `ProductionBatchId`；**按角色降级** |
 | 报表总览·NCR 待处理 | `/reports/overview` | ReportView | **2026-09-10 新增**；ReportView ⊆ BatchView 无需降级 |
 
 **弹窗「批次执行进度」（4 处）**
@@ -1118,7 +1211,7 @@
 |------|------|---------|------|
 | 生产计划 | `/batch-plans` | SchedulingView | 走 `Shared/BatchProgressDialog.razor`；SchedulingView ⊄ BatchView → 按角色降级 |
 | 成检计划 | `/final-inspection-plan` | SchedulingView | 同上 |
-| NCR 建单/编辑页 | `/quality/ncr/create`、`/quality/ncr/{id}` | QualityView | **2026-09-13 新增**；「生产编号」为输入控件，**在字段右侧另加 `Timeline` 图标按钮**作为入口（非点击字段本身）；QualityView ⊄ BatchView → **按角色降级**；批次主键来自 `NcrLookupResultDto.ProductionBatchId`（后端 V8.33 回带） |
+| NCR 建单/编辑页 | `/quality/ncr/create`、`/quality/ncr/{Id:int}` | QualityView | **2026-09-13 新增**；「生产编号」为输入控件，**在字段右侧另加 `Timeline` 图标按钮**作为入口（非点击字段本身）；QualityView ⊄ BatchView → **按角色降级**；批次主键来自 `NcrLookupResultDto.ProductionBatchId`（后端 V8.33 回带） |
 | 订单进度树（`Shared/OrderProgressTree.razor`） | `/orders/progress` + 首页「订单进度查询」卡 | **仅登录（无页级策略）** | **2026-09-15 V143 新增**；叶子「生产批次名单」展开后批号可点（在产 / 在途分段，检验叶单段）；**无需权限降级**——`api/batch/{id}/tracking` 已于 2026-09-14 放宽为 `[Authorize]` 仅需登录（首页放开），点批号不会 403 |
 
 > ⚠️ **权限降级实现要点**：`Roles.Policies.BatchView` 是**逗号分隔多角色串**，`ClaimsPrincipal.IsInRole` 只认单角色名 → 必须 `Policies.BatchView.Split(',', RemoveEmptyEntries|TrimEntries).Any(user.IsInRole)`，否则恒 false、链接对所有人失效。
@@ -1130,8 +1223,8 @@
 | 页面 | 路由 | 列标签 | 列 Key | 未补原因 |
 |------|------|--------|--------|---------|
 | 去油酸洗出缸记录 | `/pickling-out-records` | 批次号 | BatchNo | 本轮范围外，用户拍板"仅登记" |
-| 用料计划 · Tab6 在产改制计划 | `/work-order-material-plan` | 生产编号 | `InProcessReworkPlanDto.BatchNo` | 同上 |
-| 用料计划 · Tab7 在产主工单计划 | `/work-order-material-plan` | 生产编号 | `InMainWorkOrderPlanDto.BatchNo` | 同上 |
+| 用料计划 · Tab6 在产改制计划 | `/workorders/{WorkOrderId:int}/material-plan` | 生产编号 | `InProcessReworkPlanDto.BatchNo` | 同上 |
+| 用料计划 · Tab7 在产主工单计划 | `/workorders/{WorkOrderId:int}/material-plan` | 生产编号 | `InMainWorkOrderPlanDto.BatchNo` | 同上 |
 | 成检计件类别 · 试算记录表 | `/payroll/final-inspection-categories` | 生产编号 | `rec.BatchNo` | 试算样本行，D 组待定 |
 
 **B 组 · DTO 无批次 Id，需后端补字段（照 NCR 模式：查询后按 BatchNo 反查 `ProductionBatch` 回填）**
@@ -1139,16 +1232,16 @@
 | 页面 | 路由 | 列标签 | 备注 |
 |------|------|--------|------|
 | 委外回收 | `/outsource-recoveries` | 生产编号 | `OutsourceRecoveryDto` 无批次 Id，可经 `SectionOutsourceId` → `SectionOutsource.ProductionBatchId` 派生 |
-| 用料计划 · Tab4 库存使用计划 | `/work-order-material-plan` | 批次号 | `InventoryPlanDto` 只有 `InventoryBatchNo`/`BatchNo`，无 Id |
-| 用料计划 · Tab5 库料改制计划 | `/work-order-material-plan` | 批次号 | 同上 |
-| 入库历史 | `/inbound-history` | 生产批号 | `InventoryBatchDto.ProductionBatchNo` 为 string，无 Id |
-| 库存查询 | `/warehouse-inventory` | 生产批号 | 同上 |
+| 用料计划 · Tab4 库存使用计划 | `/workorders/{WorkOrderId:int}/material-plan` | 批次号 | `InventoryPlanDto` 只有 `InventoryBatchNo`/`BatchNo`，无 Id |
+| 用料计划 · Tab5 库料改制计划 | `/workorders/{WorkOrderId:int}/material-plan` | 批次号 | 同上 |
+| 入库历史 | `/warehouse/inbound-history` | 生产批号 | `InventoryBatchDto.ProductionBatchNo` 为 string，无 Id |
+| 库存查询 | `/warehouse` | 生产批号 | 同上 |
 | 订单成品(实时库存) | `/orders/pending-delivery` | 生产批号 | `PendingDeliveryItemDto.ProductionBatchNo` 为 string，无 Id |
 
 **C 组 · 8 个试验页（列标签「生产编号」，字段名 `BatchNo`）**
 
-扩口 `/flaring-tests`、压扁 `/flattening-tests`、晶粒度 `/grain-size-tests`、硬度 `/hardness-tests`、
-晶间腐蚀 `/intergranular-corrosion-tests`、金相 `/metallographic-tests`、点腐蚀 `/pitting-corrosion-tests`、室温拉伸 `/tensile-tests`。
+扩口 `/quality/flaring-test`、压扁 `/quality/flattening-test`、晶粒度 `/quality/grain-size-test`、硬度 `/quality/hardness-test`、
+晶间腐蚀 `/quality/intergranular-corrosion-test`、金相 `/quality/metallographic-test`、点腐蚀 `/quality/pitting-corrosion-test`、室温拉伸 `/quality/tensile-test`。
 
 > 用户 2026-09-10 明确：**此类检验以「生产编号」为基准，不是炉号** —— 列标签「生产编号」是**正确的**。
 > **✅ 字段名已按用户要求正名（V91）**：`FurnaceNo` → **`BatchNo`**（实体/DTO/Service/前端/单测/DbContext/DataExchange 全链路 + 迁移 `20260910103357`）。`ChemicalAnalysis` 的 `FurnaceNo` 为**真炉号**，未改。
@@ -1158,7 +1251,7 @@
 
 | 项 | 说明 |
 |---|---|
-| 仓库批次 vs 生产批次 | 出库历史 `/outbound-history`、待出库作业页的「批次号/仓库批次」为**仓库批次**语义，**不应**跳生产批次详情；入库历史/库存查询的「生产批号」则确属生产批次 |
+| 仓库批次 vs 生产批次 | 出库历史 `/warehouse/outbound-history`、待出库作业页的「批次号/仓库批次」为**仓库批次**语义，**不应**跳生产批次详情；入库历史/库存查询的「生产批号」则确属生产批次 |
 | 成检计件试算行 | 试算表是样本记录，点击跳批次详情的收益待评估（可能只想看计件命中结果） |
 
 ### 7.4 有意不加链接
@@ -1168,6 +1261,24 @@
 | 不合格报告「待处理批次」卡片 | 该处「生产编号」已是「**创建 NCR**」动作入口（`CreateFromPending`），再加批次详情链接会动作冲突 |
 | 各类 `*Create.razor` 表单内的「生产编号」 | 是**输入控件**（`IsRequired = true`），非展示列；**点击字段本身不开链接**（NCR 建单页改在字段右侧另用图标按钮作入口，见图 7.2） |
 | 出库历史「退货-原仓库批」、仓库出库作业页 | 仓库批次语义，见 7.3 D 组 |
+
+### 7.5 路由笔误更正（2026-09-16 对账）
+
+本台账 §7.2 / §7.3 / §7.4 原以**简写路由**登记，与源码 `@page` 实际值不符；本次按 `MES.Blazor/Pages/**` 逐条核对更正（**纯文档，零代码改动**）：
+
+| 原记（错） | 实际（对） | 出现处 |
+|---|---|---|
+| `/quality-process-tracking` | `/quality/process-tracking` | §7.2 |
+| `/material-receive-checks` | `/quality/material-receive-checks` | §7.2 |
+| `/process-inspections` | `/quality/process-inspection` | §7.2 |
+| `/quality/ncrs` | `/quality/ncr` | §7.2 |
+| `/work-order-material-plan` | `/workorders/{WorkOrderId:int}/material-plan` | §7.3 A/B 组（4 行） |
+| `/inbound-history` | `/warehouse/inbound-history` | §7.3 B 组 |
+| `/warehouse-inventory` | `/warehouse`（另有 `/warehouse/{Code}`） | §7.3 B 组 |
+| `/outbound-history` | `/warehouse/outbound-history` | §7.3 D 组 |
+| `/flaring-tests` 等 **8 条复数路由** | `/quality/flaring-test`、`/quality/flattening-test`、`/quality/grain-size-test`、`/quality/hardness-test`、`/quality/intergranular-corrosion-test`、`/quality/metallographic-test`、`/quality/pitting-corrosion-test`、`/quality/tensile-test` | §7.3 C 组 |
+
+> ⚠️ 教训：本类台账引用路由时**必须逐条对照 `@page` 原文**（页面文件在 `Pages/{Context}/`，路由字面量常带 `/quality` 等前缀，且检验页为**单数** `-test` 而非 `-tests`），凭记忆缩写会整片失真。
 
 ---
 

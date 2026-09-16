@@ -5,7 +5,7 @@
 #
 # Set the package name in the $Zip default below, or pass it on the command line:
 #
-#     powershell -ExecutionPolicy Bypass -File C:\mes\deploy\09-apply-deploy.ps1 -Zip C:\mes\mes-deploy-20260914_2333.zip
+#     powershell -ExecutionPolicy Bypass -File C:\mes\deploy\09-apply-deploy.ps1 -Zip C:\mes\mes-deploy-20260916_1658.zip
 #
 # What it does:
 #   1) check the package exists
@@ -34,7 +34,7 @@
 #   line into a comment (that line then never runs). All text below is ASCII.
 # ============================================================
 param(
-    [string]$Zip         = "C:\mes\mes-deploy-20260914_2333.zip",
+    [string]$Zip         = "C:\mes\mes-deploy-20260916_1658.zip",
     [string]$MesRoot     = "C:\mes",
     [string]$ServiceName = "MES.API",
     [string]$Nssm        = "C:\mes\tools\nssm\nssm.exe",

@@ -7,7 +7,7 @@ namespace MES.Tests;
 /// <summary>
 /// 用户管理界面角色展示 helper 测试（纯一级模型，2026-08-26 用户决策取消二级）：
 ///  角色 = {菜单前缀}{档位}（Viewer/Editor/Full），Admin 隐式全权。
-///  新建默认：9 业务域菜单 = 查；系统菜单（报表/数据工具/扫码/工资结算/参数表/用户）= 无。
+///  新建默认：9 业务域菜单 = 查；系统菜单（报表/数据工具/扫码/工资结算/基础资料/系统参数/用户）= 无。
 /// </summary>
 public class UserRoleDisplayHelperTests
 {
@@ -20,7 +20,7 @@ public class UserRoleDisplayHelperTests
         // 9 业务域菜单（含仓库）= Viewer（查）
         foreach (var prefix in UserRoleDisplayHelper.DefaultViewerMenus)
             tiers[prefix].Should().Be(UserRoleDisplayHelper.TierViewer, $"{prefix} 默认应为「查」");
-        // 系统菜单（Report/DataTool/Scan/Salary/Configuration/User）= None（无，工资结算默认不授权）
+        // 系统菜单（Report/DataTool/Scan/Salary/BasicData/Configuration/User）= None（无，工资结算与基础资料默认不授权）
         foreach (var menu in UserRoleDisplayHelper.MenuTiers)
         {
             if (!UserRoleDisplayHelper.DefaultViewerMenus.Contains(menu.Prefix))
@@ -36,17 +36,21 @@ public class UserRoleDisplayHelperTests
     }
 
     [Fact]
-    public void MenuTiers_共15个主菜单_含工资结算()
+    public void MenuTiers_共16个主菜单_含工资结算与基础资料()
     {
-        UserRoleDisplayHelper.MenuTiers.Should().HaveCount(15);
+        UserRoleDisplayHelper.MenuTiers.Should().HaveCount(16);
         UserRoleDisplayHelper.MenuTiers.Select(m => m.Prefix).Should().Contain(new[]
         {
             "Order", "WorkOrder", "Scheduling", "Batch", "Quality", "Material", "Warehouse",
-            "Equipment", "Standard", "Report", "DataTool", "Scan", "Salary", "Configuration", "User"
+            "Equipment", "Standard", "Report", "DataTool", "Scan", "Salary", "BasicData",
+            "Configuration", "User"
         });
-        // 工资结算归系统菜单：新建默认「无」（显式授权），与 Roles.Menus 顺序一致（Scan 后 / Configuration 前）
+        // 工资结算 / 基础资料均归系统菜单：新建默认「无」（显式授权），顺序与 Roles.Menus 一致
         UserRoleDisplayHelper.MenuTiers.Single(m => m.Prefix == "Salary").DisplayName.Should().Be("工资结算");
+        UserRoleDisplayHelper.MenuTiers.Single(m => m.Prefix == "BasicData").DisplayName.Should().Be("基础资料");
         UserRoleDisplayHelper.DefaultViewerMenus.Should().NotContain("Salary");
+        // 基础资料是系统菜单（非业务域）→ 新建用户默认不授权
+        UserRoleDisplayHelper.DefaultViewerMenus.Should().NotContain("BasicData");
     }
 
     [Fact]
@@ -56,9 +60,13 @@ public class UserRoleDisplayHelperTests
         // 一级菜单改名若漏改此处 → 菜单叫新名、用户管理仍显示旧名（Salary 曾因漏加档位致弹窗授不了权）。
         UserRoleDisplayHelper.MenuTiers.Single(m => m.Prefix == "Standard").DisplayName.Should().Be("产品标准"); // 2026-09-15 原「生产标准」
         UserRoleDisplayHelper.MenuTiers.Single(m => m.Prefix == "Batch").DisplayName.Should().Be("生产执行");    // 2026-09-15 原「批次管理」
+        UserRoleDisplayHelper.MenuTiers.Single(m => m.Prefix == "Configuration").DisplayName.Should().Be("系统参数"); // 2026-09-16 原「参数表」
+        UserRoleDisplayHelper.MenuTiers.Single(m => m.Prefix == "Scan").DisplayName.Should().Be("扫码操作");      // 2026-09-16 原「扫码管理」
 
         UserRoleDisplayHelper.MenuTiers.Should().NotContain(m => m.DisplayName == "生产标准");
         UserRoleDisplayHelper.MenuTiers.Should().NotContain(m => m.DisplayName == "批次管理");
+        UserRoleDisplayHelper.MenuTiers.Should().NotContain(m => m.DisplayName == "参数表"); // 2026-09-16 更名后旧名不得残留
+        UserRoleDisplayHelper.MenuTiers.Should().NotContain(m => m.DisplayName == "扫码管理"); // 2026-09-16 更名后旧名不得残留
     }
 
     [Fact]
@@ -67,6 +75,9 @@ public class UserRoleDisplayHelperTests
         var prefixes = UserRoleDisplayHelper.MenuTiers.Select(m => m.Prefix).ToList();
         prefixes.IndexOf("Salary").Should().BeGreaterThan(prefixes.IndexOf("Scan"));
         prefixes.IndexOf("Salary").Should().BeLessThan(prefixes.IndexOf("Configuration"));
+        // 2026-09-16 新增：基础资料插在 工资结算 与 系统参数 之间（与 AppMenu.Root 顺序一致）
+        prefixes.IndexOf("BasicData").Should().BeGreaterThan(prefixes.IndexOf("Salary"));
+        prefixes.IndexOf("BasicData").Should().BeLessThan(prefixes.IndexOf("Configuration"));
     }
 
     [Fact]

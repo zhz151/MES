@@ -51,7 +51,7 @@
                 </MudText>
 
                 <div Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
-                    <MudTable Items="@calcRows" Class="auto-table" Dense="true" Hover="true" Elevation="0" Style="table-layout:fixed;">
+                    <MudTable Breakpoint="Breakpoint.None" Items="@calcRows" Class="auto-table" Dense="true" Hover="true" Elevation="0" Style="table-layout:fixed;">
                         <HeaderContent>
                             <MudTh Style="width:110px;">调整成品壁厚(mm)</MudTh>
                             <MudTh Style="width:70px;">成材率(%)</MudTh>
@@ -136,7 +136,7 @@
                 </MudText>
 
                 <div Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
-                    <MudTable Items="@materialRows" Class="auto-table" Dense="true" Hover="true" Striped="true" Elevation="0" Style="table-layout:fixed;">
+                    <MudTable Breakpoint="Breakpoint.None" Items="@materialRows" Class="auto-table" Dense="true" Hover="true" Striped="true" Elevation="0" Style="table-layout:fixed;">
                         <HeaderContent>
                             <MudTh Style="width:110px;">原料类型</MudTh>
                             <MudTh Style="width:90px;">工厂牌号<span class="required-star">*</span></MudTh>
@@ -244,7 +244,7 @@
                 </div>
 
                 <div class="table-container" style="overflow-x:auto; margin-bottom:12px;">
-                    <MudTable Items="@pgItems" Dense="true" Hover="true" Elevation="0" Striped="true"
+                    <MudTable Breakpoint="Breakpoint.None" Items="@pgItems" Dense="true" Hover="true" Elevation="0" Striped="true"
                               Class="auto-table compact-table" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; width:max-content;">
                         <HeaderContent>
                             <MudTh Style="width:45px;">#</MudTh>

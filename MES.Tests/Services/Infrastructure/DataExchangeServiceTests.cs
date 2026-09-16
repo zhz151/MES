@@ -200,6 +200,20 @@ public class DataExchangeServiceTests : TestBase
     }
 
     [Fact]
+    public void Registry_基础资料与全局参数_显示名与菜单正名同步()
+    {
+        // 2026-09-16 批四十：① 工位/员工档案自「扫码管理」迁入新增一级菜单「基础资料」→ 显示名前缀改「基础资料」；
+        // ② 一级菜单「参数表」更名「系统参数」后，组内同名叶子去重名改「全局参数」→ ConfigParameter 显示名同步去重名。
+        // ⚠️ 仅 DisplayName：实体 Key / 表名 / EntityOrder 位置 / 端点 / 权限一律不变（导入识别按 Key + 列头名）。
+        DataExchangeRegistry.Registry["Workstation"].DisplayName.Should().Be("基础资料-工位管理");
+        DataExchangeRegistry.Registry["Employee"].DisplayName.Should().Be("基础资料-员工管理");
+        DataExchangeRegistry.Registry["ConfigParameter"].DisplayName.Should().Be("系统-全局参数");
+        // ContextOrder 同步：新增「基础资料」组；「扫码」组已无任何注册实体 → 死前缀一并移除
+        DataExchangeRegistry.ContextOrder.Should().Contain("基础资料");
+        DataExchangeRegistry.ContextOrder.Should().NotContain("扫码");
+    }
+
+    [Fact]
     public void Registry_CertificateItem_含质保书外键列()
     {
         var def = DataExchangeRegistry.Registry["CertificateItem"];
@@ -1220,7 +1234,7 @@ public class DataExchangeServiceTests : TestBase
         var sectionCn = string.Join("、", new[] { "Cut", "OilPipeCut" }.Select(k => SectionKeys.ToChinese(k)));
 
         // 模拟把"下载数据"改好中文后再导入：中文岗位/顿号连接的多值工段/工序组应回 Key
-        var bytes = CreateTestExcel("扫码-员工管理", new() { "工号", "姓名", "岗位类别", "岗位", "工序组", "工段" },
+        var bytes = CreateTestExcel("基础资料-员工管理", new() { "工号", "姓名", "岗位类别", "岗位", "工序组", "工段" },
             new() { new() { "E-IMP", "导入员", positionCategoryCn, positionCn, groupCn, sectionCn } });
 
         var result = await svc.ImportAsync("Employee", bytes, "test");

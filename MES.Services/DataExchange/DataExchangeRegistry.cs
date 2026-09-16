@@ -1352,7 +1352,7 @@ public static class DataExchangeRegistry
             new(SectionDefs.Extra2, "Extra2", typeof(int?), isRequired: false),
         }, compositeKeyColumns: new[] { "InProcessReworkPlanId", "SequenceNumber" }),
 
-        ["Workstation"] = new EntityDef("扫码-工位管理", "扫码-工位管理", typeof(MES.Data.Entities.Configuration.Workstation), 1, "Code", new List<ColumnDef>
+        ["Workstation"] = new EntityDef("基础资料-工位管理", "基础资料-工位管理", typeof(MES.Data.Entities.Configuration.Workstation), 1, "Code", new List<ColumnDef>
         {
             new("工位编码", "Code"),
             new("工位名称", "Name", typeof(string), isRequired: false),
@@ -1363,7 +1363,7 @@ public static class DataExchangeRegistry
             new("是否启用", "IsActive", typeof(bool), valueConverter: v => v == "是" || v == "true" || v == "True"),
         }),
 
-        ["Employee"] = new EntityDef("扫码-员工管理", "扫码-员工管理", typeof(MES.Data.Entities.Configuration.Employee), 1, "Code", new List<ColumnDef>
+        ["Employee"] = new EntityDef("基础资料-员工管理", "基础资料-员工管理", typeof(MES.Data.Entities.Configuration.Employee), 1, "Code", new List<ColumnDef>
         {
             new("工号", "Code"),
             new("姓名", "Name"),
@@ -1481,7 +1481,9 @@ public static class DataExchangeRegistry
 
 
         // === 系统参数(全局参数)（独立配置表） ===
-        ["ConfigParameter"] = new EntityDef("系统-系统参数(全局参数)", "系统-系统参数(全局参数)", typeof(MES.Data.Entities.Configuration.ConfigParameter), 1, null, new List<ColumnDef>
+        // ⚠️ DisplayName 原「系统-系统参数(全局参数)」→ 2026-09-16「系统-全局参数」：
+        //    一级菜单「参数表」更名「系统参数」后，组内同名叶子去重名改「全局参数」，显示名同步去重名。
+        ["ConfigParameter"] = new EntityDef("系统-全局参数", "系统-全局参数", typeof(MES.Data.Entities.Configuration.ConfigParameter), 1, null, new List<ColumnDef>
         {
             new("英文分类代码", "Category"),
             new("分类及用途", "CategoryDisplay", typeof(string), isRequired: false),
@@ -2008,11 +2010,13 @@ public static class DataExchangeRegistry
 
     /// <summary>
     /// 上下文归类顺序（数据工具「选择数据类型」下拉按此排序显示）：
-    /// 订单 → 工单 → 批次 → 质量 → 物料 → 仓库 → 设备 → 标准 → 配置 → 扫码 → 工资 → 系统
+    /// 订单 → 工单 → 批次 → 质量 → 物料 → 仓库 → 设备 → 标准 → 配置 → 基础资料 → 工资 → 系统
+    /// ⚠️ 2026-09-16：原第 10 位「扫码」随菜单调整改为「基础资料」——工位/员工档案已自「扫码管理」
+    /// 菜单迁入「基础资料」，DataTool 下拉分组随之正名（扫码组已无任何注册实体）。
     /// </summary>
     public static readonly List<string> ContextOrder = new()
     {
-        "订单", "工单", "批次", "质量", "物料", "仓库", "设备", "标准", "配置", "扫码", "工资", "系统"
+        "订单", "工单", "批次", "质量", "物料", "仓库", "设备", "标准", "配置", "基础资料", "工资", "系统"
     };
 
     /// <summary>

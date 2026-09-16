@@ -4,7 +4,7 @@ namespace MES.Blazor.Helpers;
 
 /// <summary>
 /// 用户管理界面角色展示/解析/构建 helper。
-/// 角色模型：15 主菜单 × 3 档（Viewer=查 / Editor=查增改 / Full=查增改删）+ Admin（隐式全权）。
+/// 角色模型：16 主菜单 × 3 档（Viewer=查 / Editor=查增改 / Full=查增改删）+ Admin（隐式全权）。
 /// 纯一级模型（2026-08-26 用户决策，取消全部二级菜单权限）：角色 = {菜单前缀}{档位}。
 /// </summary>
 public static class UserRoleDisplayHelper
@@ -38,7 +38,8 @@ public static class UserRoleDisplayHelper
         return tiers;
     }
 
-    /// <summary>15 主菜单（前缀 + 中文名），顺序与 Roles.Menus / GetAllRoles 一致（工资结算归系统菜单，新建默认无）。</summary>
+    /// <summary>16 主菜单（前缀 + 中文名），顺序与 Roles.Menus / GetAllRoles 一致（工资结算与基础资料归系统菜单，新建默认无）。
+    /// ⚠️ 本列表顺序按**角色代码分组**排，与侧栏 AppMenu 的展示顺序**不必相同**（侧栏把「报表总览」排第 2、把「扫码操作 / 数据工具 / 用户管理」排尾部）。</summary>
     public static readonly IReadOnlyList<MenuTier> MenuTiers = new List<MenuTier>
     {
         new("Order", "订单管理"),
@@ -52,9 +53,10 @@ public static class UserRoleDisplayHelper
         new("Standard", "产品标准"),   // 2026-09-15 原「生产标准」更名；角色代码前缀仍是 Standard，勿改
         new("Report", "报表系统"),
         new("DataTool", "数据工具"),
-        new("Scan", "扫码管理"),
+        new("Scan", "扫码操作"),   // 2026-09-16 原「扫码管理」更名；角色代码前缀仍是 Scan，勿改
         new("Salary", "工资结算"),
-        new("Configuration", "参数表"),
+        new("BasicData", "基础资料"),   // 2026-09-16 新增（工位/员工档案 + 生产/成检计件标准）
+        new("Configuration", "系统参数"),   // 2026-09-16 原「参数表」更名；角色代码前缀仍是 Configuration，勿改
         new("User", "用户管理"),
     };
 

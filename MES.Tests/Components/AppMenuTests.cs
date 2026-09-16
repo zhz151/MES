@@ -160,7 +160,8 @@ public class AppMenuTests
         var salary = Node("工资结算");
         salary.Policy.Should().Be(Roles.Policies.SalaryView);
         salary.Children.Should().Contain(n => n.Label == "考勤表" && n.Href == "/payroll/attendance");
-        salary.Children.Count.Should().Be(11);
+        // 2026-09-16：生产/成检计件标准迁至「基础资料」，11 → 9
+        salary.Children.Count.Should().Be(9);
 
         // 用户管理单项
         var users = Node("用户管理");
@@ -176,9 +177,13 @@ public class AppMenuTests
     }
 
     [Fact]
-    public void 扫码组_整组仅登录_工位员工带ScanView()
+    public void 扫码组_整组仅登录_纯扫码作业入口()
     {
-        var scan = Node("扫码管理");
+        // 2026-09-16 用户决策：组名「扫码管理」→「扫码操作」（组内 4 项全是一线操作入口、无管理功能），
+        // 并下沉至「系统参数」之后（桌面端低频，现场岗走手机端菜单 + 首页常用入口磁贴直达）。
+        // ⚠️ 仅组名与位置：`Scan*` 角色代码 / 组 `Policy=null` / 4 个叶子名与路由一律不变。
+        AppMenu.Find("扫码管理").Should().BeNull();   // 旧组名不得残留
+        var scan = Node("扫码操作");
         scan.Policy.Should().BeNull(); // 整组仅需登录
         scan.Children.Should().Contain(n => n.Label == "报工扫码" && n.Href == "/mobile-report" && n.Policy == null);
         scan.Children.Should().Contain(n => n.Label == "设备扫码" && n.Href == "/equipment-scan" && n.Policy == null);
@@ -187,8 +192,51 @@ public class AppMenuTests
         scan.Children.Should().Contain(n => n.Label == "巡检扫码" && n.Href == "/mobile-quality/patrol" && n.Policy == null);
         scan.Children.Should().Contain(n => n.Label == "不合格反馈扫码" && n.Href == "/mobile-quality/feedback" && n.Policy == null);
 
-        scan.Children.Should().Contain(n => n.Label == "工位管理" && n.Href == "/workstations" && n.Policy == Roles.Policies.ScanView);
-        scan.Children.Should().Contain(n => n.Label == "员工管理" && n.Href == "/employees" && n.Policy == Roles.Policies.ScanView);
+        // 2026-09-16：工位/员工管理已迁至「基础资料」组；本组回归纯扫码入口，4 项全部仅需登录
+        scan.Children.Should().HaveCount(4);
+        scan.Children.Should().OnlyContain(n => n.Policy == null && n.IsLeaf);
+        scan.Children.Should().NotContain(n => n.Href == "/workstations" || n.Href == "/employees");
+    }
+
+    [Fact]
+    public void 基础资料组_四项_工位员工与计件标准()
+    {
+        // 2026-09-16 用户决策：新建一级菜单「基础资料」——
+        // 工位/员工档案自「扫码管理」迁入、生产/成检计件标准自「工资结算」迁入；
+        // 定位为「可持续维护的主数据」（与倾向定型后不再改动的「系统参数」分工）；路由全部不变。
+        var basic = Node("基础资料");
+        basic.IsLeaf.Should().BeFalse();
+        basic.Policy.Should().Be(Roles.Policies.BasicDataView);
+        basic.Children.Select(n => (n.Label, n.Href)).Should().Equal(
+            ("工位管理", "/workstations"),
+            ("员工管理", "/employees"),
+            ("生产计件标准", "/payroll/piece-rate-categories"),
+            ("成检计件标准", "/payroll/final-inspection-categories"));
+
+        // 全树唯一性：4 项不得在其它组重复出现
+        foreach (var href in new[]
+                 {
+                     "/workstations", "/employees",
+                     "/payroll/piece-rate-categories", "/payroll/final-inspection-categories"
+                 })
+            AppMenu.AllLeaves().Count(n => n.Href == href).Should().Be(1);
+
+        // 位置：紧邻「系统参数」之前（同为系统维护类，基础资料在前）
+        AppMenu.Root.Select(n => n.Label).Should().ContainInOrder("基础资料", "系统参数");
+    }
+
+    [Fact]
+    public void 参数表更名系统参数_旧名不留残_组内叶子去重名()
+    {
+        // 2026-09-16：一级菜单「参数表」更名「系统参数」；角色代码 Configuration* / 路由 / 表名全部不改。
+        // 组名占用「系统参数」后，原同名叶子「系统参数(全局参数)」必须去重名（否则 AppMenu.Find 命中组节点）。
+        var config = Node("系统参数");
+        config.Policy.Should().Be(Roles.Policies.ConfigurationView);
+        config.Children.Should().Contain(n => n.Label == "全局参数" && n.Href == "/config-parameters");
+
+        AppMenu.Find("参数表").Should().BeNull();                          // 旧一级菜单名不得残留
+        AppMenu.Find("系统参数").Should().Be(config);                       // 精确查 Label 命中组节点，非叶子
+        AppMenu.AllLeaves().Should().NotContain(n => n.Label == "系统参数(全局参数)");
     }
 
     [Fact]
@@ -196,8 +244,8 @@ public class AppMenuTests
     {
         AppMenu.Root.Select(n => n.Label).Should().Equal(
             "首页", "报表总览", "订单管理", "工单管理", "计划排程", "生产执行", "质量管理",
-            "物料管理", "仓库管理", "设备管理", "产品标准", "扫码管理",
-            "工资结算", "参数表", "数据工具", "用户管理");
+            "物料管理", "仓库管理", "设备管理", "产品标准",
+            "工资结算", "基础资料", "系统参数", "扫码操作", "数据工具", "用户管理");
     }
 
     [Fact]

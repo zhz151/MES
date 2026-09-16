@@ -21,7 +21,9 @@ public class EmployeeController : ControllerBase
     }
 
     /// <summary>
-    /// 分页查询
+    /// 分页查询。⚠️ 有意保持「仅需登录」不入基础资料档：扫码报工 / 生产记录 / 去油酸洗等
+    /// 生产侧页面按工段、检验项、成检到料筛选操作工时全走本端点（EmployeeService.GetBySectionAsync 等），
+    /// 收紧到 BasicDataView 会打断这些流程。可见性由「基础资料」菜单门控，本端点为跨域共享读端点。
     /// </summary>
     [HttpGet("list")]
     [Authorize]
@@ -46,7 +48,7 @@ public class EmployeeController : ControllerBase
     /// 列头筛选上下文（ExcelFilter 下拉选项）
     /// </summary>
     [HttpGet("filter-contexts")]
-    [Authorize(Roles = Roles.Policies.ScanView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<Dictionary<string, List<string>>>>> GetFilterContexts()
     {
         var result = await _employeeService.GetFilterContextsAsync();
@@ -57,7 +59,7 @@ public class EmployeeController : ControllerBase
     /// 靠工岗位候选 = 计件活岗（当前在册存在 个人计件/集体计件 员工的岗位），返回英文 Position Key
     /// </summary>
     [HttpGet("piece-positions")]
-    [Authorize(Roles = Roles.Policies.ScanView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<ActionResult<ApiResponse<List<string>>>> GetPiecePositionOptions()
     {
         var result = await _employeeService.GetPiecePositionOptionsAsync();
@@ -85,7 +87,7 @@ public class EmployeeController : ControllerBase
     /// 新增或更新
     /// </summary>
     [HttpPost("save")]
-    [Authorize(Roles = Roles.Policies.ScanEdit)]
+    [Authorize(Roles = Roles.Policies.BasicDataEdit)]
     public async Task<ActionResult<ApiResponse<bool>>> Save([FromBody] EmployeeDto dto)
     {
         var result = await _employeeService.SaveAsync(dto);
@@ -96,7 +98,7 @@ public class EmployeeController : ControllerBase
     /// 删除
     /// </summary>
     [HttpPost("delete/{id}")]
-    [Authorize(Roles = Roles.Policies.ScanDelete)]
+    [Authorize(Roles = Roles.Policies.BasicDataDelete)]
     public async Task<ActionResult<ApiResponse<bool>>> Delete(int id)
     {
         var result = await _employeeService.DeleteAsync(id);
@@ -107,7 +109,7 @@ public class EmployeeController : ControllerBase
     /// 一键补齐存量员工登录账号（用户名=工号、密码=123456、仅 ScanViewer 最小扫码权限）
     /// </summary>
     [HttpPost("sync-accounts")]
-    [Authorize(Roles = Roles.Policies.ScanEdit)]
+    [Authorize(Roles = Roles.Policies.BasicDataEdit)]
     public async Task<ActionResult<ApiResponse<int>>> SyncAccounts()
     {
         var count = await _employeeService.SyncAccountsAsync();
@@ -117,7 +119,7 @@ public class EmployeeController : ControllerBase
     // ========== 打印 ==========
 
     [HttpPost("print-batch-file")]
-    [Authorize(Roles = Roles.Policies.ScanView)]
+    [Authorize(Roles = Roles.Policies.BasicDataView)]
     public async Task<IActionResult> PrintBatchFile([FromBody] EmployeePrintBatchRequest request)
     {
         if (request.Ids.Length == 0)

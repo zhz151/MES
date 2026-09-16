@@ -69,7 +69,7 @@
                 @if (rows.Any())
                 {
                     <div Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
-                        <MudTable Items="@rows" Class="finish-create-table auto-table" Dense="true" Hover="true" Striped="true" Elevation="0" RowsPerPage="10" RowsPerPageLabel="每页行数:">
+                        <MudTable Breakpoint="Breakpoint.None" Items="@rows" Class="finish-create-table auto-table" Dense="true" Hover="true" Striped="true" Elevation="0" RowsPerPage="10" RowsPerPageLabel="每页行数:">
                             <HeaderContent>
                                 <MudTh Style="width:120px;">成品类型<span class="required-star">*</span></MudTh>
                                 <MudTh Style="width:120px;">工厂牌号<span class="required-star">*</span></MudTh>

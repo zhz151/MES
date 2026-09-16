@@ -6,10 +6,10 @@ using Xunit;
 namespace MES.Tests;
 
 /// <summary>
-/// 角色权限模型（纯一级：14 菜单 × 3 档 + Admin，共 43 角色）策略一致性测试：
+/// 角色权限模型（纯一级：16 菜单 × 3 档 + Admin，共 49 角色）策略一致性测试：
 ///  1) 每个策略常量尾部均含 Admin（隐式全权）
 ///  2) 每菜单三档包含关系：View ⊇ {Viewer,Editor,Full}；Edit ⊇ {Editor,Full,Admin}；Delete ⊇ {Full,Admin}
-///  3) GetAllRoles = Admin + 14 菜单 × 3 档 = 43，且唯一
+///  3) GetAllRoles = Admin + 16 菜单 × 3 档 = 49，且唯一
 /// </summary>
 public class RolesPoliciesTests
 {
@@ -54,6 +54,7 @@ public class RolesPoliciesTests
     [InlineData("DataTool")]
     [InlineData("Scan")]
     [InlineData("Salary")]
+    [InlineData("BasicData")]
     [InlineData("Configuration")]
     [InlineData("User")]
     public void MenuTierPolicies_AreConsistent(string prefix)
@@ -85,13 +86,14 @@ public class RolesPoliciesTests
     public void GetAllRoles_ReturnsAllMenuTierRolesAndAdmin()
     {
         var all = Roles.GetAllRoles();
-        // Admin + 15 菜单 × 3 档 = 1 + 45 = 46
-        all.Should().HaveCount(46);
+        // Admin + 16 菜单 × 3 档 = 1 + 48 = 49
+        all.Should().HaveCount(49);
         all.Should().Contain(Roles.Admin);
         foreach (var prefix in new[]
                  {
                      "Order", "WorkOrder", "Scheduling", "Batch", "Quality", "Material", "Warehouse",
-                     "Equipment", "Standard", "Report", "DataTool", "Scan", "Salary", "Configuration", "User"
+                     "Equipment", "Standard", "Report", "DataTool", "Scan", "Salary", "BasicData",
+                     "Configuration", "User"
                  })
         {
             all.Should().Contain($"{prefix}Viewer").And.Contain($"{prefix}Editor").And.Contain($"{prefix}Full");

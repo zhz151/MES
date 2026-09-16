@@ -93,7 +93,7 @@
                 </div>
 
                 <div class="table-container" style="overflow-x:auto; margin-bottom:12px;">
-                    <MudTable Items="@_pendingProcessGroups" Dense="true" Hover="true" Elevation="0" Striped="true"
+                    <MudTable Breakpoint="Breakpoint.None" Items="@_pendingProcessGroups" Dense="true" Hover="true" Elevation="0" Striped="true"
                               Class="auto-table compact-table" Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px; width:max-content;">
                         <HeaderContent>
                             <MudTh Style="width:45px;">#</MudTh>
@@ -188,7 +188,7 @@
                     </div>
 
                     <div Style="border:1px solid var(--mud-palette-lines-default); border-radius:8px;" Class="mb-3">
-                        <MudTable Items="@availableBatches" Class="inprocess-table auto-table" Dense="true" Hover="true" Striped="true" Elevation="0" RowsPerPage="5" RowsPerPageLabel="每页行数:">
+                        <MudTable Breakpoint="Breakpoint.None" Items="@availableBatches" Class="inprocess-table auto-table" Dense="true" Hover="true" Striped="true" Elevation="0" RowsPerPage="5" RowsPerPageLabel="每页行数:">
                             <HeaderContent>
                                 <MudTh Style="width:32px;">选择</MudTh>
                                 <MudTh Style="width:60px;">计划日期</MudTh>

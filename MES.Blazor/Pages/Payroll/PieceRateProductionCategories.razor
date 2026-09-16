@@ -7,7 +7,7 @@
 @using MES.Core.DTOs.Payroll
 @using MES.Shared.Constants
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Roles = Roles.Policies.SalaryView)]
+@attribute [Authorize(Roles = Roles.Policies.BasicDataView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
@@ -26,7 +26,7 @@
                            OnClick="ExportAll">
                     导出全量
                 </MudButton>
-                <AuthorizeView Roles="@Roles.Policies.SalaryEdit">
+                <AuthorizeView Roles="@Roles.Policies.BasicDataEdit">
                     <MudButton Variant="Variant.Outlined"
                                Color="Color.Secondary"
                                StartIcon="@Icons.Material.Filled.PlaylistAdd"
@@ -329,10 +329,10 @@
                         </MudTd>
                     }
                     <MudTd Style="white-space: nowrap; width: 150px;">
-                        <AuthorizeView Roles="@Roles.Policies.SalaryEdit">
+                        <AuthorizeView Roles="@Roles.Policies.BasicDataEdit">
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Title="编辑定义/维档" Color="Color.Info" Size="Size.Small" OnClick="() => EditItem(item)" />
                         </AuthorizeView>
-                        <AuthorizeView Roles="@Roles.Policies.SalaryDelete">
+                        <AuthorizeView Roles="@Roles.Policies.BasicDataDelete">
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Title="删除" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteItem(item)" />
                         </AuthorizeView>
                     </MudTd>

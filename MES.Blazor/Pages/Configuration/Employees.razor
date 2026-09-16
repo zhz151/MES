@@ -16,7 +16,7 @@
 @inject IJSRuntime JS
 @inject ColumnPrefsService ColumnPrefs
 @inject PageStateService PageState
-@attribute [Authorize(Roles = Roles.Policies.ConfigurationView)]
+@attribute [Authorize(Roles = Roles.Policies.BasicDataView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>
@@ -24,11 +24,11 @@
             <CardHeaderContent>
                 <MudText Typo="Typo.h5" Class="font-weight-bold">
                     <MudIcon Icon="@Icons.Material.Filled.Badge" Class="mr-2" Color="Color.Primary" />
-                    扫码-员工管理
+                    员工管理
                 </MudText>
             </CardHeaderContent>
             <CardHeaderActions>
-                <AuthorizeView Roles="@Roles.Policies.ScanEdit">
+                <AuthorizeView Roles="@Roles.Policies.BasicDataEdit">
                     <MudButton Variant="Variant.Text"
                                Color="Color.Info"
                                StartIcon="@Icons.Material.Filled.Sync"
@@ -514,7 +514,7 @@
                         {
                             <MudIconButton Icon="@Icons.Material.Filled.QrCode" Color="Color.Default" Size="Size.Small" Title="二维码" OnClick="() => PrintSingleQrCode(item)" />
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Info" Size="Size.Small" OnClick="() => StartEdit(item)" />
-                        <AuthorizeView Roles="@Roles.Policies.ConfigurationDelete">
+                        <AuthorizeView Roles="@Roles.Policies.BasicDataDelete">
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" Title="删除" OnClick="() => DeleteItem(item)" />
                         </AuthorizeView>
                         }

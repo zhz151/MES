@@ -5,14 +5,18 @@ public static class Roles
     public const string Admin = "Admin";
 
     // ======================================================================
-    // 角色模型：15 主菜单 × 3 档（Viewer=查 / Editor=查增改 / Full=查增改删）+ Admin（隐式全权）
-    // 纯一级模型：每个主菜单一个档位，角色 = {菜单前缀}{档位}，共 46 个。
+    // 角色模型：16 主菜单 × 3 档（Viewer=查 / Editor=查增改 / Full=查增改删）+ Admin（隐式全权）
+    // 纯一级模型：每个主菜单一个档位，角色 = {菜单前缀}{档位}，共 49 个。
     // 2026-08-26 用户决策：取消全部二级菜单权限，回到纯一级。
     // 2026-09-01 新增「工资结算」主菜单（Salary 三档，考勤表一期）。
+    // 2026-09-16 新增「基础资料」主菜单（BasicData 三档）：工位/员工档案自「扫码管理」迁入、
+    //   生产/成检计件标准自「工资结算」迁入；同批「参数表」更名「系统参数」（角色代码 Configuration 不改）。
+    // 2026-09-16 一级菜单「扫码管理」更名「扫码操作」并下沉至「系统参数」之后
+    //   （仅显示名 + 菜单位置；角色代码 Scan* 不改，故存量用户无需重新登录）。
     // ======================================================================
 
     /// <summary>
-    /// 15 主菜单 × 3 档角色名（存储于 AspNetRoles / JWT claim）
+    /// 16 主菜单 × 3 档角色名（存储于 AspNetRoles / JWT claim）
     /// </summary>
     public static class Menus
     {
@@ -60,7 +64,7 @@ public static class Roles
         public const string DataToolViewer = "DataToolViewer";
         public const string DataToolEditor = "DataToolEditor";
         public const string DataToolFull = "DataToolFull";
-        // 扫码管理（独立三档）
+        // 扫码操作（独立三档；2026-09-16 原「扫码管理」更名，角色代码前缀仍是 Scan，勿改）
         public const string ScanViewer = "ScanViewer";
         public const string ScanEditor = "ScanEditor";
         public const string ScanFull = "ScanFull";
@@ -68,7 +72,11 @@ public static class Roles
         public const string SalaryViewer = "SalaryViewer";
         public const string SalaryEditor = "SalaryEditor";
         public const string SalaryFull = "SalaryFull";
-        // 参数表
+        // 基础资料（2026-09-16 新增：工位/员工档案 + 生产/成检计件标准）
+        public const string BasicDataViewer = "BasicDataViewer";
+        public const string BasicDataEditor = "BasicDataEditor";
+        public const string BasicDataFull = "BasicDataFull";
+        // 系统参数（2026-09-16 由「参数表」更名，角色代码 Configuration 不改）
         public const string ConfigurationViewer = "ConfigurationViewer";
         public const string ConfigurationEditor = "ConfigurationEditor";
         public const string ConfigurationFull = "ConfigurationFull";
@@ -138,6 +146,11 @@ public static class Roles
         public const string ConfigurationEdit = "ConfigurationEditor,ConfigurationFull,Admin";
         public const string ConfigurationDelete = "ConfigurationFull,Admin";
 
+        /// <summary>基础资料（工位/员工档案 + 生产/成检计件标准；2026-09-16 新增独立主菜单，非报表域）</summary>
+        public const string BasicDataView = "BasicDataViewer,BasicDataEditor,BasicDataFull,Admin";
+        public const string BasicDataEdit = "BasicDataEditor,BasicDataFull,Admin";
+        public const string BasicDataDelete = "BasicDataFull,Admin";
+
         // ========== 独立菜单 ==========
         public const string ReportView = "ReportViewer,ReportEditor,ReportFull,Admin";
         public const string ReportEdit = "ReportEditor,ReportFull,Admin";
@@ -205,11 +218,13 @@ public static class Roles
             Menus.ReportViewer, Menus.ReportEditor, Menus.ReportFull,
             // 数据工具
             Menus.DataToolViewer, Menus.DataToolEditor, Menus.DataToolFull,
-            // 扫码管理
+            // 扫码操作
             Menus.ScanViewer, Menus.ScanEditor, Menus.ScanFull,
             // 工资结算
             Menus.SalaryViewer, Menus.SalaryEditor, Menus.SalaryFull,
-            // 参数表
+            // 基础资料
+            Menus.BasicDataViewer, Menus.BasicDataEditor, Menus.BasicDataFull,
+            // 系统参数
             Menus.ConfigurationViewer, Menus.ConfigurationEditor, Menus.ConfigurationFull,
             // 用户管理
             Menus.UserViewer, Menus.UserEditor, Menus.UserFull,

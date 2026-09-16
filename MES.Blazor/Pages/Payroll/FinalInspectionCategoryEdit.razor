@@ -3,7 +3,7 @@
 @using MES.Core.Constants
 @using MES.Core.DTOs.Payroll
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Roles = Roles.Policies.SalaryEdit)]
+@attribute [Authorize(Roles = Roles.Policies.BasicDataEdit)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     @if (_loading)

@@ -8,7 +8,9 @@ namespace MES.Blazor.Shared;
 /// 工资结算/用户管理等）。
 ///
 /// 改动菜单只许改这里；新增/删除项请同步补 AppMenuTests 断言，防止回归。
-/// 约定：Policy 用于组级或叶子级角色过滤；扫码组整组无 Policy（仅需登录），其下「工位/员工」单独带 ScanView。
+/// 约定：Policy 用于组级或叶子级角色过滤；扫码组整组无 Policy（仅需登录）。
+/// 2026-09-16：工位/员工管理自扫码组迁出、生产/成检计件标准自工资结算迁出，合入新建的「基础资料」组；
+/// 同批「参数表」更名「系统参数」，组内叶子「系统参数(全局参数)」同步去重名改「全局参数」。
 /// </summary>
 public static class AppMenu
 {
@@ -139,22 +141,9 @@ public static class AppMenu
             new() { Label = "工厂牌号化分验证", Href = "/chemical-validate" },
         ] },
 
-        // ─── 扫码管理（整组仅需登录；工位/员工单独 ScanView 档）───
-        new() { Label = "扫码管理", Children =
-        [
-            new() { Label = "报工扫码", Href = "/mobile-report" },
-            new() { Label = "巡检扫码", Href = "/mobile-quality/patrol" },
-            new() { Label = "不合格反馈扫码", Href = "/mobile-quality/feedback" },
-            new() { Label = "设备扫码", Href = "/equipment-scan" },
-            new() { Label = "工位管理", Href = "/workstations", Policy = Roles.Policies.ScanView },
-            new() { Label = "员工管理", Href = "/employees", Policy = Roles.Policies.ScanView },
-        ] },
-
-        // ─── 工资结算 ───
+        // ─── 工资结算（2026-09-16：生产/成检计件标准已迁至「基础资料」）───
         new() { Label = "工资结算", Policy = Roles.Policies.SalaryView, Children =
         [
-            new() { Label = "生产计件标准", Href = "/payroll/piece-rate-categories" },
-            new() { Label = "成检计件标准", Href = "/payroll/final-inspection-categories" },
             new() { Label = "考勤表", Href = "/payroll/attendance" },
             new() { Label = "杂辅工记录", Href = "/payroll/misc-work" },
             new() { Label = "集体计件评分", Href = "/payroll/collective-scores" },
@@ -166,8 +155,18 @@ public static class AppMenu
             new() { Label = "月工资津贴汇总", Href = "/payroll/monthly-summary" },
         ] },
 
-        // ─── 参数表 ───
-        new() { Label = "参数表", Policy = Roles.Policies.ConfigurationView, Children =
+        // ─── 基础资料（2026-09-16 新增：日常可维护的主数据档案 + 计件单价标准；
+        //     与「系统参数」的分工：系统参数倾向定型后不再改动，本组为可持续维护的数据）───
+        new() { Label = "基础资料", Policy = Roles.Policies.BasicDataView, Children =
+        [
+            new() { Label = "工位管理", Href = "/workstations" },
+            new() { Label = "员工管理", Href = "/employees" },
+            new() { Label = "生产计件标准", Href = "/payroll/piece-rate-categories" },
+            new() { Label = "成检计件标准", Href = "/payroll/final-inspection-categories" },
+        ] },
+
+        // ─── 系统参数（2026-09-16 由「参数表」更名；角色代码 Configuration* 不改）───
+        new() { Label = "系统参数", Policy = Roles.Policies.ConfigurationView, Children =
         [
             new() { Label = "工序组定义(批次/工艺)", Href = "/process-definitions" },
             new() { Label = "工段工量天数(排程/用料)", Href = "/standard-work-days" },
@@ -180,7 +179,18 @@ public static class AppMenu
             new() { Label = "段落日产配置(段落流转)", Href = "/section-paragraph-config-settings" },
             new() { Label = "枚举显示配置(全局显示)", Href = "/enum-display-definitions" },
             new() { Label = "字典显示配置(全局显示)", Href = "/dict-value-definitions" },
-            new() { Label = "系统参数(全局参数)", Href = "/config-parameters" },
+            new() { Label = "全局参数", Href = "/config-parameters" },
+        ] },
+
+        // ─── 扫码操作（2026-09-16 由「扫码管理」更名并下沉至「系统参数」之后：本组是
+        //     一线现场操作入口、桌面端低频，现场岗走手机端菜单 + 首页「常用入口」磁贴直达；
+        //     整组仅需登录，工位/员工档案已迁至「基础资料」）───
+        new() { Label = "扫码操作", Children =
+        [
+            new() { Label = "报工扫码", Href = "/mobile-report" },
+            new() { Label = "巡检扫码", Href = "/mobile-quality/patrol" },
+            new() { Label = "不合格反馈扫码", Href = "/mobile-quality/feedback" },
+            new() { Label = "设备扫码", Href = "/equipment-scan" },
         ] },
 
         // ─── 数据工具（单项，非分组；2026-09-10 用户决策移至参数表之后）───

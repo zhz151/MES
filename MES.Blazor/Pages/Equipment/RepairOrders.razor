@@ -14,7 +14,8 @@
 @inject ColumnPrefsService ColumnPrefs
 @inject PageStateService PageState
 @inject HttpClient Http
-@attribute [Authorize(Roles = Roles.Policies.EquipmentView)]
+@* 2026-09-16 起「设备维修」整域仅需登录（扫码链落地页，现场岗只配 Scan 档）；后端 api/repair-order 同步仅登录 *@
+@attribute [Authorize]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="mt-4 pl-0">
     <MudCard>

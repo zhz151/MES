@@ -4,6 +4,7 @@
 @using MES.Core.DTOs.Payroll
 @using MES.Core.Constants
 @using MES.Shared.Constants
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = Roles.Policies.SalaryView)]
 
 <MudContainer MaxWidth="MaxWidth.False" Class="py-4">
     <MudPaper Class="pa-4 mb-4" Elevation="0" Outlined="true">

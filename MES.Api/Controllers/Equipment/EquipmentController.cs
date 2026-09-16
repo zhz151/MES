@@ -71,6 +71,22 @@ public class EquipmentController : ControllerBase
         return Ok(ApiResponse<List<EquipmentListDto>>.Ok(result, "查询成功"));
     }
 
+    /// <summary>
+    /// 设备下拉选项（精简字段，仅需登录）。
+    ///
+    /// 2026-09-16 新增：维修工单建单页属「设备维修」域（整域仅需登录），
+    /// 而全字段台账 <c>GET all</c> 仍受 EquipmentView 控制 →
+    /// 建单页设备下拉改走本端点，避免现场岗 403 静默失效。
+    /// ⚠️ 本端点不得顺手把 <c>GET all</c> 一起放宽。
+    /// </summary>
+    [HttpGet("options")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<List<EquipmentOptionDto>>>> GetOptions()
+    {
+        var result = await _service.GetOptionsAsync();
+        return Ok(ApiResponse<List<EquipmentOptionDto>>.Ok(result, "查询成功"));
+    }
+
     [HttpGet("{id}")]
     [Authorize(Roles = Roles.Policies.EquipmentView)]
     public async Task<ActionResult<ApiResponse<EquipmentDetailDto>>> GetById(int id)
